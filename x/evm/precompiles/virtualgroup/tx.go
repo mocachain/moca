@@ -30,7 +30,7 @@ const (
 	DeleteGlobalVirtualGroupMethodName = "deleteGlobalVirtualGroup"
 	SwapOutMethodName                  = "swapOut"
 	CompleteSwapOutMethodName          = "completeSwapOut"
-	SPExitMethodName                   = "sPExit"
+	SPExitMethodName                   = "spExit"
 	CompleteSPExitMethodName           = "completeSPExit"
 	DepositMethodName                  = "deposit"
 	ReserveSwapInMethodName            = "reserveSwapIn"
