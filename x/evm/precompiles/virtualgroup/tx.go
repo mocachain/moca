@@ -303,8 +303,7 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	if err := c.AddLog(
 		evm,
 		MustEvent(CompleteSPExitEventName),
-		[]common.Hash{common.BytesToHash([]byte(args.StorageProvider))},
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash([]byte(args.StorageProvider)), common.BytesToHash([]byte(args.Operator))},
 	); err != nil {
 		return nil, err
 	}
