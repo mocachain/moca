@@ -25,24 +25,17 @@ jobs:
       - name: Get Github version info
         id: meta
         run: |
-          if ${{ inputs.publish_tag }}; then
-            echo "version=${{ inputs.publish_tag }} (commitId=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
+          if [ -n ${{ inputs.publish_tag }} ]; then
+            echo "version=${{ inputs.publish_tag }} (commit=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
           else
-            echo "version=$(git describe --always --tags --match='v*') (commitId=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
+            echo "version=$(git describe --always --tags --match='v*') (commit=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: "Deploy new StatefulSet"
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
-        with:
-          args: -n ${{ inputs.namespace_k8s }} rollout restart statefulset ${{ inputs.release_name }}
 
       - name: "Notify begin message to Lark"
         uses: actions/github-script@v7
         with:
           script: |
-            const script = require('./.github/workflows/scripts/lark.js')
+            const script = require('./.github/workflows/scripts/lark.cjs')
             await script({github, context, core})
         env:
           LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
@@ -50,7 +43,7 @@ jobs:
           CARD_BODY: |-
             {
               "header": {
-                "template": "orange",
+                "template": "green",
                 "title": {
                   "content": "【CICD】${{ github.repository }} 部署通知",
                   "tag": "plain_text"
@@ -59,60 +52,38 @@ jobs:
               "elements": [
                 {
                   "tag": "div",
-                  "fields": [
-                    {
-                      "is_short": true,
-                      "text": {
-                        "content": "**代码库** ${{ github.repository }}",
-                        "tag": "lark_md"
-                      }
-                    },
-                    {
-                      "is_short": true,
-                      "text": {
-                        "content": "**环境** devint",
-                        "tag": "lark_md"
-                      }
-                    }
-                  ]
+                  "text": {
+                    "content": "**代码库** ${{ github.repository }}",
+                    "tag": "lark_md"
+                  }
                 },
                 {
                   "tag": "div",
-                  "fields": [
-                    {
-                      "is_short": true,
-                      "text": {
-                        "content": "**版本** ${{ steps.meta.outputs.version }}",
-                        "tag": "lark_md"
-                      }
-                    },
-                    {
-                      "is_short": true,
-                      "text": {
-                        "content": "**操作人** ${{ github.actor }}",
-                        "tag": "lark_md"
-                      }
-                    }
-                  ]
+                  "text": {
+                    "content": "**环境** devint",
+                    "tag": "lark_md"
+                  }
                 },
                 {
                   "tag": "div",
-                  "fields": [
-                    {
-                      "is_short": true,
-                      "text": {
-                        "content": "**Action URL** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-                        "tag": "lark_md"
-                      }
-                    }
-                  ]
+                  "text": {
+                    "content": "**版本** ${{ steps.meta.outputs.version }}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**操作人** ${{ github.actor }}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Action URL** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                    "tag": "lark_md"
+                  }
                 }
               ]
             }
-
-      - name: "Check StatefulSet"
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
-        with:
-          args: -n ${{ inputs.namespace_k8s }} rollout status statefulset ${{ inputs.release_name }} --timeout=600s

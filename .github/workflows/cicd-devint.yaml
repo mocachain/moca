@@ -20,7 +20,6 @@ jobs:
     with:
       tags: zkmelabs/mechain:develop
 
-
   deploy_with_k8s:
     name: Deploy with k8s
     uses: './.github/workflows/deploy-k8s.yml'
