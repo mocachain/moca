@@ -17,16 +17,9 @@ on:
         type: string
 
 jobs:
-  docker:
+  deploy_to_k8s:
     runs-on: ubuntu-latest
     steps:
-      - name: "Deploy new StatefulSet"
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
-        with:
-          args: -n ${{ inputs.namespace_k8s }} rollout restart statefulset ${{ inputs.release_name }}
-
       - uses: actions/checkout@v4
 
       - name: Get Github version info
@@ -37,6 +30,13 @@ jobs:
           else
             echo "version=$(git describe --always --tags --match='v*') (commitId=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: "Deploy new StatefulSet"
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
+        with:
+          args: -n ${{ inputs.namespace_k8s }} rollout restart statefulset ${{ inputs.release_name }}
 
       - name: "Notify begin message to Lark"
         uses: actions/github-script@v7
