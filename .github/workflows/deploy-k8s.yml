@@ -1,0 +1,118 @@
+name: Deploy to Kubernetes
+
+on:
+  workflow_call:
+    inputs:
+      namespace_k8s:
+        description: deploy environment tag, example. mechain-dev/mechain-test
+        required: true
+        type: string
+      release_name:
+        description: Deployment name in kubernetes.
+        required: true
+        type: string
+      publish_tag:
+        description: The tag of the image, example. develop,test,None.
+        required: false
+        type: string
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Deploy new StatefulSet"
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
+        with:
+          args: -n ${{ inputs.namespace_k8s }} rollout restart statefulset ${{ inputs.release_name }}
+
+      - uses: actions/checkout@v4
+
+      - name: Get Github version info
+        id: meta
+        run: |
+          if ${{ inputs.publish_tag }}; then
+            echo "version=${{ inputs.publish_tag }} (commitId=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(git describe --always --tags --match='v*') (commitId=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Notify begin message to Lark"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const script = require('./.github/workflows/scripts/lark.js')
+            await script({github, context, core})
+        env:
+          LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
+          # Build Lark Card on https://open.feishu.cn/tool/cardbuilder
+          CARD_BODY: |-
+            {
+              "header": {
+                "template": "orange",
+                "title": {
+                  "content": "【CICD】${{ github.repository }} 部署通知",
+                  "tag": "plain_text"
+                }
+              },
+              "elements": [
+                {
+                  "tag": "div",
+                  "fields": [
+                    {
+                      "is_short": true,
+                      "text": {
+                        "content": "**代码库** ${{ github.repository }}",
+                        "tag": "lark_md"
+                      }
+                    },
+                    {
+                      "is_short": true,
+                      "text": {
+                        "content": "**环境** devint",
+                        "tag": "lark_md"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "fields": [
+                    {
+                      "is_short": true,
+                      "text": {
+                        "content": "**版本** ${{ steps.meta.outputs.version }}",
+                        "tag": "lark_md"
+                      }
+                    },
+                    {
+                      "is_short": true,
+                      "text": {
+                        "content": "**操作人** ${{ github.actor }}",
+                        "tag": "lark_md"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "fields": [
+                    {
+                      "is_short": true,
+                      "text": {
+                        "content": "**Action URL** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                        "tag": "lark_md"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+
+      - name: "Check StatefulSet"
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
+        with:
+          args: -n ${{ inputs.namespace_k8s }} rollout status statefulset ${{ inputs.release_name }} --timeout=600s
