@@ -20,19 +20,11 @@ jobs:
 
 
   deploy_with_k8s:
-    runs-on: ubuntu-latest
+    name: Deploy with k8s
+    uses: './.github/workflows/deploy-k8s.yml'
     needs: publish_image
-    steps:
-      - name: "Deploy new StatefulSet"
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
-        with:
-          args: -n mechain-test rollout restart statefulset mechain-validator
-
-      - name: "Check StatefulSet"
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
-        with:
-          args: -n mechain-test rollout status statefulset mechain-validator --timeout=600s
+    secrets: inherit
+    with:
+      namespace_k8s: mechain-test
+      release_name: mechain-validator
+      publish_tag: test

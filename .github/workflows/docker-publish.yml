@@ -69,3 +69,14 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: "Notify Docker image message to Lark"
+        uses: kevin-rd/lark-notify@v1.5
+        if: success() && publish_tag
+        env:
+          LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
+        with:
+          header_template: "green"
+          header_content: "${{ github.repository }} 镜像构建成功"
+          message_env_tag: "testnet"
+          message_version: "${{ steps.meta.outputs.tags }}"
