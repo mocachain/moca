@@ -22,9 +22,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Git fetch everything
-        run: git fetch --prune --unshallow
-
       - name: Get Github tag
         id: meta
         run: |
