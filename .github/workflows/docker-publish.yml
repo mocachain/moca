@@ -72,7 +72,7 @@ jobs:
 
       - name: "Notify Docker image message to Lark"
         uses: kevin-rd/lark-notify@v1.5
-        if: success() && publish_tag
+        if: success() && inputs.publish_tag
         env:
           LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
         with:
