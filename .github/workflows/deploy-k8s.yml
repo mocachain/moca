@@ -21,8 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Get Github version info
+      - name: "Get Github version info"
         id: meta
         run: |
           if [ -n ${{ inputs.publish_tag }} ]; then
@@ -30,6 +32,16 @@ jobs:
           else
             echo "version=$(git describe --always --tags --match='v*') (commit=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: "Get commit logs"
+        id: commit_step
+        run: |
+          commit_logs=$(git log ${{ github.event.before }}..${{ github.sha }} --pretty=format:"%h - %s (%an)")
+          echo "COMMIT_LOGS<<EOF" >> $GITHUB_ENV
+          echo "$commit_logs" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+        continue-on-error: true
+
 
       - name: "Deploy new StatefulSet"
         uses: actions-hub/kubectl@master
@@ -39,7 +51,7 @@ jobs:
           args: -n ${{ inputs.namespace_k8s }} rollout restart statefulset ${{ inputs.release_name }}
 
       - name: "Notify begin message to Lark"
-        uses: kevin-rd/lark-notify@v1.5
+        uses: kevin-rd/lark-notify@v1.8
         env:
           LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
         with:
@@ -47,6 +59,7 @@ jobs:
          header_content: "${{ github.repository }} 部署通知"
          message_env_tag: "devint"
          message_version: "${{ steps.meta.outputs.version }}"
+         message_commit_logs: "${{ env.COMMIT_LOGS }}"
 
 
       - name: "Check StatefulSet"
@@ -57,7 +70,7 @@ jobs:
           args: -n ${{ inputs.namespace_k8s }} rollout status statefulset ${{ inputs.release_name }} --timeout=600s
 
       - name: "Notify message to Lark(Success)"
-        uses: kevin-rd/lark-notify@v1.5
+        uses: kevin-rd/lark-notify@v1.8
         if: success()
         env:
           LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
@@ -68,7 +81,7 @@ jobs:
           message_version: "${{ steps.meta.outputs.version }}"
 
       - name: "Notify message to Lark(Failure)"
-        uses: kevin-rd/lark-notify@v1.5
+        uses: kevin-rd/lark-notify@v1.8
         if: failure()
         env:
           LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
