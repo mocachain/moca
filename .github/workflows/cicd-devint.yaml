@@ -64,6 +64,6 @@ jobs:
     secrets: inherit
     with:
       namespace_k8s: mechain-dev
-      release_name: mechain
+      release_name: mechain-validator
       version_info: "${{ needs.notify_to_lark.outputs.version_info }}"
       commit_info: "${{ needs.notify_to_lark.outputs.commit_logs }}"
