@@ -11,56 +11,25 @@ on:
         description: Deployment name in kubernetes.
         required: true
         type: string
-      publish_tag:
-        description: The tag of the image, example. develop,test,None.
-        required: false
+      version_info:
+        description: The version of the release. example. develop(commit=123456)
+        required: true
+        type: string
+      commit_info:
+        description: The commit of the release. example. 123456
+        required: true
         type: string
 
 jobs:
   deploy_to_k8s:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: "Get Github version info"
-        id: meta
-        run: |
-          if [ -n ${{ inputs.publish_tag }} ]; then
-            echo "version=${{ inputs.publish_tag }} (commit=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=$(git describe --always --tags --match='v*') (commit=`echo ${GITHUB_SHA} | cut -c1-8`)" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: "Get commit logs"
-        id: commit_step
-        run: |
-          commit_logs=$(git log ${{ github.event.before }}..${{ github.sha }} --pretty=format:"%h - %s (%an)")
-          echo "COMMIT_LOGS<<EOF" >> $GITHUB_ENV
-          echo "$commit_logs" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-        continue-on-error: true
-
-
       - name: "Deploy new StatefulSet"
         uses: actions-hub/kubectl@master
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG_DEV }}
         with:
           args: -n ${{ inputs.namespace_k8s }} rollout restart statefulset ${{ inputs.release_name }}
-
-      - name: "Notify begin message to Lark"
-        uses: kevin-rd/lark-notify@v1.8
-        env:
-          LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
-        with:
-         header_template: "blue"
-         header_content: "${{ github.repository }} 部署通知"
-         message_env_tag: "devint"
-         message_version: "${{ steps.meta.outputs.version }}"
-         message_commit_logs: "${{ env.COMMIT_LOGS }}"
-
 
       - name: "Check StatefulSet"
         uses: actions-hub/kubectl@master
@@ -78,7 +47,8 @@ jobs:
           header_template: "green"
           header_content: "${{ github.repository }} 部署完成"
           message_env_tag: "devint"
-          message_version: "${{ steps.meta.outputs.version }}"
+          message_version: "${{ inputs.version_info }}"
+          message_commit_logs: "${{ inputs.commit_info }}"
 
       - name: "Notify message to Lark(Failure)"
         uses: kevin-rd/lark-notify@v1.8
@@ -89,4 +59,5 @@ jobs:
           header_template: "red"
           header_content: "${{ github.repository }} 部署失败"
           message_env_tag: "devint"
-          message_version: "${{ steps.meta.outputs.version }}"
+          message_version: "${{ inputs.version_info }}"
+          message_commit_logs: "${{ inputs.commit_info }}"

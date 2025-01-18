@@ -19,8 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+
+      - name: Git fetch everything
+        run: git fetch --prune --unshallow
 
       - name: Get Github tag
         id: meta
@@ -30,16 +31,6 @@ jobs:
           else
             echo "tags=${{ inputs.tags }}" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Get commit logs
-        id: commit_step
-        run: |
-          commit_logs=$(git log ${{ github.event.before }}..${{ github.sha }} --pretty=format:"%h - %s (%an)")
-          echo "COMMIT_LOGS<<EOF" >> $GITHUB_ENV
-          echo "$commit_logs" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-        continue-on-error: true
-
 
       - name: Cache Go modules
         uses: actions/cache@v3
@@ -78,27 +69,3 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: "Notify Docker image message to Lark"
-        uses: kevin-rd/lark-notify@v1.8
-        if: success() && inputs.publish_tag
-        env:
-          LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
-        with:
-          header_template: "green"
-          header_content: "${{ github.repository }} 镜像构建成功"
-          message_env_tag: "testnet"
-          message_version: "${{ steps.meta.outputs.tags }}"
-          message_commit_logs: "${{ env.COMMIT_LOGS }}"
-
-      - name: "Notify Docker image message to Lark"
-        uses: kevin-rd/lark-notify@v1.8
-        if: failure() && inputs.publish_tag
-        env:
-          LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
-        with:
-          header_template: "red"
-          header_content: "${{ github.repository }} 镜像构建失败"
-          message_env_tag: "testnet"
-          message_version: "${{ steps.meta.outputs.tags }}"
-          message_commit_logs: "${{ env.COMMIT_LOGS }}"
