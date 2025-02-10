@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	Denom = "azkme"
+	Denom = "amoca"
 
-	// DecimalZKME defines number of azkme decimal places
+	// DecimalZKME defines number of amoca decimal places
 	DecimalZKME = 18
 
 	// DecimalGwei defines number of gweiZKME decimal places

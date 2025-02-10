@@ -53,7 +53,7 @@ func (OutFlowStatus) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_b46717506b0c3976, []int{0}
 }
 
-// OutFlow defines the accumulative outflow stream rate in azkme
+// OutFlow defines the accumulative outflow stream rate in amoca
 // from a stream account to a Storage Provider
 type OutFlow struct {
 	// stream account address who receives the flow, usually SP(service provider)

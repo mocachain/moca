@@ -13,7 +13,7 @@ CHAIN_ID="mechain_5151-1"
 KEYRING_BACKEND="test"
 
 # Gas prices
-GAS_PRICES="10000azkme"
+GAS_PRICES="10000amoca"
 
 # 投票选项
 VOTE_OPTION="yes"

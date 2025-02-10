@@ -17,8 +17,9 @@
 package utils
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 
@@ -36,7 +37,7 @@ const (
 	// TestnetChainID defines the Evmos EIP155 chain ID for testnet
 	TestnetChainID = "mechain_5151"
 	// BaseDenom defines the Evmos mainnet denomination
-	BaseDenom = "azkme"
+	BaseDenom = "amoca"
 )
 
 // IsMainnet returns true if the chain-id has the Evmos mainnet EIP155 chain prefix.

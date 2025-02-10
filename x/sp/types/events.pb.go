@@ -358,11 +358,11 @@ type EventSpStoragePriceUpdate struct {
 	SpId uint32 `protobuf:"varint,1,opt,name=sp_id,json=spId,proto3" json:"sp_id,omitempty"`
 	// update time, in unix timestamp
 	UpdateTimeSec int64 `protobuf:"varint,2,opt,name=update_time_sec,json=updateTimeSec,proto3" json:"update_time_sec,omitempty"`
-	// read price, in azkme wei per charge byte
+	// read price, in amoca wei per charge byte
 	ReadPrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,3,opt,name=read_price,json=readPrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"read_price"`
 	// free read quota, in byte
 	FreeReadQuota uint64 `protobuf:"varint,4,opt,name=free_read_quota,json=freeReadQuota,proto3" json:"free_read_quota,omitempty"`
-	// store price, in azkme wei per charge byte
+	// store price, in amoca wei per charge byte
 	StorePrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,5,opt,name=store_price,json=storePrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"store_price"`
 }
 
@@ -423,11 +423,11 @@ func (m *EventSpStoragePriceUpdate) GetFreeReadQuota() uint64 {
 type EventGlobalSpStorePriceUpdate struct {
 	// update time, in unix timestamp
 	UpdateTimeSec int64 `protobuf:"varint,1,opt,name=update_time_sec,json=updateTimeSec,proto3" json:"update_time_sec,omitempty"`
-	// read price, in azkme wei per charge byte
+	// read price, in amoca wei per charge byte
 	ReadPrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,2,opt,name=read_price,json=readPrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"read_price"`
-	// primary store price, in azkme wei per charge byte
+	// primary store price, in amoca wei per charge byte
 	PrimaryStorePrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,3,opt,name=primary_store_price,json=primaryStorePrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"primary_store_price"`
-	// secondary store price, in azkme wei per charge byte
+	// secondary store price, in amoca wei per charge byte
 	SecondaryStorePrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,4,opt,name=secondary_store_price,json=secondaryStorePrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"secondary_store_price"`
 }
 

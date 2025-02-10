@@ -56,7 +56,7 @@ cat <<EOF >proposal.json
         "key": "${VALIDATOR_NODE_PUB_KEY}"
       },
       "value": {
-        "denom": "azkme",
+        "denom": "amoca",
         "amount": "10000000000000000000000"
       },
       "from": "0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2",
@@ -69,7 +69,7 @@ cat <<EOF >proposal.json
   "metadata": "",
   "title": "Create ${MONIKER_NAME} Validator",
   "summary": "create ${MONIKER_NAME} validator",
-  "deposit": "10000000000000000000000azkme"
+  "deposit": "10000000000000000000000amoca"
 }
 EOF
 

@@ -25,7 +25,7 @@ function config_toml() {
 function app_toml() {
     echo "config app.toml..."
     home=$1
-    sed -i -e "s/minimum-gas-prices = \"0azkme\"/minimum-gas-prices = \"5000000000${BASIC_DENOM}\"/g" $home/config/app.toml
+    sed -i -e "s/minimum-gas-prices = \"0amoca\"/minimum-gas-prices = \"5000000000${BASIC_DENOM}\"/g" $home/config/app.toml
     sed -i -e "s/snapshot-interval = 0/snapshot-interval = ${SNAPSHOT_INTERVAL}/g" $home/config/app.toml
     sed -i -e "s/src-chain-id = 1/src-chain-id = ${SRC_CHAIN_ID}/g" $home/config/app.toml
     sed -i -e "s/dest-bsc-chain-id = 2/dest-bsc-chain-id = ${DEST_CHAIN_ID}/g" $home/config/app.toml

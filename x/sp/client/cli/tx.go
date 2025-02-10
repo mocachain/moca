@@ -73,7 +73,7 @@ Where create_storagep_provider.json contains:
       "maintenance_address": "0xbE03316B1D7c3FCB69136e47e02442d6Fb3396dB",
       "endpoint": "https://sp0.mechain.io",
       "deposit": {
-        "denom": "azkme",
+        "denom": "amoca",
         "amount": "1000000000000000000000"
       },
       "read_price": "0.108", 
@@ -87,11 +87,11 @@ Where create_storagep_provider.json contains:
   "title": "create sp for test",
   "summary": "test",
   "metadata": "4pIMOgIGx1vZGU=",
-  "deposit": "1000000000000000000azkme"
+  "deposit": "1000000000000000000amoca"
 }
 modify the related configurations as you need. Example:
-1) read_price = $0.09/1024/1024/1024/300(azkme price)*10^18/30/24/60/60 = 0.108 wei/bytes/s
-2) store_price = $0.023*(1-6*0.07)/1024/1024/1024/300(azkme price)*10^18/30/24/60/60 = 0.016 wei/bytes/s. (0.07 division for each secondary SP)
+1) read_price = $0.09/1024/1024/1024/300(amoca price)*10^18/30/24/60/60 = 0.108 wei/bytes/s
+2) store_price = $0.023*(1-6*0.07)/1024/1024/1024/300(amoca price)*10^18/30/24/60/60 = 0.016 wei/bytes/s. (0.07 division for each secondary SP)
 3) free_read_quota defines free read quota for each bucket, uint bytes.
 `, version.AppName)),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -326,7 +326,7 @@ func CmdGrantDepositAuthorization() *cobra.Command {
 			fmt.Sprintf(`create a new grant authorization to an address to execute a transaction on your behalf:
 
 Examples:
- $ %s tx %s grant [grantee address] send --spend-limit=1000azkme --SPAddress [sp address] --from=sp0_fund
+ $ %s tx %s grant [grantee address] send --spend-limit=1000amoca --SPAddress [sp address] --from=sp0_fund
 	`, version.AppName, types.ModuleName),
 		),
 		Args: cobra.ExactArgs(1),
@@ -439,9 +439,9 @@ func CreateStorageProviderMsgFlagSet(ipDefault string) (fs *flag.FlagSet, defaul
 	fsCreateStorageProvider.String(FlagEndpoint, "", "The storage provider's endpoint")
 
 	// payment
-	fsCreateStorageProvider.String(FlagReadPrice, "100", "The storage provider's read price, in azkme wei per charge byte")
+	fsCreateStorageProvider.String(FlagReadPrice, "100", "The storage provider's read price, in amoca wei per charge byte")
 	fsCreateStorageProvider.Uint64(FlagFreeReadQuota, 100000000, "The storage provider's free read quota, in byte")
-	fsCreateStorageProvider.String(FlagStorePrice, "10000", "The storage provider's store price, in azkme wei per charge byte")
+	fsCreateStorageProvider.String(FlagStorePrice, "10000", "The storage provider's store price, in amoca wei per charge byte")
 
 	return fsCreateStorageProvider, defaultsDesc
 }
@@ -718,13 +718,13 @@ Examples:
 func CmdUpdateStorageProviderStoragePrice() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update-price [sp-address] [read-price] [store-price] [free-read-quota]",
-		Short: "Update prices and free read quota of a storage provider, all prices in azkme wei",
+		Short: "Update prices and free read quota of a storage provider, all prices in amoca wei",
 		Long: strings.TrimSpace(
 			fmt.Sprintf(`update the storage provider read, store price and free read quota, if there is no change to a specific value, the current value should also be provided.
 
-The unit of price is a decimal, which indicates wei azkme per byte per second. 
+The unit of price is a decimal, which indicates wei amoca per byte per second. 
 E.g. the price is 0.02183945725, means approximately $0.018 / GB / Month. 
-(0.02183945725 * (30 * 86400) * (1024 * 1024 * 1024) * 300 / 10 ** 18 ≈ 0.018, assume the azkme price is 300 USD)
+(0.02183945725 * (30 * 86400) * (1024 * 1024 * 1024) * 300 / 10 ** 18 ≈ 0.018, assume the amoca price is 300 USD)
 
 The free-read-quota unit is bytes, for 1GB free quota, it is 1073741824.
 

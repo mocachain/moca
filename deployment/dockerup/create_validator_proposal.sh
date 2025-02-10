@@ -52,8 +52,8 @@ function generate() {
 
     echo "send tokens..."
     echo '#!/bin/bash' >${SCRIPT_DIR}/send_tokens.sh
-    echo "docker exec mechaind-validator-0 mechaind tx bank send validator0 $VALIDATOR_ADDR 10000000000000000000000000azkme --keyring-backend test --node http://localhost:26657 -y --fees 6000000azkme" >>${SCRIPT_DIR}/send_tokens.sh
-    echo "docker exec mechaind-validator-0 mechaind tx bank send validator0 $DELEGATOR_ADDR 10000000000000000000000000azkme --keyring-backend test --node http://localhost:26657 -y --fees 6000000azkme" >>${SCRIPT_DIR}/send_tokens.sh
+    echo "docker exec mechaind-validator-0 mechaind tx bank send validator0 $VALIDATOR_ADDR 10000000000000000000000000amoca --keyring-backend test --node http://localhost:26657 -y --fees 6000000amoca" >>${SCRIPT_DIR}/send_tokens.sh
+    echo "docker exec mechaind-validator-0 mechaind tx bank send validator0 $DELEGATOR_ADDR 10000000000000000000000000amoca --keyring-backend test --node http://localhost:26657 -y --fees 6000000amoca" >>${SCRIPT_DIR}/send_tokens.sh
 }
 
 function balance() {
@@ -72,7 +72,7 @@ function grant() {
     VALIDATOR_ADDR=$($MECHAIND_CMD keys show validator -a --keyring-backend test --home "$home")
     DELEGATOR_ADDR=$($MECHAIND_CMD keys show delegator -a --keyring-backend test --home "$home")
     $MECHAIND_CMD tx authz grant 0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2 generic \
-        --msg-type=/cosmos.staking.v1beta1.MsgDelegate --gas="600000" --gas-prices="10000000000azkme" \
+        --msg-type=/cosmos.staking.v1beta1.MsgDelegate --gas="600000" --gas-prices="10000000000amoca" \
         --from=${DELEGATOR_ADDR} --home=$home --keyring-backend=test --broadcast-mode sync -y
 }
 
@@ -81,9 +81,9 @@ function proposal() {
     home=$1
     VALIDATOR_ADDR=$($MECHAIND_CMD keys show validator -a --keyring-backend test --home "$home")
     DELEGATOR_ADDR=$($MECHAIND_CMD keys show delegator -a --keyring-backend test --home "$home")
-    # echo $MECHAIND_CMD tx gov submit-proposal $OUTPUT_FILE --gas="600000" --gas-prices="10000000000azkme" \
+    # echo $MECHAIND_CMD tx gov submit-proposal $OUTPUT_FILE --gas="600000" --gas-prices="10000000000amoca" \
     # --from=${DELEGATOR_ADDR} --home=$home --keyring-backend=test --broadcast-mode sync -y
-    $MECHAIND_CMD tx gov submit-proposal $OUTPUT_FILE --gas="600000" --gas-prices="10000000000azkme" \
+    $MECHAIND_CMD tx gov submit-proposal $OUTPUT_FILE --gas="600000" --gas-prices="10000000000amoca" \
         --from=${VALIDATOR_ADDR} --home=$home --keyring-backend=test --broadcast-mode sync -y
 }
 
@@ -94,7 +94,7 @@ function create() {
     DELEGATOR_ADDR=$($MECHAIND_CMD keys show delegator -a --keyring-backend test --home "$home")
     $MECHAIND_CMD tx staking create-validator $OUTPUT_FILE --home $home --keyring-backend test \
         --chain-id $CHAIN_ID --from ${DELEGATOR_ADDR} --node tcp://localhost:26657 -b sync \
-        --gas "200000000" --fees "100000000000000000000azkme" --yes >${home}/create.log 2>&1
+        --gas "200000000" --fees "100000000000000000000amoca" --yes >${home}/create.log 2>&1
 }
 
 function query_proposal() {
@@ -114,7 +114,7 @@ function vote() {
     size=$1
     vote_id=$2
     for ((i = 0; i < ${size}; i++)); do
-        docker exec mechaind-validator-${i} mechaind tx gov vote $vote_id yes --from=validator$i --chain-id="mechain_5151-1" --keyring-backend=test --gas-prices=10000azkme -y
+        docker exec mechaind-validator-${i} mechaind tx gov vote $vote_id yes --from=validator$i --chain-id="mechain_5151-1" --keyring-backend=test --gas-prices=10000amoca -y
     done
 }
 

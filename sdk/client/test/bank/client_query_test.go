@@ -18,7 +18,7 @@ func TestBankBalance(t *testing.T) {
 
 	query := banktypes.QueryBalanceRequest{
 		Address: test.TestAddr,
-		Denom:   "azkme",
+		Denom:   "amoca",
 	}
 	res, err := client.BankQueryClient.Balance(context.Background(), &query)
 	assert.NoError(t, err)
@@ -58,7 +58,7 @@ func TestBankDenomOwners(t *testing.T) {
 	assert.NoError(t, err)
 
 	query := banktypes.QueryDenomOwnersRequest{
-		Denom: "azkme",
+		Denom: "amoca",
 	}
 	res, err := client.BankQueryClient.DenomOwners(context.Background(), &query)
 	assert.NoError(t, err)
@@ -106,7 +106,7 @@ func TestBankSupplyOf(t *testing.T) {
 	assert.NoError(t, err)
 
 	query := banktypes.QuerySupplyOfRequest{
-		Denom: "azkme",
+		Denom: "amoca",
 	}
 	res, err := client.BankQueryClient.SupplyOf(context.Background(), &query)
 	assert.NoError(t, err)

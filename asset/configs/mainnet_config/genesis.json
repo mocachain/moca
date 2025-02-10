@@ -397,7 +397,7 @@
           "address": "0x000000000000000000000000000000000000dead",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -406,7 +406,7 @@
           "address": "0x1111102Dd32160B064F2A512CDEf74bFdB6a9F96",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -415,7 +415,7 @@
           "address": "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -424,7 +424,7 @@
           "address": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -433,7 +433,7 @@
           "address": "0x1818aBcC3BA4a96Bc7a58C29CCc9ca27F70345F2",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -442,7 +442,7 @@
           "address": "0x1ced8702c870F5AffFFd82ABeaeCAdeab8267AcF",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -451,7 +451,7 @@
           "address": "0x2222207B1f7b8d37566D9A2778732451dbfbC5d0",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -460,7 +460,7 @@
           "address": "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -469,7 +469,7 @@
           "address": "0x237f9654F15e2f651CdEeBedBc04fdF99A289F5e",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -478,7 +478,7 @@
           "address": "0x33B642D17F0b8d3C62890057412f3904D6D513Ab",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -487,7 +487,7 @@
           "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -496,7 +496,7 @@
           "address": "0x4936Cdd587015Ff9189E1328cab5d301622Ef093",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -505,7 +505,7 @@
           "address": "0x5d59c3a1d58C0A94194456fe7C8652c418b84f15",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -514,7 +514,7 @@
           "address": "0x6144Ea46058d2fbd4393b621cb892A43191E680A",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -523,7 +523,7 @@
           "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -532,7 +532,7 @@
           "address": "0x759446992210cCB68F314f9b012e8D5a8c213f61",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -541,7 +541,7 @@
           "address": "0x8FA2435F3A193D734DBcb355BcEdDC5440817326",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -550,7 +550,7 @@
           "address": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -559,7 +559,7 @@
           "address": "0x90F88b9394Dbc841cFDcBcf7238f5DcD9022F7DD",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -568,7 +568,7 @@
           "address": "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -577,7 +577,7 @@
           "address": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -586,7 +586,7 @@
           "address": "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -595,7 +595,7 @@
           "address": "0xA803E45d47509CD06c2B78a3b8A487A1ac53d901",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -604,7 +604,7 @@
           "address": "0xB87F4fFA8e711F5a8d5fbc97b632cdD6CADa8600",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -613,7 +613,7 @@
           "address": "0xbf657D0ef7b48167657A703Ed8Fd063F075246D7",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -622,7 +622,7 @@
           "address": "0xc1A979b06dF9221749571eFD6d9DC99cCFCa82A2",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -631,7 +631,7 @@
           "address": "0xc5531813cb8399741Aa80e93bf199a1a5f4766D4",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -640,7 +640,7 @@
           "address": "0xcb0b1f29F140073f15035aD483C03579BaB581a5",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -649,7 +649,7 @@
           "address": "0xCCbbEdFF276Fc4BBa811239C06201ebC2F2BA695",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -658,7 +658,7 @@
           "address": "0xCcfe1B41fFE3f6E892A5dcF1aF8e2152a6eBC902",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -667,7 +667,7 @@
           "address": "0xD5AA388d7CaFea67C2DBF2e6Ef5670C509590c2c",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -676,7 +676,7 @@
           "address": "0xDb594DdB7d8d95aC99C6f5D171dc2C7240c0feD0",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -685,7 +685,7 @@
           "address": "0xE310b467B99965adF4F490b7fc03AfB03a67FA91",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -694,7 +694,7 @@
           "address": "0xeA7751C410E10D336F0fDBE1941FA19D0E97908F",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -703,7 +703,7 @@
           "address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
           "coins": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "amount": "1000000000000000000000000000"
             }
           ]
@@ -711,7 +711,7 @@
       ],
       "supply": [
         {
-          "denom": "azkme",
+          "denom": "amoca",
           "amount": "35000000000000000000000000000"
         }
       ],
@@ -720,13 +720,13 @@
           "description": "The native staking token of the Mechain.",
           "denom_units": [
             {
-              "denom": "azkme",
+              "denom": "amoca",
               "exponent": 0,
               "aliases": ["wei"]
             }
           ],
-          "base": "azkme",
-          "display": "azkme"
+          "base": "amoca",
+          "display": "amoca"
         }
       ],
       "send_enabled": []
@@ -762,7 +762,7 @@
     "consensus": null,
     "crisis": {
       "constant_fee": {
-        "denom": "azkme",
+        "denom": "amoca",
         "amount": "1000"
       }
     },
@@ -825,7 +825,7 @@
     "evm": {
       "accounts": [],
       "params": {
-        "evm_denom": "azkme",
+        "evm_denom": "amoca",
         "enable_create": true,
         "enable_call": true,
         "extra_eips": ["3855"],
@@ -1449,7 +1449,7 @@
                 "maintenance_address": "0x4936Cdd587015Ff9189E1328cab5d301622Ef093",
                 "endpoint": "http://127.0.0.1:9033",
                 "deposit": {
-                  "denom": "azkme",
+                  "denom": "amoca",
                   "amount": "10000000000000000000000000"
                 },
                 "read_price": "100.000000000000000000",
@@ -1497,7 +1497,7 @@
                 "maintenance_address": "0x6144Ea46058d2fbd4393b621cb892A43191E680A",
                 "endpoint": "http://127.0.0.1:9034",
                 "deposit": {
-                  "denom": "azkme",
+                  "denom": "amoca",
                   "amount": "10000000000000000000000000"
                 },
                 "read_price": "100.000000000000000000",
@@ -1545,7 +1545,7 @@
                 "maintenance_address": "0x759446992210cCB68F314f9b012e8D5a8c213f61",
                 "endpoint": "http://127.0.0.1:9035",
                 "deposit": {
-                  "denom": "azkme",
+                  "denom": "amoca",
                   "amount": "10000000000000000000000000"
                 },
                 "read_price": "100.000000000000000000",
@@ -1601,7 +1601,7 @@
                   "key": "7c1QKcsDeJZMiCEZ3cR0lot/jMockVGIf49ML5WmclA="
                 },
                 "value": {
-                  "denom": "azkme",
+                  "denom": "amoca",
                   "amount": "10000000000000000000000000"
                 },
                 "from": "0xB87F4fFA8e711F5a8d5fbc97b632cdD6CADa8600",
@@ -1641,7 +1641,7 @@
       "params": {
         "min_deposit": [
           {
-            "denom": "azkme",
+            "denom": "amoca",
             "amount": "1000000000000000000"
           }
         ],
@@ -1723,7 +1723,7 @@
         "forced_settle_time": "30",
         "max_auto_settle_flow_count": "100",
         "max_auto_resume_flow_count": "100",
-        "fee_denom": "azkme",
+        "fee_denom": "amoca",
         "withdraw_time_lock_threshold": "100000000000000000000",
         "withdraw_time_lock_duration": "86400"
       },
@@ -1752,7 +1752,7 @@
     },
     "sp": {
       "params": {
-        "deposit_denom": "azkme",
+        "deposit_denom": "amoca",
         "min_deposit": "10000000000000000000000",
         "secondary_sp_store_price_ratio": "0.120000000000000000",
         "num_of_historical_blocks_for_maintenance_records": "864000",
@@ -1770,7 +1770,7 @@
         "max_validators": 100,
         "max_entries": 7,
         "historical_entries": 10000,
-        "bond_denom": "azkme",
+        "bond_denom": "amoca",
         "min_commission_rate": "0.050000000000000000",
         "min_self_delegation": "1"
       },
@@ -1862,7 +1862,7 @@
     "upgrade": {},
     "virtualgroup": {
       "params": {
-        "deposit_denom": "azkme",
+        "deposit_denom": "amoca",
         "gvg_staking_per_bytes": "16000",
         "max_local_virtual_group_num_per_bucket": 0,
         "max_global_virtual_group_num_per_family": 10,

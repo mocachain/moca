@@ -112,7 +112,7 @@ const main = async function () {
         const messages = JSON.stringify([message]);
         const initialDeposit = [
           {
-            denom: 'azkme',
+            denom: 'amoca',
             amount: '1000000000000000000',
           },
         ];
@@ -136,7 +136,7 @@ const main = async function () {
     }
 
     /*
-    const grantCmd = `./build/mechaind tx authz grant 0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2 generic --msg-type=/cosmos.staking.v1beta1.MsgDelegate --gas="600000" --gas-prices="10000000000azkme"  --from=validator_delegator${
+    const grantCmd = `./build/mechaind tx authz grant 0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2 generic --msg-type=/cosmos.staking.v1beta1.MsgDelegate --gas="600000" --gas-prices="10000000000amoca"  --from=validator_delegator${
       validatorCount - 1
     } --home=./deployment/.local/validator${validatorCount - 1} --keyring-backend=test --broadcast-mode sync -y`;
     execPromis(grantCmd, { cwd: workPath });
@@ -148,18 +148,18 @@ const main = async function () {
       summary: `use proposal create validator${validatorCount - 1}`,
       messages: [message],
       metadata: 'ipfs://CID',
-      deposit: '1000000000000000000azkme',
+      deposit: '1000000000000000000amoca',
     };
     const proposalPath = path.join(workPath, 'build/proposal.json');
     await fs.outputJson(proposalPath, proposal, { spaces: 2 });
 
     console.log('submint proposal');
-    const proposalCmd = `./build/mechaind tx gov submit-proposal ./build/proposal.json --gas="600000" --gas-prices="10000000000azkme" --from=validator0 --home=./deployment/localup/.local/validator0 --keyring-backend=test --broadcast-mode sync -y`;
+    const proposalCmd = `./build/mechaind tx gov submit-proposal ./build/proposal.json --gas="600000" --gas-prices="10000000000amoca" --from=validator0 --home=./deployment/localup/.local/validator0 --keyring-backend=test --broadcast-mode sync -y`;
     execPromis(proposalCmd, { cwd: workPath });
     await sleep(3000);
 
     console.log('vote proposal');
-    const voteCmd = `./build/mechaind tx gov vote 1 yes --gas="600000" --gas-prices="10000000000azkme" --from=validator0 --home=./deployment/localup/.local/validator0 --keyring-backend=test --broadcast-mode sync -y`;
+    const voteCmd = `./build/mechaind tx gov vote 1 yes --gas="600000" --gas-prices="10000000000amoca" --from=validator0 --home=./deployment/localup/.local/validator0 --keyring-backend=test --broadcast-mode sync -y`;
     execPromis(voteCmd, { cwd: workPath });
     await sleep(9000);
     */

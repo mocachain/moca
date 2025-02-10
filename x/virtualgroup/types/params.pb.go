@@ -29,7 +29,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type Params struct {
 	// deposit_denom defines the staking coin denomination.
 	DepositDenom string `protobuf:"bytes,1,opt,name=deposit_denom,json=depositDenom,proto3" json:"deposit_denom,omitempty"`
-	// store price, in azkme wei per charge byte
+	// store price, in amoca wei per charge byte
 	GvgStakingPerBytes github_com_cosmos_cosmos_sdk_types.Int `protobuf:"bytes,2,opt,name=gvg_staking_per_bytes,json=gvgStakingPerBytes,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"gvg_staking_per_bytes"`
 	// the max number of lvg which allowed in a bucket
 	MaxLocalVirtualGroupNumPerBucket uint32 `protobuf:"varint,3,opt,name=max_local_virtual_group_num_per_bucket,json=maxLocalVirtualGroupNumPerBucket,proto3" json:"max_local_virtual_group_num_per_bucket,omitempty"`
