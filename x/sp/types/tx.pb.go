@@ -54,11 +54,11 @@ type MsgCreateStorageProvider struct {
 	Endpoint string `protobuf:"bytes,9,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
 	// deposit define the deposit token
 	Deposit types.Coin `protobuf:"bytes,10,opt,name=deposit,proto3" json:"deposit"`
-	// read price, in azkme wei per charge byte
+	// read price, in amoca wei per charge byte
 	ReadPrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,11,opt,name=read_price,json=readPrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"read_price"`
 	// free read quota, in byte
 	FreeReadQuota uint64 `protobuf:"varint,12,opt,name=free_read_quota,json=freeReadQuota,proto3" json:"free_read_quota,omitempty"`
-	// store price, in azkme wei per charge byte
+	// store price, in amoca wei per charge byte
 	StorePrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,13,opt,name=store_price,json=storePrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"store_price"`
 	// bls_key defines the bls pub key of the Storage provider for sealing object
 	BlsKey   string `protobuf:"bytes,14,opt,name=bls_key,json=blsKey,proto3" json:"bls_key,omitempty"`
@@ -482,11 +482,11 @@ var xxx_messageInfo_MsgEditStorageProviderResponse proto.InternalMessageInfo
 type MsgUpdateSpStoragePrice struct {
 	// sp address
 	SpAddress string `protobuf:"bytes,1,opt,name=sp_address,json=spAddress,proto3" json:"sp_address,omitempty"`
-	// read price, in azkme wei per charge byte
+	// read price, in amoca wei per charge byte
 	ReadPrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,2,opt,name=read_price,json=readPrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"read_price"`
 	// free read quota, in byte
 	FreeReadQuota uint64 `protobuf:"varint,3,opt,name=free_read_quota,json=freeReadQuota,proto3" json:"free_read_quota,omitempty"`
-	// store price, in azkme wei per charge byte
+	// store price, in amoca wei per charge byte
 	StorePrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,4,opt,name=store_price,json=storePrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"store_price"`
 }
 

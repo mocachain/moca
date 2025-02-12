@@ -168,7 +168,7 @@ function generate_genesis() {
 		if [ "$i" -gt 0 ]; then
 			cp ${local_env}/validator0/config/genesis.json ${local_env}/validator${i}/config/
 		fi
-		sed -i -e "s/minimum-gas-prices = \"0azkme\"/minimum-gas-prices = \"5000000000${BASIC_DENOM}\"/g" ${local_env}/*/config/app.toml
+		sed -i -e "s/minimum-gas-prices = \"0amoca\"/minimum-gas-prices = \"5000000000${BASIC_DENOM}\"/g" ${local_env}/*/config/app.toml
 		sed -i -e "s/\"stake\"/\"${BASIC_DENOM}\"/g" ${local_env}/validator${i}/config/genesis.json
 		#sed -i -e "s/\"no_base_fee\": false/\"no_base_fee\": true/g" ${local_env}/*/config/genesis.json
 		sed -i -e "s/\"denom_metadata\": \[\]/\"denom_metadata\": \[${NATIVE_COIN_DESC}\]/g" ${local_env}/validator${i}/config/genesis.json
@@ -385,7 +385,7 @@ function vote() {
 	size=$2
 	for ((i = 0; i < ${size}; i++)); do
 		${bin} tx gov vote $proposal_id yes --from=validator${i} --chain-id=$CHAIN_ID \
-			--keyring-backend=test --gas-prices=10000azkme -y --home ${local_env}/validator${i}
+			--keyring-backend=test --gas-prices=10000amoca -y --home ${local_env}/validator${i}
 	done
 }
 

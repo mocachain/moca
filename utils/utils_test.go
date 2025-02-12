@@ -139,7 +139,7 @@ func TestEvmosCoinDenom(t *testing.T) {
 	}{
 		{
 			"valid denom - native coin",
-			"azkme",
+			"amoca",
 			false,
 		},
 		{

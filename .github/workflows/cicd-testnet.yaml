@@ -12,26 +12,10 @@ concurrency:
 
 
 jobs:
-  make_tags:
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.meta.outputs.tag }}
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-
-      - name: Get Github Tag
-        id: meta
-        run: |
-          echo "tag=$(git describe --always --tags --match='v*')" >> "$GITHUB_OUTPUT"
-
   publish_image:
     name: Publish Docker Image
     uses: './.github/workflows/docker-publish.yml'
-    needs:
-      - make_tags
     secrets: inherit
     with:
-      tags: "zkmelabs/mechain:latest, zkmelabs/mechain:${{ needs.make_tags.outputs.tag }}"
-      publish_tag: false
-
+      tags: "zkmelabs/mechain:latest"
+      publish_tag: true

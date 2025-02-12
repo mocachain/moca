@@ -32,13 +32,13 @@ The center of Mechain are two layers:
 This repo is the official implementation of Mechain blockchain.
 
 The blockchain of Mechain serves a dual purpose of maintaining the ledger for users as well as the storage metadata
-as common blockchain state data. The blockchain has its native token, ZKME,
+as common blockchain state data. The blockchain has its native token, MOCA,
 and is utilized for gas and governance functionalities. Governance is further enabled through the staking logic that is
 unique to the Mechain blockchain.
 
 The Mechain blockchain has two categories of states that are stored on-chain:
 
-1. The ledger of accounts and their ZKME balance.
+1. The ledger of accounts and their MOCA balance.
 
 2. The metadata of the object storage system and service providers, along with the metadata of the objects stored on the
 storage system, permission and billing information pertaining to the storage system.

@@ -1,12 +1,16 @@
 FROM golang:1.22.4-bullseye AS builder
 
-WORKDIR /workspace
-
 ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
 
-COPY . .
+ENV GOPRIVATE=github.com/zkMeLabs
 
+ARG GITHUB_TOKEN
+RUN git config --global url."https://${GITHUB_TOKEN}:@github.com/".insteadOf "https://github.com/"
+
+WORKDIR /workspace
+
+COPY . .
 RUN make build
 
 

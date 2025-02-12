@@ -6,7 +6,7 @@ echo "Starting Docker container..."
 docker run --rm -it -d --name my-validator -w /root --network mechain-network zkmelabs/mechain /bin/bash
 
 echo "Initializing validator node..."
-docker exec my-validator mechaind init my-validator --chain-id mechain_5151-1 --default-denom "azkme"
+docker exec my-validator mechaind init my-validator --chain-id mechain_5151-1 --default-denom "amoca"
 
 echo "Copying configuration files to the container..."
 docker cp ${PROJECT_DIR}/asset/configs/testnet_config/. my-validator:/root/.mechaind/config
