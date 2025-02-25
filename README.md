@@ -52,9 +52,9 @@ interacting with the platform, enabling users to create and manipulate data in a
 
 ## Documentation
 
-Visit our official [documentation site](https://todo) for more info.
+Visit our official [documentation site](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd) for more info.
 
-More advanced script and command line usage, please refer to the [Tutorial](https://todo).
+More advanced script and command line usage, please refer to the [Tutorial](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-J07cdQjtZoN949x9Truu6z0RsQb).
 
 ## Key Modules
 
@@ -74,14 +74,14 @@ And the following modules are in cosmos-sdk:
 - `x/staking`:  based on the Proof-of-Stake logic. The elected validators are responsible for the security of the mechain blockchain.
 They get involved in the governance and staking of the blockchain.
 
-Refer to the [docs](https://todo) to dive deep into these modules.
+Refer to the [docs](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd) to dive deep into these modules.
 
 ## Running node
 
-- [Interacting with the Node](https://todo)
-- [Run Local Network](https://todo)
-- [Run Node](https://todo)
-- [Become Validator](https://todo)
+- [Interacting with the Node](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd)
+- [Run Local Network](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-W4nedCNrBocF2PxExwyupmZ9s56)
+- [Run Node](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-MxWcdZ1ZioMhCixEjuYuDhl1sXb)
+- [Become Validator](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-Ff26dlv6ooXRG5x8bhPufs0TsRh)
 
 ## Related Projects
 
