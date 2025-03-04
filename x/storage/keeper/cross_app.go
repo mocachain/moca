@@ -29,6 +29,12 @@ func RegisterCrossApps(keeper Keeper) {
 		panic(err)
 	}
 
+	zkmevcApp := NewZkmeVCApp(keeper)
+	err = keeper.crossChainKeeper.RegisterChannel(types.ZkmeVCChannel, types.ZkmeVCChannelId, zkmevcApp)
+	if err != nil {
+		panic(err)
+	}
+
 	permissionApp := NewPermissionApp(keeper, keeper.permKeeper)
 	err = keeper.crossChainKeeper.RegisterChannel(types.PermissionChannel, types.PermissionChannelID, permissionApp)
 	if err != nil {

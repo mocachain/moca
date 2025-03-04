@@ -18,6 +18,7 @@ const (
 	ObjectChannel     = "object"
 	GroupChannel      = "group"
 	ZkmeSBTChannel    = "zkmesbt"
+	ZkmeVCChannel     = "zkmevc"
 	PermissionChannel = "permission"
 	ExecutorChannel   = "executor"
 
@@ -27,6 +28,7 @@ const (
 	PermissionChannelID sdk.ChannelID = 7
 	ExecutorChannelID   sdk.ChannelID = 9
 	ZkmeSBTChannelId    sdk.ChannelID = 10
+	ZkmeVCChannelId     sdk.ChannelID = 11
 
 	// zkmesbt operation types
 
