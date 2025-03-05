@@ -199,3 +199,58 @@ func (b *Backend) TraceBlock(height rpctypes.BlockNumber,
 
 	return decodedResults, nil
 }
+
+// TraceCall returns the structured logs created during the execution of EVM call
+// and returns them as a JSON object.
+func (b *Backend) TraceCall(
+	args evmtypes.TransactionArgs, blockNrOrHash rpctypes.BlockNumberOrHash, config *evmtypes.TraceConfig,
+) (interface{}, error) {
+	bz, err := json.Marshal(&args)
+	if err != nil {
+		return nil, err
+	}
+	blockNr, err := b.BlockNumberFromTendermint(blockNrOrHash)
+	if err != nil {
+		return nil, err
+	}
+	header, err := b.TendermintBlockByNumber(blockNr)
+	if err != nil {
+		// the error message imitates geth behavior
+		return nil, errors.New("header not found")
+	}
+
+	traceCallRequest := evmtypes.QueryTraceCallRequest{
+		Args:            bz,
+		GasCap:          b.RPCGasCap(),
+		ProposerAddress: sdk.ConsAddress(header.Block.ProposerAddress),
+		BlockNumber:     header.Block.Height,
+		BlockHash:       common.Bytes2Hex(header.Block.Hash()),
+		BlockTime:       header.Block.Time,
+		ChainId:         b.chainID.Int64(),
+	}
+
+	if config != nil {
+		traceCallRequest.TraceConfig = config
+	}
+
+	// get the context of provided block
+	contextHeight := header.Block.Height
+	if contextHeight < 1 {
+		// 0 is a special value in `ContextWithHeight`
+		contextHeight = 1
+	}
+	traceResult, err := b.queryClient.TraceCall(rpctypes.ContextWithHeight(contextHeight), &traceCallRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	// Response format is unknown due to custom tracer config param
+	// More information can be found here https://geth.ethereum.org/docs/dapp/tracing-filtered
+	var decodedResult interface{}
+	err = json.Unmarshal(traceResult.Data, &decodedResult)
+	if err != nil {
+		return nil, err
+	}
+
+	return decodedResult, nil
+}
