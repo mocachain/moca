@@ -16,6 +16,7 @@
 package keeper
 
 import (
+	"fmt"
 	"math/big"
 
 	tmtypes "github.com/cometbft/cometbft/types"
@@ -34,6 +35,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 )
+
+const MaxInitCodeSize = 2 * params.MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
 
 // NewEVM generates a go-ethereum VM from the provided Message fields and the chain parameters
 // (ChainConfig and module Params). It additionally sets the validator operator address as the
@@ -370,6 +373,10 @@ func (k *Keeper) ApplyMessageWithConfig(ctx sdk.Context,
 	}
 
 	if contractCreation {
+		// Check whether the init code size has been exceeded.
+		if len(msg.Data()) > MaxInitCodeSize {
+			return nil, fmt.Errorf("%w: code size %v limit %v", types.ErrMaxInitCodeSizeExceeded, len(msg.Data()), MaxInitCodeSize)
+		}
 		// take over the nonce management from evm:
 		// - reset sender's nonce to msg.Nonce() before calling evm.
 		// - increase sender's nonce by one no matter the result.

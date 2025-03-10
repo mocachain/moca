@@ -44,6 +44,7 @@ const (
 	codeErrInvalidGasLimit
 	codeErrInvalidCaller
 	codeErrReadOnly
+	codeErrMaxInitCodeSizeExceeded
 )
 
 var ErrPostTxProcessing = errors.New("failed to execute post processing")
@@ -99,6 +100,10 @@ var (
 
 	// ErrReadOnly returns an error if the precompile contract method is readonly
 	ErrReadOnly = errorsmod.Register(ModuleName, codeErrReadOnly, "precompile contract method readonly")
+
+	// ErrMaxInitCodeSizeExceeded is returned if creation transaction provides the init code bigger
+	// than init code size limit.
+	ErrMaxInitCodeSizeExceeded = errorsmod.Register(ModuleName, codeErrMaxInitCodeSizeExceeded, "max initcode size exceeded")
 )
 
 // NewExecErrorWithReason unpacks the revert return bytes and returns a wrapped error
