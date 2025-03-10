@@ -192,6 +192,7 @@ import (
 	challengemodulekeeper "github.com/evmos/evmos/v12/x/challenge/keeper"
 	challengemoduletypes "github.com/evmos/evmos/v12/x/challenge/types"
 	precompilesdistribution "github.com/evmos/evmos/v12/x/evm/precompiles/distribution"
+	precompilesslashing "github.com/evmos/evmos/v12/x/evm/precompiles/slashing"
 	precompilesstaking "github.com/evmos/evmos/v12/x/evm/precompiles/staking"
 	"github.com/evmos/evmos/v12/x/gensp"
 	gensptypes "github.com/evmos/evmos/v12/x/gensp/types"
@@ -1448,6 +1449,11 @@ func (app *Evmos) EvmPrecompiled() {
 	// storageprovider precompile
 	precompiled[precompilessp.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilessp.NewPrecompiledContract(ctx, app.SpKeeper)
+	}
+
+	// slashing precompile
+	precompiled[precompilesslashing.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+		return precompilesslashing.NewPrecompiledContract(ctx, app.SlashingKeeper)
 	}
 
 	// set precompiled contracts
