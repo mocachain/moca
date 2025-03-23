@@ -481,3 +481,33 @@ func (s *StateDB) Commit() error {
 	}
 	return nil
 }
+
+// SelfDestruct marks the given account as selfdestructed.
+// This clears the account balance.
+//
+// The account's state object is still available until the state is committed,
+// getStateObject will return a non-nil account after SelfDestruct.
+func (s *StateDB) SelfDestruct(addr common.Address) {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		return
+	}
+	s.journal.append(selfDestructChange{
+		account:     &addr,
+		prev:        stateObject.selfDestructed,
+		prevbalance: new(big.Int).Set(stateObject.Balance()),
+	})
+	stateObject.markSelfdestructed()
+	stateObject.account.Balance = new(big.Int)
+}
+
+func (s *StateDB) Selfdestruct6780(addr common.Address) {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		return
+	}
+
+	if stateObject.created {
+		s.SelfDestruct(addr)
+	}
+}
