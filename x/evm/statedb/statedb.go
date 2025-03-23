@@ -253,6 +253,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 
 	newobj = newObject(s, addr, Account{})
 	if prev == nil {
+		newobj.created = true
 		s.journal.append(createObjectChange{account: &addr})
 	} else {
 		s.journal.append(resetObjectChange{prev: prev})
