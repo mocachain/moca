@@ -152,6 +152,7 @@ import (
 	evmkeeper "github.com/evmos/evmos/v12/x/evm/keeper"
 	precompilesauthz "github.com/evmos/evmos/v12/x/evm/precompiles/authz"
 	precompilesbank "github.com/evmos/evmos/v12/x/evm/precompiles/bank"
+	precompileserc20 "github.com/evmos/evmos/v12/x/evm/precompiles/erc20"
 	precompilesgov "github.com/evmos/evmos/v12/x/evm/precompiles/gov"
 	precompilespayment "github.com/evmos/evmos/v12/x/evm/precompiles/payment"
 	precompilespermission "github.com/evmos/evmos/v12/x/evm/precompiles/permission"
@@ -1454,6 +1455,11 @@ func (app *Evmos) EvmPrecompiled() {
 	// slashing precompile
 	precompiled[precompilesslashing.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesslashing.NewPrecompiledContract(ctx, app.SlashingKeeper)
+	}
+
+	// erc20 precompile
+	precompiled[precompileserc20.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+		return precompileserc20.NewPrecompiledContract(ctx, app.Erc20Keeper)
 	}
 
 	// set precompiled contracts
