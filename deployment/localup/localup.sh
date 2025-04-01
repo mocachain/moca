@@ -208,6 +208,7 @@ function generate_genesis() {
 		sed -i -e "s/eth,net,web3/eth,txpool,personal,net,debug,web3/g" ${local_env}/validator${i}/config/app.toml
 		sed -i -e "s/\"reserve_time\": \"15552000\"/\"reserve_time\": \"60\"/g" ${local_env}/validator${i}/config/genesis.json
 		sed -i -e "s/\"forced_settle_time\": \"86400\"/\"forced_settle_time\": \"30\"/g" ${local_env}/validator${i}/config/genesis.json
+		sed -i -e "s/\"min_gas_price\": \"0.000000000000000000\"/\"min_gas_price\": \"10000000000.000000000000000000\"/g" ${local_env}/validator${i}/config/genesis.json
 		sed -i -e "s/172800s/${DEPOSIT_VOTE_PERIOD}/g" ${local_env}/validator${i}/config/genesis.json
 		sed -i -e "s/\"10000000\"/\"${GOV_MIN_DEPOSIT_AMOUNT}\"/g" ${local_env}/validator${i}/config/genesis.json
 		sed -i -e "s/\"max_bytes\": \"22020096\"/\"max_bytes\": \"1048576\"/g" ${local_env}/validator${i}/config/genesis.json
