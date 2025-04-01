@@ -459,7 +459,7 @@ func (s *StateDB) RevertToSnapshot(revid int) {
 func (s *StateDB) Commit() error {
 	for _, addr := range s.journal.sortedDirties() {
 		obj := s.stateObjects[addr]
-		if obj.suicided {
+		if obj.suicided || obj.selfDestructed {
 			if err := s.keeper.DeleteAccount(s.ctx, obj.Address()); err != nil {
 				return errorsmod.Wrap(err, "failed to delete account")
 			}
