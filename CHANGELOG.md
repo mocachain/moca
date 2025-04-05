@@ -69,3 +69,5 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (deps) [#43](https://github.com/zkMeLabs/mechain/pull/43) Bump Cosmos-SDK to v0.47.2 and ibc-go to v7.2.0.
 
 ### API Breaking
+
+- (evm) [#238](https://github.com/zkMeLabs/mechain/pull/238) Implement EIP-1153 transient storage.
