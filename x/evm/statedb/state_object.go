@@ -78,6 +78,13 @@ type stateObject struct {
 	// flags
 	dirtyCode bool
 	suicided  bool
+
+	// Flag whether the account was marked as self-destructed. The self-destructed account
+	// is still accessible in the scope of same transaction.
+	selfDestructed bool
+
+	// Flag whether the object was created in the current transaction
+	created bool
 }
 
 // newObject creates a state object.
@@ -104,6 +111,10 @@ func (s *stateObject) empty() bool {
 
 func (s *stateObject) markSuicided() {
 	s.suicided = true
+}
+
+func (s *stateObject) markSelfdestructed() {
+	s.selfDestructed = true
 }
 
 // AddBalance adds amount to s's balance.

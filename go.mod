@@ -238,7 +238,7 @@ replace (
 	github.com/cosmos/iavl => github.com/zkMeLabs/mechain-iavl v0.20.1
 	github.com/cosmos/ibc-go/v7 => github.com/zkMeLabs/mechain-ibc-go/v7 v7.2.1-mocks-mechain.2
 	// use Evmos geth fork
-	github.com/ethereum/go-ethereum => github.com/zkMeLabs/go-ethereum v1.10.27-0.20250320030634-d7985667661b
+	github.com/ethereum/go-ethereum => github.com/zkMeLabs/go-ethereum v1.10.27-0.20250323095733-4ff3ea6240f8
 	github.com/evmos/evmos-ledger-go => github.com/zkMeLabs/mechain-ledger-go v0.3.0-rc0-mocks-mechain.6
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
