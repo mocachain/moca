@@ -1535,8 +1535,8 @@ github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/zeebo/assert v1.3.0/go.mod h1:Pq9JiuJQpG8JLJdtkwrJESF0Foym2/D9XMU5ciN/wJ0=
 github.com/zeebo/xxh3 v1.0.2/go.mod h1:5NWz9Sef7zIDm2JHfFlcQvNekmcEl9ekUZQQKCYaDcA=
-github.com/zkMeLabs/go-ethereum v1.10.27-0.20250323095733-4ff3ea6240f8 h1:fWtVwI4Fj9fD8CMuLXj7Z3WaUVatqgatR2Z2Gk7TOlw=
-github.com/zkMeLabs/go-ethereum v1.10.27-0.20250323095733-4ff3ea6240f8/go.mod h1:/6CsT5Ceen2WPLI/oCA3xMcZ5sWMF/D46SjM/ayY0Oo=
+github.com/zkMeLabs/go-ethereum v1.10.27-0.20250415055204-fbf69808eb10 h1:7nJQLoIsEEw7VW7Cczy4/umzsy0lKLzZaQI9zSE9IvE=
+github.com/zkMeLabs/go-ethereum v1.10.27-0.20250415055204-fbf69808eb10/go.mod h1:/6CsT5Ceen2WPLI/oCA3xMcZ5sWMF/D46SjM/ayY0Oo=
 github.com/zkMeLabs/gogoproto v1.4.10-mechain.1 h1:E1dPXljwfXo8iCSvXrrT/Z0Nbsqj1LRnvaZyNOon/GE=
 github.com/zkMeLabs/gogoproto v1.4.10-mechain.1/go.mod h1:4MAjcvaAJ0XqShPii8ShVsYGPvdYg0330FbFhMIgDRY=
 github.com/zkMeLabs/mechain-cometbft v1.3.0-mechain.3 h1:/hfZomiBxp1xqWaX5gWxsZanXWmpYHRxQrNmOb4Nt5A=

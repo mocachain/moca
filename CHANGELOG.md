@@ -70,3 +70,5 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (evm) [#236](https://github.com/zkMeLabs/mechain/pull/236) Implement EIP 6780.
 
 ### API Breaking
+
+- (evm) [#238](https://github.com/zkMeLabs/mechain/pull/238) Implement EIP-1153 transient storage.
