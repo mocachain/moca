@@ -226,20 +226,20 @@ replace (
 	cosmossdk.io/api => github.com/zkMeLabs/mechain-cosmos-sdk/api v0.0.0-20250306081438-e8ef7ccc3de9
 	cosmossdk.io/math => github.com/zkMeLabs/mechain-cosmos-sdk/math v0.0.0-20250306081438-e8ef7ccc3de9
 	cosmossdk.io/simapp => github.com/zkMeLabs/mechain-cosmos-sdk/simapp v0.0.0-20250306081438-e8ef7ccc3de9
-	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-mechain.1
+	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// use cosmos fork of keyring
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
-	github.com/cometbft/cometbft => github.com/zkMeLabs/mechain-cometbft v1.3.0-mechain.3
+	github.com/cometbft/cometbft => github.com/zkMeLabs/mechain-cometbft v1.3.0-moca.3
 	github.com/cometbft/cometbft-db => github.com/zkMeLabs/mechain-cometbft-db v0.8.1-alpha.1
 	// use Cosmos-SDK fork to enable Ledger functionality
 	github.com/cosmos/cosmos-sdk => github.com/zkMeLabs/mechain-cosmos-sdk v0.2.1-alpha.1
-	github.com/cosmos/gogoproto => github.com/zkMeLabs/gogoproto v1.4.10-mechain.1
+	github.com/cosmos/gogoproto => github.com/zkMeLabs/gogoproto v1.4.10-moca.1
 	github.com/cosmos/iavl => github.com/zkMeLabs/mechain-iavl v0.20.1
-	github.com/cosmos/ibc-go/v7 => github.com/zkMeLabs/mechain-ibc-go/v7 v7.2.1-mocks-mechain.2
+	github.com/cosmos/ibc-go/v7 => github.com/zkMeLabs/mechain-ibc-go/v7 v7.2.1-mocks-moca.2
 	// use Evmos geth fork
 	github.com/ethereum/go-ethereum => github.com/zkMeLabs/go-ethereum v1.10.27-0.20250415055204-fbf69808eb10
-	github.com/evmos/evmos-ledger-go => github.com/zkMeLabs/mechain-ledger-go v0.3.0-rc0-mocks-mechain.6
+	github.com/evmos/evmos-ledger-go => github.com/zkMeLabs/mechain-ledger-go v0.3.0-rc0-mocks-moca.6
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// use cosmos flavored protobufs
