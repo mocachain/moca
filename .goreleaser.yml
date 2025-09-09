@@ -5,9 +5,9 @@ before:
     - go mod download
 
 builds:
-  - id: "mechaind-darwin"
-    main: ./cmd/mechaind
-    binary: bin/mechaind
+  - id: "mocad-darwin"
+    main: ./cmd/mocad
+    binary: bin/mocad
     env:
       - CGO_ENABLED=1
       - CC=o64-clang
@@ -19,10 +19,10 @@ builds:
     flags:
       - -tags=cgo
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=mechain -X github.com/cosmos/cosmos-sdk/version.AppName=mechaind -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "mechaind-darwin-arm64"
-    main: ./cmd/mechaind
-    binary: bin/mechaind
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=moca -X github.com/cosmos/cosmos-sdk/version.AppName=mocad -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+  - id: "mocad-darwin-arm64"
+    main: ./cmd/mocad
+    binary: bin/mocad
     env:
       - CGO_ENABLED=1
       - CC=oa64-clang
@@ -34,10 +34,10 @@ builds:
     flags:
       - -tags=cgo
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=mechain -X github.com/cosmos/cosmos-sdk/version.AppName=mechaind -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "mechaind-linux"
-    main: ./cmd/mechaind
-    binary: bin/mechaind
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=moca -X github.com/cosmos/cosmos-sdk/version.AppName=mocad -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+  - id: "mocad-linux"
+    main: ./cmd/mocad
+    binary: bin/mocad
     env:
       - CGO_ENABLED=1
       - CC=gcc
@@ -49,10 +49,10 @@ builds:
     flags:
       - -tags=cgo
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=mechain -X github.com/cosmos/cosmos-sdk/version.AppName=mechaind -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "mechaind-linux-arm64"
-    main: ./cmd/mechaind
-    binary: bin/mechaind
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=moca -X github.com/cosmos/cosmos-sdk/version.AppName=mocad -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+  - id: "mocad-linux-arm64"
+    main: ./cmd/mocad
+    binary: bin/mocad
     env:
       - CGO_ENABLED=1
       - CC=aarch64-linux-gnu-gcc
@@ -64,7 +64,7 @@ builds:
     flags:
       - -tags=cgo
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=mechain -X github.com/cosmos/cosmos-sdk/version.AppName=mechaind -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=moca -X github.com/cosmos/cosmos-sdk/version.AppName=mocad -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
 
 archives:
   - format: tar.gz

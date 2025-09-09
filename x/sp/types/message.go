@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 
 	"cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/cometbft/cometbft/votepool"
@@ -41,7 +42,7 @@ var (
 func NewMsgCreateStorageProvider(
 	creator sdk.AccAddress, spAddress sdk.AccAddress, fundingAddress sdk.AccAddress,
 	sealAddress sdk.AccAddress, approvalAddress sdk.AccAddress, gcAddress sdk.AccAddress, maintenanceAddress sdk.AccAddress,
-	description Description, endpoint string, deposit sdk.Coin, readPrice sdk.Dec, freeReadQuota uint64, storePrice sdk.Dec, blsKey, blsProof string,
+	description Description, endpoint string, deposit sdk.Coin, readPrice math.LegacyDec, freeReadQuota uint64, storePrice math.LegacyDec, blsKey, blsProof string,
 ) (*MsgCreateStorageProvider, error) {
 	return &MsgCreateStorageProvider{
 		Creator:            creator.String(),

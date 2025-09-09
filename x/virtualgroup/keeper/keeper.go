@@ -2,14 +2,13 @@ package keeper
 
 import (
 	"encoding/binary"
-	"fmt"
 	math2 "math"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/store/prefix"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/evmos/evmos/v12/internal/sequence"
@@ -72,7 +71,7 @@ func (k Keeper) GetAuthority() string {
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
+	return ctx.Logger().With("module", "x/"+types.ModuleName)
 }
 
 func (k Keeper) GenNextGVGID(ctx sdk.Context) uint32 {
@@ -263,7 +262,7 @@ func (k Keeper) DeriveVirtualPaymentAccount(groupType string, id uint32) sdk.Acc
 func (k Keeper) GetAvailableStakingTokens(ctx sdk.Context, gvg *types.GlobalVirtualGroup) math.Int {
 	stakingPrice := k.GVGStakingPerBytes(ctx)
 
-	mustStakingTokens := stakingPrice.Mul(sdk.NewInt(int64(gvg.StoredSize)))
+	mustStakingTokens := stakingPrice.Mul(math.NewInt(int64(gvg.StoredSize)))
 
 	return gvg.TotalDeposit.Sub(mustStakingTokens)
 }

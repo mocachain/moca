@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -90,11 +91,11 @@ func (args *EditValidatorArgs) Validate() error {
 }
 
 // GetCommissionRate returns the dec commission rate
-func (args *EditValidatorArgs) GetCommissionRate() *sdk.Dec {
-	var commissionRate *sdk.Dec
+func (args *EditValidatorArgs) GetCommissionRate() *math.LegacyDec {
+	var commissionRate *math.LegacyDec
 	// if is less than 0, represents the user's unwillingness to modify this value
 	if args.CommissionRate.Cmp(big.NewInt(-1)) > 0 {
-		tmp := sdk.NewDecFromBigIntWithPrec(args.CommissionRate, sdk.Precision)
+		tmp := math.LegacyNewDecFromBigIntWithPrec(args.CommissionRate, math.LegacyPrecision)
 		commissionRate = &tmp
 	}
 
@@ -102,11 +103,11 @@ func (args *EditValidatorArgs) GetCommissionRate() *sdk.Dec {
 }
 
 // GetMinSelfDelegation returns the sdk.Int minSelfDelegation
-func (args *EditValidatorArgs) GetMinSelfDelegation() *sdk.Int {
-	var minSelfDelegation *sdk.Int
+func (args *EditValidatorArgs) GetMinSelfDelegation() *math.Int {
+	var minSelfDelegation *math.Int
 	// if is less than 0, represents the user's unwillingness to modify this value
 	if args.MinSelfDelegation.Cmp(big.NewInt(-1)) > 0 {
-		tmp := sdk.NewIntFromBigInt(args.MinSelfDelegation)
+		tmp := math.NewIntFromBigInt(args.MinSelfDelegation)
 		minSelfDelegation = &tmp
 	}
 

@@ -2,6 +2,8 @@ package distribution
 
 import (
 	"bytes"
+
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
@@ -63,7 +65,7 @@ func (c *Contract) ValidatorDistributionInfo(ctx sdk.Context, evm *vm.EVM, contr
 		selfBondRewards = append(selfBondRewards, DecCoin{
 			Denom:     reward.Denom,
 			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(sdk.Precision),
+			Precision: uint8(math.LegacyPrecision),
 		})
 	}
 
@@ -72,7 +74,7 @@ func (c *Contract) ValidatorDistributionInfo(ctx sdk.Context, evm *vm.EVM, contr
 		commission = append(commission, DecCoin{
 			Denom:     reward.Denom,
 			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(sdk.Precision),
+			Precision: uint8(math.LegacyPrecision),
 		})
 	}
 
@@ -104,7 +106,7 @@ func (c *Contract) ValidatorOutstandingRewards(ctx sdk.Context, evm *vm.EVM, con
 		rewards = append(rewards, DecCoin{
 			Denom:     reward.Denom,
 			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(sdk.Precision),
+			Precision: uint8(math.LegacyPrecision),
 		})
 	}
 
@@ -136,7 +138,7 @@ func (c *Contract) ValidatorCommission(ctx sdk.Context, evm *vm.EVM, contract *v
 		rewards = append(rewards, DecCoin{
 			Denom:     reward.Denom,
 			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(sdk.Precision),
+			Precision: uint8(math.LegacyPrecision),
 		})
 	}
 
@@ -167,7 +169,7 @@ func (c *Contract) DelegationRewards(ctx sdk.Context, _ *vm.EVM, contract *vm.Co
 		rewards = append(rewards, DecCoin{
 			Denom:     reward.Denom,
 			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(sdk.Precision),
+			Precision: uint8(math.LegacyPrecision),
 		})
 	}
 
@@ -199,7 +201,7 @@ func (c *Contract) DelegationTotalRewards(ctx sdk.Context, _ *vm.EVM, contract *
 			rewards = append(rewards, DecCoin{
 				Denom:     r.Denom,
 				Amount:    r.Amount.BigInt(),
-				Precision: uint8(sdk.Precision),
+				Precision: uint8(math.LegacyPrecision),
 			})
 		}
 		delegationDelegatorReward = append(delegationDelegatorReward, DelegationDelegatorReward{
@@ -213,7 +215,7 @@ func (c *Contract) DelegationTotalRewards(ctx sdk.Context, _ *vm.EVM, contract *
 		total = append(total, DecCoin{
 			Denom:     reward.Denom,
 			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(sdk.Precision),
+			Precision: uint8(math.LegacyPrecision),
 		})
 	}
 
@@ -237,7 +239,7 @@ func (c *Contract) CommunityPool(ctx sdk.Context, _ *vm.EVM, contract *vm.Contra
 		rewards = append(rewards, DecCoin{
 			Denom:     reward.Denom,
 			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(sdk.Precision),
+			Precision: uint8(math.LegacyPrecision),
 		})
 	}
 

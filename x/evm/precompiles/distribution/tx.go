@@ -16,16 +16,19 @@ import (
 const (
 	SetWithdrawAddressGas          = 60_000
 	WithdrawDelegatorRewardGas     = 60_000
+	WithdrawDelegatorAllRewardsGas = 100_000
 	WithdrawValidatorCommissionGas = 60_000
 	FundCommunityPoolGas           = 60_000
 
 	SetWithdrawAddressMethodName          = "setWithdrawAddress"
 	WithdrawDelegatorRewardMethodName     = "withdrawDelegatorReward"
+	WithdrawDelegatorAllRewardsMethodName = "withdrawDelegatorAllRewards"
 	WithdrawValidatorCommissionMethodName = "withdrawValidatorCommission"
 	FundCommunityPoolMethodName           = "fundCommunityPool"
 
 	SetWithdrawAddressEventName          = "SetWithdrawAddress"
 	WithdrawDelegatorRewardEventName     = "WithdrawDelegatorReward"
+	WithdrawDelegatorAllRewardsEventName = "WithdrawDelegatorAllRewards"
 	WithdrawValidatorCommissionEventName = "WithdrawValidatorCommission"
 	FundCommunityPoolEventName           = "FundCommunityPool"
 )
@@ -50,10 +53,6 @@ func (c *Contract) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm
 	msg := &distributiontypes.MsgSetWithdrawAddress{
 		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
 		WithdrawAddress:  sdk.AccAddress(args.WithdrawAddress.Bytes()).String(),
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
@@ -95,10 +94,6 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 		ValidatorAddress: args.ValidatorAddress.String(),
 	}
 
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-
 	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
 	res, err := server.WithdrawDelegatorReward(ctx, msg)
 	if err != nil {
@@ -130,6 +125,74 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 	return method.Outputs.Pack(rewards)
 }
 
+func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	if readonly {
+		return nil, types.ErrReadOnly
+	}
+
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
+
+	method := MustMethod(WithdrawDelegatorAllRewardsMethodName)
+	delegator := contract.Caller().String()
+	msgQuery := &distributiontypes.QueryDelegatorValidatorsRequest{
+		DelegatorAddress: delegator,
+	}
+
+	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
+	resQuery, err := querier.DelegatorValidators(ctx, msgQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	var total sdk.Coins
+	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
+	for _, validator := range resQuery.Validators {
+		msg := &distributiontypes.MsgWithdrawDelegatorReward{
+			DelegatorAddress: delegator,
+			ValidatorAddress: validator,
+		}
+
+		res, err := server.WithdrawDelegatorReward(ctx, msg)
+		if err != nil {
+			return nil, err
+		}
+		if evm.Origin != contract.Caller() {
+			// ensure that the funds of the contract account in the EVM are consistent with the funds recorded in the bank module account.
+			evm.StateDB.AddBalance(contract.Caller(), res.Amount[0].Amount.BigInt())
+		}
+		if err := c.AddLog(
+			evm,
+			MustEvent(WithdrawDelegatorRewardEventName),
+			[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.HexToHash(validator)},
+			res.Amount.String(),
+		); err != nil {
+			return nil, err
+		}
+		total = total.Add(res.Amount...)
+	}
+
+	if err := c.AddLog(
+		evm,
+		MustEvent(WithdrawDelegatorAllRewardsEventName),
+		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		total.String(),
+	); err != nil {
+		return nil, err
+	}
+
+	var rewards []Coin
+	for _, amount := range total {
+		rewards = append(rewards, Coin{
+			Denom:  amount.Denom,
+			Amount: amount.Amount.BigInt(),
+		})
+	}
+
+	return method.Outputs.Pack(rewards)
+}
+
 func (c *Contract) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, types.ErrReadOnly
@@ -143,10 +206,6 @@ func (c *Contract) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, con
 
 	msg := &distributiontypes.MsgWithdrawValidatorCommission{
 		ValidatorAddress: sdk.ValAddress(contract.Caller().Bytes()).String(),
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
@@ -202,10 +261,6 @@ func (c *Contract) FundCommunityPool(ctx sdk.Context, evm *vm.EVM, contract *vm.
 	msg := &distributiontypes.MsgFundCommunityPool{
 		Depositor: sdk.AccAddress(contract.Caller().Bytes()).String(),
 		Amount:    amount,
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)

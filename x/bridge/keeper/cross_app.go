@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 
 	"cosmossdk.io/errors"
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
 
@@ -51,12 +52,15 @@ func (app *TransferOutApp) ExecuteAckPackage(ctx sdk.Context, appCtx *sdk.CrossC
 		}
 	}
 
-	denom := app.bridgeKeeper.stakingKeeper.BondDenom(ctx) // only support native token so far
+	denom, err := app.bridgeKeeper.stakingKeeper.BondDenom(ctx) // only support native token so far
+	if err != nil {
+		panic(err)
+	}
 	err = app.bridgeKeeper.bankKeeper.SendCoinsFromModuleToAccount(ctx, crosschaintypes.ModuleName, refundPackage.RefundAddress,
 		sdk.Coins{
 			sdk.Coin{
 				Denom:  denom,
-				Amount: sdk.NewIntFromBigInt(refundPackage.RefundAmount),
+				Amount: sdkmath.NewIntFromBigInt(refundPackage.RefundAmount),
 			},
 		},
 	)
@@ -71,7 +75,7 @@ func (app *TransferOutApp) ExecuteAckPackage(ctx sdk.Context, appCtx *sdk.CrossC
 		RefundAddress: refundPackage.RefundAddress.String(),
 		Amount: &sdk.Coin{
 			Denom:  denom,
-			Amount: sdk.NewIntFromBigInt(refundPackage.RefundAmount),
+			Amount: sdkmath.NewIntFromBigInt(refundPackage.RefundAmount),
 		},
 		RefundReason: types.RefundReason(refundPackage.RefundReason),
 		Sequence:     appCtx.Sequence,
@@ -95,12 +99,15 @@ func (app *TransferOutApp) ExecuteFailAckPackage(ctx sdk.Context, appCtx *sdk.Cr
 		}
 	}
 
-	denom := app.bridgeKeeper.stakingKeeper.BondDenom(ctx) // only support native token so far
+	denom, err := app.bridgeKeeper.stakingKeeper.BondDenom(ctx) // only support native token so far
+	if err != nil {
+		panic(err)
+	}
 	err = app.bridgeKeeper.bankKeeper.SendCoinsFromModuleToAccount(ctx, crosschaintypes.ModuleName, transferOutPackage.RefundAddress,
 		sdk.Coins{
 			sdk.Coin{
 				Denom:  denom,
-				Amount: sdk.NewIntFromBigInt(transferOutPackage.Amount),
+				Amount: sdkmath.NewIntFromBigInt(transferOutPackage.Amount),
 			},
 		},
 	)
@@ -115,7 +122,7 @@ func (app *TransferOutApp) ExecuteFailAckPackage(ctx sdk.Context, appCtx *sdk.Cr
 		RefundAddress: transferOutPackage.RefundAddress.String(),
 		Amount: &sdk.Coin{
 			Denom:  denom,
-			Amount: sdk.NewIntFromBigInt(transferOutPackage.Amount),
+			Amount: sdkmath.NewIntFromBigInt(transferOutPackage.Amount),
 		},
 		RefundReason: types.REFUND_REASON_FAIL_ACK,
 		Sequence:     appCtx.Sequence,
@@ -162,8 +169,11 @@ func (app *TransferInApp) ExecuteSynPackage(ctx sdk.Context, appCtx *sdk.CrossCh
 		panic("decode transfer in claim error")
 	}
 
-	denom := app.bridgeKeeper.stakingKeeper.BondDenom(ctx)
-	amount := sdk.NewCoin(denom, sdk.NewIntFromBigInt(transferInPackage.Amount))
+	denom, err := app.bridgeKeeper.stakingKeeper.BondDenom(ctx)
+	if err != nil {
+		panic(err)
+	}
+	amount := sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(transferInPackage.Amount))
 
 	err = app.bridgeKeeper.bankKeeper.SendCoinsFromModuleToAccount(ctx, crosschaintypes.ModuleName, transferInPackage.ReceiverAddress, sdk.Coins{amount})
 	if err != nil {

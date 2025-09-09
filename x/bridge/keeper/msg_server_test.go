@@ -3,10 +3,11 @@ package keeper_test
 import (
 	"testing"
 
+	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -82,14 +83,14 @@ func (s *TestSuite) TestCrossTransferOut() {
 	addr2, _, err := testutil.GenerateCoinKey(hd.Secp256k1, s.cdc)
 	s.Require().Nil(err, "error should be nil")
 
-	s.stakingKeeper.EXPECT().BondDenom(gomock.Any()).Return("amoca").AnyTimes()
+	s.stakingKeeper.EXPECT().BondDenom(gomock.Any()).Return("amoca", nil).AnyTimes()
 	s.bankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	s.crossChainKeeper.EXPECT().GetDestBscChainID().Return(sdk.ChainID(714)).AnyTimes()
 	s.crossChainKeeper.EXPECT().CreateRawIBCPackageWithFee(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
 
 	msgTransferOut := types.NewMsgTransferOut(addr1.String(), addr2.String(), &sdk.Coin{
 		Denom:  "amoca",
-		Amount: sdk.NewInt(1),
+		Amount: math.NewInt(1),
 	})
 
 	_, err = s.msgServer.TransferOut(s.ctx, msgTransferOut)
@@ -105,10 +106,10 @@ func (s *TestSuite) TestCrossTransferOutWrong() {
 
 	msgTransferOut := types.NewMsgTransferOut(addr1.String(), addr2.String(), &sdk.Coin{
 		Denom:  "wrongdenom",
-		Amount: sdk.NewInt(1),
+		Amount: math.NewInt(1),
 	})
 
-	s.stakingKeeper.EXPECT().BondDenom(gomock.Any()).Return("amoca").AnyTimes()
+	s.stakingKeeper.EXPECT().BondDenom(gomock.Any()).Return("amoca", nil).AnyTimes()
 
 	_, err = s.msgServer.TransferOut(s.ctx, msgTransferOut)
 	s.Require().NotNil(err, "error should not be nil")

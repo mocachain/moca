@@ -18,7 +18,7 @@ const (
 
 var (
 	// DefaultGVGStakingPerBytes defines the default gvg staking price
-	DefaultGVGStakingPerBytes                = sdk.NewInt(16000) // 20%~30% of store price
+	DefaultGVGStakingPerBytes                = math.NewInt(16000) // 20%~30% of store price
 	DefaultMaxGlobalVirtualGroupNumPerFamily = uint32(10)
 	DefaultMaxStoreSizePerFamily             = uint64(64) * 1024 * 1024 * 1024 * 1024 // 64T
 	DefaultSwapInValidityPeriod              = math.NewInt(60 * 60 * 24 * 7)          // 7 days

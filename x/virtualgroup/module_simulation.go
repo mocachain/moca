@@ -54,7 +54,7 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 }
 
 // RegisterStoreDecoder registers a decoder.
-func (am AppModule) RegisterStoreDecoder(_ sdk.StoreDecoderRegistry) {}
+func (am AppModule) RegisterStoreDecoder(_ simtypes.StoreDecoderRegistry) {}
 
 // ProposalContents doesn't return any content functions for governance proposals.
 func (AppModule) ProposalContents(_ module.SimulationState) []simtypes.WeightedProposalMsg {
@@ -66,7 +66,7 @@ func (am AppModule) WeightedOperations(simState module.SimulationState) []simtyp
 	operations := make([]simtypes.WeightedOperation, 0)
 
 	var weightMsgStorageProviderExit int
-	simState.AppParams.GetOrGenerate(simState.Cdc, opWeightMsgStorageProviderExit, &weightMsgStorageProviderExit, nil,
+	simState.AppParams.GetOrGenerate(opWeightMsgStorageProviderExit, &weightMsgStorageProviderExit, nil,
 		func(_ *rand.Rand) {
 			weightMsgStorageProviderExit = defaultWeightMsgStorageProviderExit
 		},
@@ -77,7 +77,7 @@ func (am AppModule) WeightedOperations(simState module.SimulationState) []simtyp
 	))
 
 	var weightMsgCompleteStorageProviderExit int
-	simState.AppParams.GetOrGenerate(simState.Cdc, opWeightMsgCompleteStorageProviderExit, &weightMsgCompleteStorageProviderExit, nil,
+	simState.AppParams.GetOrGenerate(opWeightMsgCompleteStorageProviderExit, &weightMsgCompleteStorageProviderExit, nil,
 		func(_ *rand.Rand) {
 			weightMsgCompleteStorageProviderExit = defaultWeightMsgCompleteStorageProviderExit
 		},
@@ -88,7 +88,7 @@ func (am AppModule) WeightedOperations(simState module.SimulationState) []simtyp
 	))
 
 	var weightMsgCompleteSwapOut int
-	simState.AppParams.GetOrGenerate(simState.Cdc, opWeightMsgCompleteSwapOut, &weightMsgCompleteSwapOut, nil,
+	simState.AppParams.GetOrGenerate(opWeightMsgCompleteSwapOut, &weightMsgCompleteSwapOut, nil,
 		func(_ *rand.Rand) {
 			weightMsgCompleteSwapOut = defaultWeightMsgCompleteSwapOut
 		},
@@ -99,7 +99,7 @@ func (am AppModule) WeightedOperations(simState module.SimulationState) []simtyp
 	))
 
 	var weightMsgCancelSwapOut int
-	simState.AppParams.GetOrGenerate(simState.Cdc, opWeightMsgCancelSwapOut, &weightMsgCancelSwapOut, nil,
+	simState.AppParams.GetOrGenerate(opWeightMsgCancelSwapOut, &weightMsgCancelSwapOut, nil,
 		func(_ *rand.Rand) {
 			weightMsgCancelSwapOut = defaultWeightMsgCancelSwapOut
 		},

@@ -3,9 +3,9 @@ package keeper_test
 import (
 	"testing"
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -47,11 +47,8 @@ func (s *TestSuite) SetupTest() {
 	randaoMix = append(randaoMix, crypto.Keccak256([]byte{2})...)
 	header := testCtx.Ctx.BlockHeader()
 	header.RandaoMix = randaoMix
-	upgradeChecker := func(_ sdk.Context, _ string) bool {
-		return true
-	}
 	testCtx = testutil.TestContext{
-		Ctx: sdk.NewContext(testCtx.CMS, header, false, upgradeChecker, testCtx.Ctx.Logger()),
+		Ctx: sdk.NewContext(testCtx.CMS, header, false, testCtx.Ctx.Logger()),
 		DB:  testCtx.DB,
 		CMS: testCtx.CMS,
 	}

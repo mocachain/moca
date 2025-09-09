@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/evmos/evmos/v12/utils"
 	feemarkettypes "github.com/evmos/evmos/v12/x/feemarket/types"
 	"github.com/stretchr/testify/require"
@@ -22,7 +21,7 @@ func TestEpochsExportGenesis(t *testing.T) {
 
 	chainID := utils.TestnetChainID + "-1"
 	app := simapp.Setup(false, feemarketGenesis, chainID)
-	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
+	ctx := app.BaseApp.NewContext(false).WithChainID(chainID)
 
 	chainStartTime := ctx.BlockTime()
 	chainStartHeight := ctx.BlockHeight()
@@ -54,7 +53,7 @@ func TestEpochsInitGenesis(t *testing.T) {
 
 	chainID := utils.TestnetChainID + "-1"
 	app := simapp.Setup(false, feemarketGenesis, chainID)
-	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
+	ctx := app.BaseApp.NewContext(false).WithChainID(chainID)
 
 	// On init genesis, default epochs information is set
 	// To check init genesis again, should make it fresh status

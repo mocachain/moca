@@ -16,6 +16,7 @@ import (
 	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
 	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
 
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -34,8 +35,7 @@ import (
 	proposaltypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -73,7 +73,7 @@ func (c *Contract) Proposal(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _
 		ProposalId: args.ProposalId,
 	}
 
-	res, err := c.govKeeper.Proposal(ctx, msg)
+	res, err := c.queryServer.Proposal(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (c *Contract) Proposals(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, 
 		},
 	}
 
-	res, err := c.govKeeper.Proposals(ctx, msg)
+	res, err := c.queryServer.Proposals(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (c *Contract) VoteQuery(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, 
 		Voter:      sdk.AccAddress(args.Voter.Bytes()).String(),
 	}
 
-	res, err := c.govKeeper.Vote(ctx, msg)
+	res, err := c.queryServer.Vote(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (c *Contract) Votes(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bo
 		},
 	}
 
-	res, err := c.govKeeper.Votes(ctx, msg)
+	res, err := c.queryServer.Votes(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (c *Contract) DepositQuery(ctx sdk.Context, _ *vm.EVM, contract *vm.Contrac
 		Depositor:  sdk.AccAddress(args.Depositor.Bytes()).String(),
 	}
 
-	res, err := c.govKeeper.Deposit(ctx, msg)
+	res, err := c.queryServer.Deposit(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func (c *Contract) Deposits(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _
 		},
 	}
 
-	res, err := c.govKeeper.Deposits(ctx, msg)
+	res, err := c.queryServer.Deposits(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +270,7 @@ func (c *Contract) TallyResult(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract
 		ProposalId: args.ProposalId,
 	}
 
-	res, err := c.govKeeper.TallyResult(ctx, msg)
+	res, err := c.queryServer.TallyResult(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +286,7 @@ func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ b
 		ParamsType: govv1.ParamDeposit,
 	}
 
-	res1, err := c.govKeeper.Params(ctx, msg1)
+	res1, err := c.queryServer.Params(ctx, msg1)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +295,7 @@ func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ b
 		ParamsType: govv1.ParamVoting,
 	}
 
-	res2, err := c.govKeeper.Params(ctx, msg2)
+	res2, err := c.queryServer.Params(ctx, msg2)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +304,7 @@ func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ b
 		ParamsType: govv1.ParamTallying,
 	}
 
-	res3, err := c.govKeeper.Params(ctx, msg3)
+	res3, err := c.queryServer.Params(ctx, msg3)
 	if err != nil {
 		return nil, err
 	}

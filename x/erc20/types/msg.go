@@ -17,12 +17,16 @@
 package types
 
 import (
+	// protov2 "google.golang.org/protobuf/proto"
+
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
+	// txsigning "cosmossdk.io/x/tx/signing"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 
-	ibctransfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	// erc20api "github.com/evmos/evmos/v12/api/evmos/erc20/v1"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -36,6 +40,11 @@ const (
 	TypeMsgConvertCoin  = "convert_coin"
 	TypeMsgConvertERC20 = "convert_ERC20"
 )
+
+// var MsgConvertERC20CustomGetSigner = txsigning.CustomGetSigner{
+// 	MsgType: protov2.MessageName(&erc20api.MsgConvertERC20{}),
+// 	Fn:      erc20api.GetSigners,
+// }
 
 // NewMsgConvertCoin creates a new instance of MsgConvertCoin
 func NewMsgConvertCoin(coin sdk.Coin, receiver common.Address, sender sdk.AccAddress) *MsgConvertCoin { //nolint: interfacer

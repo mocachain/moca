@@ -4,13 +4,14 @@ import (
 	"errors"
 	"math/big"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	virtualgroupkeeper "github.com/evmos/evmos/v12/x/virtualgroup/keeper"
 	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
 
-	mechaincommon "github.com/evmos/evmos/v12/types/common"
+	mocacommon "github.com/evmos/evmos/v12/types/common"
 	"github.com/evmos/evmos/v12/x/evm/types"
 )
 
@@ -69,7 +70,7 @@ func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 		SecondarySpIds:  args.SecondarySpIDs,
 		Deposit: sdk.Coin{
 			Denom:  args.Deposit.Denom,
-			Amount: sdk.NewIntFromBigInt(args.Deposit.Amount),
+			Amount: math.NewIntFromBigInt(args.Deposit.Amount),
 		},
 	}
 
@@ -157,7 +158,7 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
 		GlobalVirtualGroupIds:      args.GvgIds,
 		SuccessorSpId:              args.SuccessorSpId,
-		SuccessorSpApproval: &mechaincommon.Approval{
+		SuccessorSpApproval: &mocacommon.Approval{
 			ExpiredHeight:              args.SuccessorSpApproval.ExpiredHeight,
 			GlobalVirtualGroupFamilyId: args.SuccessorSpApproval.GlobalVirtualGroupFamilyId,
 			Sig:                        args.SuccessorSpApproval.Sig,
@@ -330,7 +331,7 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 		GlobalVirtualGroupId: args.GlobalVirtualGroupId,
 		Deposit: sdk.Coin{
 			Denom:  args.Deposit.Denom,
-			Amount: sdk.NewIntFromBigInt(args.Deposit.Amount),
+			Amount: math.NewIntFromBigInt(args.Deposit.Amount),
 		},
 	}
 

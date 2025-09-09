@@ -18,11 +18,12 @@ package ibc
 
 import (
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 
-	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	transfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 
 	"github.com/evmos/evmos/v12/utils"
 )
@@ -73,7 +74,7 @@ func GetTransferAmount(packet channeltypes.Packet) (string, error) {
 		return "", errorsmod.Wrapf(errortypes.ErrInvalidCoins, "empty amount")
 	}
 
-	if _, ok := sdk.NewIntFromString(data.Amount); !ok {
+	if _, ok := math.NewIntFromString(data.Amount); !ok {
 		return "", errorsmod.Wrapf(errortypes.ErrInvalidCoins, "invalid amount")
 	}
 
@@ -87,7 +88,7 @@ func GetTransferAmount(packet channeltypes.Packet) (string, error) {
 // prefix path from the destination chain to the denom.
 func GetReceivedCoin(srcPort, srcChannel, dstPort, dstChannel, rawDenom, rawAmt string) sdk.Coin {
 	// NOTE: Denom and amount are already validated
-	amount, _ := sdk.NewIntFromString(rawAmt)
+	amount, _ := math.NewIntFromString(rawAmt)
 
 	if transfertypes.ReceiverChainIsSource(srcPort, srcChannel, rawDenom) {
 		// remove prefix added by sender chain
@@ -95,14 +96,10 @@ func GetReceivedCoin(srcPort, srcChannel, dstPort, dstChannel, rawDenom, rawAmt 
 		unprefixedDenom := rawDenom[len(voucherPrefix):]
 
 		// coin denomination used in sending from the escrow address
-		denom := unprefixedDenom
-
 		// The denomination used to send the coins is either the native denom or the hash of the path
 		// if the denomination is not native.
 		denomTrace := transfertypes.ParseDenomTrace(unprefixedDenom)
-		if denomTrace.Path != "" {
-			denom = denomTrace.IBCDenom()
-		}
+		denom := denomTrace.IBCDenom()
 
 		return sdk.Coin{
 			Denom:  denom,
@@ -128,7 +125,7 @@ func GetReceivedCoin(srcPort, srcChannel, dstPort, dstChannel, rawDenom, rawAmt 
 // GetSentCoin returns the sent coin from an ICS20 FungibleTokenPacketData.
 func GetSentCoin(rawDenom, rawAmt string) sdk.Coin {
 	// NOTE: Denom and amount are already validated
-	amount, _ := sdk.NewIntFromString(rawAmt)
+	amount, _ := math.NewIntFromString(rawAmt)
 	trace := transfertypes.ParseDenomTrace(rawDenom)
 
 	return sdk.Coin{

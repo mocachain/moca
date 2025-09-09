@@ -31,6 +31,10 @@ import (
 )
 
 const (
+	// ServerStartTime defines the time duration that the server need to stay running after startup
+	// for the startup be considered successful
+	ServerStartTime = 5 * time.Second
+
 	// DefaultGRPCAddress is the default address the gRPC server binds to.
 	DefaultGRPCAddress = "0.0.0.0:9900"
 
@@ -94,6 +98,7 @@ const (
 	DefaultDestMantleChainID   = 7
 	DefaultDestArbitrumChainID = 8
 	DefaultDestOptimismChainID = 9
+	DefaultDestBaseChainID     = 10
 )
 
 var evmTracers = []string{"json", "markdown", "struct", "access_list"}
@@ -179,6 +184,7 @@ type CrossChainConfig struct {
 	DestMantleChainId   uint32 `mapstructure:"dest-mantle-chain-id"`   //nolint
 	DestArbitrumChainId uint32 `mapstructure:"dest-arbitrum-chain-id"` //nolint
 	DestOptimismChainId uint32 `mapstructure:"dest-optimism-chain-id"` //nolint
+	DestBaseChainId     uint32 `mapstructure:"dest-base-chain-id"`     //nolint
 }
 
 type PaymentCheckConfig struct {
@@ -402,6 +408,7 @@ func DefaultCrossChainConfig() *CrossChainConfig {
 		DestMantleChainId:   DefaultDestMantleChainID,
 		DestArbitrumChainId: DefaultDestArbitrumChainID,
 		DestOptimismChainId: DefaultDestOptimismChainID,
+		DestBaseChainId:     DefaultDestBaseChainID,
 	}
 }
 
@@ -467,6 +474,7 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			DestMantleChainId:   v.GetUint32("cross-chain.dest-mantle-chain-id"),
 			DestArbitrumChainId: v.GetUint32("cross-chain.dest-arbitrum-chain-id"),
 			DestOptimismChainId: v.GetUint32("cross-chain.dest-optimism-chain-id"),
+			DestBaseChainId:     v.GetUint32("cross-chain.dest-base-chain-id"),
 		},
 		PaymentCheck: PaymentCheckConfig{
 			Enabled:  v.GetBool("payment-check.enabled"),

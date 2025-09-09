@@ -160,7 +160,7 @@ func CreateStakingSession(client *ethclient.Client, txOpts bind.TransactOpts, co
 // - ret1: The block height.
 //
 // - ret2: Return error when the request failed, otherwise return nil.
-func GetLatestBlockHeight(ctx context.Context, chainClient *MechainClient) (int64, error) {
+func GetLatestBlockHeight(ctx context.Context, chainClient *MocaClient) (int64, error) {
 	resp, err := chainClient.GetStatus(ctx)
 	if err != nil {
 		return 0, nil
@@ -173,7 +173,7 @@ func GetLatestBlockHeight(ctx context.Context, chainClient *MechainClient) (int6
 // - ctx: Context variables for the current API call.
 //
 // - ret: Return error when the request failed, otherwise return nil.
-func WaitForNextBlock(ctx context.Context, chainClient *MechainClient) error {
+func WaitForNextBlock(ctx context.Context, chainClient *MocaClient) error {
 	res, err := chainClient.GetBlock(ctx, nil)
 	if err != nil {
 		return err
@@ -207,7 +207,7 @@ func WaitForNextBlock(ctx context.Context, chainClient *MechainClient) error {
 // - ret1: The transaction result details.
 //
 // - ret2: Return error when the request failed, otherwise return nil.
-func WaitForEvmTx(ctx context.Context, evmClient *ethclient.Client, gnfdCli *MechainClient, hash common.Hash) (*ethtypes.Receipt, error) {
+func WaitForEvmTx(ctx context.Context, evmClient *ethclient.Client, gnfdCli *MocaClient, hash common.Hash) (*ethtypes.Receipt, error) {
 	for {
 		txReceipt, err := evmClient.TransactionReceipt(ctx, hash)
 		if err != nil {

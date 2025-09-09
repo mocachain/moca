@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/prefix"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -300,7 +300,7 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 		defer flowIterator.Close()
 
 		finished := false
-		totalRate := sdk.ZeroInt()
+		totalRate := sdkmath.ZeroInt()
 		toUpdate := make([]types.OutFlow, 0)
 		for ; flowIterator.Valid(); flowIterator.Next() {
 			if count >= max {
@@ -465,7 +465,7 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 			continue
 		}
 
-		totalRate := sdk.ZeroInt()
+		totalRate := sdkmath.ZeroInt()
 		frozenFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_FROZEN, nil)
 		flowStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.OutFlowKeyPrefix)
 		flowIterator := flowStore.Iterator(frozenFlowKey, nil)

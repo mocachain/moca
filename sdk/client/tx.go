@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"cosmossdk.io/math"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	clitx "github.com/cosmos/cosmos-sdk/client/tx"
@@ -25,11 +26,11 @@ type TransactionClient interface {
 	SignTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption) ([]byte, error)
 	GetNonce(ctx context.Context) (uint64, error)
 	GetNonceByAddr(ctx context.Context, addr sdk.AccAddress) (uint64, error)
-	GetAccountByAddr(ctx context.Context, addr sdk.AccAddress) (authtypes.AccountI, error)
+	GetAccountByAddr(ctx context.Context, addr sdk.AccAddress) (sdk.AccountI, error)
 }
 
 // BroadcastTx signs and broadcasts a tx with simulated gas(if not provided in txOpt)
-func (c *MechainClient) BroadcastTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.BroadcastTxResponse, error) {
+func (c *MocaClient) BroadcastTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.BroadcastTxResponse, error) {
 	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
 
@@ -81,7 +82,7 @@ func (c *MechainClient) BroadcastTx(ctx context.Context, msgs []sdk.Msg, txOpt *
 }
 
 // SimulateTx simulates a tx and gets Gas info
-func (c *MechainClient) SimulateTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
+func (c *MocaClient) SimulateTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
 	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
 	err := c.constructTx(ctx, msgs, txOpt, txBuilder)
@@ -99,7 +100,7 @@ func (c *MechainClient) SimulateTx(ctx context.Context, msgs []sdk.Msg, txOpt *t
 	return simulateResponse, nil
 }
 
-func (c *MechainClient) simulateTx(ctx context.Context, txBytes []byte, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
+func (c *MocaClient) simulateTx(ctx context.Context, txBytes []byte, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
 	simulateResponse, err := c.TxClient.Simulate(
 		ctx,
 		&tx.SimulateRequest{
@@ -114,7 +115,7 @@ func (c *MechainClient) simulateTx(ctx context.Context, txBytes []byte, opts ...
 }
 
 // SignTx signs the tx with private key and returns bytes
-func (c *MechainClient) SignTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption) ([]byte, error) {
+func (c *MocaClient) SignTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption) ([]byte, error) {
 	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
 	if err := c.constructTxWithGasInfo(ctx, msgs, txOpt, txConfig, txBuilder); err != nil {
@@ -123,7 +124,7 @@ func (c *MechainClient) SignTx(ctx context.Context, msgs []sdk.Msg, txOpt *types
 	return c.signTx(ctx, txConfig, txBuilder, txOpt)
 }
 
-func (c *MechainClient) signTx(ctx context.Context, txConfig sdkclient.TxConfig, txBuilder sdkclient.TxBuilder, txOpt *types.TxOption) ([]byte, error) {
+func (c *MocaClient) signTx(ctx context.Context, txConfig sdkclient.TxConfig, txBuilder sdkclient.TxBuilder, txOpt *types.TxOption) ([]byte, error) {
 	var km keys.KeyManager
 	var err error
 
@@ -151,6 +152,7 @@ func (c *MechainClient) signTx(ctx context.Context, txConfig sdkclient.TxConfig,
 		Sequence:      nonce,
 	}
 	sig, err := clitx.SignWithPrivKey(
+		ctx,
 		signing.SignMode_SIGN_MODE_EIP_712,
 		signerData,
 		txBuilder,
@@ -173,7 +175,7 @@ func (c *MechainClient) signTx(ctx context.Context, txConfig sdkclient.TxConfig,
 }
 
 // setSingerInfo gathers the signer info by doing "empty signature" hack, and inject it into txBuilder
-func (c *MechainClient) setSingerInfo(ctx context.Context, txBuilder sdkclient.TxBuilder, txOpt *types.TxOption) error {
+func (c *MocaClient) setSingerInfo(ctx context.Context, txBuilder sdkclient.TxBuilder, txOpt *types.TxOption) error {
 	var km keys.KeyManager
 	var err error
 	if txOpt != nil && txOpt.OverrideKeyManager != nil {
@@ -205,10 +207,12 @@ func (c *MechainClient) setSingerInfo(ctx context.Context, txBuilder sdkclient.T
 	return nil
 }
 
-func (c *MechainClient) constructTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, txBuilder sdkclient.TxBuilder) error {
+func (c *MocaClient) constructTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, txBuilder sdkclient.TxBuilder) error {
 	for _, m := range msgs {
-		if err := m.ValidateBasic(); err != nil {
-			return err
+		if validateBasic, ok := m.(sdk.HasValidateBasic); ok {
+			if err := validateBasic.ValidateBasic(); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -225,15 +229,12 @@ func (c *MechainClient) constructTx(ctx context.Context, msgs []sdk.Msg, txOpt *
 		if !txOpt.FeeGranter.Empty() {
 			txBuilder.SetFeeGranter(txOpt.FeeGranter)
 		}
-		if txOpt.Tip != nil {
-			txBuilder.SetTip(txOpt.Tip)
-		}
 	}
 	// inject signer info into txBuilder, it is needed for simulating and signing
 	return c.setSingerInfo(ctx, txBuilder, txOpt)
 }
 
-func (c *MechainClient) constructTxWithGasInfo(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, txConfig sdkclient.TxConfig, txBuilder sdkclient.TxBuilder) error {
+func (c *MocaClient) constructTxWithGasInfo(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, txConfig sdkclient.TxConfig, txBuilder sdkclient.TxBuilder) error {
 	// construct a tx with txOpt excluding GasLimit and
 	if err := c.constructTx(ctx, msgs, txOpt, txBuilder); err != nil {
 		return err
@@ -269,14 +270,14 @@ func (c *MechainClient) constructTxWithGasInfo(ctx context.Context, msgs []sdk.M
 		return types.ErrSimulatedGasPrice
 	}
 	feeAmount := sdk.NewCoins(
-		sdk.NewCoin(gasPrice.Denom, gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit)))), // gasPrice * gasLimit
+		sdk.NewCoin(gasPrice.Denom, gasPrice.Amount.Mul(math.NewInt(int64(gasLimit)))), // gasPrice * gasLimit
 	)
 	txBuilder.SetGasLimit(gasLimit)
 	txBuilder.SetFeeAmount(feeAmount)
 	return nil
 }
 
-func (c *MechainClient) GetNonce(ctx context.Context) (uint64, error) {
+func (c *MocaClient) GetNonce(ctx context.Context) (uint64, error) {
 	km, err := c.GetKeyManager()
 	if err != nil {
 		return 0, err
@@ -288,7 +289,7 @@ func (c *MechainClient) GetNonce(ctx context.Context) (uint64, error) {
 	return account.GetSequence(), nil
 }
 
-func (c *MechainClient) GetNonceByAddr(ctx context.Context, addr sdk.AccAddress) (uint64, error) {
+func (c *MocaClient) GetNonceByAddr(ctx context.Context, addr sdk.AccAddress) (uint64, error) {
 	account, err := c.GetAccountByAddr(ctx, addr)
 	if err != nil {
 		return 0, err
@@ -296,12 +297,12 @@ func (c *MechainClient) GetNonceByAddr(ctx context.Context, addr sdk.AccAddress)
 	return account.GetSequence(), nil
 }
 
-func (c *MechainClient) GetAccountByAddr(ctx context.Context, addr sdk.AccAddress) (authtypes.AccountI, error) {
+func (c *MocaClient) GetAccountByAddr(ctx context.Context, addr sdk.AccAddress) (authtypes.AccountI, error) {
 	acct, err := c.AuthQueryClient.Account(ctx, &authtypes.QueryAccountRequest{Address: addr.String()})
 	if err != nil {
 		return nil, err
 	}
-	var account authtypes.AccountI
+	var account sdk.AccountI
 	if err := c.codec.InterfaceRegistry().UnpackAny(acct.Account, &account); err != nil {
 		return nil, err
 	}

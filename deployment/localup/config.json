@@ -1,9 +1,11 @@
 {
   "app": {
     "prefix": "mc",
-    "chain_name": "mechain",
-    "chain_id": "mechain_5151-1",
-    "denoms": ["amoca"],
+    "chain_name": "moca",
+    "chain_id": "moca_5151-1",
+    "denoms": [
+      "amoca"
+    ],
     "port": {
       "api.address": 1317,
       "rosetta.address": 8080,

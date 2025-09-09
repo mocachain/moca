@@ -64,7 +64,7 @@ func (s *KeeperTestSuite) TestMsgCreateStorageProvider() {
 				BlsKey:             blsPubKeyHex,
 				Deposit: sdk.Coin{
 					Denom:  types.Denom,
-					Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalZKME),
+					Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 				},
 			},
 		},
@@ -87,7 +87,7 @@ func (s *KeeperTestSuite) TestMsgCreateStorageProvider() {
 				Endpoint:           "sp.io",
 				Deposit: sdk.Coin{
 					Denom:  types.Denom,
-					Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalZKME),
+					Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 				},
 			},
 		},
@@ -110,7 +110,7 @@ func (s *KeeperTestSuite) TestMsgCreateStorageProvider() {
 				Endpoint:           "sp.io",
 				Deposit: sdk.Coin{
 					Denom:  types.Denom,
-					Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalZKME),
+					Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 				},
 			},
 		},
@@ -132,7 +132,7 @@ func (s *KeeperTestSuite) TestMsgCreateStorageProvider() {
 				BlsKey:             blsPubKeyHex,
 				Deposit: sdk.Coin{
 					Denom:  types.Denom,
-					Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalZKME),
+					Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 				},
 			},
 		},

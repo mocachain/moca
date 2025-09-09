@@ -19,6 +19,7 @@ type SPMnemonics struct {
 type Config struct {
 	GrpcAddr             string        `yaml:"GrpcAddr"`
 	TendermintAddr       string        `yaml:"TendermintAddr"`
+	EvmAddr              string        `yaml:"EvmAddr"`
 	ChainID              string        `yaml:"ChainId"`
 	ValidatorMnemonic    string        `yaml:"Mnemonic"`           // validator operator account mnemonic with enough balance
 	ValidatorBlsMnemonic string        `yaml:"BLSMnemonic"`        // validator's mnemonic for bls key
@@ -40,7 +41,8 @@ func InitE2eConfig() *Config {
 	config := &Config{
 		GrpcAddr:             "localhost:9090",
 		TendermintAddr:       "http://127.0.0.1:26657",
-		ChainID:              "mechain_5151-1",
+		EvmAddr:              "http://127.0.0.1:8545",
+		ChainID:              "moca_5151-1",
 		Denom:                "amoca",
 		ValidatorMnemonic:    ParseValidatorMnemonic(0),
 		ValidatorBlsMnemonic: ParseValidatorBlsMnemonic(0),

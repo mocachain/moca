@@ -20,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	utiltx "github.com/evmos/evmos/v12/testutil/tx"
 
-	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/x/evm/types"
 )
@@ -52,7 +51,7 @@ func (suite *MsgsTestSuite) SetupTest() {
 	suite.chainID = big.NewInt(1)
 	suite.hundredBigInt = big.NewInt(100)
 
-	encodingConfig := encoding.MakeConfig(app.ModuleBasics)
+	encodingConfig := encoding.MakeConfig()
 	suite.clientCtx = client.Context{}.WithTxConfig(encodingConfig.TxConfig)
 }
 

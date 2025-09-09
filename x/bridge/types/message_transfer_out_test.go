@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
@@ -47,7 +48,7 @@ func TestMsgTransferOut_ValidateBasic(t *testing.T) {
 				To:   "0x0000000000000000000000000000000000001000",
 				Amount: &sdk.Coin{
 					Denom:  "%%%%%",
-					Amount: sdk.NewInt(1),
+					Amount: math.NewInt(1),
 				},
 			},
 			err: sdkerrors.ErrInvalidCoins,
@@ -59,7 +60,7 @@ func TestMsgTransferOut_ValidateBasic(t *testing.T) {
 				To:   "0x0000000000000000000000000000000000001000",
 				Amount: &sdk.Coin{
 					Denom:  "coin",
-					Amount: sdk.NewInt(-1),
+					Amount: math.NewInt(-1),
 				},
 			},
 			err: sdkerrors.ErrInvalidCoins,
@@ -71,7 +72,7 @@ func TestMsgTransferOut_ValidateBasic(t *testing.T) {
 				To:   "0x0000000000000000000000000000000000001000",
 				Amount: &sdk.Coin{
 					Denom:  "coin",
-					Amount: sdk.NewInt(0),
+					Amount: math.NewInt(0),
 				},
 			},
 			err: sdkerrors.ErrInvalidCoins,
@@ -83,7 +84,7 @@ func TestMsgTransferOut_ValidateBasic(t *testing.T) {
 				To:   "0x0000000000000000000000000000000000001000",
 				Amount: &sdk.Coin{
 					Denom:  "coin",
-					Amount: sdk.NewInt(1),
+					Amount: math.NewInt(1),
 				},
 			},
 		},

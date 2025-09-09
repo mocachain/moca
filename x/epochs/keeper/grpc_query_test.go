@@ -53,7 +53,7 @@ func (suite *KeeperTestSuite) TestEpochInfo() {
 					Epochs: []types.EpochInfo{day, week},
 					Pagination: &query.PageResponse{
 						NextKey: nil,
-						Total:   uint64(0),
+						Total:   uint64(2),
 					},
 				}
 			},
@@ -100,12 +100,25 @@ func (suite *KeeperTestSuite) TestEpochInfo() {
 				suite.app.EpochsKeeper.SetEpochInfo(suite.ctx, quarter)
 				suite.Commit()
 
+				// After commit, epochs are started so update expected values
+				day.CurrentEpoch = 1
+				day.CurrentEpochStartTime = day.StartTime
+				day.EpochCountingStarted = true
+
+				week.CurrentEpoch = 1
+				week.CurrentEpochStartTime = week.StartTime
+				week.EpochCountingStarted = true
+
+				quarter.CurrentEpoch = 1
+				quarter.CurrentEpochStartTime = quarter.StartTime
+				quarter.EpochCountingStarted = true
+
 				req = &types.QueryEpochsInfoRequest{}
 				expRes = &types.QueryEpochsInfoResponse{
 					Epochs: []types.EpochInfo{day, quarter, week},
 					Pagination: &query.PageResponse{
 						NextKey: nil,
-						Total:   0,
+						Total:   3,
 					},
 				}
 			},

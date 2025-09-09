@@ -1,10 +1,11 @@
 package keeper
 
 import (
+	"context"
 	"encoding/binary"
 
-	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/prefix"
+	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 
@@ -48,10 +49,11 @@ func (k Keeper) GetPaymentAccount(
 
 // IsPaymentAccount returns is the account address a payment account
 func (k Keeper) IsPaymentAccount(
-	ctx sdk.Context,
+	ctx context.Context,
 	addr sdk.AccAddress,
 ) bool {
-	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.PaymentAccountKeyPrefix)
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	store := prefix.NewStore(sdkCtx.KVStore(k.storeKey), types.PaymentAccountKeyPrefix)
 	return store.Has(types.PaymentAccountKey(
 		addr,
 	))

@@ -4,18 +4,20 @@ import (
 	"math/big"
 	"testing"
 
+	tmlog "cosmossdk.io/log"
 	"cosmossdk.io/simapp/params"
-	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmlog "github.com/cometbft/cometbft/libs/log"
 	tmtypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/evmos/evmos/v12/app"
 	evmenc "github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/indexer"
+	rpctypes "github.com/evmos/evmos/v12/rpc/types"
 	utiltx "github.com/evmos/evmos/v12/testutil/tx"
 	"github.com/evmos/evmos/v12/utils"
 	"github.com/evmos/evmos/v12/x/evm/types"
@@ -60,13 +62,13 @@ func TestKVIndexer(t *testing.T) {
 	testCases := []struct {
 		name        string
 		block       *tmtypes.Block
-		blockResult []*abci.ResponseDeliverTx
+		blockResult []*abci.ExecTxResult
 		expSuccess  bool
 	}{
 		{
 			"success, format 1",
 			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
-			[]*abci.ResponseDeliverTx{
+			[]*abci.ExecTxResult{
 				{
 					Code: 0,
 					Events: []abci.Event{
@@ -86,7 +88,7 @@ func TestKVIndexer(t *testing.T) {
 		{
 			"success, format 2",
 			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
-			[]*abci.ResponseDeliverTx{
+			[]*abci.ExecTxResult{
 				{
 					Code: 0,
 					Events: []abci.Event{
@@ -108,7 +110,7 @@ func TestKVIndexer(t *testing.T) {
 		{
 			"success, exceed block gas limit",
 			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
-			[]*abci.ResponseDeliverTx{
+			[]*abci.ExecTxResult{
 				{
 					Code:   11,
 					Log:    "out of gas in location: block gas meter; gasWanted: 21000",
@@ -120,7 +122,7 @@ func TestKVIndexer(t *testing.T) {
 		{
 			"fail, failed eth tx",
 			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
-			[]*abci.ResponseDeliverTx{
+			[]*abci.ExecTxResult{
 				{
 					Code:   15,
 					Log:    "nonce mismatch",
@@ -132,7 +134,7 @@ func TestKVIndexer(t *testing.T) {
 		{
 			"fail, invalid events",
 			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
-			[]*abci.ResponseDeliverTx{
+			[]*abci.ExecTxResult{
 				{
 					Code:   0,
 					Events: []abci.Event{},
@@ -143,7 +145,7 @@ func TestKVIndexer(t *testing.T) {
 		{
 			"fail, not eth tx",
 			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz2}}},
-			[]*abci.ResponseDeliverTx{
+			[]*abci.ExecTxResult{
 				{
 					Code:   0,
 					Events: []abci.Event{},
@@ -169,20 +171,50 @@ func TestKVIndexer(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, int64(-1), last)
 			} else {
+				// For success cases, we need to check if there are any valid eth txs
+				hasValidEthTx := false
+				for i, tx := range tc.block.Txs {
+					result := tc.blockResult[i]
+					if !rpctypes.TxSuccessOrExceedsBlockGasLimit(result) {
+						continue
+					}
+
+					tx, err := clientCtx.TxConfig.TxDecoder()(tx)
+					require.NoError(t, err)
+
+					if !isEthTx(tx) {
+						continue
+					}
+
+					hasValidEthTx = true
+					break
+				}
+
 				first, err := idxer.FirstIndexedBlock()
 				require.NoError(t, err)
-				require.Equal(t, tc.block.Header.Height, first)
+				if hasValidEthTx {
+					require.Equal(t, tc.block.Header.Height, first)
+				} else {
+					require.Equal(t, int64(-1), first)
+				}
 
 				last, err := idxer.LastIndexedBlock()
 				require.NoError(t, err)
-				require.Equal(t, tc.block.Header.Height, last)
+				if hasValidEthTx {
+					require.Equal(t, tc.block.Header.Height, last)
+				} else {
+					require.Equal(t, int64(-1), last)
+				}
 
-				res1, err := idxer.GetByTxHash(txHash)
-				require.NoError(t, err)
-				require.NotNil(t, res1)
-				res2, err := idxer.GetByBlockAndIndex(1, 0)
-				require.NoError(t, err)
-				require.Equal(t, res1, res2)
+				// Only check tx hash and index if we have valid eth txs
+				if hasValidEthTx {
+					res1, err := idxer.GetByTxHash(txHash)
+					require.NoError(t, err)
+					require.NotNil(t, res1)
+					res2, err := idxer.GetByBlockAndIndex(1, 0)
+					require.NoError(t, err)
+					require.Equal(t, res1, res2)
+				}
 			}
 		})
 	}
@@ -190,5 +222,25 @@ func TestKVIndexer(t *testing.T) {
 
 // MakeEncodingConfig creates the EncodingConfig
 func MakeEncodingConfig() params.EncodingConfig {
-	return evmenc.MakeConfig(app.ModuleBasics)
+	cfg := evmenc.MakeConfig()
+	types.RegisterInterfaces(cfg.InterfaceRegistry)
+	return params.EncodingConfig{
+		InterfaceRegistry: cfg.InterfaceRegistry,
+		Codec:             cfg.Codec,
+		TxConfig:          cfg.TxConfig,
+		Amino:             cfg.Amino,
+	}
+}
+
+// isEthTx check if the tx is an eth tx
+func isEthTx(tx sdk.Tx) bool {
+	extTx, ok := tx.(authante.HasExtensionOptionsTx)
+	if !ok {
+		return false
+	}
+	opts := extTx.GetExtensionOptions()
+	if len(opts) != 1 || opts[0].GetTypeUrl() != "/ethermint.evm.v1.ExtensionOptionsEthereumTx" {
+		return false
+	}
+	return true
 }

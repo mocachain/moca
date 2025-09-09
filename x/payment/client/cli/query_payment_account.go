@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,7 +14,7 @@ import (
 	"github.com/evmos/evmos/v12/x/payment/types"
 )
 
-func CmdListPaymentAccount() *cobra.Command {
+func CmdEvmListPaymentAccount() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-payment-account",
 		Short: "list all payment-account",
@@ -51,7 +53,7 @@ func CmdListPaymentAccount() *cobra.Command {
 	return cmd
 }
 
-func CmdShowPaymentAccount() *cobra.Command {
+func CmdEvmShowPaymentAccount() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show-payment-account [addr]",
 		Short: "shows a payment-account",
@@ -70,6 +72,69 @@ func CmdShowPaymentAccount() *cobra.Command {
 			}
 			res := &types.QueryPaymentAccountResponse{
 				PaymentAccount: *ToPaymentAccount(&result),
+			}
+
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+
+	return cmd
+}
+
+func CmdListPaymentAccount() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list-payment-account",
+		Short: "list all payment-account",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx := client.GetClientContextFromCmd(cmd)
+
+			pageReq, err := client.ReadPageRequest(cmd.Flags())
+			if err != nil {
+				return err
+			}
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryPaymentAccountsRequest{
+				Pagination: pageReq,
+			}
+
+			res, err := queryClient.PaymentAccounts(context.Background(), params)
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddPaginationFlagsToCmd(cmd, cmd.Use)
+	flags.AddQueryFlagsToCmd(cmd)
+
+	return cmd
+}
+
+func CmdShowPaymentAccount() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "show-payment-account [addr]",
+		Short: "shows a payment-account",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			clientCtx := client.GetClientContextFromCmd(cmd)
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			argAddr := args[0]
+
+			params := &types.QueryPaymentAccountRequest{
+				Addr: argAddr,
+			}
+
+			res, err := queryClient.PaymentAccount(context.Background(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)

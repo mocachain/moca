@@ -43,8 +43,8 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 		return nil, errors.Wrapf(types.ErrInvalidChallengeID, "challenge %d cannot be found, it could be expired", msg.ChallengeId)
 	}
 
-	historicalInfo, ok := k.stakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
-	if !ok {
+	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
+	if err != nil {
 		return nil, errors.Wrap(types.ErrInvalidVoteValidatorSet, "fail to get validators")
 	}
 	allValidators := historicalInfo.Valset
@@ -106,7 +106,7 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 			if (slashedAmount.Add(toSlashAmount)).GT(maxSlashAmount) {
 				ctx.Logger().Info("slash amount exceed the max allow amount",
 					"toSlashAmount", toSlashAmount, "slashedAmount", slashedAmount)
-				toSlashAmount = sdk.ZeroInt()
+				toSlashAmount = sdkmath.ZeroInt()
 			}
 		}
 
@@ -148,8 +148,8 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 func (k msgServer) calculateSlashAmount(ctx sdk.Context, objectSize uint64) sdkmath.Int {
 	params := k.GetParams(ctx)
 	sizeRate := params.SlashAmountSizeRate
-	objectSizeInGB := sdk.NewDecFromBigInt(new(big.Int).SetUint64(objectSize)).QuoRoundUp(sdk.NewDec(oneGBBytes))
-	slashAmount := objectSizeInGB.Mul(sizeRate).Mul(sdk.NewDec(1e18)).TruncateInt()
+	objectSizeInGB := sdkmath.LegacyNewDecFromBigInt(new(big.Int).SetUint64(objectSize)).QuoRoundUp(sdkmath.LegacyNewDec(oneGBBytes))
+	slashAmount := objectSizeInGB.Mul(sizeRate).Mul(sdkmath.LegacyNewDec(1e18)).TruncateInt()
 
 	min := params.SlashAmountMin
 	if slashAmount.LT(min) {
@@ -169,14 +169,14 @@ func (k msgServer) calculateSlashRewards(ctx sdk.Context, total sdkmath.Int, cha
 
 	params := k.GetParams(ctx)
 	threshold := params.RewardSubmitterThreshold
-	submitterReward := params.RewardSubmitterRatio.Mul(sdk.NewDecFromInt(total)).TruncateInt()
+	submitterReward := params.RewardSubmitterRatio.Mul(sdkmath.LegacyNewDecFromInt(total)).TruncateInt()
 	if submitterReward.GT(threshold) {
 		submitterReward = threshold
 	}
 	total = total.Sub(submitterReward)
 
 	if challenger.Equals(sdk.AccAddress{}) { // the challenge is triggered by blockchain automatically
-		eachValidatorReward = total.Quo(sdk.NewIntFromUint64(uint64(validators)))
+		eachValidatorReward = total.Quo(sdkmath.NewIntFromUint64(uint64(validators)))
 		for i := int64(0); i < validators; i++ {
 			total = total.Sub(eachValidatorReward)
 		}
@@ -260,7 +260,7 @@ func (k msgServer) doSlashAndRewards(ctx sdk.Context, challengeID uint64, voteRe
 func (k msgServer) calculateHeartbeatRewards(ctx sdk.Context, total sdkmath.Int) (sdkmath.Int, sdkmath.Int) {
 	params := k.GetParams(ctx)
 	threshold := params.RewardSubmitterThreshold
-	submitterReward := params.RewardSubmitterRatio.Mul(sdk.NewDecFromInt(total)).TruncateInt()
+	submitterReward := params.RewardSubmitterRatio.Mul(sdkmath.LegacyNewDecFromInt(total)).TruncateInt()
 	if submitterReward.GT(threshold) {
 		submitterReward = threshold
 	}

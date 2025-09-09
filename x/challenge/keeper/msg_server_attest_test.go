@@ -35,7 +35,7 @@ func (s *TestSuite) TestAttest_Invalid() {
 		}},
 	}
 	s.stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).
-		Return(historicalInfo, true).AnyTimes()
+		Return(historicalInfo, nil).AnyTimes()
 
 	existObjectName := "existobject"
 	existObject := &storagetypes.ObjectInfo{
@@ -131,7 +131,7 @@ func (s *TestSuite) TestAttest_Heartbeat() {
 		}},
 	}
 	s.stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).
-		Return(historicalInfo, true).AnyTimes()
+		Return(historicalInfo, nil).AnyTimes()
 
 	existBucket := &storagetypes.BucketInfo{
 		Id:                         math.NewUint(10),
@@ -219,7 +219,7 @@ func (s *TestSuite) TestAttest_Normal() {
 		}},
 	}
 	s.stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).
-		Return(historicalInfo, true).AnyTimes()
+		Return(historicalInfo, nil).AnyTimes()
 
 	existBucket := &storagetypes.BucketInfo{
 		Id:         math.NewUint(10),

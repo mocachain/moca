@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       tags:
-        description: Image tags, example. zkmelabs/mechain:develop
+        description: Image tags, example. zkmelabs/moca:develop
         required: true
         type: string
       publish_tag:
@@ -27,7 +27,7 @@ jobs:
         id: meta
         run: |
           if ${{ inputs.publish_tag }}; then
-            echo "tags=${{ inputs.tags }}, zkmelabs/mechain:$(git describe --always --tags --match='v*')" >> "$GITHUB_OUTPUT"
+            echo "tags=${{ inputs.tags }}, zkmelabs/moca:$(git describe --always --tags --match='v*')" >> "$GITHUB_OUTPUT"
           else
             echo "tags=${{ inputs.tags }}" >> "$GITHUB_OUTPUT"
           fi

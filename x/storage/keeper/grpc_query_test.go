@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -113,6 +113,8 @@ func (s *TestSuite) TestQueryGroupMembersExist() {
 }
 
 func (s *TestSuite) TestQueryGroupsExist() {
+	s.accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(1), nil).AnyTimes()
+
 	groupOwner := sample.RandAccAddress()
 	groupNames := make([]string, 3)
 	exists := make(map[string]bool)
@@ -138,6 +140,8 @@ func (s *TestSuite) TestQueryGroupsExist() {
 }
 
 func (s *TestSuite) TestQueryGroupsExistByID() {
+	s.accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(1), nil).AnyTimes()
+
 	groupIDs := make([]string, 3)
 	exists := make(map[string]bool)
 	for i := 0; i < 3; i++ {

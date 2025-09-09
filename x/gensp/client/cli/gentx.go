@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 
 	tmos "github.com/cometbft/cometbft/libs/os"
-	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -18,7 +17,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
-	authTx "github.com/cosmos/cosmos-sdk/x/auth/tx"
+	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/pkg/errors"
@@ -33,9 +32,9 @@ func SPGenTxCmd(mbm module.BasicManager, txEncCfg client.TxEncodingConfig, genBa
 	fsCreateStorageProvider, defaultsDesc := cli.CreateStorageProviderMsgFlagSet(ipDefault)
 
 	cmd := &cobra.Command{
-		Use:   "spgentx [amount]",
+		Use:   "spgentx [key_name] [amount]",
 		Short: "Generate a genesis tx that creates a storage provider",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(2),
 		Long: fmt.Sprintf(`Generate a genesis transaction that creates a storage provider,
 that is signed by the key in the Keyring referenced by a given name. A node ID and consensus
 pubkey may optionally be provided. If they are omitted, they will be retrieved from the priv_validator.json
@@ -43,7 +42,7 @@ file. The following default parameters are included:
     %s
 
 Example:
-$ %s gentx 10000000000000000000000000amoca --home ./deployment/localup/.local/sp0 \
+$ %s gentx my-key-name 10000000000000000000000000amoca --home ./deployment/localup/.local/sp0 \
 	--creator=0x76330E9C31D8B91a8247a9bbA2959815D3008417 \
 	--operator-address=0x76330E9C31D8B91a8247a9bbA2959815D3008417 \
 	--funding-address=0x52C30AA52788ec9C8F36C3774C1F50702BCa59b9 \
@@ -51,7 +50,7 @@ $ %s gentx 10000000000000000000000000amoca --home ./deployment/localup/.local/sp
     --bls-pub-key=84a22236c7859ba4e52f43412801b30d3ad1d2f23324a26b001646f30c299357cacb6ccfc017854d9830db8e63639ce6 \
     --bls-proof=987406f0dd2e5f5f3e9e3e447f832dbf73809479ea552fe9b23e06e65651c01a5893e92a797d12078ef9b0c9eb72b8d90faaee65f738e222793d94b80a58cd0f329375ee04e8460f12f4772cf42859d30dd6444ed3350c3335aedf1dbde3bb68 \
 	--approval-address=0x68a60866C1e98e277a7389c9Ad90c10cb56debc9 \
-	--keyring-backend=test --chain-id=mechain_5252-1 \
+	--keyring-backend=test --chain-id=moca_5252-1 \
 	--moniker=sp0 --details=sp0 --website=http://website --endpoint="http://127.0.0.1:9033" \
 	--node tcp://localhost:26752 --node-id sp0 --ip 127.0.0.1 \
 	--gas '' --output-document=./deployment/localup/.local/gensptx/gentx-sp0.json
@@ -76,13 +75,13 @@ $ %s gentx 10000000000000000000000000amoca --home ./deployment/localup/.local/sp
 				nodeID = nodeIDString
 			}
 
-			genDoc, err := tmtypes.GenesisDocFromFile(config.GenesisFile())
+			appGenesis, err := types.AppGenesisFromFile(config.GenesisFile())
 			if err != nil {
 				return errors.Wrapf(err, "failed to read genesis doc file %s", config.GenesisFile())
 			}
 
 			var genesisState map[string]json.RawMessage
-			if err = json.Unmarshal(genDoc.AppState, &genesisState); err != nil {
+			if err = json.Unmarshal(appGenesis.AppState, &genesisState); err != nil {
 				return errors.Wrap(err, "failed to unmarshal genesis state")
 			}
 
@@ -92,13 +91,19 @@ $ %s gentx 10000000000000000000000000amoca --home ./deployment/localup/.local/sp
 
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 
+			name := args[0]
+			_, err = clientCtx.Keyring.Key(name)
+			if err != nil {
+				return errors.Wrapf(err, "failed to fetch '%s' from the keyring", name)
+			}
+
 			// set flags for creating a gensptx
 			createSpCfg, err := cli.PrepareConfigForTxCreateStorageProvider(cmd.Flags())
 			if err != nil {
 				return errors.Wrap(err, "error creating configuration to create storage provider msg")
 			}
 
-			amount := args[0]
+			amount := args[1]
 			coins, err := sdk.ParseCoinsNormalized(amount)
 			if err != nil {
 				return errors.Wrap(err, "failed to parse coins")
@@ -127,6 +132,12 @@ $ %s gentx 10000000000000000000000000amoca --home ./deployment/localup/.local/sp
 			w := bytes.NewBuffer([]byte{})
 			clientCtx = clientCtx.WithOutput(w)
 
+			if m, ok := msg.(sdk.HasValidateBasic); ok {
+				if err := m.ValidateBasic(); err != nil {
+					return err
+				}
+			}
+
 			if err = txBldr.PrintUnsignedTx(clientCtx, msg); err != nil {
 				return errors.Wrap(err, "failed to print unsigned std tx")
 			}
@@ -137,11 +148,16 @@ $ %s gentx 10000000000000000000000000amoca --home ./deployment/localup/.local/sp
 				return errors.Wrap(err, "failed to read unsigned gen tx file")
 			}
 
-			// sig verification will skip in the genesis block,
-			// but still need a data to be set in Tx to skip the basic validation.
-			underlyingTx := authTx.UnWrapTx(stdTx)
-			underlyingTx.Signatures = [][]byte{[]byte(fmt.Sprintf("genesis create sp [%s]", createSpCfg.Moniker))}
-			stdTx = underlyingTx
+			// sign the transaction and write it to the output file
+			txBuilder, err := clientCtx.TxConfig.WrapTxBuilder(stdTx)
+			if err != nil {
+				return fmt.Errorf("error creating tx builder: %w", err)
+			}
+
+			err = authclient.SignTx(txFactory, clientCtx, name, txBuilder, true, true)
+			if err != nil {
+				return errors.Wrap(err, "failed to sign std tx")
+			}
 
 			outputDocument, _ := cmd.Flags().GetString(flags.FlagOutputDocument)
 			if outputDocument == "" {

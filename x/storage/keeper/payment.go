@@ -216,25 +216,25 @@ func (k Keeper) UnlockAndChargeObjectStoreFee(ctx sdk.Context, primarySpID uint3
 	return k.ChargeObjectStoreFee(ctx, primarySpID, bucketInfo, internalBucketInfo, objectInfo)
 }
 
-func (k Keeper) IsPriceChanged(ctx sdk.Context, _ uint32, priceTime int64) (bool, *sptypes.GlobalSpStorePrice, sdk.Dec, *sptypes.GlobalSpStorePrice, sdk.Dec, error) {
+func (k Keeper) IsPriceChanged(ctx sdk.Context, _ uint32, priceTime int64) (bool, *sptypes.GlobalSpStorePrice, sdkmath.LegacyDec, *sptypes.GlobalSpStorePrice, sdkmath.LegacyDec, error) {
 	prePrice, err := k.spKeeper.GetGlobalSpStorePriceByTime(ctx, priceTime)
 	if err != nil {
-		return false, nil, sdk.ZeroDec(), nil, sdk.ZeroDec(), err
+		return false, nil, sdkmath.LegacyZeroDec(), nil, sdkmath.LegacyZeroDec(), err
 	}
 
 	currentPrice, err := k.spKeeper.GetGlobalSpStorePriceByTime(ctx, ctx.BlockTime().Unix())
 	if err != nil {
-		return false, nil, sdk.ZeroDec(), nil, sdk.ZeroDec(), err
+		return false, nil, sdkmath.LegacyZeroDec(), nil, sdkmath.LegacyZeroDec(), err
 	}
 
 	preParams, err := k.paymentKeeper.GetVersionedParamsWithTs(ctx, priceTime)
 	if err != nil {
-		return false, nil, sdk.ZeroDec(), nil, sdk.ZeroDec(), err
+		return false, nil, sdkmath.LegacyZeroDec(), nil, sdkmath.LegacyZeroDec(), err
 	}
 
 	currentParams, err := k.paymentKeeper.GetVersionedParamsWithTs(ctx, ctx.BlockTime().Unix())
 	if err != nil {
-		return false, nil, sdk.ZeroDec(), nil, sdk.ZeroDec(), err
+		return false, nil, sdkmath.LegacyZeroDec(), nil, sdkmath.LegacyZeroDec(), err
 	}
 
 	return !(prePrice.ReadPrice.Equal(currentPrice.ReadPrice) &&

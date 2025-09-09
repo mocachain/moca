@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"gopkg.in/yaml.v2"
 )
@@ -30,7 +29,7 @@ var (
 
 var (
 	KeySlashAmountSizeRate     = []byte("SlashAmountSizeRate")
-	DefaultSlashAmountSizeRate = sdk.NewDecWithPrec(85, 4)
+	DefaultSlashAmountSizeRate = math.LegacyNewDecWithPrec(85, 4)
 )
 
 var (
@@ -45,12 +44,12 @@ var (
 
 var (
 	KeyRewardValidatorRatio     = []byte("RewardValidatorRatio")
-	DefaultRewardValidatorRatio = sdk.NewDecWithPrec(9, 1)
+	DefaultRewardValidatorRatio = math.LegacyNewDecWithPrec(9, 1)
 )
 
 var (
 	KeyRewardSubmitterRatio     = []byte("RewardSubmitterRatio")
-	DefaultRewardSubmitterRatio = sdk.NewDecWithPrec(1, 3)
+	DefaultRewardSubmitterRatio = math.LegacyNewDecWithPrec(1, 3)
 )
 
 var (
@@ -93,11 +92,11 @@ func NewParams(
 	challengeCountPerBlock uint64,
 	challengeKeepAlivePeriod uint64,
 	slashCoolingOffPeriod uint64,
-	slashAmountSizeRate sdk.Dec,
+	slashAmountSizeRate math.LegacyDec,
 	slashAmountMin math.Int,
 	slashAmountMax math.Int,
-	rewardValidatorRatio sdk.Dec,
-	rewardSubmitterRatio sdk.Dec,
+	rewardValidatorRatio math.LegacyDec,
+	rewardSubmitterRatio math.LegacyDec,
 	rewardSubmitterThreshold math.Int,
 	heartbeatInterval uint64,
 	attestationInturnInterval uint64,
@@ -205,7 +204,7 @@ func (p Params) Validate() error {
 		return errors.New("max slash amount should be bigger than min slash amount")
 	}
 
-	if p.RewardValidatorRatio.Add(p.RewardSubmitterRatio).GT(sdk.NewDec(1)) {
+	if p.RewardValidatorRatio.Add(p.RewardSubmitterRatio).GT(math.LegacyNewDec(1)) {
 		return errors.New("the sum of validator and submitter reward ratio should be equal to or less than one")
 	}
 
@@ -274,7 +273,7 @@ func validateSlashCoolingOffPeriod(v interface{}) error {
 
 // validateSlashAmountSizeRate validates the SlashAmountPerSizeRate param
 func validateSlashAmountSizeRate(v interface{}) error {
-	slashAmountSizeRate, ok := v.(sdk.Dec)
+	slashAmountSizeRate, ok := v.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
@@ -283,7 +282,7 @@ func validateSlashAmountSizeRate(v interface{}) error {
 		return errors.New("slash amount size rate cannot be nil")
 	}
 
-	if slashAmountSizeRate.LT(sdk.ZeroDec()) {
+	if slashAmountSizeRate.LT(math.LegacyZeroDec()) {
 		return errors.New("slash amount size rate cannot be lower than zero")
 	}
 
@@ -301,7 +300,7 @@ func validateSlashAmountMin(v interface{}) error {
 		return errors.New("min slash amount cannot be nil")
 	}
 
-	if slashAmountMin.LT(sdk.ZeroInt()) {
+	if slashAmountMin.LT(math.ZeroInt()) {
 		return errors.New("min slash amount cannot be lower than zero")
 	}
 
@@ -319,7 +318,7 @@ func validateSlashAmountMax(v interface{}) error {
 		return errors.New("max slash amount cannot be nil")
 	}
 
-	if slashAmountMax.LT(sdk.ZeroInt()) {
+	if slashAmountMax.LT(math.ZeroInt()) {
 		return errors.New("max slash amount cannot be lower than zero")
 	}
 
@@ -328,7 +327,7 @@ func validateSlashAmountMax(v interface{}) error {
 
 // validateRewardValidatorRatio validates the RewardValidatorRatio param
 func validateRewardValidatorRatio(v interface{}) error {
-	rewardValidatorRatio, ok := v.(sdk.Dec)
+	rewardValidatorRatio, ok := v.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
@@ -337,7 +336,7 @@ func validateRewardValidatorRatio(v interface{}) error {
 		return errors.New("validator reward ratio cannot be nil")
 	}
 
-	if rewardValidatorRatio.LT(sdk.ZeroDec()) {
+	if rewardValidatorRatio.LT(math.LegacyZeroDec()) {
 		return errors.New("validator reward ratio cannot be lower than zero")
 	}
 
@@ -346,7 +345,7 @@ func validateRewardValidatorRatio(v interface{}) error {
 
 // validateRewardSubmitterRatio validates the RewardSubmitterRatio param
 func validateRewardSubmitterRatio(v interface{}) error {
-	rewardSubmitterRatio, ok := v.(sdk.Dec)
+	rewardSubmitterRatio, ok := v.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
@@ -355,7 +354,7 @@ func validateRewardSubmitterRatio(v interface{}) error {
 		return errors.New("submitter reward ratio cannot be nil")
 	}
 
-	if rewardSubmitterRatio.LT(sdk.ZeroDec()) {
+	if rewardSubmitterRatio.LT(math.LegacyZeroDec()) {
 		return errors.New("submitter reward ratio cannot be lower than zero")
 	}
 
@@ -373,7 +372,7 @@ func validateRewardSubmitterThreshold(v interface{}) error {
 		return errors.New("submitter reward threshold cannot be nil")
 	}
 
-	if rewardSubmitterThreshold.LT(sdk.ZeroInt()) {
+	if rewardSubmitterThreshold.LT(math.ZeroInt()) {
 		return errors.New("submitter reward threshold cannot be lower than zero")
 	}
 
@@ -430,7 +429,7 @@ func validateSpSlashMaxAmount(v interface{}) error {
 		return errors.New("storage provider max slash amount cannot be nil")
 	}
 
-	if spSlashMaxAmount.LT(sdk.ZeroInt()) {
+	if spSlashMaxAmount.LT(math.ZeroInt()) {
 		return errors.New("storage provider max slash amount cannot be lower than zero")
 	}
 

@@ -62,7 +62,7 @@ func PolicyForAccountPrefix(resourceID math.Uint, resourceType resource.Resource
 	if useV2 {
 		key = append(key, LengthPrefix(resourceID)...)
 	} else {
-		key = append(key, resourceID.Bytes()...)
+		key = append(key, resourceID.BigInt().Bytes()...)
 	}
 	return key
 }
@@ -84,12 +84,12 @@ func GetPolicyForGroupKey(resourceID math.Uint, resourceType resource.ResourceTy
 	default:
 		panic(fmt.Sprintf("GetPolicyForGroupKey Invalid Resource Type, %s", resourceType.String()))
 	}
-	key = append(key, resourceID.Bytes()...)
+	key = append(key, resourceID.BigInt().Bytes()...)
 	return key
 }
 
 func GetPolicyByIDKey(policyID math.Uint) []byte {
-	return append(PolicyByIDPrefix, policyID.Bytes()...)
+	return append(PolicyByIDPrefix, policyID.BigInt().Bytes()...)
 }
 
 func GroupMembersPrefix(groupID math.Uint) []byte {
@@ -101,7 +101,7 @@ func GetGroupMemberKey(groupID math.Uint, member sdk.AccAddress) []byte {
 }
 
 func GetGroupMemberByIDKey(memberID math.Uint) []byte {
-	return append(GroupMemberByIDPrefix, memberID.Bytes()...)
+	return append(GroupMemberByIDPrefix, memberID.BigInt().Bytes()...)
 }
 
 // PolicyPrefixQueue is the canonical key to store policy key.
@@ -130,7 +130,7 @@ func ParsePolicyIDFromQueueKey(key []byte) math.Uint {
 }
 
 func LengthPrefix(id math.Uint) []byte {
-	bz := id.Bytes()
+	bz := id.BigInt().Bytes()
 	bzLen := len(bz)
 	if bzLen == 0 {
 		return bz

@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -46,8 +47,8 @@ func TestMsgCreateStorageProvider_ValidateBasic(t *testing.T) {
 				BlsKey:             tt.blsKey,
 				BlsProof:           tt.blsProof,
 				Endpoint:           "http://127.0.0.1:9033",
-				StorePrice:         sdk.ZeroDec(),
-				ReadPrice:          sdk.ZeroDec(),
+				StorePrice:         math.LegacyZeroDec(),
+				ReadPrice:          math.LegacyZeroDec(),
 				Deposit:            tt.deposit,
 			}
 			err := msg.ValidateBasic()

@@ -32,7 +32,7 @@ var (
 	// DefaultMinDeposit defines the minimum deposit amount for all storage provider
 	DefaultMinDeposit = math.NewIntFromBigInt(new(big.Int).Mul(big.NewInt(10000), big.NewInt(1e18)))
 	// DefaultSecondarySpStorePriceRatio is 12%
-	DefaultSecondarySpStorePriceRatio = sdk.NewDecFromIntWithPrec(sdk.NewInt(12), 2)
+	DefaultSecondarySpStorePriceRatio = math.LegacyNewDecFromIntWithPrec(math.NewInt(12), 2)
 )
 
 var (
@@ -54,7 +54,7 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new Params instance
-func NewParams(depositDenom string, minDeposit math.Int, secondarySpStorePriceRatio sdk.Dec,
+func NewParams(depositDenom string, minDeposit math.Int, secondarySpStorePriceRatio math.LegacyDec,
 	historicalBlocksForMaintenanceRecords, maintenanceDurationQuota, lockUpBlocksForMaintenance int64,
 	updateGlobalPriceInterval uint64, updatePriceDisallowedDays uint32,
 ) Params {
@@ -164,11 +164,11 @@ func validateMinDeposit(i interface{}) error {
 }
 
 func validateSecondarySpStorePriceRatio(i interface{}) error {
-	v, ok := i.(sdk.Dec)
+	v, ok := i.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
-	if v.IsNil() || !v.IsPositive() || v.GT(sdk.OneDec()) {
+	if v.IsNil() || !v.IsPositive() || v.GT(math.LegacyOneDec()) {
 		return fmt.Errorf("invalid secondary sp store price ratio")
 	}
 	return nil

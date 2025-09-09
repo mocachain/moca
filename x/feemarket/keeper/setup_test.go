@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -51,6 +52,8 @@ func TestKeeperTestSuite(t *testing.T) {
 func (suite *KeeperTestSuite) SetupTest() {
 	checkTx := false
 	chainID := utils.TestnetChainID + "-1"
-	suite.app = app.Setup(checkTx, nil, chainID)
+	fmGenesis := types.DefaultGenesisState()
+	fmGenesis.Params.BaseFee = math.NewInt(1142857142)
+	suite.app = app.Setup(checkTx, fmGenesis, chainID)
 	suite.SetupApp(checkTx, chainID)
 }

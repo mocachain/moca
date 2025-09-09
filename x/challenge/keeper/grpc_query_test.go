@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	storetypes "cosmossdk.io/store/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -83,7 +83,7 @@ func TestInturnAttestationSubmitterQuery(t *testing.T) {
 		Header: tmproto.Header{},
 		Valset: []stakingtypes.Validator{{BlsKey: blsKey}},
 	}
-	stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).Return(historicalInfo, true).AnyTimes()
+	stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).Return(historicalInfo, nil).AnyTimes()
 
 	keeper := keeper.NewKeeper(
 		encCfg.Codec,

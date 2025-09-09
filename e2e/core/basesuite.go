@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
+	tmlog "cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
 	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/cometbft/cometbft/crypto/tmhash"
-	tmlog "github.com/cometbft/cometbft/libs/log"
 	sdkClient "github.com/cosmos/cosmos-sdk/client"
 	sdkServer "github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -31,7 +31,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	mechaind "github.com/evmos/evmos/v12/cmd/mechaind/cmd"
+	mocad "github.com/evmos/evmos/v12/cmd/mocad/cmd"
 	"github.com/evmos/evmos/v12/sdk/client"
 	"github.com/evmos/evmos/v12/sdk/keys"
 	"github.com/evmos/evmos/v12/sdk/types"
@@ -57,7 +57,7 @@ var initValidatorOnce sync.Once
 type BaseSuite struct {
 	suite.Suite
 	Config           *Config
-	Client           *client.MechainClient
+	Client           *client.MocaClient
 	TmClient         *client.TendermintClient
 	Validator        keys.KeyManager
 	ValidatorBLS     keys.KeyManager
@@ -84,7 +84,7 @@ func findCommand(cmd *cobra.Command, name string) *cobra.Command {
 
 func (s *BaseSuite) InitChain() {
 	s.T().Log("Initializing chain")
-	rootCmd, _ := mechaind.NewRootCmd()
+	rootCmd, _ := mocad.NewRootCmd()
 	// Initialize and start chain
 	ctx := context.Background()
 	srvCtx := sdkServer.NewDefaultContext()
@@ -132,7 +132,7 @@ func (s *BaseSuite) SetupSuite() {
 		s.InitChain()
 	})
 
-	s.Client, _ = client.NewMechainClient(s.Config.TendermintAddr, s.Config.ChainID)
+	s.Client, _ = client.NewMocaClient(s.Config.TendermintAddr, s.Config.EvmAddr, s.Config.ChainID)
 	tmClient := client.NewTendermintClient(s.Config.TendermintAddr)
 	s.TmClient = &tmClient
 	var err error
@@ -178,7 +178,7 @@ func (s *BaseSuite) SetupSuite() {
 			// Create a GVG for each sp by default
 			deposit := sdk.Coin{
 				Denom:  s.Config.Denom,
-				Amount: types.NewIntFromInt64WithDecimal(1000, types.DecimalZKME),
+				Amount: types.NewIntFromInt64WithDecimal(1000, types.DecimalMOCA),
 			}
 			var secondaryIDs []uint32
 			for _, ssp := range s.StorageProviders {
@@ -290,14 +290,14 @@ func (s *BaseSuite) GenAndChargeAccounts(n int, balance int64) (accounts []keys.
 		accounts = append(accounts, km)
 		outputs = append(outputs, banktypes.Output{
 			Address: km.GetAddr().String(),
-			Coins:   []sdk.Coin{{Denom: denom, Amount: types.NewIntFromInt64WithDecimal(balance, types.DecimalZKME)}},
+			Coins:   []sdk.Coin{{Denom: denom, Amount: types.NewIntFromInt64WithDecimal(balance, types.DecimalMOCA)}},
 		})
 	}
 	if balance == 0 {
 		return
 	}
 	// prevent int64 multiplication overflow
-	balanceInt := types.NewIntFromInt64WithDecimal(balance, types.DecimalZKME)
+	balanceInt := types.NewIntFromInt64WithDecimal(balance, types.DecimalMOCA)
 	nInt := sdkmath.NewInt(int64(n))
 	in := banktypes.Input{
 		Address: s.Validator.GetAddr().String(),
@@ -460,7 +460,7 @@ func (s *BaseSuite) CreateNewStorageProvider() *StorageProvider {
 	newSP := s.NewSpAcc()
 
 	// 2. grant deposit authorization of sp to gov module account
-	coins := sdk.NewCoin(s.Config.Denom, types.NewIntFromInt64WithDecimal(10000, types.DecimalZKME))
+	coins := sdk.NewCoin(s.Config.Denom, types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA))
 	authorization := sptypes.NewDepositAuthorization(newSP.OperatorKey.GetAddr(), &coins)
 
 	govAddr := authtypes.NewModuleAddress(gov.ModuleName)
@@ -473,7 +473,7 @@ func (s *BaseSuite) CreateNewStorageProvider() *StorageProvider {
 	// 2. submit CreateStorageProvider proposal
 	deposit := sdk.Coin{
 		Denom:  s.Config.Denom,
-		Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalZKME),
+		Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 	}
 	description := sptypes.Description{
 		Moniker:  "sp_test",
@@ -481,8 +481,8 @@ func (s *BaseSuite) CreateNewStorageProvider() *StorageProvider {
 	}
 
 	endpoint := "http://127.0.0.1:9034"
-	newReadPrice := sdk.NewDec(RandInt64(100, 200))
-	newStorePrice := sdk.NewDec(RandInt64(10000, 20000))
+	newReadPrice := sdkmath.LegacyNewDec(RandInt64(100, 200))
+	newStorePrice := sdkmath.LegacyNewDec(RandInt64(10000, 20000))
 
 	// bls pub key
 	newSpBlsKm := newSP.BlsKey
@@ -503,9 +503,9 @@ func (s *BaseSuite) CreateNewStorageProvider() *StorageProvider {
 
 	msgProposal, err := govtypesv1.NewMsgSubmitProposal(
 		[]sdk.Msg{msgCreateSP},
-		sdk.Coins{sdk.NewCoin(s.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalZKME))},
+		sdk.Coins{sdk.NewCoin(s.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test",
+		"test", "test", "test", false,
 	)
 	s.Require().NoError(err)
 
@@ -698,7 +698,7 @@ func (s *BaseSuite) CreateGlobalVirtualGroup(sp *StorageProvider, familyID uint3
 	// Create a GVG for each sp by default
 	deposit := sdk.Coin{
 		Denom:  s.Config.Denom,
-		Amount: types.NewIntFromInt64WithDecimal(depositAmount, types.DecimalZKME),
+		Amount: types.NewIntFromInt64WithDecimal(depositAmount, types.DecimalMOCA),
 	}
 	msgCreateGVG := &virtualgroupmoduletypes.MsgCreateGlobalVirtualGroup{
 		StorageProvider: sp.OperatorKey.GetAddr().String(),
@@ -716,7 +716,7 @@ func (s *BaseSuite) CreateGlobalVirtualGroup(sp *StorageProvider, familyID uint3
 	var newFamilyID uint32
 	for _, e := range resp2.Events {
 		s.T().Logf("Event: %s", e.String())
-		if e.Type == "mechain.virtualgroup.EventCreateGlobalVirtualGroup" {
+		if e.Type == "moca.virtualgroup.EventCreateGlobalVirtualGroup" {
 			for _, a := range e.Attributes {
 				if a.Key == "id" {
 					num, err := strconv.ParseUint(a.Value, 10, 32)

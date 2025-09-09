@@ -82,8 +82,8 @@ func (_m *SECP256K1) GetPublicKeySECP256K1(_a0 []uint32) ([]byte, error) {
 	return r0, r1
 }
 
-func (_m *SECP256K1) SignSECP256K1(_a0 []uint32, _a1 []byte) ([]byte, error) {
-	args := _m.Called(_a0, _a1)
+func (_m *SECP256K1) SignSECP256K1(_a0 []uint32, _a1 []byte, _a2 byte) ([]byte, error) {
+	args := _m.Called(_a0, _a1, _a2)
 	e := args.Get(1)
 	err, _ := e.(error)
 	if errors.Is(err, ErrMockedSigning) {

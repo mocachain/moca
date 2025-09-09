@@ -6,24 +6,24 @@ source $SCRIPT_DIR/.env
 
 TEMPLATE_FILE="$SCRIPT_DIR/create_validator_proposal.json"
 OUTPUT_FILE="$SCRIPT_DIR/proposal.json"
-MECHAIND_CMD="${SCRIPT_DIR}/../build/mechaind"
+MOCAD_CMD="${SCRIPT_DIR}/../build/mocad"
 
 function generate() {
     home=$1
     echo "add keys..."
-    $MECHAIND_CMD keys add validator --keyring-backend test --home "$home" >${home}/validator_info 2>&1
-    $MECHAIND_CMD keys add delegator --keyring-backend test --home "$home" >${home}/delegator_info 2>&1
-    $MECHAIND_CMD keys add validator_bls --keyring-backend test --home "$home" --algo eth_bls >${home}/bls_info 2>&1
-    $MECHAIND_CMD keys add validator_relayer --keyring-backend test --home "$home" >${home}/relayer_info 2>&1
-    $MECHAIND_CMD keys add validator_challenger --keyring-backend test --home "$home" >${home}/challenger_info 2>&1
+    $MOCAD_CMD keys add validator --keyring-backend test --home "$home" >${home}/validator_info 2>&1
+    $MOCAD_CMD keys add delegator --keyring-backend test --home "$home" >${home}/delegator_info 2>&1
+    $MOCAD_CMD keys add validator_bls --keyring-backend test --home "$home" --algo eth_bls >${home}/bls_info 2>&1
+    $MOCAD_CMD keys add validator_relayer --keyring-backend test --home "$home" >${home}/relayer_info 2>&1
+    $MOCAD_CMD keys add validator_challenger --keyring-backend test --home "$home" >${home}/challenger_info 2>&1
 
     echo "show keys..."
-    VALIDATOR_ADDR=$($MECHAIND_CMD keys show validator -a --keyring-backend test --home "$home")
-    DELEGATOR_ADDR=$($MECHAIND_CMD keys show delegator -a --keyring-backend test --home "$home")
-    RELAYER_ADDR=$($MECHAIND_CMD keys show validator_relayer -a --keyring-backend test --home "$home")
-    CHALLENGER_ADDR=$($MECHAIND_CMD keys show validator_challenger -a --keyring-backend test --home "$home")
-    VALIDATOR_BLS=$($MECHAIND_CMD keys show validator_bls --keyring-backend test --home "$home" --output json | jq -r '.pubkey_hex')
-    VALIDATOR_BLS_PROOF=$($MECHAIND_CMD keys sign ${VALIDATOR_BLS} --keyring-backend test --home "$home" --from validator_bls)
+    VALIDATOR_ADDR=$($MOCAD_CMD keys show validator -a --keyring-backend test --home "$home")
+    DELEGATOR_ADDR=$($MOCAD_CMD keys show delegator -a --keyring-backend test --home "$home")
+    RELAYER_ADDR=$($MOCAD_CMD keys show validator_relayer -a --keyring-backend test --home "$home")
+    CHALLENGER_ADDR=$($MOCAD_CMD keys show validator_challenger -a --keyring-backend test --home "$home")
+    VALIDATOR_BLS=$($MOCAD_CMD keys show validator_bls --keyring-backend test --home "$home" --output json | jq -r '.pubkey_hex')
+    VALIDATOR_BLS_PROOF=$($MOCAD_CMD keys sign ${VALIDATOR_BLS} --keyring-backend test --home "$home" --from validator_bls)
     VALIDATOR_NODE_PUB_KEY=$(cat ${home}/config/priv_validator_key.json | jq -r '.pub_key.value')
 
     if [ -z "$VALIDATOR_ADDR" ] || [ -z "$DELEGATOR_ADDR" ] || [ -z "$RELAYER_ADDR" ] || [ -z "$CHALLENGER_ADDR" ] || [ -z "$VALIDATOR_BLS" ] || [ -z "$VALIDATOR_BLS_PROOF" ] || [ -z "$VALIDATOR_NODE_PUB_KEY" ]; then
@@ -51,26 +51,26 @@ function generate() {
     echo DELEGATOR_ADDR: $DELEGATOR_ADDR
 
     echo "send tokens..."
-    echo "$MECHAIND_CMD tx bank send validator0 $VALIDATOR_ADDR 10000000000000000000000000amoca --home /app/validator0 --keyring-backend test --node ${TENDERMINT_RPC} -y --fees 6000000amoca"
-    echo "$MECHAIND_CMD tx bank send validator0 $DELEGATOR_ADDR 10000000000000000000000000amoca --home /app/validator0 --keyring-backend test --node ${TENDERMINT_RPC} -y --fees 6000000amoca"
+    echo "$MOCAD_CMD tx bank send validator0 $VALIDATOR_ADDR 10000000000000000000000000amoca --home /app/validator0 --keyring-backend test --node ${TENDERMINT_RPC} -y --fees 6000000amoca"
+    echo "$MOCAD_CMD tx bank send validator0 $DELEGATOR_ADDR 10000000000000000000000000amoca --home /app/validator0 --keyring-backend test --node ${TENDERMINT_RPC} -y --fees 6000000amoca"
 }
 
 function balance() {
     home=$1
-    VALIDATOR_ADDR=$($MECHAIND_CMD keys show validator -a --keyring-backend test --home "$home")
+    VALIDATOR_ADDR=$($MOCAD_CMD keys show validator -a --keyring-backend test --home "$home")
     echo "validator($VALIDATOR_ADDR) balance..."
-    $MECHAIND_CMD query bank balances $VALIDATOR_ADDR --home $home
-    DELEGATOR_ADDR=$($MECHAIND_CMD keys show delegator -a --keyring-backend test --home "$home")
+    $MOCAD_CMD query bank balances $VALIDATOR_ADDR --home $home
+    DELEGATOR_ADDR=$($MOCAD_CMD keys show delegator -a --keyring-backend test --home "$home")
     echo "delegator($DELEGATOR_ADDR) balance..."
-    $MECHAIND_CMD query bank balances $DELEGATOR_ADDR --home $home
+    $MOCAD_CMD query bank balances $DELEGATOR_ADDR --home $home
 }
 
 function grant() {
     echo "grant..."
     home=$1
-    VALIDATOR_ADDR=$($MECHAIND_CMD keys show validator -a --keyring-backend test --home "$home")
-    DELEGATOR_ADDR=$($MECHAIND_CMD keys show delegator -a --keyring-backend test --home "$home")
-    $MECHAIND_CMD tx authz grant 0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2 generic \
+    VALIDATOR_ADDR=$($MOCAD_CMD keys show validator -a --keyring-backend test --home "$home")
+    DELEGATOR_ADDR=$($MOCAD_CMD keys show delegator -a --keyring-backend test --home "$home")
+    $MOCAD_CMD tx authz grant 0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2 generic \
         --msg-type=/cosmos.staking.v1beta1.MsgDelegate --gas="600000" --gas-prices="10000000000amoca" \
         --from=${DELEGATOR_ADDR} --home=$home --keyring-backend=test --broadcast-mode sync -y
 }
@@ -78,20 +78,20 @@ function grant() {
 function proposal() {
     echo "create proposal..."
     home=$1
-    VALIDATOR_ADDR=$($MECHAIND_CMD keys show validator -a --keyring-backend test --home "$home")
-    DELEGATOR_ADDR=$($MECHAIND_CMD keys show delegator -a --keyring-backend test --home "$home")
-    # echo $MECHAIND_CMD tx gov submit-proposal $OUTPUT_FILE --gas="600000" --gas-prices="10000000000amoca" \
+    VALIDATOR_ADDR=$($MOCAD_CMD keys show validator -a --keyring-backend test --home "$home")
+    DELEGATOR_ADDR=$($MOCAD_CMD keys show delegator -a --keyring-backend test --home "$home")
+    # echo $MOCAD_CMD tx gov submit-proposal $OUTPUT_FILE --gas="600000" --gas-prices="10000000000amoca" \
     # --from=${DELEGATOR_ADDR} --home=$home --keyring-backend=test --broadcast-mode sync -y
-    $MECHAIND_CMD tx gov submit-proposal $OUTPUT_FILE --gas="600000" --gas-prices="10000000000amoca" \
+    $MOCAD_CMD tx gov submit-proposal $OUTPUT_FILE --gas="600000" --gas-prices="10000000000amoca" \
         --from=${VALIDATOR_ADDR} --home=$home --keyring-backend=test --broadcast-mode sync -y
 }
 
 function create() {
     echo "create proposal..."
     home=$1
-    VALIDATOR_ADDR=$($MECHAIND_CMD keys show validator -a --keyring-backend test --home "$home")
-    DELEGATOR_ADDR=$($MECHAIND_CMD keys show delegator -a --keyring-backend test --home "$home")
-    $MECHAIND_CMD tx staking create-validator $OUTPUT_FILE --home $home --keyring-backend test \
+    VALIDATOR_ADDR=$($MOCAD_CMD keys show validator -a --keyring-backend test --home "$home")
+    DELEGATOR_ADDR=$($MOCAD_CMD keys show delegator -a --keyring-backend test --home "$home")
+    $MOCAD_CMD tx staking create-validator $OUTPUT_FILE --home $home --keyring-backend test \
         --chain-id $CHAIN_ID --from ${DELEGATOR_ADDR} --node ${TENDERMINT_RPC} -b sync \
         --gas "200000000" --fees "100000000000000000000amoca" --yes >${home}/create.log 2>&1
 }
@@ -100,7 +100,7 @@ function query_proposal() {
     echo "query proposal..."
     home=$1
     tx_hash=$(grep 'txhash' ${home}/create.log | awk '{print $2}')
-    $MECHAIND_CMD q tx $tx_hash --home ${home} --output json >${SCRIPT_DIR}/tx.json
+    $MOCAD_CMD q tx $tx_hash --home ${home} --output json >${SCRIPT_DIR}/tx.json
     proposal_id=$(jq '.logs[] | .events[] | select(.type == "submit_proposal") | .attributes[] | select(.key == "proposal_id") | .value | tonumber' ${SCRIPT_DIR}/tx.json)
     curl -s ${TENDERMINT_API}/cosmos/gov/v1/proposals/$proposal_id | jq
 }
@@ -109,12 +109,12 @@ function vote() {
     echo "vote..."
     home=$1
     tx_hash=$(grep 'txhash' ${home}/create.log | awk '{print $2}')
-    $MECHAIND_CMD q tx $tx_hash --home ${home} --output json >${SCRIPT_DIR}/tx.json
+    $MOCAD_CMD q tx $tx_hash --home ${home} --output json >${SCRIPT_DIR}/tx.json
     proposal_id=$(jq '.logs[] | .events[] | select(.type == "submit_proposal") | .attributes[] | select(.key == "proposal_id") | .value | tonumber' ${SCRIPT_DIR}/tx.json)
     curl -s ${TENDERMINT_API}/cosmos/gov/v1/proposals/$proposal_id | jq
     size=$2
     for ((i = 0; i < ${size}; i++)); do
-        $MECHAIND_CMD tx gov vote ${proposal_id} yes --from=validator0 --chain-id=${CHAIN_ID} --keyring-backend=test --gas-prices=10000amoca -y
+        $MOCAD_CMD tx gov vote ${proposal_id} yes --from=validator0 --chain-id=${CHAIN_ID} --keyring-backend=test --gas-prices=10000amoca -y
     done
 }
 

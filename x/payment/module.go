@@ -22,6 +22,7 @@ import (
 var (
 	_ module.AppModule      = AppModule{}
 	_ module.AppModuleBasic = AppModuleBasic{}
+	_ module.HasABCIGenesis = AppModule{}
 )
 
 // ----------------------------------------------------------------------------
@@ -81,7 +82,7 @@ func (a AppModuleBasic) GetTxCmd() *cobra.Command {
 
 // GetQueryCmd returns the root query command for the module. The subcommands of this root command are used by end-users to generate new queries to the subset of the state defined by the module
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
-	return cli.GetQueryCmd()
+	return cli.GetEvmQueryCmd()
 }
 
 // ----------------------------------------------------------------------------
@@ -150,13 +151,19 @@ func (am AppModule) ConsensusVersion() uint64 { return am.version }
 func (am *AppModule) SetConsensusVersion(version uint64) { am.version = version }
 
 // BeginBlock contains the logic that is automatically triggered at the beginning of each block
-func (am AppModule) BeginBlock(_ sdk.Context, _ abci.RequestBeginBlock) {}
+func (am AppModule) BeginBlock(_ context.Context) error { return nil }
 
 // EndBlock contains the logic that is automatically triggered at the end of each block
-func (am AppModule) EndBlock(ctx sdk.Context, _ abci.RequestEndBlock) []abci.ValidatorUpdate {
+func (am AppModule) EndBlock(ctx context.Context) error {
 	// set ForceUpdateStreamRecordKey to true in context to force update frozen stream record
-	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
-	am.keeper.AutoResume(ctx)
-	am.keeper.AutoSettle(ctx)
-	return []abci.ValidatorUpdate{}
+	c := sdk.UnwrapSDKContext(ctx).WithValue(types.ForceUpdateStreamRecordKey, true)
+	am.keeper.AutoResume(c)
+	am.keeper.AutoSettle(c)
+	return nil
 }
+
+// IsAppModule implements the appmodule.AppModule interface.
+func (am AppModule) IsAppModule() {}
+
+// IsOnePerModuleType implements the depinject.OnePerModuleType interface.
+func (am AppModule) IsOnePerModuleType() {}

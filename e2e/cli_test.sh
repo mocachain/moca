@@ -14,7 +14,7 @@ function check_operation() {
 
 # dirs
 repo_root_dir="$(cd "$(dirname "$0")/.."; pwd)"
-gnfd_path="$repo_root_dir/build/mechaind"
+gnfd_path="$repo_root_dir/build/mocad"
 e2e_test_dir="$repo_root_dir/build/e2e"
 validator_home_dir="$repo_root_dir/deployment/localup/.local/validator0"
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/gogoproto/proto"
@@ -1299,7 +1300,7 @@ func (msg *MsgPutPolicy) ValidateBasic() error {
 	var grn grn2.GRN
 	err = grn.ParseFromString(msg.Resource, true)
 	if err != nil {
-		return errors.Wrapf(gnfderrors.ErrInvalidGRN, "invalid mechain resource name (%s)", err)
+		return errors.Wrapf(gnfderrors.ErrInvalidGRN, "invalid moca resource name (%s)", err)
 	}
 
 	if msg.Principal == nil {
@@ -1375,7 +1376,7 @@ func (msg *MsgDeletePolicy) ValidateBasic() error {
 	var grn grn2.GRN
 	err = grn.ParseFromString(msg.Resource, false)
 	if err != nil {
-		return errors.Wrapf(gnfderrors.ErrInvalidGRN, "invalid mechain resource name (%s)", err)
+		return errors.Wrapf(gnfderrors.ErrInvalidGRN, "invalid moca resource name (%s)", err)
 	}
 
 	if msg.Principal == nil {
@@ -1438,7 +1439,7 @@ func (msg *MsgMirrorBucket) ValidateBasic() error {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid creator address (%s)", err)
 	}
 
-	if !msg.Id.IsNil() && msg.Id.GT(sdk.NewUint(0)) {
+	if !msg.Id.IsNil() && msg.Id.GT(math.NewUint(0)) {
 		if msg.BucketName != "" {
 			return errors.Wrap(gnfderrors.ErrInvalidBucketName, "Bucket name should be empty")
 		}
@@ -1496,7 +1497,7 @@ func (msg *MsgMirrorObject) ValidateBasic() error {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid creator address (%s)", err)
 	}
 
-	if !msg.Id.IsNil() && msg.Id.GT(sdk.NewUint(0)) {
+	if !msg.Id.IsNil() && msg.Id.GT(math.NewUint(0)) {
 		if msg.BucketName != "" {
 			return errors.Wrap(gnfderrors.ErrInvalidBucketName, "Bucket name should be empty")
 		}
@@ -1561,7 +1562,7 @@ func (msg *MsgMirrorGroup) ValidateBasic() error {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid creator address (%s)", err)
 	}
 
-	if !msg.Id.IsNil() && msg.Id.GT(sdk.NewUint(0)) {
+	if !msg.Id.IsNil() && msg.Id.GT(math.NewUint(0)) {
 		if msg.GroupName != "" {
 			return errors.Wrap(gnfderrors.ErrInvalidGroupName, "Group name should be empty")
 		}
@@ -1712,7 +1713,7 @@ func (msg *MsgSetTag) ValidateBasic() error {
 	var grn grn2.GRN
 	err = grn.ParseFromString(msg.Resource, true)
 	if err != nil {
-		return errors.Wrapf(gnfderrors.ErrInvalidGRN, "invalid mechain resource name (%s)", err)
+		return errors.Wrapf(gnfderrors.ErrInvalidGRN, "invalid moca resource name (%s)", err)
 	}
 
 	if len(msg.Tags.GetTags()) > MaxTagCount {

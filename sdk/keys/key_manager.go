@@ -42,6 +42,25 @@ func NewMnemonicKeyManager(mnemonic string) (KeyManager, error) {
 	return &k, err
 }
 
+func GetPriKeyFromMnemonic(mnemonic string) (string, error) {
+	words := strings.Split(mnemonic, " ")
+	if len(words) != 12 && len(words) != 24 {
+		return "", fmt.Errorf("mnemonic length should either be 12 or 24")
+	}
+	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, defaultBIP39Passphrase)
+	if err != nil {
+		return "", err
+	}
+	// create master key and derive first key:
+	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
+	derivedPriv, err := hd.DerivePrivateKeyForPath(masterPriv, ch, FullPath)
+	if err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(derivedPriv), nil
+}
+
 func NewBlsPrivateKeyManager(priKey string) (KeyManager, error) {
 	k := keyManager{}
 	err := k.recoveryFromBlsPrivateKey(priKey)

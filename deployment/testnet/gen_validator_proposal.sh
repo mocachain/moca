@@ -1,25 +1,25 @@
 #!/bin/bash
 
-# 设置变量
+# set variables
 MONIKER_NAME="validator-lsl"
 
 # create accounts
 echo "Creating validator, delegator, validator BLS, relayer, and challenger accounts..."
-mechaind keys add validator --keyring-backend test
-mechaind keys add delegator --keyring-backend test
-mechaind keys add validator_bls --keyring-backend test --algo eth_bls
-mechaind keys add validator_relayer --keyring-backend test
-mechaind keys add validator_challenger --keyring-backend test
+mocad keys add validator --keyring-backend test
+mocad keys add delegator --keyring-backend test
+mocad keys add validator_bls --keyring-backend test --algo eth_bls
+mocad keys add validator_relayer --keyring-backend test
+mocad keys add validator_challenger --keyring-backend test
 
 # get accouts and private key
 echo "Obtaining addresses and keys..."
-VALIDATOR_ADDR=$(mechaind keys show validator -a --keyring-backend test)
-DELEGATOR_ADDR=$(mechaind keys show delegator -a --keyring-backend test)
-RELAYER_ADDR=$(mechaind keys show validator_relayer -a --keyring-backend test)
-CHALLENGER_ADDR=$(mechaind keys show validator_challenger -a --keyring-backend test)
-VALIDATOR_BLS=$(mechaind keys show validator_bls --keyring-backend test --output json | jq -r '.pubkey_hex')
-VALIDATOR_BLS_PROOF=$(mechaind keys sign ${VALIDATOR_BLS} --keyring-backend test --from validator_bls)
-VALIDATOR_NODE_PUB_KEY=$(cat ~/.mechaind/config/priv_validator_key.json | jq -r '.pub_key.value')
+VALIDATOR_ADDR=$(mocad keys show validator -a --keyring-backend test)
+DELEGATOR_ADDR=$(mocad keys show delegator -a --keyring-backend test)
+RELAYER_ADDR=$(mocad keys show validator_relayer -a --keyring-backend test)
+CHALLENGER_ADDR=$(mocad keys show validator_challenger -a --keyring-backend test)
+VALIDATOR_BLS=$(mocad keys show validator_bls --keyring-backend test --output json | jq -r '.pubkey_hex')
+VALIDATOR_BLS_PROOF=$(mocad keys sign ${VALIDATOR_BLS} --keyring-backend test --from validator_bls)
+VALIDATOR_NODE_PUB_KEY=$(cat ~/.mocad/config/priv_validator_key.json | jq -r '.pub_key.value')
 
 echo VALIDATOR_ADDR: $VALIDATOR_ADDR
 echo DELEGATOR_ADDR: $DELEGATOR_ADDR

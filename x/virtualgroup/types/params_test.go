@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,7 +54,7 @@ func TestGVGStakingPerBytes(t *testing.T) {
 	}{
 		{
 			name:  "valid",
-			ratio: sdk.NewInt(1),
+			ratio: math.NewInt(1),
 		},
 		{
 			name:  "invalid type",

@@ -2,8 +2,7 @@ package keeper_test
 
 import (
 	sdkmath "cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
@@ -32,7 +31,7 @@ func (s *TestSuite) TestSetBucketFlowRateLimit() {
 	bucketInfo := &types.BucketInfo{
 		Owner:            bucketOwner.String(),
 		BucketName:       bucketName,
-		Id:               sdk.NewUint(1),
+		Id:               sdkmath.NewUint(1),
 		PaymentAddress:   paymentAccount.String(),
 		ChargedReadQuota: 0,
 		BucketStatus:     types.BUCKET_STATUS_CREATED,
@@ -57,7 +56,7 @@ func (s *TestSuite) TestSetZeroBucketFlowRateLimit() {
 	bucketInfo := &types.BucketInfo{
 		Owner:            bucketOwner.String(),
 		BucketName:       bucketName,
-		Id:               sdk.NewUint(1),
+		Id:               sdkmath.NewUint(1),
 		PaymentAddress:   paymentAccount.String(),
 		ChargedReadQuota: 100,
 	}
@@ -78,7 +77,7 @@ func (s *TestSuite) TestSetFlowRateLimit_NotLimited() {
 	bucketInfo := &types.BucketInfo{
 		Owner:            bucketOwner.String(),
 		BucketName:       bucketName,
-		Id:               sdk.NewUint(1),
+		Id:               sdkmath.NewUint(1),
 		PaymentAddress:   paymentAccount.String(),
 		ChargedReadQuota: 100,
 	}
@@ -123,7 +122,7 @@ func (s *TestSuite) TestSetBucketFlowRateLimit_Limited() {
 	bucketInfo := &types.BucketInfo{
 		Owner:            bucketOwner.String(),
 		BucketName:       bucketName,
-		Id:               sdk.NewUint(1),
+		Id:               sdkmath.NewUint(1),
 		PaymentAddress:   paymentAccount.String(),
 		ChargedReadQuota: 100,
 	}
@@ -195,9 +194,9 @@ func prepareReadStoreBill(s *TestSuite, bucketInfo *types.BucketInfo) {
 		Return(primarySp, true).AnyTimes()
 
 	price := sptypes.GlobalSpStorePrice{
-		ReadPrice:           sdk.NewDec(100),
-		PrimaryStorePrice:   sdk.NewDec(1000),
-		SecondaryStorePrice: sdk.NewDec(500),
+		ReadPrice:           sdkmath.LegacyNewDec(100),
+		PrimaryStorePrice:   sdkmath.LegacyNewDec(1000),
+		SecondaryStorePrice: sdkmath.LegacyNewDec(500),
 	}
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).
 		Return(price, nil).AnyTimes()

@@ -51,7 +51,7 @@ func (s *TestSuite) TestAckCreateGroup() {
 	app := keeper.NewGroupApp(storageKeeper)
 	ackPackage := types.CreateGroupAckPackage{
 		Status:    types.StatusSuccess,
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		Creator:   sample.RandAccAddress(),
 		ExtraData: []byte("extra data"),
 	}
@@ -74,7 +74,7 @@ func (s *TestSuite) TestAckDeleteGroup() {
 	app := keeper.NewGroupApp(storageKeeper)
 	ackPackage := types.DeleteGroupAckPackage{
 		Status:    types.StatusSuccess,
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -95,7 +95,7 @@ func (s *TestSuite) TestFailAckMirrorGroup() {
 
 	app := keeper.NewGroupApp(storageKeeper)
 	ackPackage := types.MirrorGroupSynPackage{
-		ID:    big.NewInt(10),
+		Id:    big.NewInt(10),
 		Owner: sample.RandAccAddress(),
 	}
 
@@ -147,7 +147,7 @@ func (s *TestSuite) TestFailAckDeleteGroup() {
 	app := keeper.NewGroupApp(storageKeeper)
 	ackPackage := types.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -169,7 +169,7 @@ func (s *TestSuite) TestFailAckUpdateGroupMember() {
 	app := keeper.NewGroupApp(storageKeeper)
 	ackPackage := types.UpdateGroupMemberSynPackage{
 		Operator:  sample.RandAccAddress(),
-		GroupID:   big.NewInt(10),
+		GroupId:   big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -191,7 +191,7 @@ func (s *TestSuite) TestSynMirrorGroup() {
 	app := keeper.NewGroupApp(storageKeeper)
 	synPackage := types.MirrorGroupSynPackage{
 		Owner: sample.RandAccAddress(),
-		ID:    big.NewInt(10),
+		Id:    big.NewInt(10),
 	}
 
 	serializedSynPackage, err := synPackage.Serialize()
@@ -251,7 +251,7 @@ func (s *TestSuite) TestSynDeleteGroup() {
 	app := keeper.NewGroupApp(storageKeeper)
 	synPackage := types.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 	serializedSynPackage := synPackage.MustSerialize()
@@ -273,7 +273,7 @@ func (s *TestSuite) TestSynDeleteGroup() {
 
 	// case 3: normal case
 	storageKeeper.EXPECT().GetGroupInfoById(gomock.Any(), gomock.Any()).Return(&types.GroupInfo{
-		Id: sdk.NewUint(10),
+		Id: math.NewUint(10),
 	}, true)
 	storageKeeper.EXPECT().DeleteGroup(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	res = app.ExecuteSynPackage(s.ctx, &sdk.CrossChainAppContext{}, serializedSynPackage)
@@ -288,7 +288,7 @@ func (s *TestSuite) TestSynUpdateGroupMember() {
 	app := keeper.NewGroupApp(storageKeeper)
 	synPackage := types.UpdateGroupMemberSynPackage{
 		Operator:  sample.RandAccAddress(),
-		GroupID:   big.NewInt(10),
+		GroupId:   big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -321,7 +321,7 @@ func (s *TestSuite) TestSynUpdateGroupMember() {
 
 	// case 4: normal case
 	storageKeeper.EXPECT().GetGroupInfoById(gomock.Any(), gomock.Any()).Return(&types.GroupInfo{
-		Id: sdk.NewUint(10),
+		Id: math.NewUint(10),
 	}, true)
 	storageKeeper.EXPECT().UpdateGroupMember(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	res = app.ExecuteSynPackage(s.ctx, &sdk.CrossChainAppContext{}, serializedSynPackage)

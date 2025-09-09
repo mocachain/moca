@@ -6,6 +6,7 @@ import (
 	"github.com/evmos/evmos/v12/x/permission/keeper"
 )
 
-func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
+func EndBlocker(ctx sdk.Context, k keeper.Keeper) error {
 	k.RemoveExpiredPolicies(ctx)
+	return nil
 }

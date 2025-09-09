@@ -6,7 +6,7 @@ source $SCRIPT_DIR/.env
 function init() {
     echo "init chain..."
     home=$1
-    mechaind init $MONIKER_NAME --chain-id $CHAIN_ID --default-denom $BASIC_DENOM --home $home
+    mocad init $MONIKER_NAME --chain-id $CHAIN_ID --default-denom $BASIC_DENOM --home $home
 }
 
 function config_toml() {
@@ -36,6 +36,7 @@ function app_toml() {
     sed -i -e "s/dest-mantle-chain-id = 7/dest-mantle-chain-id = ${DEST_MANTLE_CHAIN_ID}/g" $home/config/app.toml
     sed -i -e "s/dest-arbitrum-chain-id = 8/dest-arbitrum-chain-id = ${DEST_ARBITRUM_CHAIN_ID}/g" $home/config/app.toml
     sed -i -e "s/dest-optimism-chain-id = 9/dest-optimism-chain-id = ${DEST_OPTIMISM_CHAIN_ID}/g" $home/config/app.toml
+    sed -i -e "s/dest-base-chain-id = 10/dest-base-chain-id = ${DEST_BASE_CHAIN_ID}/g" $home/config/app.toml
     sed -i -e "s/snapshot-keep-recent = 2/snapshot-keep-recent = ${SNAPSHOT_KEEP_RECENT}/g" $home/config/app.toml
     sed -i -e "s/enabled-unsafe-cors = false/enabled-unsafe-cors = true/g" $home/config/app.toml
     sed -i -e "s/pruning = \"default\"/pruning = \"nothing\"/g" $home/config/app.toml
@@ -62,7 +63,7 @@ function genesis() {
 function start() {
     echo "start chain..."
     home=$1
-    mechaind start --home $home >$home/node.log 2>&1 &
+    mocad start --home $home >$home/node.log 2>&1 &
 }
 
 function test() {

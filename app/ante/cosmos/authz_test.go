@@ -1,7 +1,9 @@
 package cosmos_test
 
 import (
+	sdkmath "cosmossdk.io/math"
 	"fmt"
+	utiltx "github.com/evmos/evmos/v12/testutil/tx"
 	"math/big"
 	"testing"
 	"time"
@@ -19,7 +21,6 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	cosmosante "github.com/evmos/evmos/v12/app/ante/cosmos"
 	testutil "github.com/evmos/evmos/v12/testutil"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 )
 
@@ -28,6 +29,17 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 	require.NoError(t, err)
 
 	distantFuture := time.Date(9000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// create a dummy MsgEthereumTx for the test
+	msgEthereumTx := evmtypes.NewTx(&evmtypes.EvmTxArgs{
+		ChainID:   big.NewInt(9000),
+		Nonce:     0,
+		GasLimit:  1000000,
+		GasFeeCap: big.NewInt(1000000000),
+		GasTipCap: big.NewInt(1),
+		Input:     nil,
+		Accesses:  &ethtypes.AccessList{},
+	})
 
 	validator := testAddresses[4]
 	stakingAuthDelegate, err := stakingtypes.NewStakeAuthorization([]sdk.AccAddress{validator}, nil, stakingtypes.AuthorizationType_AUTHORIZATION_TYPE_DELEGATE, nil)
@@ -62,7 +74,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 		{
 			"enabled msg MsgEthereumTx - blocked msg not wrapped in MsgExec",
 			[]sdk.Msg{
-				&evmtypes.MsgEthereumTx{},
+				msgEthereumTx,
 			},
 			false,
 			nil,
@@ -147,7 +159,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 				newMsgExec(
 					testAddresses[1],
 					[]sdk.Msg{
-						&evmtypes.MsgEthereumTx{},
+						msgEthereumTx,
 					},
 				),
 			},
@@ -171,7 +183,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 							testAddresses[3],
 							sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 100e6)),
 						),
-						&evmtypes.MsgEthereumTx{},
+						msgEthereumTx,
 					},
 				),
 			},
@@ -185,7 +197,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 					testAddresses[1],
 					2,
 					[]sdk.Msg{
-						&evmtypes.MsgEthereumTx{},
+						msgEthereumTx,
 					},
 				),
 			},
@@ -415,7 +427,7 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 			)
 
 			if tc.isEIP712 {
-				coinAmount := sdk.NewCoin(evmtypes.DefaultEVMDenom, sdk.NewInt(20))
+				coinAmount := sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewInt(20))
 				fees := sdk.NewCoins(coinAmount)
 				cosmosTxArgs := utiltx.CosmosTxArgs{
 					TxCfg:   suite.clientCtx.TxConfig,
@@ -444,20 +456,24 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 			bz, err := txEncoder(tx)
 			suite.Require().NoError(err)
 
-			resCheckTx := suite.app.CheckTx(
-				abci.RequestCheckTx{
+			resCheckTx, err := suite.app.CheckTx(
+				&abci.RequestCheckTx{
 					Tx:   bz,
 					Type: abci.CheckTxType_New,
 				},
 			)
+			suite.Require().NoError(err)
 			suite.Require().Equal(resCheckTx.Code, tc.expectedCode, resCheckTx.Log)
 
-			resDeliverTx := suite.app.DeliverTx(
-				abci.RequestDeliverTx{
-					Tx: bz,
+			resDeliverTx, err := suite.app.FinalizeBlock(
+				&abci.RequestFinalizeBlock{
+					Height: suite.ctx.BlockHeight(),
+					Txs:    [][]byte{bz},
 				},
 			)
-			suite.Require().Equal(resDeliverTx.Code, tc.expectedCode, resDeliverTx.Log)
+			suite.Require().NoError(err)
+			suite.Require().Len(resDeliverTx.TxResults, 1)
+			suite.Require().Equal(resDeliverTx.TxResults[0].Code, tc.expectedCode, resDeliverTx.TxResults[0].Log)
 		})
 	}
 }

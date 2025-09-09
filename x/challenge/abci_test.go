@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -51,11 +51,8 @@ func (s *TestSuite) SetupTest() {
 	randaoMix = append(randaoMix, crypto.Keccak256([]byte{2})...)
 	header := testCtx.Ctx.BlockHeader()
 	header.RandaoMix = randaoMix
-	upgradeChecker := func(_ sdk.Context, _ string) bool {
-		return true
-	}
 	testCtx = testutil.TestContext{
-		Ctx: sdk.NewContext(testCtx.CMS, header, false, upgradeChecker, testCtx.Ctx.Logger()),
+		Ctx: sdk.NewContext(testCtx.CMS, header, false, testCtx.Ctx.Logger()),
 		DB:  testCtx.DB,
 		CMS: testCtx.CMS,
 	}
@@ -122,12 +119,12 @@ func (s *TestSuite) TestBeginBlocker_RemoveExpiredChallenge() {
 func (s *TestSuite) TestBeginBlocker_RemoveSlash() {
 	s.challengeKeeper.SaveSlash(s.ctx, types.Slash{
 		SpId:     100,
-		ObjectId: sdk.NewUint(100),
+		ObjectId: math.NewUint(100),
 		Height:   100,
 	})
 	s.challengeKeeper.SaveSlash(s.ctx, types.Slash{
 		SpId:     200,
-		ObjectId: sdk.NewUint(200),
+		ObjectId: math.NewUint(200),
 		Height:   200,
 	})
 
@@ -137,23 +134,23 @@ func (s *TestSuite) TestBeginBlocker_RemoveSlash() {
 
 	s.ctx = s.ctx.WithBlockHeight(101)
 	challenge.BeginBlocker(s.ctx, *s.challengeKeeper)
-	s.Require().True(s.challengeKeeper.ExistsSlash(s.ctx, 100, sdk.NewUint(100)))
-	s.Require().True(s.challengeKeeper.ExistsSlash(s.ctx, 200, sdk.NewUint(200)))
+	s.Require().True(s.challengeKeeper.ExistsSlash(s.ctx, 100, math.NewUint(100)))
+	s.Require().True(s.challengeKeeper.ExistsSlash(s.ctx, 200, math.NewUint(200)))
 
 	s.ctx = s.ctx.WithBlockHeight(111)
 	challenge.BeginBlocker(s.ctx, *s.challengeKeeper)
-	s.Require().False(s.challengeKeeper.ExistsSlash(s.ctx, 100, sdk.NewUint(100)))
-	s.Require().True(s.challengeKeeper.ExistsSlash(s.ctx, 200, sdk.NewUint(200)))
+	s.Require().False(s.challengeKeeper.ExistsSlash(s.ctx, 100, math.NewUint(100)))
+	s.Require().True(s.challengeKeeper.ExistsSlash(s.ctx, 200, math.NewUint(200)))
 
 	s.ctx = s.ctx.WithBlockHeight(211)
 	challenge.BeginBlocker(s.ctx, *s.challengeKeeper)
-	s.Require().False(s.challengeKeeper.ExistsSlash(s.ctx, 100, sdk.NewUint(100)))
-	s.Require().False(s.challengeKeeper.ExistsSlash(s.ctx, 200, sdk.NewUint(200)))
+	s.Require().False(s.challengeKeeper.ExistsSlash(s.ctx, 100, math.NewUint(100)))
+	s.Require().False(s.challengeKeeper.ExistsSlash(s.ctx, 200, math.NewUint(200)))
 }
 
 func (s *TestSuite) TestBeginBlocker_RemoveSpSlashAmount() {
-	s.challengeKeeper.SetSpSlashAmount(s.ctx, 100, sdk.NewInt(100))
-	s.challengeKeeper.SetSpSlashAmount(s.ctx, 200, sdk.NewInt(200))
+	s.challengeKeeper.SetSpSlashAmount(s.ctx, 100, math.NewInt(100))
+	s.challengeKeeper.SetSpSlashAmount(s.ctx, 200, math.NewInt(200))
 
 	params := s.challengeKeeper.GetParams(s.ctx)
 	params.SpSlashCountingWindow = 10
@@ -183,7 +180,7 @@ func (s *TestSuite) TestEndBlocker_NoRandomChallenge() {
 }
 
 func (s *TestSuite) TestEndBlocker_ObjectNotExists() {
-	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(sdk.NewUint(0))
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(0))
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
@@ -192,7 +189,7 @@ func (s *TestSuite) TestEndBlocker_ObjectNotExists() {
 }
 
 func (s *TestSuite) TestEndBlocker_SuccessRandomChallenge() {
-	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(sdk.NewUint(100))
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
 	s.storageKeeper.EXPECT().MaxSegmentSize(gomock.Any(), gomock.Any()).Return(uint64(10000), nil).AnyTimes()
 
 	existObject := &storagetypes.ObjectInfo{

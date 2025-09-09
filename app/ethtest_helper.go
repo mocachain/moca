@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"cosmossdk.io/math"
 	"cosmossdk.io/simapp"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -31,13 +32,12 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	dbm "github.com/cometbft/cometbft-db"
+	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
 	tmtypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/evmos/evmos/v12/encoding"
 	servercfg "github.com/evmos/evmos/v12/server/config"
 	evmostypes "github.com/evmos/evmos/v12/types"
 	"github.com/evmos/evmos/v12/utils"
@@ -74,9 +74,9 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		db,
 		nil,
 		true,
+		map[int64]bool{},
 		DefaultNodeHome,
 		5,
-		encoding.MakeConfig(ModuleBasics),
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
 		baseapp.SetChainID(chainID),
@@ -94,14 +94,16 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		}
 
 		// Initialize the chain
-		app.InitChain(
-			abci.RequestInitChain{
+		if _, err := app.InitChain(
+			&abci.RequestInitChain{
 				ChainId:         chainID,
 				Validators:      []abci.ValidatorUpdate{},
 				ConsensusParams: DefaultConsensusParams,
 				AppStateBytes:   stateBytes,
 			},
-		)
+		); err != nil {
+			panic(err)
+		}
 	}
 
 	return app
@@ -118,15 +120,26 @@ func NewTestGenesisState(codec codec.Codec) simapp.GenesisState {
 	validator := cmtypes.NewValidator(pubKey, 1)
 	valSet := cmtypes.NewValidatorSet([]*cmtypes.Validator{validator})
 
-	// generate genesis account
-	senderPrivKey := secp256k1.GenPrivKey()
+	// Use a different private key to avoid conflicts with test setup
+	senderPrivKey := secp256k1.GenPrivKeyFromSecret([]byte("genesis_test_key_seed_12345678901234"))
 	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
 	balance := banktypes.Balance{
 		Address: acc.GetAddress().String(),
-		Coins:   sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(100000000000000))),
+		Coins:   sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, math.NewInt(100000000000000))),
 	}
 
-	genesisState := NewDefaultGenesisState()
+	// Create a temporary app instance to get proper default genesis state
+	tempApp := NewEvmos(log.NewNopLogger(), dbm.NewMemDB(), nil, true, map[int64]bool{},
+		DefaultNodeHome, 0, servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome))
+	evmosGenesisState := tempApp.DefaultGenesis()
+
+	// Convert evmostypes.GenesisState to simapp.GenesisState
+	genesisState := make(simapp.GenesisState)
+	for k, v := range evmosGenesisState {
+		genesisState[k] = v
+	}
+
 	return genesisStateWithValSet(codec, genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
 }
 
@@ -152,24 +165,30 @@ func genesisStateWithValSet(codec codec.Codec, genesisState simapp.GenesisState,
 		if err != nil {
 			panic(err)
 		}
+
+		// Create delegation first
+		delegation := stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), sdk.AccAddress(val.Address).String(), math.LegacyNewDecFromInt(bondAmt))
+		delegations = append(delegations, delegation)
+
 		validator := stakingtypes.Validator{
 			OperatorAddress:   sdk.AccAddress(val.Address).String(),
 			ConsensusPubkey:   pkAny,
 			Jailed:            false,
 			Status:            stakingtypes.Bonded,
 			Tokens:            bondAmt,
-			DelegatorShares:   sdk.OneDec(),
+			DelegatorShares:   math.LegacyNewDecFromInt(bondAmt), // Match delegation shares
 			Description:       stakingtypes.Description{},
 			UnbondingHeight:   int64(0),
 			UnbondingTime:     time.Unix(0, 0).UTC(),
-			Commission:        stakingtypes.NewCommission(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec()),
-			MinSelfDelegation: sdk.ZeroInt(),
+			Commission:        stakingtypes.NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
+			MinSelfDelegation: math.ZeroInt(),
 		}
 		validators = append(validators, validator)
-		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress(), val.Address.Bytes(), sdk.OneDec()))
 	}
 	// set validators and delegations
-	stakingGenesis := stakingtypes.NewGenesisState(stakingtypes.DefaultParams(), validators, delegations)
+	stakingParams := stakingtypes.DefaultParams()
+	stakingParams.BondDenom = utils.BaseDenom
+	stakingGenesis := stakingtypes.NewGenesisState(stakingParams, validators, delegations)
 	genesisState[stakingtypes.ModuleName] = codec.MustMarshalJSON(stakingGenesis)
 
 	totalSupply := sdk.NewCoins()
@@ -180,13 +199,13 @@ func genesisStateWithValSet(codec codec.Codec, genesisState simapp.GenesisState,
 
 	for range delegations {
 		// add delegated tokens to total supply
-		totalSupply = totalSupply.Add(sdk.NewCoin(sdk.DefaultBondDenom, bondAmt))
+		totalSupply = totalSupply.Add(sdk.NewCoin(utils.BaseDenom, bondAmt))
 	}
 
 	// add bonded amount to bonded pool module account
 	balances = append(balances, banktypes.Balance{
 		Address: authtypes.NewModuleAddress(stakingtypes.BondedPoolName).String(),
-		Coins:   sdk.Coins{sdk.NewCoin(sdk.DefaultBondDenom, bondAmt)},
+		Coins:   sdk.Coins{sdk.NewCoin(utils.BaseDenom, bondAmt)},
 	})
 
 	// update total supply

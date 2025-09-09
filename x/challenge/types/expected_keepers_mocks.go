@@ -5,11 +5,11 @@
 package types
 
 import (
+	context "context"
 	reflect "reflect"
 
 	math "cosmossdk.io/math"
 	types2 "github.com/cosmos/cosmos-sdk/types"
-	types3 "github.com/cosmos/cosmos-sdk/x/auth/types"
 	types4 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	types "github.com/evmos/evmos/v12/x/sp/types"
 	types0 "github.com/evmos/evmos/v12/x/storage/types"
@@ -122,11 +122,11 @@ func (m *MockStakingKeeper) EXPECT() *MockStakingKeeperMockRecorder {
 }
 
 // GetHistoricalInfo mocks base method.
-func (m *MockStakingKeeper) GetHistoricalInfo(ctx types2.Context, height int64) (types4.HistoricalInfo, bool) {
+func (m *MockStakingKeeper) GetHistoricalInfo(ctx context.Context, height int64) (types4.HistoricalInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHistoricalInfo", ctx, height)
 	ret0, _ := ret[0].(types4.HistoricalInfo)
-	ret1, _ := ret[1].(bool)
+	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
@@ -137,11 +137,12 @@ func (mr *MockStakingKeeperMockRecorder) GetHistoricalInfo(ctx, height interface
 }
 
 // GetLastValidators mocks base method.
-func (m *MockStakingKeeper) GetLastValidators(ctx types2.Context) []types4.Validator {
+func (m *MockStakingKeeper) GetLastValidators(ctx context.Context) ([]types4.Validator, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastValidators", ctx)
 	ret0, _ := ret[0].([]types4.Validator)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetLastValidators indicates an expected call of GetLastValidators.
@@ -352,10 +353,10 @@ func (m *MockAccountKeeper) EXPECT() *MockAccountKeeperMockRecorder {
 }
 
 // GetAccount mocks base method.
-func (m *MockAccountKeeper) GetAccount(ctx types2.Context, addr types2.AccAddress) types3.AccountI {
+func (m *MockAccountKeeper) GetAccount(ctx context.Context, addr types2.AccAddress) types2.AccountI {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAccount", ctx, addr)
-	ret0, _ := ret[0].(types3.AccountI)
+	ret0, _ := ret[0].(types2.AccountI)
 	return ret0
 }
 
@@ -389,7 +390,7 @@ func (m *MockBankKeeper) EXPECT() *MockBankKeeperMockRecorder {
 }
 
 // SpendableCoins mocks base method.
-func (m *MockBankKeeper) SpendableCoins(ctx types2.Context, addr types2.AccAddress) types2.Coins {
+func (m *MockBankKeeper) SpendableCoins(ctx context.Context, addr types2.AccAddress) types2.Coins {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SpendableCoins", ctx, addr)
 	ret0, _ := ret[0].(types2.Coins)

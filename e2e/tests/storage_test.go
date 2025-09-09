@@ -1121,7 +1121,7 @@ func TestStorageTestSuite(t *testing.T) {
 func filterDiscontinueObjectEventFromTx(txRes *sdk.TxResponse) storagetypes.EventDiscontinueObject {
 	deleteAtStr := ""
 	for _, event := range txRes.Logs[0].Events {
-		if event.Type == "mechain.storage.EventDiscontinueObject" {
+		if event.Type == "moca.storage.EventDiscontinueObject" {
 			for _, attr := range event.Attributes {
 				if attr.Key == "delete_at" {
 					deleteAtStr = strings.Trim(attr.Value, `"`)
@@ -1138,8 +1138,8 @@ func filterDiscontinueObjectEventFromTx(txRes *sdk.TxResponse) storagetypes.Even
 func filterDeleteObjectEventFromBlock(blockRes *ctypes.ResultBlockResults) []storagetypes.EventDeleteObject {
 	events := make([]storagetypes.EventDeleteObject, 0)
 
-	for _, event := range blockRes.EndBlockEvents {
-		if event.Type == "mechain.storage.EventDeleteObject" {
+	for _, event := range blockRes.FinalizeBlockEvents {
+		if event.Type == "moca.storage.EventDeleteObject" {
 			objIDStr := ""
 			for _, attr := range event.Attributes {
 				if attr.Key == objectIDStr {
@@ -1158,7 +1158,7 @@ func filterDeleteObjectEventFromBlock(blockRes *ctypes.ResultBlockResults) []sto
 func filterDiscontinueBucketEventFromTx(txRes *sdk.TxResponse) storagetypes.EventDiscontinueBucket {
 	deleteAtStr := ""
 	for _, event := range txRes.Logs[0].Events {
-		if event.Type == "mechain.storage.EventDiscontinueBucket" {
+		if event.Type == "moca.storage.EventDiscontinueBucket" {
 			for _, attr := range event.Attributes {
 				if attr.Key == "delete_at" {
 					deleteAtStr = strings.Trim(attr.Value, `"`)
@@ -1175,8 +1175,8 @@ func filterDiscontinueBucketEventFromTx(txRes *sdk.TxResponse) storagetypes.Even
 func filterDeleteBucketEventFromBlock(blockRes *ctypes.ResultBlockResults) []storagetypes.EventDeleteBucket {
 	events := make([]storagetypes.EventDeleteBucket, 0)
 
-	for _, event := range blockRes.EndBlockEvents {
-		if event.Type == "mechain.storage.EventDeleteBucket" {
+	for _, event := range blockRes.FinalizeBlockEvents {
+		if event.Type == "moca.storage.EventDeleteBucket" {
 			bucketIDStr := ""
 			for _, attr := range event.Attributes {
 				if attr.Key == "bucket_id" {
@@ -1195,7 +1195,7 @@ func filterDeleteBucketEventFromBlock(blockRes *ctypes.ResultBlockResults) []sto
 func filterDeleteBucketEventFromTx(txRes *sdk.TxResponse) storagetypes.EventDeleteBucket {
 	bucketIDStr := ""
 	for _, event := range txRes.Events {
-		if event.Type == "mechain.storage.EventDeleteBucket" {
+		if event.Type == "moca.storage.EventDeleteBucket" {
 			for _, attr := range event.Attributes {
 				if attr.Key == "bucket_id" {
 					bucketIDStr = strings.Trim(attr.Value, `"`)
@@ -1389,9 +1389,9 @@ func (s *StorageTestSuite) TestUpdateParams() {
 
 	msgProposal, err := govtypesv1.NewMsgSubmitProposal(
 		[]sdk.Msg{msgUpdateParams},
-		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalZKME))},
+		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test",
+		"test", "test", "test", false,
 	)
 	s.Require().NoError(err)
 
@@ -1708,8 +1708,8 @@ func (s *StorageTestSuite) TestUpdateStorageParams() {
 		Params:    updatedParams,
 	}
 
-	proposal, err := govtypesv1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
-		s.Validator.GetAddr().String(), "", "update storage params", "Test update storage params")
+	proposal, err := govtypesv1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
+		s.Validator.GetAddr().String(), "", "update storage params", "Test update storage params", false)
 	s.Require().NoError(err)
 	txBroadCastResp, err := s.SendTxBlockWithoutCheck(proposal, s.Validator)
 	s.Require().NoError(err)
@@ -1738,7 +1738,7 @@ func (s *StorageTestSuite) TestUpdateStorageParams() {
 	txOpt := &types.TxOption{
 		Mode:      &mode,
 		Memo:      "",
-		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
+		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
 	}
 	voteBroadCastResp, err := s.SendTxBlockWithoutCheckWithTxOpt(govtypesv1.NewMsgVote(s.Validator.GetAddr(), uint64(proposalID), govtypesv1.OptionYes, ""),
 		s.Validator, txOpt)
@@ -2398,7 +2398,7 @@ func (s *StorageTestSuite) TestDisallowChangePaymentAccount() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      paymentAccountAddr.String(),
-		Amount:  types.NewIntFromInt64WithDecimal(2, types.DecimalZKME),
+		Amount:  types.NewIntFromInt64WithDecimal(2, types.DecimalMOCA),
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 

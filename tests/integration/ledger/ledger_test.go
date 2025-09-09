@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 
-	"cosmossdk.io/simapp/params"
+	sdkmath "cosmossdk.io/math"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/tests/integration/ledger/mocks"
 	"github.com/evmos/evmos/v12/testutil"
@@ -18,9 +19,14 @@ import (
 
 	"github.com/spf13/cobra"
 
+	eip712 "github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
+	ethsecp256k1 "github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	"github.com/ethereum/go-ethereum/crypto"
+
 	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
 	sdktestutilcli "github.com/cosmos/cosmos-sdk/testutil/cli"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktestutilmod "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	bankcli "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 
 	. "github.com/onsi/ginkgo/v2" //nolint
@@ -28,18 +34,60 @@ import (
 
 var (
 	signOkMock = func(_ []uint32, msg []byte) ([]byte, error) {
-		return s.privKey.Sign(msg)
+		// Use the same private key to generate a valid signature
+		sig, err := s.privKey.Sign(msg)
+		if err != nil {
+			return nil, err
+		}
+		// Return signature in the format expected by Ledger validation
+		return sig, nil
 	}
 
-	signErrMock = func(_ []uint32, _ []byte) ([]byte, error) {
+	signErrMock = func([]uint32, []byte) ([]byte, error) {
 		return nil, mocks.ErrMockedSigning
+	}
+
+	// signOkEIP712Mock replicates the real Ledger path for CLI: build EIP-712 digest and sign it
+	signOkEIP712Mock = func(_ []uint32, signDocBytes []byte) ([]byte, error) {
+		// First, try to follow real Ledger flow: decode SignDoc and build EIP-712 digest
+		if typedData, err := eip712.GetEIP712TypedDataForMsg(signDocBytes); err == nil {
+			domainSep, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
+			if err != nil {
+				return nil, err
+			}
+			msgHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
+			if err != nil {
+				return nil, err
+			}
+			digest := crypto.Keccak256([]byte{0x19, 0x01}, domainSep, msgHash)
+			// Return 65-byte [R||S||V] with V in {0,1}
+			if pk, ok := s.privKey.(*ethsecp256k1.PrivKey); ok {
+				ecdsaKey, err := pk.ToECDSA()
+				if err != nil {
+					return nil, err
+				}
+				return crypto.Sign(digest, ecdsaKey)
+			}
+			// Fallback to 64-byte if cast fails
+			return s.privKey.Sign(digest)
+		}
+		// Fallback: some sign-mode(s) may provide raw bytes not decodable as SignDoc
+		// In that case, treat as message hash and produce 65-byte signature when possible
+		if pk, ok := s.privKey.(*ethsecp256k1.PrivKey); ok {
+			ecdsaKey, err := pk.ToECDSA()
+			if err != nil {
+				return nil, err
+			}
+			return crypto.Sign(crypto.Keccak256(signDocBytes), ecdsaKey)
+		}
+		return s.privKey.Sign(crypto.Keccak256(signDocBytes))
 	}
 )
 
 var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 	var (
 		receiverAccAddr sdk.AccAddress
-		encCfg          params.EncodingConfig
+		encCfg          sdktestutilmod.TestEncodingConfig
 		kr              keyring.Keyring
 		mockedIn        sdktestutil.BufferReader
 		clientCtx       client.Context
@@ -57,7 +105,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 	Describe("Adding a key from ledger using the CLI", func() {
 		BeforeEach(func() {
 			krHome = s.T().TempDir()
-			encCfg = encoding.MakeConfig(app.ModuleBasics)
+			encCfg = encoding.MakeConfig()
 
 			cmd = s.evmosAddKeyCmd()
 
@@ -102,7 +150,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 	Describe("Singing a transactions", func() {
 		BeforeEach(func() {
 			krHome = s.T().TempDir()
-			encCfg = encoding.MakeConfig(app.ModuleBasics)
+			encCfg = encoding.MakeConfig()
 
 			var err error
 
@@ -144,8 +192,8 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 
 					msg := []byte("test message")
 
-					signed, _, err := kr.SignByAddress(ledgerAddr, msg)
-					s.Require().NoError(err, "failed to sign messsage")
+					signed, _, err := kr.SignByAddress(ledgerAddr, msg, signingtypes.SignMode_SIGN_MODE_TEXTUAL)
+					s.Require().NoError(err, "failed to sign message")
 
 					valid := s.pubKey.VerifySignature(msg, signed)
 					s.Require().True(valid, "invalid signature returned")
@@ -158,7 +206,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 
 					msg := []byte("test message")
 
-					_, _, err = kr.SignByAddress(ledgerAddr, msg)
+					_, _, err = kr.SignByAddress(ledgerAddr, msg, signingtypes.SignMode_SIGN_MODE_TEXTUAL)
 
 					s.Require().Error(err, "false positive result, error expected")
 
@@ -174,7 +222,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 						s.app.BankKeeper,
 						s.accAddr,
 						sdk.NewCoins(
-							sdk.NewCoin("amoca", sdk.NewInt(100000000000000)),
+							sdk.NewCoin("amoca", sdkmath.NewInt(100000000000000)),
 						),
 					)
 					s.Require().NoError(err)
@@ -193,15 +241,16 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 					mocks.MGetAccountNumberSequence(s.accRetriever, 0, 0, nil)
 				})
 				It("should execute bank tx cmd", func() {
-					mocks.MSignSECP256K1(s.ledger, signOkMock, nil)
+					mocks.MSignSECP256K1(s.ledger, signOkEIP712Mock, nil)
 
 					cmd.SetContext(ctx)
 					cmd.SetArgs([]string{
 						ledgerKey,
 						receiverAccAddr.String(),
-						sdk.NewCoin("amoca", sdk.NewInt(1000)).String(),
+						sdk.NewCoin("amoca", sdkmath.NewInt(1000)).String(),
 						s.FormatFlag(flags.FlagUseLedger),
 						s.FormatFlag(flags.FlagSkipConfirmation),
+						"--sign-mode", "textual",
 					})
 					out := bytes.NewBufferString("")
 					cmd.SetOutput(out)
@@ -217,9 +266,10 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 					cmd.SetArgs([]string{
 						ledgerKey,
 						receiverAccAddr.String(),
-						sdk.NewCoin("amoca", sdk.NewInt(1000)).String(),
+						sdk.NewCoin("amoca", sdkmath.NewInt(1000)).String(),
 						s.FormatFlag(flags.FlagUseLedger),
 						s.FormatFlag(flags.FlagSkipConfirmation),
+						"--sign-mode", "textual",
 					})
 					out := bytes.NewBufferString("")
 					cmd.SetOutput(out)

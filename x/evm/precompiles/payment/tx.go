@@ -3,6 +3,7 @@ package payment
 import (
 	"errors"
 
+	"cosmossdk.io/math"
 	"github.com/ethereum/go-ethereum/common"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -70,7 +71,7 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	msg := &paymenttypes.MsgDeposit{
 		Creator: contract.CallerAddress.String(),
 		To:      args.To,
-		Amount:  sdk.NewIntFromBigInt(args.Amount),
+		Amount:  math.NewIntFromBigInt(args.Amount),
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
@@ -148,7 +149,7 @@ func (c *Contract) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	msg := &paymenttypes.MsgWithdraw{
 		Creator: contract.Caller().String(),
 		From:    args.From,
-		Amount:  sdk.NewIntFromBigInt(args.Amount),
+		Amount:  math.NewIntFromBigInt(args.Amount),
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
@@ -186,13 +187,13 @@ func (c *Contract) UpdateParams(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if err != nil {
 		return nil, err
 	}
-	withdrawTimeLockThreshold := sdk.NewIntFromBigInt(args.Params.WithdrawTimeLockThreshold)
+	withdrawTimeLockThreshold := math.NewIntFromBigInt(args.Params.WithdrawTimeLockThreshold)
 	msg := &paymenttypes.MsgUpdateParams{
 		Authority: args.Authority,
 		Params: paymenttypes.Params{
 			VersionedParams: paymenttypes.VersionedParams{
 				ReserveTime:      args.Params.VersionedParams.ReserveTime,
-				ValidatorTaxRate: sdk.NewDecFromBigInt(args.Params.VersionedParams.ValidatorTaxRate),
+				ValidatorTaxRate: math.LegacyNewDecFromBigInt(args.Params.VersionedParams.ValidatorTaxRate),
 			},
 			PaymentAccountCountLimit:  args.Params.PaymentAccountCountLimit,
 			ForcedSettleTime:          args.Params.ForcedSettleTime,

@@ -17,14 +17,13 @@
 package keeper
 
 import (
+	"cosmossdk.io/core/store"
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	capabilitykeeper "github.com/cosmos/cosmos-sdk/x/capability/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 
-	"github.com/cosmos/ibc-go/v7/modules/apps/transfer/keeper"
-	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
-	porttypes "github.com/cosmos/ibc-go/v7/modules/core/05-port/types"
+	"github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
+	transfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
 
 	"github.com/evmos/evmos/v12/x/ibc/transfer/types"
 )
@@ -39,25 +38,25 @@ type Keeper struct {
 	accountKeeper types.AccountKeeper
 }
 
+// legacySubspace transfertypes.ParamSubspace,  authKeeper transfertypes.AccountKeeper, bankKeeper transfertypes.BankKeeper
 // NewKeeper creates a new IBC transfer Keeper instance
 func NewKeeper(
 	cdc codec.BinaryCodec,
-	storeKey storetypes.StoreKey,
+	storeService store.KVStoreService,
 	paramSpace paramtypes.Subspace,
-
 	ics4Wrapper porttypes.ICS4Wrapper,
 	channelKeeper transfertypes.ChannelKeeper,
-	portKeeper transfertypes.PortKeeper,
+	msgRouter transfertypes.MessageRouter,
 	accountKeeper types.AccountKeeper,
 	bankKeeper types.BankKeeper,
-	scopedKeeper capabilitykeeper.ScopedKeeper,
 	erc20Keeper types.ERC20Keeper,
+	authority string,
 ) Keeper {
 	// create the original IBC transfer keeper for embedding
 	transferKeeper := keeper.NewKeeper(
-		cdc, storeKey, paramSpace,
-		ics4Wrapper, channelKeeper, portKeeper,
-		accountKeeper, bankKeeper, scopedKeeper,
+		cdc, storeService, paramSpace,
+		ics4Wrapper, channelKeeper, msgRouter,
+		accountKeeper, bankKeeper, authority,
 	)
 
 	return Keeper{

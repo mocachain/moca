@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -14,6 +15,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/challenge"
+	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
 	sptypes "github.com/evmos/evmos/v12/x/sp/types"
 	"github.com/evmos/evmos/v12/x/storage/keeper"
@@ -35,6 +37,7 @@ type TestSuite struct {
 	crossChainKeeper   *types.MockCrossChainKeeper
 	paymentKeeper      *types.MockPaymentKeeper
 	virtualGroupKeeper *types.MockVirtualGroupKeeper
+	evmKeeper          *types.MockEVMKeeper
 
 	ctx         sdk.Context
 	queryClient types.QueryClient
@@ -47,11 +50,8 @@ func (s *TestSuite) SetupTest() {
 	testCtx := testutil.DefaultContextWithDB(s.T(), key, storetypes.NewTransientStoreKey("transient_test"))
 	header := testCtx.Ctx.BlockHeader()
 	header.Time = time.Now()
-	upgradeChecker := func(_ sdk.Context, _ string) bool {
-		return true
-	}
 	testCtx = testutil.TestContext{
-		Ctx: sdk.NewContext(testCtx.CMS, header, false, upgradeChecker, testCtx.Ctx.Logger()),
+		Ctx: sdk.NewContext(testCtx.CMS, header, false, testCtx.Ctx.Logger()),
 		DB:  testCtx.DB,
 		CMS: testCtx.CMS,
 	}
@@ -66,6 +66,10 @@ func (s *TestSuite) SetupTest() {
 	paymentKeeper := types.NewMockPaymentKeeper(ctrl)
 	virtualGroupKeeper := types.NewMockVirtualGroupKeeper(ctrl)
 	evmKeeper := types.NewMockEVMKeeper(ctrl)
+
+	evmKeeper.EXPECT().EstimateGas(gomock.Any(), gomock.Any()).Return(&evmtypes.EstimateGasResponse{Gas: 21000}, nil).AnyTimes()
+	evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
+
 	s.storageKeeper = keeper.NewKeeper(
 		encCfg.Codec,
 		key,
@@ -87,6 +91,7 @@ func (s *TestSuite) SetupTest() {
 	s.crossChainKeeper = crossChainKeeper
 	s.paymentKeeper = paymentKeeper
 	s.virtualGroupKeeper = virtualGroupKeeper
+	s.evmKeeper = evmKeeper
 
 	err := s.storageKeeper.SetParams(s.ctx, types.DefaultParams())
 	s.Require().NoError(err)
@@ -108,9 +113,9 @@ func (s *TestSuite) TestGetObjectLockFee() {
 		Return(primarySp, true).AnyTimes()
 
 	price := sptypes.GlobalSpStorePrice{
-		ReadPrice:           sdk.NewDec(100),
-		PrimaryStorePrice:   sdk.NewDec(1000),
-		SecondaryStorePrice: sdk.NewDec(500),
+		ReadPrice:           sdkmath.LegacyNewDec(100),
+		PrimaryStorePrice:   sdkmath.LegacyNewDec(1000),
+		SecondaryStorePrice: sdkmath.LegacyNewDec(500),
 	}
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).
 		Return(price, nil).AnyTimes()
@@ -148,9 +153,9 @@ func (s *TestSuite) TestGetBucketReadBill() {
 		Return(primarySp, true).AnyTimes()
 
 	price := sptypes.GlobalSpStorePrice{
-		ReadPrice:           sdk.NewDec(100),
-		PrimaryStorePrice:   sdk.NewDec(1000),
-		SecondaryStorePrice: sdk.NewDec(500),
+		ReadPrice:           sdkmath.LegacyNewDec(100),
+		PrimaryStorePrice:   sdkmath.LegacyNewDec(1000),
+		SecondaryStorePrice: sdkmath.LegacyNewDec(500),
 	}
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).
 		Return(price, nil).AnyTimes()
@@ -162,7 +167,7 @@ func (s *TestSuite) TestGetBucketReadBill() {
 	bucketInfo := &types.BucketInfo{
 		Owner:                      "",
 		BucketName:                 "bucket_name",
-		Id:                         sdk.NewUint(1),
+		Id:                         sdkmath.NewUint(1),
 		PaymentAddress:             sample.RandAccAddress().String(),
 		GlobalVirtualGroupFamilyId: gvgFamily.Id,
 		ChargedReadQuota:           0,
@@ -176,7 +181,7 @@ func (s *TestSuite) TestGetBucketReadBill() {
 	bucketInfo = &types.BucketInfo{
 		Owner:                      "",
 		BucketName:                 "bucket_name",
-		Id:                         sdk.NewUint(1),
+		Id:                         sdkmath.NewUint(1),
 		PaymentAddress:             sample.RandAccAddress().String(),
 		GlobalVirtualGroupFamilyId: gvgFamily.Id,
 		ChargedReadQuota:           100,
@@ -210,9 +215,9 @@ func (s *TestSuite) TestGetBucketReadStoreBill() {
 		Return(primarySp, true).AnyTimes()
 
 	price := sptypes.GlobalSpStorePrice{
-		ReadPrice:           sdk.NewDec(100),
-		PrimaryStorePrice:   sdk.NewDec(1000),
-		SecondaryStorePrice: sdk.NewDec(500),
+		ReadPrice:           sdkmath.LegacyNewDec(100),
+		PrimaryStorePrice:   sdkmath.LegacyNewDec(1000),
+		SecondaryStorePrice: sdkmath.LegacyNewDec(500),
 	}
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).
 		Return(price, nil).AnyTimes()
@@ -224,7 +229,7 @@ func (s *TestSuite) TestGetBucketReadStoreBill() {
 	bucketInfo := &types.BucketInfo{
 		Owner:                      "",
 		BucketName:                 "bucket_name",
-		Id:                         sdk.NewUint(1),
+		Id:                         sdkmath.NewUint(1),
 		PaymentAddress:             sample.RandAccAddress().String(),
 		GlobalVirtualGroupFamilyId: gvgFamily.Id,
 		ChargedReadQuota:           100,

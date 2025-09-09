@@ -31,7 +31,7 @@ func CmdCancelMigrateBucket() *cobra.Command {
 				return err
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}

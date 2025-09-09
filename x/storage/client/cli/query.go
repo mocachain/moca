@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	evmostypes "github.com/evmos/evmos/v12/types"
-	mechaincommon "github.com/evmos/evmos/v12/types/common"
+	mocacommon "github.com/evmos/evmos/v12/types/common"
 	"github.com/evmos/evmos/v12/types/resource"
 	"github.com/evmos/evmos/v12/x/evm/precompiles/storage"
 	pertypes "github.com/evmos/evmos/v12/x/permission/types"
@@ -166,7 +166,7 @@ func ToGlobalVirtualGroup(p *storage.GlobalVirtualGroup) *vgtypes.GlobalVirtualG
 	if p == nil {
 		return nil
 	}
-	totalDeposit, _ := sdk.NewIntFromString(p.TotalDeposit)
+	totalDeposit, _ := cmath.NewIntFromString(p.TotalDeposit)
 	s := &vgtypes.GlobalVirtualGroup{
 		Id:                    p.Id,
 		FamilyId:              p.FamilyId,
@@ -196,7 +196,7 @@ func ToStatements(p []storage.Statement) []*pertypes.Statement {
 			Actions:        actions,
 			Resources:      statement.Resources,
 			ExpirationTime: &expirationTime,
-			LimitSize:      &mechaincommon.UInt64Value{Value: statement.LimitSize},
+			LimitSize:      &mocacommon.UInt64Value{Value: statement.LimitSize},
 		})
 	}
 
@@ -219,8 +219,8 @@ func ToPolicy(p *storage.Policy) *pertypes.Policy {
 	return s
 }
 
-// GetQueryCmd returns the cli query commands for this module
-func GetQueryCmd() *cobra.Command {
+// GetEVMQueryCmd returns the evm cli query commands for this module
+func GetEVMQueryCmd() *cobra.Command {
 	// Group storage queries under a subcommand
 	storageQueryCmd := &cobra.Command{
 		Use:                        types.ModuleName,
@@ -231,23 +231,23 @@ func GetQueryCmd() *cobra.Command {
 	}
 
 	storageQueryCmd.AddCommand(
-		CmdQueryParams(),
-		CmdHeadBucket(),
-		CmdHeadObject(),
-		CmdListBuckets(),
-		CmdListObjects(),
-		CmdVerifyPermission(),
-		CmdHeadGroup(),
-		CmdListGroups(),
-		CmdHeadGroupMember(),
-		CmdQueryAccountPolicy(),
-		CmdQueryGroupPolicy(),
+		CmdEVMQueryParams(),
+		CmdEVMHeadBucket(),
+		CmdEVMHeadObject(),
+		CmdEVMListBuckets(),
+		CmdEVMListObjects(),
+		CmdEVMVerifyPermission(),
+		CmdEVMHeadGroup(),
+		CmdEVMListGroups(),
+		CmdEVMHeadGroupMember(),
+		CmdEVMQueryAccountPolicy(),
+		CmdEVMQueryGroupPolicy(),
 	)
 
 	return storageQueryCmd
 }
 
-func CmdHeadBucket() *cobra.Command {
+func CmdEVMHeadBucket() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "head-bucket [bucket-name]",
 		Short: "Query bucket by bucket name",
@@ -282,7 +282,7 @@ func CmdHeadBucket() *cobra.Command {
 	return cmd
 }
 
-func CmdHeadObject() *cobra.Command {
+func CmdEVMHeadObject() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "head-object [bucket-name] [object-name]",
 		Short: "Query object by bucket-name and object-name",
@@ -318,7 +318,7 @@ func CmdHeadObject() *cobra.Command {
 	return cmd
 }
 
-func CmdListBuckets() *cobra.Command {
+func CmdEVMListBuckets() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-buckets",
 		Short: "Query all list buckets",
@@ -356,7 +356,7 @@ func CmdListBuckets() *cobra.Command {
 	return cmd
 }
 
-func CmdListObjects() *cobra.Command {
+func CmdEVMListObjects() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-objects [bucket-name]",
 		Short: "Query list objects of the bucket",
@@ -399,7 +399,7 @@ func CmdListObjects() *cobra.Command {
 	return cmd
 }
 
-func CmdVerifyPermission() *cobra.Command {
+func CmdEVMVerifyPermission() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify-permission [operator] [bucket-name] [object-name] [action-type]",
 		Short: "Query verify if the operator has permission for the bucket/object's action",
@@ -441,7 +441,7 @@ func CmdVerifyPermission() *cobra.Command {
 	return cmd
 }
 
-func CmdHeadGroup() *cobra.Command {
+func CmdEVMHeadGroup() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "head-group [group-owner] [group-name]",
 		Short: "Query the group info",
@@ -476,7 +476,7 @@ func CmdHeadGroup() *cobra.Command {
 	return cmd
 }
 
-func CmdListGroups() *cobra.Command {
+func CmdEVMListGroups() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-groups [group-owner]",
 		Short: "Query list groups of owner",
@@ -519,7 +519,7 @@ func CmdListGroups() *cobra.Command {
 	return cmd
 }
 
-func CmdHeadGroupMember() *cobra.Command {
+func CmdEVMHeadGroupMember() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "head-group-member [group-owner] [group-name] [group-member]",
 		Short: "Query the group member info",
@@ -555,7 +555,7 @@ func CmdHeadGroupMember() *cobra.Command {
 	return cmd
 }
 
-func CmdQueryAccountPolicy() *cobra.Command {
+func CmdEVMQueryAccountPolicy() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "account-policy [grn] [principle-address]",
 		Short: "Query the policy for a account that enforced on the resource",
@@ -605,7 +605,7 @@ Examples:
 	return cmd
 }
 
-func CmdQueryGroupPolicy() *cobra.Command {
+func CmdEVMQueryGroupPolicy() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "group-policy [grn] [principle-group-id]",
 		Short: "Query the policy for a group that enforced on the resource",
@@ -624,7 +624,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			groupID, ok := sdk.NewIntFromString(args[1])
+			groupID, ok := cmath.NewIntFromString(args[1])
 			if !ok {
 				return fmt.Errorf("failed to convert group id")
 			}

@@ -39,6 +39,8 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 		return SetWithdrawAddressGas
 	case WithdrawDelegatorRewardMethodName:
 		return WithdrawDelegatorRewardGas
+	case WithdrawDelegatorAllRewardsMethodName:
+		return WithdrawDelegatorAllRewardsGas
 	case WithdrawValidatorCommissionMethodName:
 		return WithdrawValidatorCommissionGas
 	case FundCommunityPoolMethodName:
@@ -84,6 +86,8 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 			ret, err = c.SetWithdrawAddress(ctx, evm, contract, readonly)
 		case WithdrawDelegatorRewardMethodName:
 			ret, err = c.WithdrawDelegatorReward(ctx, evm, contract, readonly)
+		case WithdrawDelegatorAllRewardsMethodName:
+			ret, err = c.WithdrawDelegatorAllRewards(ctx, evm, contract, readonly)
 		case WithdrawValidatorCommissionMethodName:
 			ret, err = c.WithdrawValidatorCommission(ctx, evm, contract, readonly)
 		case FundCommunityPoolMethodName:

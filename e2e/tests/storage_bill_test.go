@@ -131,7 +131,7 @@ func (s *PaymentTestSuite) TestStorageBill_Smoke() {
 	s.Require().NoError(err)
 
 	readPrice := queryGetSpStoragePriceByTimeResp.GlobalSpStorePrice.ReadPrice
-	readChargeRate := readPrice.MulInt(sdk.NewIntFromUint64(queryHeadBucketResponse.BucketInfo.ChargedReadQuota)).TruncateInt()
+	readChargeRate := readPrice.MulInt(sdkmath.NewIntFromUint64(queryHeadBucketResponse.BucketInfo.ChargedReadQuota)).TruncateInt()
 	s.T().Logf("readPrice: %s, readChargeRate: %s", readPrice, readChargeRate)
 	userTaxRate := params.VersionedParams.ValidatorTaxRate.MulInt(readChargeRate).TruncateInt()
 	userTotalRate := readChargeRate.Add(userTaxRate)
@@ -172,7 +172,7 @@ func (s *PaymentTestSuite) TestStorageBill_Smoke() {
 	var feePreviewEventEmitted bool
 	events := res.Result.Events
 	for _, event := range events {
-		if event.Type == "mechain.payment.EventFeePreview" {
+		if event.Type == "moca.payment.EventFeePreview" {
 			s.T().Logf("event %v", event)
 			feePreviewEventEmitted = true
 		}
@@ -200,7 +200,7 @@ func (s *PaymentTestSuite) TestStorageBill_Smoke() {
 	primaryStorePrice := queryGlobalSpStorePriceByTime.GlobalSpStorePrice.PrimaryStorePrice
 	secondaryStorePrice := queryGlobalSpStorePriceByTime.GlobalSpStorePrice.SecondaryStorePrice
 	chargeSize := s.getChargeSize(queryHeadObjectResponse.ObjectInfo.PayloadSize)
-	expectedChargeRate := primaryStorePrice.Add(secondaryStorePrice.MulInt64(6)).MulInt(sdk.NewIntFromUint64(chargeSize)).TruncateInt()
+	expectedChargeRate := primaryStorePrice.Add(secondaryStorePrice.MulInt64(6)).MulInt(sdkmath.NewIntFromUint64(chargeSize)).TruncateInt()
 	expectedChargeRate = params.VersionedParams.ValidatorTaxRate.MulInt(expectedChargeRate).TruncateInt().Add(expectedChargeRate)
 	expectedLockedBalance := expectedChargeRate.Mul(sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime))
 
@@ -310,7 +310,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithoutPriceChange
 	gasPrice, err := sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas := gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit)))
+	gas := gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit)))
 	s.T().Log("total gas", "gas", gas)
 
 	// create & seal objects
@@ -329,7 +329,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithoutPriceChange
 	gasPrice, err = sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas = gas.Add(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))
+	gas = gas.Add(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))
 	s.T().Log("total gas", "gas", gas)
 
 	// delete object gas
@@ -339,7 +339,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithoutPriceChange
 	gasPrice, err = sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas = gas.Add(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))
+	gas = gas.Add(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))
 	s.T().Log("total gas", "gas", gas)
 
 	// transfer out user's balance
@@ -397,7 +397,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithPriceChange() 
 	gasPrice, err := sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas := gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit)))
+	gas := gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit)))
 	s.T().Log("total gas", "gas", gas)
 
 	// create & seal objects
@@ -416,7 +416,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithPriceChange() 
 	gasPrice, err = sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas = gas.Add(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))
+	gas = gas.Add(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))
 	s.T().Log("total gas", "gas", gas)
 
 	// delete object gas
@@ -426,7 +426,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithPriceChange() 
 	gasPrice, err = sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas = gas.Add(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))
+	gas = gas.Add(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))
 	s.T().Log("total gas", "gas", gas)
 
 	// transfer out user's balance
@@ -497,7 +497,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithPriceChangeRes
 	gasPrice, err := sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas := gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit)))
+	gas := gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit)))
 	s.T().Log("total gas", "gas", gas)
 
 	// create & seal objects
@@ -516,7 +516,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithPriceChangeRes
 	gasPrice, err = sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas = gas.Add(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))
+	gas = gas.Add(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))
 	s.T().Log("total gas", "gas", gas)
 
 	// delete object gas
@@ -526,7 +526,7 @@ func (s *PaymentTestSuite) TestStorageBill_DeleteObjectBucket_WithPriceChangeRes
 	gasPrice, err = sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
 
-	gas = gas.Add(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))
+	gas = gas.Add(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))
 	s.T().Log("total gas", "gas", gas)
 
 	// transfer out user's balance
@@ -776,7 +776,7 @@ func (s *PaymentTestSuite) TestStorageBill_CreateBucket_WithZeroNoneZeroReadQuot
 	s.Require().NoError(err)
 
 	readPrice := queryGlobalSpStoragePriceByTimeResp.GlobalSpStorePrice.ReadPrice
-	readChargeRate := readPrice.MulInt(sdk.NewIntFromUint64(queryHeadBucketResponse.BucketInfo.ChargedReadQuota)).TruncateInt()
+	readChargeRate := readPrice.MulInt(sdkmath.NewIntFromUint64(queryHeadBucketResponse.BucketInfo.ChargedReadQuota)).TruncateInt()
 	s.T().Logf("readPrice: %s, readChargeRate: %s", readPrice, readChargeRate)
 	taxRate := params.VersionedParams.ValidatorTaxRate.MulInt(readChargeRate).TruncateInt()
 	userTotalRate := readChargeRate.Add(taxRate)
@@ -1527,7 +1527,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdateBucketQuota() {
 	s.Require().NoError(err)
 
 	readPrice := priceRes.GlobalSpStorePrice.ReadPrice
-	readChargeRate := readPrice.MulInt(sdk.NewIntFromUint64(bucketInfo.ChargedReadQuota)).TruncateInt()
+	readChargeRate := readPrice.MulInt(sdkmath.NewIntFromUint64(bucketInfo.ChargedReadQuota)).TruncateInt()
 	s.T().Logf("readPrice: %s, readChargeRate: %s", readPrice, readChargeRate)
 	taxRate := paymentParams.Params.VersionedParams.ValidatorTaxRate.MulInt(readChargeRate).TruncateInt()
 	userTotalRate := readChargeRate.Add(taxRate)
@@ -1569,7 +1569,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdateBucketQuota() {
 	s.Require().NoError(err)
 
 	readPrice = priceRes.GlobalSpStorePrice.ReadPrice
-	readChargeRate = readPrice.MulInt(sdk.NewIntFromUint64(bucketInfo.ChargedReadQuota)).TruncateInt()
+	readChargeRate = readPrice.MulInt(sdkmath.NewIntFromUint64(bucketInfo.ChargedReadQuota)).TruncateInt()
 	s.T().Logf("readPrice: %s, readChargeRate: %s", readPrice, readChargeRate)
 	taxRate = paymentParams.Params.VersionedParams.ValidatorTaxRate.MulInt(readChargeRate).TruncateInt()
 	userTotalRate = readChargeRate.Add(taxRate)
@@ -1601,7 +1601,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdateBucketQuota() {
 	chargedReadQuota := readQuota * 1024 * 1024
 	msgUpdateBucketInfo := storagetypes.NewMsgUpdateBucketInfo(
 		user.GetAddr(), bucketName, &chargedReadQuota, user.GetAddr(), storagetypes.VISIBILITY_TYPE_PRIVATE)
-	s.reduceZKMEBalance(user, s.Validator, sdkmath.NewIntWithDecimal(1, 16))
+	s.reduceMOCABalance(user, s.Validator, sdkmath.NewIntWithDecimal(1, 16))
 	s.SendTxBlockWithExpectErrorString(msgUpdateBucketInfo, user, "apply user flows list failed")
 }
 
@@ -1663,7 +1663,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdatePaymentAddress() {
 	s.Require().NoError(err)
 
 	readPrice := priceRes.GlobalSpStorePrice.ReadPrice
-	readChargeRate := readPrice.MulInt(sdk.NewIntFromUint64(bucketInfo.ChargedReadQuota)).TruncateInt()
+	readChargeRate := readPrice.MulInt(sdkmath.NewIntFromUint64(bucketInfo.ChargedReadQuota)).TruncateInt()
 	s.T().Logf("readPrice: %s, readChargeRate: %s", readPrice, readChargeRate)
 	taxRate := paymentParams.Params.VersionedParams.ValidatorTaxRate.MulInt(readChargeRate).TruncateInt()
 	userTotalRate := readChargeRate.Add(taxRate)
@@ -1705,7 +1705,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdatePaymentAddress() {
 	s.Require().NoError(err)
 
 	readPrice = priceRes.GlobalSpStorePrice.ReadPrice
-	readChargeRate = readPrice.MulInt(sdk.NewIntFromUint64(bucketInfo.ChargedReadQuota)).TruncateInt()
+	readChargeRate = readPrice.MulInt(sdkmath.NewIntFromUint64(bucketInfo.ChargedReadQuota)).TruncateInt()
 	s.T().Logf("readPrice: %s, readChargeRate: %s", readPrice, readChargeRate)
 	taxRate = paymentParams.Params.VersionedParams.ValidatorTaxRate.MulInt(readChargeRate).TruncateInt()
 	userTotalRate = readChargeRate.Add(taxRate)
@@ -1882,7 +1882,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdatePaymentAddress() {
 //
 //	s.SendTxBlock(user, msgMigrationBucket)
 //	s.Require().NoError(err)
-//	s.reduceZKMEBalance(user, s.Validator, sdkmath.NewIntWithDecimal(1, 1))
+//	s.reduceMOCABalance(user, s.Validator, sdkmath.NewIntWithDecimal(1, 1))
 //
 //	s.SendTxBlockWithExpectErrorString(msgCompleteMigrationBucket, primarySP.OperatorKey, "apply stream record changes for user failed")
 //
@@ -1890,7 +1890,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdatePaymentAddress() {
 //	readPrice, primaryPrice, secondaryPrice := s.getPrices(time.Now().Unix())
 //	s.T().Logf("readPrice: %v, primaryPrice: %v,secondaryPrice: %v", readPrice, primaryPrice, secondaryPrice)
 //
-//	s.transferZKME(s.Validator, user, sdkmath.NewIntWithDecimal(10000, 18))
+//	s.transferMOCA(s.Validator, user, sdkmath.NewIntWithDecimal(10000, 18))
 //
 //	s.SendTxBlock(primarySP.OperatorKey, msgCompleteMigrationBucket)
 //	streamRecordsAfter = s.getStreamRecords(streamAddresses0)
@@ -2085,7 +2085,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdatePaymentAddress() {
 //	readRate := readPrice.MulInt(sdkmath.NewIntFromUint64(bucketChargedReadQuota)).TruncateInt()
 //	readTaxRate := params.VersionedParams.ValidatorTaxRate.MulInt(readRate).TruncateInt()
 //	readTotalRate := readRate.Add(readTaxRate)
-//	paymentAccountZKMENeeded := readTotalRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
+//	paymentAccountMOCANeeded := readTotalRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
 //
 //	// create payment account and deposit
 //	msgCreatePaymentAccount := &paymenttypes.MsgCreatePaymentAccount{
@@ -2102,7 +2102,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdatePaymentAddress() {
 //	msgDeposit := &paymenttypes.MsgDeposit{
 //		Creator: user.GetAddr().String(),
 //		To:      paymentAddr,
-//		Amount:  paymentAccountZKMENeeded,
+//		Amount:  paymentAccountMOCANeeded,
 //	}
 //	_ = s.SendTxBlock(user, msgDeposit)
 //
@@ -2274,7 +2274,7 @@ func (s *PaymentTestSuite) updateBucket(user keys.KeyManager, bucketName, paymen
 	return headObjectResponse.BucketInfo, err
 }
 
-func (s *PaymentTestSuite) reduceZKMEBalance(user, to keys.KeyManager, leftBalance sdkmath.Int) {
+func (s *PaymentTestSuite) reduceMOCABalance(user, to keys.KeyManager, leftBalance sdkmath.Int) {
 	queryBalanceRequest := banktypes.QueryBalanceRequest{Denom: s.Config.Denom, Address: user.GetAddr().String()}
 	queryBalanceResponse, err := s.Client.BankQueryClient.Balance(context.Background(), &queryBalanceRequest)
 	s.Require().NoError(err)
@@ -2287,9 +2287,9 @@ func (s *PaymentTestSuite) reduceZKMEBalance(user, to keys.KeyManager, leftBalan
 	gasLimit := simulateResponse.GasInfo.GetGasUsed()
 	gasPrice, err := sdk.ParseCoinNormalized(simulateResponse.GasInfo.GetMinGasPrice())
 	s.Require().NoError(err)
-	sendZKMEAmount := queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit)))).Sub(leftBalance)
+	sendMOCAAmount := queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit)))).Sub(leftBalance)
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, sendZKMEAmount),
+		sdk.NewCoin(s.Config.Denom, sendMOCAAmount),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(context.Background(), &queryBalanceRequest)
@@ -2297,7 +2297,7 @@ func (s *PaymentTestSuite) reduceZKMEBalance(user, to keys.KeyManager, leftBalan
 	s.T().Logf("balance: %v", queryBalanceResponse.Balance.Amount)
 }
 
-// func (s *PaymentTestSuite) transferZKME(from, to keys.KeyManager, amount sdkmath.Int) {
+// func (s *PaymentTestSuite) transferMOCA(from, to keys.KeyManager, amount sdkmath.Int) {
 //	msgSend := banktypes.NewMsgSend(from.GetAddr(), to.GetAddr(), sdk.NewCoins(
 //		sdk.NewCoin(s.Config.Denom, amount),
 //	))
@@ -2408,7 +2408,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdateObject() {
 	primaryStorePrice := queryGlobalSpStorePriceByTime.GlobalSpStorePrice.PrimaryStorePrice
 	secondaryStorePrice := queryGlobalSpStorePriceByTime.GlobalSpStorePrice.SecondaryStorePrice
 	chargeSize := s.getChargeSize(queryHeadObjectResponse.ObjectInfo.PayloadSize)
-	orginChargeRate := primaryStorePrice.Add(secondaryStorePrice.MulInt64(6)).MulInt(sdk.NewIntFromUint64(chargeSize)).TruncateInt()
+	orginChargeRate := primaryStorePrice.Add(secondaryStorePrice.MulInt64(6)).MulInt(sdkmath.NewIntFromUint64(chargeSize)).TruncateInt()
 	orginChargeRate = params.VersionedParams.ValidatorTaxRate.MulInt(orginChargeRate).TruncateInt().Add(orginChargeRate)
 
 	// get stream records after first seal, before update object content tx
@@ -2454,7 +2454,7 @@ func (s *PaymentTestSuite) TestStorageBill_UpdateObject() {
 	userStreamAccountAfterUpdateObjTx := streamRecordsAfterUpdateObjectTx.User
 
 	chargeSize = s.getChargeSize(queryHeadShadowObjectResponse.ObjectInfo.PayloadSize)
-	newChargeRate := primaryStorePrice.Add(secondaryStorePrice.MulInt64(6)).MulInt(sdk.NewIntFromUint64(chargeSize)).TruncateInt()
+	newChargeRate := primaryStorePrice.Add(secondaryStorePrice.MulInt64(6)).MulInt(sdkmath.NewIntFromUint64(chargeSize)).TruncateInt()
 	newChargeRate = params.VersionedParams.ValidatorTaxRate.MulInt(newChargeRate).TruncateInt().Add(newChargeRate)
 	newLockedBalance := newChargeRate.Mul(sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime))
 	// lock balance according to the new object size
@@ -2577,5 +2577,5 @@ func (s *PaymentTestSuite) TestStorageBill_UpdateObject() {
 	streamRecordsAfterDeleteObjectTx := s.getStreamRecords(streamAddresses)
 	s.T().Logf("streamRecordsAfterDeleteObjectTx %s", core.YamlString(streamRecordsAfterDeleteObjectTx))
 	userstreamRecordsAfterDeleteObjectTx := streamRecordsAfterDeleteObjectTx.User
-	s.Require().Equal(sdk.ZeroInt(), userstreamRecordsAfterDeleteObjectTx.LockBalance)
+	s.Require().Equal(sdkmath.ZeroInt(), userstreamRecordsAfterDeleteObjectTx.LockBalance)
 }

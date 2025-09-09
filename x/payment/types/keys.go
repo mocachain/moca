@@ -129,7 +129,7 @@ func ParseOutFlowKey(key []byte) (addr sdk.AccAddress, res OutFlow) {
 }
 
 func ParseOutFlowValue(value []byte) sdkmath.Int {
-	rate := sdk.ZeroInt()
+	rate := sdkmath.ZeroInt()
 	if err := rate.Unmarshal(value); err != nil {
 		panic("should not happen")
 	}

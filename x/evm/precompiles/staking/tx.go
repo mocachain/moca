@@ -62,10 +62,6 @@ func (c *Contract) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 		BlsProof:          args.BlsProof,
 	}
 
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-
 	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
 
 	_, err = server.EditValidator(ctx, msg)
@@ -104,16 +100,17 @@ func (c *Contract) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 		return nil, err
 	}
 
+	params, err := c.stakingKeeper.GetParams(ctx)
+	if err != nil {
+		return nil, err
+	}
 	msg := &stakingtypes.MsgDelegate{
 		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
 		ValidatorAddress: args.GetValidator().String(),
 		Amount: sdk.Coin{
-			Denom:  c.stakingKeeper.GetParams(ctx).BondDenom,
+			Denom:  params.BondDenom,
 			Amount: math.NewIntFromBigInt(args.Amount),
 		},
-	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
@@ -153,16 +150,17 @@ func (c *Contract) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		return nil, err
 	}
 
+	params, err := c.stakingKeeper.GetParams(ctx)
+	if err != nil {
+		return nil, err
+	}
 	msg := &stakingtypes.MsgUndelegate{
 		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
 		ValidatorAddress: args.GetValidator().String(),
 		Amount: sdk.Coin{
-			Denom:  c.stakingKeeper.GetParams(ctx).BondDenom,
+			Denom:  params.BondDenom,
 			Amount: math.NewIntFromBigInt(args.Amount),
 		},
-	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
@@ -200,17 +198,18 @@ func (c *Contract) Redelegatge(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 		return nil, err
 	}
 
+	params, err := c.stakingKeeper.GetParams(ctx)
+	if err != nil {
+		return nil, err
+	}
 	msg := &stakingtypes.MsgBeginRedelegate{
 		DelegatorAddress:    sdk.AccAddress(contract.Caller().Bytes()).String(),
 		ValidatorSrcAddress: args.GetSrcValidator().String(),
 		ValidatorDstAddress: args.GetDstValidator().String(),
 		Amount: sdk.Coin{
-			Denom:  c.stakingKeeper.GetParams(ctx).BondDenom,
+			Denom:  params.BondDenom,
 			Amount: math.NewIntFromBigInt(args.Amount),
 		},
-	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
@@ -253,17 +252,18 @@ func (c *Contract) CancelUnbondingDelegation(ctx sdk.Context, evm *vm.EVM, contr
 		return nil, err
 	}
 
+	params, err := c.stakingKeeper.GetParams(ctx)
+	if err != nil {
+		return nil, err
+	}
 	msg := &stakingtypes.MsgCancelUnbondingDelegation{
 		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
 		ValidatorAddress: args.GetValidator().String(),
 		Amount: sdk.Coin{
-			Denom:  c.stakingKeeper.GetParams(ctx).BondDenom,
+			Denom:  params.BondDenom,
 			Amount: math.NewIntFromBigInt(args.Amount),
 		},
 		CreationHeight: args.GetCreationHeight(),
-	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)

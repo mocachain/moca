@@ -148,13 +148,13 @@ func TestPolicy_BucketExpirationBasic(t *testing.T) {
 			operateTime:             time.Now().Add(1 * time.Second),
 		},
 		{
-			name:                 "statement_not_expired",
-			policyAction:         types.ACTION_UPDATE_BUCKET_INFO,
-			policyEffect:         types.EFFECT_ALLOW,
-			policyExpirationTime: &now,
-			operateAction:        types.ACTION_UPDATE_BUCKET_INFO,
-			expectEffect:         types.EFFECT_ALLOW,
-			operateTime:          time.Now().Add(1 * time.Second),
+			name:                    "statement_not_expired",
+			policyAction:            types.ACTION_UPDATE_BUCKET_INFO,
+			policyEffect:            types.EFFECT_ALLOW,
+			statementExpirationTime: &now,
+			operateAction:           types.ACTION_UPDATE_BUCKET_INFO,
+			expectEffect:            types.EFFECT_ALLOW,
+			operateTime:             time.Now().Add(-1 * time.Second),
 		},
 	}
 

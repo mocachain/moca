@@ -25,7 +25,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	"github.com/cosmos/cosmos-sdk/x/staking"
 	teststaking "github.com/cosmos/cosmos-sdk/x/staking/testutil"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/evmos/evmos/v12/app"
@@ -52,7 +51,7 @@ import (
 func PrepareAccountsForDelegationRewards(t *testing.T, ctx sdk.Context, app *app.Evmos, addr sdk.AccAddress, balance sdkmath.Int, rewards ...sdkmath.Int) (sdk.Context, error) {
 	// Calculate the necessary amount of tokens to fund the account in order for the desired residual balance to
 	// be left after creating validators and delegating to them.
-	totalRewards := sdk.ZeroInt()
+	totalRewards := sdkmath.ZeroInt()
 	for _, reward := range rewards {
 		totalRewards = totalRewards.Add(reward)
 	}
@@ -97,8 +96,11 @@ func PrepareAccountsForDelegationRewards(t *testing.T, ctx sdk.Context, app *app
 			return sdk.Context{}, fmt.Errorf("failed to fund validator account: %s", err.Error())
 		}
 
-		zeroDec := sdk.ZeroDec()
-		stakingParams := app.StakingKeeper.GetParams(ctx)
+		zeroDec := sdkmath.LegacyZeroDec()
+		stakingParams, err := app.StakingKeeper.GetParams(ctx)
+		if err != nil {
+			return sdk.Context{}, fmt.Errorf("failed to get staking params: %s", err.Error())
+		}
 		stakingParams.BondDenom = utils.BaseDenom
 		stakingParams.MinCommissionRate = zeroDec
 		err = app.StakingKeeper.SetParams(ctx, stakingParams)
@@ -116,12 +118,18 @@ func PrepareAccountsForDelegationRewards(t *testing.T, ctx sdk.Context, app *app
 
 		// end block to bond validator and increase block height
 		// Not using Commit() here because code panics due to invalid block height
-		staking.EndBlocker(ctx, app.StakingKeeper)
+		_, err = app.StakingKeeper.EndBlocker(ctx)
+		require.NoError(t, err)
 
 		// allocate rewards to validator (of these 50% will be paid out to the delegator)
-		validator := app.StakingKeeper.Validator(ctx, valAddr)
-		allocatedRewards := sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, reward.Mul(sdk.NewInt(2))))
-		app.DistrKeeper.AllocateTokensToValidator(ctx, validator, allocatedRewards)
+		validator, err := app.StakingKeeper.Validator(ctx, valAddr)
+		if err != nil {
+			return sdk.Context{}, fmt.Errorf("failed to get validator: %s", err.Error())
+		}
+		allocatedRewards := sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, reward.Mul(sdkmath.NewInt(2))))
+		if err = app.DistrKeeper.AllocateTokensToValidator(ctx, validator, allocatedRewards); err != nil {
+			return sdk.Context{}, fmt.Errorf("failed to allocate tokens to validator: %s", err.Error())
+		}
 	}
 
 	return ctx, nil

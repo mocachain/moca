@@ -17,7 +17,7 @@ func (k Keeper) MinDeposit(ctx sdk.Context) (res math.Int) {
 	return params.MinDeposit
 }
 
-func (k Keeper) SecondarySpStorePriceRatio(ctx sdk.Context) (res sdk.Dec) {
+func (k Keeper) SecondarySpStorePriceRatio(ctx sdk.Context) (res math.LegacyDec) {
 	params := k.GetParams(ctx)
 	return params.SecondarySpStorePriceRatio
 }

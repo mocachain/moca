@@ -118,3 +118,5 @@ sp.json
 deployment/dockerup/send_tokens.sh
 deployment/dockerup/.env
 deployment/testnet/keys.json
+
+CLAUDE.md

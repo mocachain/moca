@@ -6,6 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	accountkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
+	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,6 +20,7 @@ type Contract struct {
 	ctx           sdk.Context
 	govKeeper     govkeeper.Keeper
 	accountKeeper accountkeeper.AccountKeeper
+	queryServer   v1.QueryServer
 }
 
 func NewPrecompiledContract(ctx sdk.Context, govKeeper govkeeper.Keeper, accountKeeper accountkeeper.AccountKeeper) *Contract {
@@ -26,6 +28,7 @@ func NewPrecompiledContract(ctx sdk.Context, govKeeper govkeeper.Keeper, account
 		ctx:           ctx,
 		govKeeper:     govKeeper,
 		accountKeeper: accountKeeper,
+		queryServer:   govkeeper.NewQueryServer(&govKeeper),
 	}
 }
 

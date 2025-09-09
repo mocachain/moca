@@ -121,8 +121,10 @@ func ValidateAndGetGenTx(genTx json.RawMessage, txJSONDecoder sdk.TxDecoder) (sd
 		return tx, fmt.Errorf("unexpected GenTx message type; expected: MsgCreateStorageProvider, got: %T", msgs[0])
 	}
 
-	if err := msgs[0].ValidateBasic(); err != nil {
-		return tx, fmt.Errorf("invalid GenTx '%s': %s", msgs[0], err)
+	if validateBasic, ok := msgs[0].(sdk.HasValidateBasic); ok {
+		if err := validateBasic.ValidateBasic(); err != nil {
+			return tx, fmt.Errorf("invalid GenTx '%s': %s", msgs[0], err)
+		}
 	}
 
 	return tx, nil

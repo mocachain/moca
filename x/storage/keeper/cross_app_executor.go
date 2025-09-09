@@ -1,11 +1,14 @@
 package keeper
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"runtime/debug"
 	"strings"
 
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,6 +20,7 @@ import (
 var _ sdk.CrossChainApplication = &ExecutorApp{}
 
 type ExecutorApp struct {
+	cdc        codec.Codec
 	sKeeper    types.StorageKeeper
 	sMsgServer types.StorageMsgServer
 	pMsgServer types.PaymentMsgServer
@@ -24,6 +28,7 @@ type ExecutorApp struct {
 
 func NewExecutorApp(storageKeeper types.StorageKeeper, storageMsgServer types.StorageMsgServer, paymentMsgServer types.PaymentMsgServer) *ExecutorApp {
 	return &ExecutorApp{
+		cdc:        codec.NewProtoCodec(codectypes.NewInterfaceRegistry()),
 		sKeeper:    storageKeeper,
 		sMsgServer: storageMsgServer,
 		pMsgServer: paymentMsgServer,
@@ -110,7 +115,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.pMsgServer.CreatePaymentAccount(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -120,7 +125,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.pMsgServer.Deposit(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -130,7 +135,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.pMsgServer.DisableRefund(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -140,7 +145,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.pMsgServer.Withdraw(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -150,7 +155,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.MigrateBucket(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -160,7 +165,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.CancelMigrateBucket(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -170,7 +175,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.UpdateBucketInfo(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -180,7 +185,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.ToggleSPAsDelegatedAgent(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -190,7 +195,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.SetBucketFlowRateLimit(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -200,7 +205,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.CopyObject(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -210,7 +215,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.UpdateObjectInfo(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -220,7 +225,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.UpdateGroupExtra(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -230,7 +235,7 @@ func (app *ExecutorApp) msgHandler(ctx sdk.Context, msg ExecutorMsg) error {
 		if err != nil {
 			return err
 		}
-		if err = checkMsg(msgSender, &gnfdMsg); err != nil {
+		if err = checkMsg(app.cdc, msgSender, &gnfdMsg); err != nil {
 			return err
 		}
 		_, err = app.sMsgServer.SetTag(sdk.WrapSDKContext(ctx), &gnfdMsg)
@@ -290,14 +295,20 @@ func abiDecode(typeDef string, encodedBz []byte) ([]interface{}, error) {
 	return outAbi.Unpack("method", encodedBz)
 }
 
-func checkMsg(msgSender sdk.AccAddress, msg sdk.Msg) error {
-	if err := msg.ValidateBasic(); err != nil {
+func checkMsg(cdc codec.Codec, msgSender sdk.AccAddress, msg sdk.Msg) error {
+	if validateBasic, ok := msg.(sdk.HasValidateBasic); ok {
+		if err := validateBasic.ValidateBasic(); err != nil {
+			return err
+		}
+	}
+	signers, _, err := cdc.GetMsgV1Signers(msg)
+	if err != nil {
 		return err
 	}
-	if len(msg.GetSigners()) != 1 {
+	if len(signers) != 1 {
 		return fmt.Errorf("invalid signers number")
 	}
-	if !msg.GetSigners()[0].Equals(msgSender) {
+	if !bytes.Equal(signers[0], msgSender) {
 		return fmt.Errorf("invalid msg sender")
 	}
 	return nil

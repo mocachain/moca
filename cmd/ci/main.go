@@ -32,10 +32,10 @@ type ComposeConfig struct {
 const dockerComposeTemplate = `
 services:
   init:
-    container_name: init-mechain
+    container_name: init-moca
     image: "{{$.Image}}"
     networks:
-      - mechain-network    
+      - moca-network    
     volumes:
       - "{{$.DeploymentPath}}:/app/scripts:rw"
       - local-env:/app/.local
@@ -59,13 +59,13 @@ services:
     restart: "on-failure"
 {{- range .Nodes }}
   vnode-{{.NodeIndex}}:
-    container_name: mechaind-validator-{{.NodeIndex}}
+    container_name: mocad-validator-{{.NodeIndex}}
     depends_on:
       init:
         condition: service_healthy
     image: "{{$.Image}}"
     networks:
-      - mechain-network
+      - moca-network
     ports:
       - "{{.AddressPort}}:{{$.BasePorts.AddressPort}}"
       - "{{.P2PPort}}:{{$.BasePorts.P2PPort}}"
@@ -78,9 +78,9 @@ services:
       - "local-env:/app:Z"
     command: >
       bash -c "
-      mkdir -p ~/.mechaind &&
-      cp -r /app/validator{{.NodeIndex}}/* ~/.mechaind/ && 
-      mechaind start
+      mkdir -p ~/.mocad &&
+      cp -r /app/validator{{.NodeIndex}}/* ~/.mocad/ && 
+      mocad start
       --keyring-backend test
       --api.enabled-unsafe-cors true
       --address 0.0.0.0:{{$.BasePorts.AddressPort}}
@@ -95,7 +95,7 @@ services:
 volumes:
   local-env:
 networks:
-  mechain-network:
+  moca-network:
     external: true
 `
 
@@ -103,7 +103,7 @@ func main() {
 	config := ComposeConfig{
 		NodeSize:       4,
 		SPSize:         3,
-		Image:          "zkmelabs/mechain",
+		Image:          "zkmelabs/moca",
 		DeploymentPath: "./deployment/dockerup/",
 		BasePorts: PortConfig{
 			AddressPort: 28750,

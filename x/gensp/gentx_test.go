@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/core/genesis"
 	"cosmossdk.io/math"
-	abci "github.com/cometbft/cometbft/abci/types"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -38,6 +38,19 @@ var (
 	desc     = stakingtypes.NewDescription("testname", "", "", "", "")
 	comm     = stakingtypes.CommissionRates{}
 )
+
+// mockTxHandler implements genesis.TxHandler for testing
+type mockTxHandler struct {
+	errCode uint32
+	log     string
+}
+
+func (m *mockTxHandler) ExecuteGenesisTx(txBytes []byte) error {
+	if m.errCode != 0 {
+		return fmt.Errorf("mock error: %s", m.log)
+	}
+	return nil
+}
 
 // GenTxTestSuite is a test suite to be used with gentx tests.
 type GenTxTestSuite struct {
@@ -67,14 +80,14 @@ func (suite *GenTxTestSuite) SetupTest() {
 	one := math.OneInt()
 	blsPubKey, blsProof := sample.RandBlsPubKeyAndBlsProof()
 	suite.msg1, err = stakingtypes.NewMsgCreateValidator(
-		sdk.AccAddress(pk1.Address()), pk1,
+		sdk.AccAddress(pk1.Address()).String(), pk1,
 		amount, desc, comm, one,
 		sdk.AccAddress(pk1.Address()), sdk.AccAddress(pk1.Address()),
 		sdk.AccAddress(pk1.Address()), sdk.AccAddress(pk1.Address()),
 		blsPubKey, blsProof)
 	suite.NoError(err)
 	suite.msg2, err = stakingtypes.NewMsgCreateValidator(
-		sdk.AccAddress(pk2.Address()), pk1,
+		sdk.AccAddress(pk2.Address()).String(), pk1,
 		amount, desc, comm, one,
 		sdk.AccAddress(pk2.Address()), sdk.AccAddress(pk2.Address()),
 		sdk.AccAddress(pk2.Address()), sdk.AccAddress(pk1.Address()),
@@ -256,7 +269,7 @@ func (suite *GenTxTestSuite) TestDeliverGenTxs() {
 	testCases := []struct {
 		msg         string
 		malleate    func()
-		deliverTxFn func(abci.RequestDeliverTx) abci.ResponseDeliverTx
+		deliverTxFn genesis.TxHandler
 		expPass     bool
 	}{
 		{
@@ -270,13 +283,9 @@ func (suite *GenTxTestSuite) TestDeliverGenTxs() {
 				suite.Require().NoError(err)
 				genTxs[0] = tx
 			},
-			func(_ abci.RequestDeliverTx) abci.ResponseDeliverTx {
-				return abci.ResponseDeliverTx{
-					Code:      sdkerrors.ErrNoSignatures.ABCICode(),
-					GasWanted: int64(10000000),
-					GasUsed:   int64(41913),
-					Log:       "no signatures supplied",
-				}
+			&mockTxHandler{
+				errCode: sdkerrors.ErrNoSignatures.ABCICode(),
+				log:     "no signatures supplied",
 			},
 			false,
 		},
@@ -303,14 +312,9 @@ func (suite *GenTxTestSuite) TestDeliverGenTxs() {
 				suite.Require().NoError(err)
 				genTxs[0] = genTx
 			},
-			func(_ abci.RequestDeliverTx) abci.ResponseDeliverTx {
-				return abci.ResponseDeliverTx{
-					Code:      sdkerrors.ErrUnauthorized.ABCICode(),
-					GasWanted: int64(10000000),
-					GasUsed:   int64(41353),
-					Log:       "signature verification failed; please verify account number (4) and chain-id (): unauthorized",
-					Codespace: "sdk",
-				}
+			&mockTxHandler{
+				errCode: sdkerrors.ErrUnauthorized.ABCICode(),
+				log:     "signature verification failed; please verify account number (4) and chain-id (): unauthorized",
 			},
 			true,
 		},

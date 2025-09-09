@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	cfg "github.com/cometbft/cometbft/config"
-	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -25,11 +24,11 @@ import (
 
 // GenAppStateFromConfig gets the genesis app state from the config
 func GenAppStateFromConfig(cdc codec.JSONCodec, txEncodingConfig client.TxEncodingConfig,
-	config *cfg.Config, initCfg genutiltypes.InitConfig, genDoc tmtypes.GenesisDoc, genBalIterator genutiltypes.GenesisBalancesIterator,
+	config *cfg.Config, initCfg genutiltypes.InitConfig, genesis *genutiltypes.AppGenesis, genBalIterator genutiltypes.GenesisBalancesIterator,
 ) (appState json.RawMessage, err error) {
 	// process genesis transactions, else create default genesis.json
 	appGenTxs, persistentPeers, err := CollectTxs(
-		cdc, txEncodingConfig.TxJSONDecoder(), config.Moniker, initCfg.GenTxsDir, genDoc, genBalIterator,
+		cdc, txEncodingConfig.TxJSONDecoder(), config.Moniker, initCfg.GenTxsDir, genesis, genBalIterator,
 	)
 	if err != nil {
 		return appState, err
@@ -44,7 +43,7 @@ func GenAppStateFromConfig(cdc codec.JSONCodec, txEncodingConfig client.TxEncodi
 	}
 
 	// create the app state
-	appGenesisState, err := genutiltypes.GenesisStateFromGenDoc(genDoc)
+	appGenesisState, err := genutiltypes.GenesisStateFromAppGenesis(genesis)
 	if err != nil {
 		return appState, err
 	}
@@ -59,8 +58,8 @@ func GenAppStateFromConfig(cdc codec.JSONCodec, txEncodingConfig client.TxEncodi
 		return appState, err
 	}
 
-	genDoc.AppState = appState
-	err = genutil.ExportGenesisFile(&genDoc, config.GenesisFile())
+	genesis.AppState = appState
+	err = genutil.ExportGenesisFile(genesis, config.GenesisFile())
 
 	return appState, err
 }
@@ -68,12 +67,12 @@ func GenAppStateFromConfig(cdc codec.JSONCodec, txEncodingConfig client.TxEncodi
 // CollectTxs processes and validates application's genesis Txs and returns
 // the list of appGenTxs, and persistent peers required to generate genesis.json.
 func CollectTxs(cdc codec.JSONCodec, txJSONDecoder sdk.TxDecoder, _, genTxsDir string,
-	genDoc tmtypes.GenesisDoc, genBalIterator genutiltypes.GenesisBalancesIterator,
+	genesis *genutiltypes.AppGenesis, genBalIterator genutiltypes.GenesisBalancesIterator,
 ) (appGenTxs []sdk.Tx, persistentPeers string, err error) {
 	// prepare a map of all balances in genesis state to then validate
 	// against the validators addresses
 	var appState map[string]json.RawMessage
-	if err := json.Unmarshal(genDoc.AppState, &appState); err != nil {
+	if err := json.Unmarshal(genesis.AppState, &appState); err != nil {
 		return appGenTxs, persistentPeers, err
 	}
 
@@ -88,7 +87,8 @@ func CollectTxs(cdc codec.JSONCodec, txJSONDecoder sdk.TxDecoder, _, genTxsDir s
 	genBalIterator.IterateGenesisBalances(
 		cdc, appState,
 		func(balance bankexported.GenesisBalance) (stop bool) {
-			balancesMap[balance.GetAddress().String()] = balance
+			addr := balance.GetAddress()
+			balancesMap[addr] = balance
 			return false
 		},
 	)
@@ -152,7 +152,7 @@ func CollectTxs(cdc codec.JSONCodec, txJSONDecoder sdk.TxDecoder, _, genTxsDir s
 		if delBal.GetCoins().AmountOf(msg.Deposit.Denom).LT(msg.Deposit.Amount) {
 			return appGenTxs, persistentPeers, fmt.Errorf(
 				"insufficient fund for delegation %v: %v < %v",
-				delBal.GetAddress().String(), delBal.GetCoins().AmountOf(msg.Deposit.Denom), msg.Deposit.Amount,
+				delBal.GetAddress(), delBal.GetCoins().AmountOf(msg.Deposit.Denom), msg.Deposit.Amount,
 			)
 		}
 	}

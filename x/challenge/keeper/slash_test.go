@@ -34,8 +34,8 @@ func TestRemoveRecentSlash(t *testing.T) {
 
 func TestRemoveSpSlashAmount(t *testing.T) {
 	keeper, ctx := makeKeeper(t)
-	keeper.SetSpSlashAmount(ctx, 1, sdk.NewInt(100))
-	keeper.SetSpSlashAmount(ctx, 2, sdk.NewInt(200))
+	keeper.SetSpSlashAmount(ctx, 1, sdkmath.NewInt(100))
+	keeper.SetSpSlashAmount(ctx, 2, sdkmath.NewInt(200))
 	keeper.ClearSpSlashAmount(ctx)
 	require.True(t, keeper.GetSpSlashAmount(ctx, 1).Int64() == 0)
 	require.True(t, keeper.GetSpSlashAmount(ctx, 2).Int64() == 0)

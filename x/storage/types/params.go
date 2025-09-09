@@ -75,6 +75,12 @@ const (
 	DefaultOptimismMirrorObjectAckRelayerFee        = "25000000000000"   // 0.000025
 	DefaultOptimismMirrorGroupRelayerFee            = "130000000000000"  // 0.00013
 	DefaultOptimismMirrorGroupAckRelayerFee         = "25000000000000"   // 0.000025
+	DefaultBaseMirrorBucketRelayerFee               = "130000000000000"  // 0.00013
+	DefaultBaseMirrorBucketAckRelayerFee            = "25000000000000"   // 0.000025
+	DefaultBaseMirrorObjectRelayerFee               = "130000000000000"  // 0.00013
+	DefaultBaseMirrorObjectAckRelayerFee            = "25000000000000"   // 0.000025
+	DefaultBaseMirrorGroupRelayerFee                = "130000000000000"  // 0.00013
+	DefaultBaseMirrorGroupAckRelayerFee             = "25000000000000"   // 0.000025
 )
 
 var (
@@ -139,6 +145,12 @@ var (
 	KeyOptimismMirrorObjectAckRelayerFee = []byte("OptimismMirrorObjectAckRelayerFee")
 	KeyOptimismMirrorGroupRelayerFee     = []byte("OptimismMirrorGroupRelayerFee")
 	KeyOptimismMirrorGroupAckRelayerFee  = []byte("OptimismMirrorGroupAckRelayerFee")
+	KeyBaseMirrorBucketRelayerFee        = []byte("BaseMirrorBucketRelayerFee")
+	KeyBaseMirrorBucketAckRelayerFee     = []byte("BaseMirrorBucketAckRelayerFee")
+	KeyBaseMirrorObjectRelayerFee        = []byte("BaseMirrorObjectRelayerFee")
+	KeyBaseMirrorObjectAckRelayerFee     = []byte("BaseMirrorObjectAckRelayerFee")
+	KeyBaseMirrorGroupRelayerFee         = []byte("BaseMirrorGroupRelayerFee")
+	KeyBaseMirrorGroupAckRelayerFee      = []byte("BaseMirrorGroupAckRelayerFee")
 	KeyMaxLocalVirtualGroupNumPerBucket  = []byte("MaxLocalVirtualGroupNumPerBucket")
 )
 
@@ -177,6 +189,9 @@ func NewParams(
 	optimismMirrorBucketRelayerFee, optimismMirrorBucketAckRelayerFee string,
 	optimismMirrorObjectRelayerFee, optimismMirrorObjectAckRelayerFee string,
 	optimismMirrorGroupRelayerFee, optimismMirrorGroupAckRelayerFee string,
+	baseMirrorBucketRelayerFee, baseMirrorBucketAckRelayerFee string,
+	baseMirrorObjectRelayerFee, baseMirrorObjectAckRelayerFee string,
+	baseMirrorGroupRelayerFee, baseMirrorGroupAckRelayerFee string,
 	discontinueCountingWindow, discontinueObjectMax, discontinueBucketMax uint64,
 	discontinueConfirmPeriod int64,
 	discontinueDeletionMax uint64,
@@ -241,6 +256,12 @@ func NewParams(
 		OptimismMirrorObjectAckRelayerFee: optimismMirrorObjectAckRelayerFee,
 		OptimismMirrorGroupRelayerFee:     optimismMirrorGroupRelayerFee,
 		OptimismMirrorGroupAckRelayerFee:  optimismMirrorGroupAckRelayerFee,
+		BaseMirrorBucketRelayerFee:        baseMirrorBucketRelayerFee,
+		BaseMirrorBucketAckRelayerFee:     baseMirrorBucketAckRelayerFee,
+		BaseMirrorObjectRelayerFee:        baseMirrorObjectRelayerFee,
+		BaseMirrorObjectAckRelayerFee:     baseMirrorObjectAckRelayerFee,
+		BaseMirrorGroupRelayerFee:         baseMirrorGroupRelayerFee,
+		BaseMirrorGroupAckRelayerFee:      baseMirrorGroupAckRelayerFee,
 		DiscontinueCountingWindow:         discontinueCountingWindow,
 		DiscontinueObjectMax:              discontinueObjectMax,
 		DiscontinueBucketMax:              discontinueBucketMax,
@@ -281,6 +302,9 @@ func DefaultParams() Params {
 		DefaultOptimismMirrorBucketRelayerFee, DefaultOptimismMirrorBucketAckRelayerFee,
 		DefaultOptimismMirrorObjectRelayerFee, DefaultOptimismMirrorObjectAckRelayerFee,
 		DefaultOptimismMirrorGroupRelayerFee, DefaultOptimismMirrorGroupAckRelayerFee,
+		DefaultBaseMirrorBucketRelayerFee, DefaultBaseMirrorBucketAckRelayerFee,
+		DefaultBaseMirrorObjectRelayerFee, DefaultBaseMirrorObjectAckRelayerFee,
+		DefaultBaseMirrorGroupRelayerFee, DefaultBaseMirrorGroupAckRelayerFee,
 		DefaultDiscontinueCountingWindow, DefaultDiscontinueObjectMax, DefaultDiscontinueBucketMax,
 		DefaultDiscontinueConfirmPeriod, DefaultDiscontinueDeletionMax, DefaultStalePolicyCleanupMax,
 		DefaultMinUpdateQuotaInterval, DefaultMaxLocalVirtualGroupNumPerBucket,
@@ -345,6 +369,12 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyOptimismMirrorObjectAckRelayerFee, &p.OptimismMirrorObjectAckRelayerFee, validateRelayerFee),
 		paramtypes.NewParamSetPair(KeyOptimismMirrorGroupRelayerFee, &p.OptimismMirrorGroupRelayerFee, validateRelayerFee),
 		paramtypes.NewParamSetPair(KeyOptimismMirrorGroupAckRelayerFee, &p.OptimismMirrorGroupAckRelayerFee, validateRelayerFee),
+		paramtypes.NewParamSetPair(KeyBaseMirrorBucketRelayerFee, &p.BaseMirrorBucketRelayerFee, validateRelayerFee),
+		paramtypes.NewParamSetPair(KeyBaseMirrorBucketAckRelayerFee, &p.BaseMirrorBucketAckRelayerFee, validateRelayerFee),
+		paramtypes.NewParamSetPair(KeyBaseMirrorObjectRelayerFee, &p.BaseMirrorObjectRelayerFee, validateRelayerFee),
+		paramtypes.NewParamSetPair(KeyBaseMirrorObjectAckRelayerFee, &p.BaseMirrorObjectAckRelayerFee, validateRelayerFee),
+		paramtypes.NewParamSetPair(KeyBaseMirrorGroupRelayerFee, &p.BaseMirrorGroupRelayerFee, validateRelayerFee),
+		paramtypes.NewParamSetPair(KeyBaseMirrorGroupAckRelayerFee, &p.BaseMirrorGroupAckRelayerFee, validateRelayerFee),
 		paramtypes.NewParamSetPair(KeyDiscontinueCountingWindow, &p.DiscontinueCountingWindow, validateDiscontinueCountingWindow),
 		paramtypes.NewParamSetPair(KeyDiscontinueObjectMax, &p.DiscontinueObjectMax, validateDiscontinueObjectMax),
 		paramtypes.NewParamSetPair(KeyDiscontinueBucketMax, &p.DiscontinueBucketMax, validateDiscontinueBucketMax),
@@ -518,6 +548,24 @@ func (p Params) Validate() error {
 		return err
 	}
 	if err := validateRelayerFee(p.OptimismMirrorGroupAckRelayerFee); err != nil {
+		return err
+	}
+	if err := validateRelayerFee(p.BaseMirrorBucketRelayerFee); err != nil {
+		return err
+	}
+	if err := validateRelayerFee(p.BaseMirrorBucketAckRelayerFee); err != nil {
+		return err
+	}
+	if err := validateRelayerFee(p.BaseMirrorObjectRelayerFee); err != nil {
+		return err
+	}
+	if err := validateRelayerFee(p.BaseMirrorObjectAckRelayerFee); err != nil {
+		return err
+	}
+	if err := validateRelayerFee(p.BaseMirrorGroupRelayerFee); err != nil {
+		return err
+	}
+	if err := validateRelayerFee(p.BaseMirrorGroupAckRelayerFee); err != nil {
 		return err
 	}
 	if err := validateDiscontinueCountingWindow(p.DiscontinueCountingWindow); err != nil {

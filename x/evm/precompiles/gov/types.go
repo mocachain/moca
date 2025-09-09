@@ -104,6 +104,7 @@ type SubmitProposalArgs struct {
 	Metadata       string     `abi:"metadata"`
 	Title          string     `abi:"title"`
 	Summary        string     `abi:"summary"`
+	Expedited      bool       `abi:"expedited"`
 }
 
 // Validate SubmitProposal args

@@ -19,7 +19,7 @@ import (
 	fmt "fmt"
 	math "math"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	storetypes "cosmossdk.io/store/types"
 )
 
 // ErrorNegativeGasConsumed defines an error thrown when the amount of gas refunded results in a
@@ -36,13 +36,13 @@ type ErrorGasOverflow struct {
 }
 
 type infiniteGasMeterWithLimit struct {
-	consumed   sdk.Gas
-	limit      sdk.Gas
-	rwConsumed sdk.Gas
+	consumed   storetypes.Gas
+	limit      storetypes.Gas
+	rwConsumed storetypes.Gas
 }
 
 // NewInfiniteGasMeterWithLimit returns a reference to a new infiniteGasMeter.
-func NewInfiniteGasMeterWithLimit(limit sdk.Gas) sdk.GasMeter {
+func NewInfiniteGasMeterWithLimit(limit storetypes.Gas) storetypes.GasMeter {
 	return &infiniteGasMeterWithLimit{
 		consumed:   0,
 		limit:      limit,
@@ -51,7 +51,7 @@ func NewInfiniteGasMeterWithLimit(limit sdk.Gas) sdk.GasMeter {
 }
 
 // GasConsumed returns the gas consumed from the GasMeter.
-func (g *infiniteGasMeterWithLimit) GasConsumed() sdk.Gas {
+func (g *infiniteGasMeterWithLimit) GasConsumed() storetypes.Gas {
 	return g.consumed
 }
 
@@ -59,12 +59,12 @@ func (g *infiniteGasMeterWithLimit) GasConsumed() sdk.Gas {
 // otherwise it returns the consumed gas.
 // NOTE: This behavior is only called when recovering from panic when
 // BlockGasMeter consumes gas past the limit.
-func (g *infiniteGasMeterWithLimit) GasConsumedToLimit() sdk.Gas {
+func (g *infiniteGasMeterWithLimit) GasConsumedToLimit() storetypes.Gas {
 	return g.consumed
 }
 
 // Limit returns the gas limit of the GasMeter.
-func (g *infiniteGasMeterWithLimit) Limit() sdk.Gas {
+func (g *infiniteGasMeterWithLimit) Limit() storetypes.Gas {
 	return g.limit
 }
 
@@ -79,7 +79,7 @@ func addUint64Overflow(a, b uint64) (uint64, bool) {
 }
 
 // ConsumeGas adds the given amount of gas to the gas consumed and panics if it overflows the limit or out of gas.
-func (g *infiniteGasMeterWithLimit) ConsumeGas(amount sdk.Gas, descriptor string) {
+func (g *infiniteGasMeterWithLimit) ConsumeGas(amount storetypes.Gas, descriptor string) {
 	var overflow bool
 	// TODO: Should we set the consumed field after overflow checking?
 	g.consumed, overflow = addUint64Overflow(g.consumed, amount)
@@ -94,7 +94,7 @@ func (g *infiniteGasMeterWithLimit) ConsumeGas(amount sdk.Gas, descriptor string
 // Use case: This functionality enables refunding gas to the trasaction or block gas pools so that
 // EVM-compatible chains can fully support the go-ethereum StateDb interface.
 // See https://github.com/cosmos/cosmos-sdk/pull/9403 for reference.
-func (g *infiniteGasMeterWithLimit) RefundGas(amount sdk.Gas, descriptor string) {
+func (g *infiniteGasMeterWithLimit) RefundGas(amount storetypes.Gas, descriptor string) {
 	if g.consumed < amount {
 		panic(ErrorNegativeGasConsumed{Descriptor: descriptor})
 	}
@@ -117,11 +117,11 @@ func (g *infiniteGasMeterWithLimit) String() string {
 	return fmt.Sprintf("InfiniteGasMeter:\n  consumed: %d", g.consumed)
 }
 
-func (g *infiniteGasMeterWithLimit) RwConsumed() sdk.Gas {
+func (g *infiniteGasMeterWithLimit) RwConsumed() storetypes.Gas {
 	return g.rwConsumed
 }
 
-func (g *infiniteGasMeterWithLimit) ConsumeRw(amount sdk.Gas, descriptor string) {
+func (g *infiniteGasMeterWithLimit) ConsumeRw(amount storetypes.Gas, descriptor string) {
 	var overflow bool
 	g.rwConsumed, overflow = addUint64Overflow(g.rwConsumed, amount)
 	if overflow {
@@ -131,6 +131,6 @@ func (g *infiniteGasMeterWithLimit) ConsumeRw(amount sdk.Gas, descriptor string)
 }
 
 // GasRemaining returns MaxUint64 since limit is not confined in infiniteGasMeter.
-func (g *infiniteGasMeterWithLimit) GasRemaining() sdk.Gas {
+func (g *infiniteGasMeterWithLimit) GasRemaining() storetypes.Gas {
 	return math.MaxUint64
 }

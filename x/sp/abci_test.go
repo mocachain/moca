@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -89,9 +90,9 @@ func (s *TestSuite) TestEndBlocker_NoGlobalPrice() {
 	spPrice := types.SpStoragePrice{
 		SpId:          1,
 		UpdateTimeSec: 1024,
-		ReadPrice:     sdk.NewDecWithPrec(100, 0),
+		ReadPrice:     math.LegacyNewDecWithPrec(100, 0),
 		FreeReadQuota: 0,
-		StorePrice:    sdk.NewDecWithPrec(200, 0),
+		StorePrice:    math.LegacyNewDecWithPrec(200, 0),
 	}
 	s.spKeeper.SetSpStoragePrice(s.ctx, spPrice)
 
@@ -109,9 +110,9 @@ func (s *TestSuite) TestEndBlocker_WithUpdateInterval() {
 	s.ctx = s.ctx.WithBlockTime(time.Unix(preTime, 0))
 	globalPrice := types.GlobalSpStorePrice{
 		UpdateTimeSec:       0,
-		ReadPrice:           sdk.NewDecWithPrec(1, 0),
-		PrimaryStorePrice:   sdk.NewDecWithPrec(1, 0),
-		SecondaryStorePrice: sdk.NewDecWithPrec(12, 2),
+		ReadPrice:           math.LegacyNewDecWithPrec(1, 0),
+		PrimaryStorePrice:   math.LegacyNewDecWithPrec(1, 0),
+		SecondaryStorePrice: math.LegacyNewDecWithPrec(12, 2),
 	}
 	s.spKeeper.SetGlobalSpStorePrice(s.ctx, globalPrice)
 
@@ -130,9 +131,9 @@ func (s *TestSuite) TestEndBlocker_WithUpdateInterval() {
 	spPrice := types.SpStoragePrice{
 		SpId:          1,
 		UpdateTimeSec: 1024,
-		ReadPrice:     sdk.NewDecWithPrec(100, 0),
+		ReadPrice:     math.LegacyNewDecWithPrec(100, 0),
 		FreeReadQuota: 0,
-		StorePrice:    sdk.NewDecWithPrec(200, 0),
+		StorePrice:    math.LegacyNewDecWithPrec(200, 0),
 	}
 	s.spKeeper.SetSpStoragePrice(s.ctx, spPrice)
 
@@ -158,9 +159,9 @@ func (s *TestSuite) TestEndBlocker_WithoutUpdateInterval() {
 	s.ctx = s.ctx.WithBlockTime(time.Unix(preTime, 0))
 	globalPrice := types.GlobalSpStorePrice{
 		UpdateTimeSec:       0,
-		ReadPrice:           sdk.NewDecWithPrec(1, 0),
-		PrimaryStorePrice:   sdk.NewDecWithPrec(1, 0),
-		SecondaryStorePrice: sdk.NewDecWithPrec(12, 2),
+		ReadPrice:           math.LegacyNewDecWithPrec(1, 0),
+		PrimaryStorePrice:   math.LegacyNewDecWithPrec(1, 0),
+		SecondaryStorePrice: math.LegacyNewDecWithPrec(12, 2),
 	}
 	s.spKeeper.SetGlobalSpStorePrice(s.ctx, globalPrice)
 
@@ -179,9 +180,9 @@ func (s *TestSuite) TestEndBlocker_WithoutUpdateInterval() {
 	spPrice := types.SpStoragePrice{
 		SpId:          1,
 		UpdateTimeSec: 1024,
-		ReadPrice:     sdk.NewDecWithPrec(100, 0),
+		ReadPrice:     math.LegacyNewDecWithPrec(100, 0),
 		FreeReadQuota: 0,
-		StorePrice:    sdk.NewDecWithPrec(200, 0),
+		StorePrice:    math.LegacyNewDecWithPrec(200, 0),
 	}
 	s.spKeeper.SetSpStoragePrice(s.ctx, spPrice)
 

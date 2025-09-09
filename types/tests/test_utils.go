@@ -17,37 +17,13 @@
 package tests
 
 import (
-	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
+	transfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 )
 
 var (
-	UosmoDenomtrace = transfertypes.DenomTrace{
-		Path:      "transfer/channel-0",
-		BaseDenom: "uosmo",
-	}
-	UosmoIbcdenom = UosmoDenomtrace.IBCDenom()
-
-	UatomDenomtrace = transfertypes.DenomTrace{
-		Path:      "transfer/channel-1",
-		BaseDenom: "uatom",
-	}
-	UatomIbcdenom = UatomDenomtrace.IBCDenom()
-
-	UevmosDenomtrace = transfertypes.DenomTrace{
-		Path:      "transfer/channel-0",
-		BaseDenom: "amoca",
-	}
-	UevmosIbcdenom = UevmosDenomtrace.IBCDenom()
-
-	UatomOsmoDenomtrace = transfertypes.DenomTrace{
-		Path:      "transfer/channel-0/transfer/channel-1",
-		BaseDenom: "uatom",
-	}
-	UatomOsmoIbcdenom = UatomOsmoDenomtrace.IBCDenom()
-
-	AevmosDenomtrace = transfertypes.DenomTrace{
-		Path:      "transfer/channel-0",
-		BaseDenom: "amoca",
-	}
-	AevmosIbcdenom = AevmosDenomtrace.IBCDenom()
+	UosmoIbcdenom     = transfertypes.ParseDenomTrace("transfer/channel-0/uosmo").IBCDenom()
+	UatomIbcdenom     = transfertypes.ParseDenomTrace("transfer/channel-1/uatom").IBCDenom()
+	UevmosIbcdenom    = transfertypes.ParseDenomTrace("transfer/channel-0/amoca").IBCDenom()
+	UatomOsmoIbcdenom = transfertypes.ParseDenomTrace("transfer/channel-0/transfer/channel-1/uatom").IBCDenom()
+	AevmosIbcdenom    = transfertypes.ParseDenomTrace("transfer/channel-0/amoca").IBCDenom()
 )

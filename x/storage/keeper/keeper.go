@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
+	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/store/prefix"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
 	ecommon "github.com/ethereum/go-ethereum/common"
@@ -2478,6 +2478,8 @@ func (k Keeper) GetSourceTypeByChainId(ctx sdk.Context, chainId sdk.ChainID) (st
 		return storagetypes.SOURCE_TYPE_ARBITRUM_CROSS_CHAIN, nil
 	case k.crossChainKeeper.GetDestOptimismChainID():
 		return storagetypes.SOURCE_TYPE_OPTIMISM_CROSS_CHAIN, nil
+	case k.crossChainKeeper.GetDestBaseChainID():
+		return storagetypes.SOURCE_TYPE_BASE_CROSS_CHAIN, nil
 	default:
 		return 0, storagetypes.ErrChainNotSupported
 	}
@@ -2553,7 +2555,7 @@ func (k Keeper) SetTag(ctx sdk.Context, operator sdk.AccAddress, grn types.GRN, 
 		store.Set(storagetypes.GetGroupByIDKey(groupInfo.Id), gbz)
 		id = groupInfo.Id
 	default:
-		return gnfderrors.ErrInvalidGRN.Wrap("Unknown resource type in mechain resource name")
+		return gnfderrors.ErrInvalidGRN.Wrap("Unknown resource type in moca resource name")
 	}
 
 	// emit Event

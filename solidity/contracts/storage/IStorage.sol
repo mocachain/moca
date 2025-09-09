@@ -13,7 +13,7 @@ enum VisibilityType {
 }
 
 // SourceType represents the source of resource creation, which can
-// from Mechain native or from a cross-chain transfer from BSC
+// from Moca native or from a cross-chain transfer from BSC
 enum SourceType {
     Origin,
     MirrorPending,
@@ -24,7 +24,8 @@ enum SourceType {
     LineaCrossChain,
     MantleCrossChain,
     ArbitrumCrossChain,
-    OptimismCrossChain
+    OptimismCrossChain,
+    BaseCrossChain
 }
 
 // BucketStatus represents the status of a bucket. After a user successfully

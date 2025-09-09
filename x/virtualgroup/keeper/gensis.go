@@ -3,6 +3,7 @@ package keeper
 import (
 	"fmt"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/evmos/evmos/v12/x/virtualgroup/types"
@@ -19,10 +20,10 @@ func (k Keeper) InitGenesis(ctx sdk.Context, genState types.GenesisState) {
 	if depositBalance.IsZero() {
 		k.accountKeeper.SetModuleAccount(ctx, gvgStakingPool)
 	}
-	depositAmount := sdk.ZeroInt()
+	depositAmount := math.ZeroInt()
 	depositCoins := sdk.NewCoins(sdk.NewCoin(genState.Params.DepositDenom, depositAmount))
 
-	if !depositBalance.IsEqual(depositCoins) {
+	if !depositBalance.Equal(depositCoins) {
 		panic(fmt.Sprintf("sp deposit pool balance is different from sp deposit coins: %s <-> %s", depositBalance.String(), depositCoins.String()))
 	}
 }

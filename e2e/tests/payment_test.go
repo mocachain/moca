@@ -172,7 +172,7 @@ func (s *PaymentTestSuite) TestVersionedParams_DeleteBucketAfterValidatorTaxRate
 	gvg, found := sp.GetFirstGlobalVirtualGroup()
 	s.Require().True(found)
 
-	validatorTaxPoolRate := sdk.ZeroInt()
+	validatorTaxPoolRate := sdkmath.ZeroInt()
 	queryStreamRequest := paymenttypes.QueryGetStreamRecordRequest{Account: paymenttypes.ValidatorTaxPoolAddress.String()}
 	queryStreamResponse, err := s.Client.PaymentQueryClient.StreamRecord(ctx, &queryStreamRequest)
 	if err != nil {
@@ -247,7 +247,7 @@ func (s *PaymentTestSuite) TestVersionedParams_DeleteObjectAfterReserveTimeChang
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -316,8 +316,8 @@ func (s *PaymentTestSuite) TestDeposit_ActiveAccount() {
 	taxRateParam := params.VersionedParams.ValidatorTaxRate
 	taxStreamRate := taxRateParam.MulInt(totalUserRate).TruncateInt()
 	expectedRate := totalUserRate.Add(taxStreamRate)
-	paymentAccountZKMENeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
-	s.T().Log("paymentAccountZKMENeeded", paymentAccountZKMENeeded.String())
+	paymentAccountMOCANeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
+	s.T().Log("paymentAccountMOCANeeded", paymentAccountMOCANeeded.String())
 
 	// create payment account and deposit
 	msgCreatePaymentAccount := &paymenttypes.MsgCreatePaymentAccount{
@@ -335,7 +335,7 @@ func (s *PaymentTestSuite) TestDeposit_ActiveAccount() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      paymentAddr,
-		Amount:  paymentAccountZKMENeeded.MulRaw(2), // deposit more than needed
+		Amount:  paymentAccountMOCANeeded.MulRaw(2), // deposit more than needed
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 
@@ -353,8 +353,8 @@ func (s *PaymentTestSuite) TestDeposit_ActiveAccount() {
 	paymentAccountStreamRecord := s.getStreamRecord(paymentAddr)
 	s.T().Logf("paymentAccountStreamRecord %s", core.YamlString(paymentAccountStreamRecord))
 	s.Require().Equal(expectedRate.String(), paymentAccountStreamRecord.NetflowRate.Neg().String())
-	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountZKMENeeded.String())
-	s.Require().Equal(paymentAccountStreamRecord.StaticBalance.String(), paymentAccountZKMENeeded.String())
+	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountMOCANeeded.String())
+	s.Require().Equal(paymentAccountStreamRecord.StaticBalance.String(), paymentAccountMOCANeeded.String())
 
 	time.Sleep(5 * time.Second)
 
@@ -362,7 +362,7 @@ func (s *PaymentTestSuite) TestDeposit_ActiveAccount() {
 	msgDeposit = &paymenttypes.MsgDeposit{
 		Creator: userAddr,
 		To:      paymentAddr,
-		Amount:  paymentAccountZKMENeeded,
+		Amount:  paymentAccountMOCANeeded,
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 
@@ -375,8 +375,8 @@ func (s *PaymentTestSuite) TestDeposit_ActiveAccount() {
 	settledBalance := expectedRate.MulRaw(settledTime)
 	paymentBalanceChange := paymentAccountStreamRecordAfter.StaticBalance.Sub(paymentAccountStreamRecord.StaticBalance).
 		Add(paymentAccountStreamRecordAfter.BufferBalance.Sub(paymentAccountStreamRecord.BufferBalance))
-	s.Require().Equal(settledBalance.Add(paymentBalanceChange).Int64(), paymentAccountZKMENeeded.Int64())
-	s.Require().Equal(paymentAccountZKMENeeded.MulRaw(3), settledBalance.Add(paymentAccountStreamRecordAfter.StaticBalance.Add(paymentAccountStreamRecordAfter.BufferBalance)))
+	s.Require().Equal(settledBalance.Add(paymentBalanceChange).Int64(), paymentAccountMOCANeeded.Int64())
+	s.Require().Equal(paymentAccountMOCANeeded.MulRaw(3), settledBalance.Add(paymentAccountStreamRecordAfter.StaticBalance.Add(paymentAccountStreamRecordAfter.BufferBalance)))
 
 	_ = s.deleteBucket(user, bucketName)
 }
@@ -391,7 +391,7 @@ func (s *PaymentTestSuite) TestDeposit_FromBankAccount() {
 	paymentAccount := derivePaymentAccount(user.GetAddr(), 0)
 	// transfer amoca to derived payment account
 	msgSend := banktypes.NewMsgSend(user.GetAddr(), paymentAccount, sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, sdk.NewInt(1e18)),
+		sdk.NewCoin(s.Config.Denom, sdkmath.NewInt(1e18)),
 	))
 	_ = s.SendTxBlock(user, msgSend)
 
@@ -400,7 +400,7 @@ func (s *PaymentTestSuite) TestDeposit_FromBankAccount() {
 		Denom:   s.Config.Denom,
 	})
 	s.Require().NoError(err)
-	s.Require().Equal(sdk.NewInt(1e18).String(), paymentBalanceBefore.GetBalance().Amount.String())
+	s.Require().Equal(sdkmath.NewInt(1e18).String(), paymentBalanceBefore.GetBalance().Amount.String())
 
 	// create payment account and deposit
 	msgCreatePaymentAccount := &paymenttypes.MsgCreatePaymentAccount{
@@ -416,7 +416,7 @@ func (s *PaymentTestSuite) TestDeposit_FromBankAccount() {
 
 	// transfer amoca to payment account: should not success
 	msgSend = banktypes.NewMsgSend(user.GetAddr(), sdk.MustAccAddressFromHex(paymentAddr), sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, sdk.NewInt(1e18)),
+		sdk.NewCoin(s.Config.Denom, sdkmath.NewInt(1e18)),
 	))
 	s.SendTxBlockWithExpectErrorString(msgSend, user, "is not allowed to receive funds")
 
@@ -424,7 +424,7 @@ func (s *PaymentTestSuite) TestDeposit_FromBankAccount() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      paymentAddr,
-		Amount:  sdk.NewInt(1e18), // deposit more than needed
+		Amount:  sdkmath.NewInt(1e18), // deposit more than needed
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 
@@ -433,7 +433,7 @@ func (s *PaymentTestSuite) TestDeposit_FromBankAccount() {
 		Denom:   s.Config.Denom,
 	})
 	s.Require().NoError(err)
-	s.Require().Equal(sdk.NewInt(0).String(), paymentBalanceAfter.GetBalance().Amount.String())
+	s.Require().Equal(sdkmath.NewInt(0).String(), paymentBalanceAfter.GetBalance().Amount.String())
 }
 
 func derivePaymentAccount(owner sdk.AccAddress, index uint64) sdk.AccAddress {
@@ -465,7 +465,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInOneBlock() {
 	taxRateParam := params.VersionedParams.ValidatorTaxRate
 	taxStreamRate := taxRateParam.MulInt(totalUserRate).TruncateInt()
 	expectedRate := totalUserRate.Add(taxStreamRate)
-	paymentAccountZKMENeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
+	paymentAccountMOCANeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
 
 	// create payment account and deposit
 	msgCreatePaymentAccount := &paymenttypes.MsgCreatePaymentAccount{
@@ -483,7 +483,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInOneBlock() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      paymentAddr,
-		Amount:  paymentAccountZKMENeeded,
+		Amount:  paymentAccountMOCANeeded,
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 
@@ -501,7 +501,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInOneBlock() {
 	paymentAccountStreamRecord := s.getStreamRecord(paymentAddr)
 	s.T().Logf("paymentAccountStreamRecord %s", core.YamlString(paymentAccountStreamRecord))
 	s.Require().Equal(expectedRate.String(), paymentAccountStreamRecord.NetflowRate.Neg().String())
-	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountZKMENeeded.String())
+	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountMOCANeeded.String())
 	s.Require().Equal(paymentAccountStreamRecord.StaticBalance.String(), sdkmath.ZeroInt().String())
 
 	// wait until settle time
@@ -526,7 +526,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInOneBlock() {
 	s.Require().NotEqual(paymentStreamRecordAfterAutoSettle.Status, paymenttypes.STREAM_ACCOUNT_STATUS_ACTIVE)
 
 	// deposit, balance not enough to resume
-	depositAmount1 := sdk.NewInt(1)
+	depositAmount1 := sdkmath.NewInt(1)
 	msgDeposit1 := &paymenttypes.MsgDeposit{
 		Creator: userAddr,
 		To:      paymentAddr,
@@ -540,7 +540,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInOneBlock() {
 	s.Require().NotEqual(paymentAccountStreamRecordAfterDeposit1.Status, paymenttypes.STREAM_ACCOUNT_STATUS_ACTIVE)
 
 	// deposit and resume
-	depositAmount2 := sdk.NewInt(1e10)
+	depositAmount2 := sdkmath.NewInt(1e10)
 	msgDeposit2 := &paymenttypes.MsgDeposit{
 		Creator: userAddr,
 		To:      paymentAddr,
@@ -582,7 +582,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInBlocks() {
 	taxRateParam := params.VersionedParams.ValidatorTaxRate
 	taxStreamRate := taxRateParam.MulInt(totalUserRate).TruncateInt()
 	expectedRate := totalUserRate.Add(taxStreamRate)
-	paymentAccountZKMENeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
+	paymentAccountMOCANeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
 
 	// create payment account and deposit
 	msgCreatePaymentAccount := &paymenttypes.MsgCreatePaymentAccount{
@@ -600,7 +600,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInBlocks() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      paymentAddr,
-		Amount:  paymentAccountZKMENeeded,
+		Amount:  paymentAccountMOCANeeded,
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 
@@ -618,7 +618,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInBlocks() {
 	paymentAccountStreamRecord := s.getStreamRecord(paymentAddr)
 	s.T().Logf("paymentAccountStreamRecord %s", core.YamlString(paymentAccountStreamRecord))
 	s.Require().Equal(expectedRate.String(), paymentAccountStreamRecord.NetflowRate.Neg().String())
-	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountZKMENeeded.String())
+	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountMOCANeeded.String())
 	s.Require().Equal(paymentAccountStreamRecord.StaticBalance.String(), sdkmath.ZeroInt().String())
 
 	// wait until settle time
@@ -643,7 +643,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInBlocks() {
 	s.Require().NotEqual(paymentStreamRecordAfterAutoSettle.Status, paymenttypes.STREAM_ACCOUNT_STATUS_ACTIVE)
 
 	// deposit and resume
-	depositAmount := sdk.NewInt(1e10)
+	depositAmount := sdkmath.NewInt(1e10)
 	msgDeposit = &paymenttypes.MsgDeposit{
 		Creator: userAddr,
 		To:      paymentAddr,
@@ -674,7 +674,7 @@ func (s *PaymentTestSuite) TestDeposit_ResumeInBlocks() {
 			msgDeposit = &paymenttypes.MsgDeposit{
 				Creator: user.GetAddr().String(),
 				To:      paymentAddr,
-				Amount:  paymentAccountZKMENeeded,
+				Amount:  paymentAccountMOCANeeded,
 			}
 			s.SendTxBlockWithExpectErrorString(msgDeposit, user, "resuming")
 		}
@@ -718,7 +718,7 @@ func (s *PaymentTestSuite) TestAutoSettle_InOneBlock() {
 	taxRateParam := params.VersionedParams.ValidatorTaxRate
 	taxStreamRate := taxRateParam.MulInt(totalUserRate).TruncateInt()
 	expectedRate := totalUserRate.Add(taxStreamRate)
-	paymentAccountZKMENeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
+	paymentAccountMOCANeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
 
 	// create payment account and deposit
 	msgCreatePaymentAccount := &paymenttypes.MsgCreatePaymentAccount{
@@ -734,7 +734,7 @@ func (s *PaymentTestSuite) TestAutoSettle_InOneBlock() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      paymentAddr,
-		Amount:  paymentAccountZKMENeeded,
+		Amount:  paymentAccountMOCANeeded,
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 
@@ -751,7 +751,7 @@ func (s *PaymentTestSuite) TestAutoSettle_InOneBlock() {
 	paymentAccountStreamRecord := s.getStreamRecord(paymentAddr)
 	s.T().Logf("paymentAccountStreamRecord %s", core.YamlString(paymentAccountStreamRecord))
 	s.Require().Equal(expectedRate.String(), paymentAccountStreamRecord.NetflowRate.Neg().String())
-	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountZKMENeeded.String())
+	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountMOCANeeded.String())
 	s.Require().Equal(paymentAccountStreamRecord.StaticBalance.String(), sdkmath.ZeroInt().String())
 	govStreamRecord := s.getStreamRecord(paymenttypes.GovernanceAddress.String())
 	s.T().Logf("govStreamRecord %s", core.YamlString(govStreamRecord))
@@ -801,7 +801,7 @@ func (s *PaymentTestSuite) TestAutoSettle_InOneBlock() {
 	s.Require().True(govStreamRecordStaticBalanceDelta.Int64() >= expectedGovBalanceDelta.Int64())
 
 	// deposit, balance not enough to resume
-	depositAmount1 := sdk.NewInt(1)
+	depositAmount1 := sdkmath.NewInt(1)
 	msgDeposit1 := &paymenttypes.MsgDeposit{
 		Creator: userAddr,
 		To:      paymentAddr,
@@ -815,7 +815,7 @@ func (s *PaymentTestSuite) TestAutoSettle_InOneBlock() {
 	s.Require().Equal(paymentAccountStreamRecordAfterDeposit1.StaticBalance.String(), paymentAccountStreamRecordAfterAutoSettle.StaticBalance.Add(depositAmount1).String())
 
 	// deposit and resume
-	depositAmount2 := sdk.NewInt(1e10)
+	depositAmount2 := sdkmath.NewInt(1e10)
 	msgDeposit2 := &paymenttypes.MsgDeposit{
 		Creator: userAddr,
 		To:      paymentAddr,
@@ -857,7 +857,7 @@ func (s *PaymentTestSuite) TestAutoSettle_InBlocks() {
 	taxRateParam := params.VersionedParams.ValidatorTaxRate
 	taxStreamRate := taxRateParam.MulInt(totalUserRate).TruncateInt()
 	expectedRate := totalUserRate.Add(taxStreamRate)
-	paymentAccountZKMENeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
+	paymentAccountMOCANeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
 
 	// create payment account and deposit
 	msgCreatePaymentAccount := &paymenttypes.MsgCreatePaymentAccount{
@@ -875,7 +875,7 @@ func (s *PaymentTestSuite) TestAutoSettle_InBlocks() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      paymentAddr,
-		Amount:  paymentAccountZKMENeeded,
+		Amount:  paymentAccountMOCANeeded,
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 
@@ -893,7 +893,7 @@ func (s *PaymentTestSuite) TestAutoSettle_InBlocks() {
 	paymentAccountStreamRecord := s.getStreamRecord(paymentAddr)
 	s.T().Logf("paymentAccountStreamRecord %s", core.YamlString(paymentAccountStreamRecord))
 	s.Require().Equal(expectedRate.String(), paymentAccountStreamRecord.NetflowRate.Neg().String())
-	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountZKMENeeded.String())
+	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountMOCANeeded.String())
 	s.Require().Equal(paymentAccountStreamRecord.StaticBalance.String(), sdkmath.ZeroInt().String())
 
 	// wait until settle time
@@ -953,8 +953,8 @@ func (s *PaymentTestSuite) TestWithdraw() {
 	taxRateParam := params.VersionedParams.ValidatorTaxRate
 	taxStreamRate := taxRateParam.MulInt(totalUserRate).TruncateInt()
 	expectedRate := totalUserRate.Add(taxStreamRate)
-	paymentAccountZKMENeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
-	s.T().Log("paymentAccountZKMENeeded", paymentAccountZKMENeeded.String())
+	paymentAccountMOCANeeded := expectedRate.Mul(sdkmath.NewIntFromUint64(reserveTime))
+	s.T().Log("paymentAccountMOCANeeded", paymentAccountMOCANeeded.String())
 
 	// create payment account and deposit
 	msgCreatePaymentAccount := &paymenttypes.MsgCreatePaymentAccount{
@@ -972,7 +972,7 @@ func (s *PaymentTestSuite) TestWithdraw() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      paymentAddr,
-		Amount:  paymentAccountZKMENeeded.MulRaw(2), // deposit more than needed
+		Amount:  paymentAccountMOCANeeded.MulRaw(2), // deposit more than needed
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 
@@ -990,21 +990,21 @@ func (s *PaymentTestSuite) TestWithdraw() {
 	paymentAccountStreamRecord := s.getStreamRecord(paymentAddr)
 	s.T().Logf("paymentAccountStreamRecord %s", core.YamlString(paymentAccountStreamRecord))
 	s.Require().Equal(expectedRate.String(), paymentAccountStreamRecord.NetflowRate.Neg().String())
-	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountZKMENeeded.String())
-	s.Require().Equal(paymentAccountStreamRecord.StaticBalance.String(), paymentAccountZKMENeeded.String())
+	s.Require().Equal(paymentAccountStreamRecord.BufferBalance.String(), paymentAccountMOCANeeded.String())
+	s.Require().Equal(paymentAccountStreamRecord.StaticBalance.String(), paymentAccountMOCANeeded.String())
 
 	time.Sleep(5 * time.Second)
 
 	dynamicBalanceResp, err := s.Client.DynamicBalance(ctx, &paymenttypes.QueryDynamicBalanceRequest{Account: user.GetAddr().String()})
 	s.Require().NoError(err)
-	s.Require().True(dynamicBalanceResp.DynamicBalance.LT(paymentAccountZKMENeeded))
+	s.Require().True(dynamicBalanceResp.DynamicBalance.LT(paymentAccountMOCANeeded))
 
 	// withdraw more than static balance
-	withdrawMsg := paymenttypes.NewMsgWithdraw(userAddr, paymentAddr, paymentAccountZKMENeeded)
+	withdrawMsg := paymenttypes.NewMsgWithdraw(userAddr, paymentAddr, paymentAccountMOCANeeded)
 	s.SendTxBlockWithExpectErrorString(withdrawMsg, user, "not enough")
 
 	// withdraw less than static balance
-	amount := sdk.NewInt(1000)
+	amount := sdkmath.NewInt(1000)
 	withdrawMsg = paymenttypes.NewMsgWithdraw(userAddr, paymentAddr, amount)
 	s.SendTxBlock(user, withdrawMsg)
 	paymentAccountStreamRecordAfter := s.getStreamRecord(paymentAddr)
@@ -1044,7 +1044,7 @@ func (s *PaymentTestSuite) TestWithdrawDelayed() {
 
 	paymentAccountStreamRecord := s.getStreamRecord(paymentAddr)
 	// withdraw less than limit
-	amount := sdk.NewInt(1000)
+	amount := sdkmath.NewInt(1000)
 	withdrawMsg := paymenttypes.NewMsgWithdraw(userAddr, paymentAddr, amount)
 	s.SendTxBlock(user, withdrawMsg)
 	paymentAccountStreamRecordAfter := s.getStreamRecord(paymentAddr)
@@ -1317,7 +1317,7 @@ func (s *PaymentTestSuite) TestDiscontinue_InOneBlock_WithoutPriceChange() {
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -1415,7 +1415,7 @@ func (s *PaymentTestSuite) TestDiscontinue_InOneBlock_WithPriceChange() {
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -1512,7 +1512,7 @@ func (s *PaymentTestSuite) TestDiscontinue_InBlocks_WithoutPriceChange() {
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -1623,7 +1623,7 @@ func (s *PaymentTestSuite) TestDiscontinue_InBlocks_WithPriceChange() {
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -1748,7 +1748,7 @@ func (s *PaymentTestSuite) TestDiscontinue_InBlocks_WithPriceChangeReserveTimeCh
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -1888,7 +1888,7 @@ func (s *PaymentTestSuite) TestDiscontinue_InBlocks_WithPriceChangeReserveTimeCh
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -2008,7 +2008,7 @@ func (s *PaymentTestSuite) TestDiscontinue_MultiObjects() {
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -2129,7 +2129,7 @@ func (s *PaymentTestSuite) TestDiscontinue_MultiBuckets() {
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -2232,7 +2232,7 @@ func (s *PaymentTestSuite) TestDeposit_FrozenAccount_NetflowIsZero() {
 	s.Require().NoError(err)
 
 	msgSend.Amount = sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdk.NewInt(int64(gasLimit))))),
+		sdk.NewCoin(s.Config.Denom, queryBalanceResponse.Balance.Amount.Sub(gasPrice.Amount.Mul(sdkmath.NewInt(int64(gasLimit))))),
 	)
 	s.SendTxBlock(user, msgSend)
 	queryBalanceResponse, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -2276,7 +2276,7 @@ func (s *PaymentTestSuite) TestDeposit_FrozenAccount_NetflowIsZero() {
 	// deposit payment account
 	helper := s.GenAndChargeAccounts(1, 1000000)[0]
 	msgSend = banktypes.NewMsgSend(helper.GetAddr(), user.GetAddr(), sdk.NewCoins(
-		sdk.NewCoin(s.Config.Denom, sdk.NewInt(2e18)),
+		sdk.NewCoin(s.Config.Denom, sdkmath.NewInt(2e18)),
 	))
 	s.SendTxBlock(helper, msgSend)
 	_, err = s.Client.BankQueryClient.Balance(ctx, &queryBalanceRequest)
@@ -2285,19 +2285,19 @@ func (s *PaymentTestSuite) TestDeposit_FrozenAccount_NetflowIsZero() {
 	msgDeposit := &paymenttypes.MsgDeposit{
 		Creator: user.GetAddr().String(),
 		To:      user.GetAddr().String(),
-		Amount:  sdk.NewInt(1e18),
+		Amount:  sdkmath.NewInt(1e18),
 	}
 	_ = s.SendTxBlock(user, msgDeposit)
 	streamRecordsAfter = s.getStreamRecords(streamAddresses)
 	s.Require().True(streamRecordsAfter.User.Status == paymenttypes.STREAM_ACCOUNT_STATUS_ACTIVE)
-	s.Require().True(streamRecordsAfter.User.StaticBalance.Equal(sdk.NewInt(1e18)))
+	s.Require().True(streamRecordsAfter.User.StaticBalance.Equal(sdkmath.NewInt(1e18)))
 	s.Require().True(streamRecordsAfter.User.SettleTimestamp == 0)
 
 	// create bucket with quota again
 	bucketName = s.createBucket(sp, gvg, user, 100)
 	streamRecordsAfter = s.getStreamRecords(streamAddresses)
-	s.Require().True(streamRecordsAfter.User.StaticBalance.LT(sdk.NewInt(1e18)))
-	s.Require().True(streamRecordsAfter.User.BufferBalance.GT(sdk.NewInt(0)))
+	s.Require().True(streamRecordsAfter.User.StaticBalance.LT(sdkmath.NewInt(1e18)))
+	s.Require().True(streamRecordsAfter.User.BufferBalance.GT(sdkmath.NewInt(0)))
 	s.Require().True(streamRecordsAfter.User.SettleTimestamp > 0)
 
 	// delete bucket
@@ -2319,10 +2319,10 @@ func (s *PaymentTestSuite) getStreamRecord(addr string) (sr paymenttypes.StreamR
 		sr = streamRecordResp.StreamRecord
 	} else {
 		s.Require().ErrorContainsf(err, "not found", "account: %s", addr)
-		sr.StaticBalance = sdk.ZeroInt()
-		sr.BufferBalance = sdk.ZeroInt()
-		sr.LockBalance = sdk.ZeroInt()
-		sr.NetflowRate = sdk.ZeroInt()
+		sr.StaticBalance = sdkmath.ZeroInt()
+		sr.BufferBalance = sdkmath.ZeroInt()
+		sr.LockBalance = sdkmath.ZeroInt()
+		sr.NetflowRate = sdkmath.ZeroInt()
 	}
 	return sr
 }
@@ -2336,8 +2336,8 @@ func (s *PaymentTestSuite) getStreamRecords(addrs []string) (streamRecords Strea
 	return
 }
 
-func (s *PaymentTestSuite) checkStreamRecordsBeforeAndAfter(streamRecordsBefore, streamRecordsAfter StreamRecords, _ sdk.Dec,
-	readChargeRate sdkmath.Int, primaryStorePrice, secondaryStorePrice sdk.Dec, chargeSize, payloadSize uint64,
+func (s *PaymentTestSuite) checkStreamRecordsBeforeAndAfter(streamRecordsBefore, streamRecordsAfter StreamRecords, _ sdkmath.LegacyDec,
+	readChargeRate sdkmath.Int, primaryStorePrice, secondaryStorePrice sdkmath.LegacyDec, chargeSize, payloadSize uint64,
 ) {
 	userRateDiff := streamRecordsAfter.User.NetflowRate.Sub(streamRecordsBefore.User.NetflowRate)
 	gvgFamilyRateDiff := streamRecordsAfter.GVGFamily.NetflowRate.Sub(streamRecordsBefore.GVGFamily.NetflowRate)
@@ -2352,10 +2352,10 @@ func (s *PaymentTestSuite) checkStreamRecordsBeforeAndAfter(streamRecordsBefore,
 		return m
 	}, make(map[string]sdkmath.Int))
 	if payloadSize != 0 {
-		gvgFamilyRate := primaryStorePrice.MulInt(sdk.NewIntFromUint64(chargeSize)).TruncateInt().Add(readChargeRate)
+		gvgFamilyRate := primaryStorePrice.MulInt(sdkmath.NewIntFromUint64(chargeSize)).TruncateInt().Add(readChargeRate)
 		s.Require().Equal(gvgFamilyRate, userOutflowMap[streamRecordsAfter.GVGFamily.Account])
 
-		gvgRate := secondaryStorePrice.MulInt(sdk.NewIntFromUint64(chargeSize)).TruncateInt().MulRaw(6)
+		gvgRate := secondaryStorePrice.MulInt(sdkmath.NewIntFromUint64(chargeSize)).TruncateInt().MulRaw(6)
 		s.Require().Equal(gvgRate, userOutflowMap[streamRecordsAfter.GVG.Account])
 	}
 }
@@ -2395,7 +2395,7 @@ func (s *PaymentTestSuite) calculateLockFee(bucketName, _ string, payloadSize ui
 	return gvgFamilyRate.Add(gvgRate).Add(taxRate).MulRaw(int64(params.VersionedParams.ReserveTime))
 }
 
-func (s *PaymentTestSuite) getPrices(timestamp int64) (sdk.Dec, sdk.Dec, sdk.Dec) {
+func (s *PaymentTestSuite) getPrices(timestamp int64) (sdkmath.LegacyDec, sdkmath.LegacyDec, sdkmath.LegacyDec) {
 	ctx := context.Background()
 
 	spStoragePriceByTimeResp, err := s.Client.QueryGlobalSpStorePriceByTime(ctx, &sptypes.QueryGlobalSpStorePriceByTimeRequest{
@@ -2516,9 +2516,9 @@ func (s *PaymentTestSuite) updateParams(params paymenttypes.Params) {
 
 	msgProposal, err := govtypesv1.NewMsgSubmitProposal(
 		[]sdk.Msg{msgUpdateParams},
-		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalZKME))},
+		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test",
+		"test", "test", "test", false,
 	)
 	s.Require().NoError(err)
 
@@ -2783,8 +2783,8 @@ func (s *PaymentTestSuite) TestUpdatePaymentParams() {
 		Params:    updatedParams,
 	}
 
-	proposal, err := govtypesv1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
-		s.Validator.GetAddr().String(), "", "update Payment params", "Test update Payment params")
+	proposal, err := govtypesv1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
+		s.Validator.GetAddr().String(), "", "update Payment params", "Test update Payment params", false)
 	s.Require().NoError(err)
 	txBroadCastResp, err := s.SendTxBlockWithoutCheck(proposal, s.Validator)
 	s.Require().NoError(err)
@@ -2813,7 +2813,7 @@ func (s *PaymentTestSuite) TestUpdatePaymentParams() {
 	txOpt := &types.TxOption{
 		Mode:      &mode,
 		Memo:      "",
-		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
+		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
 	}
 	voteBroadCastResp, err := s.SendTxBlockWithoutCheckWithTxOpt(govtypesv1.NewMsgVote(s.Validator.GetAddr(), uint64(proposalID), govtypesv1.OptionYes, ""),
 		s.Validator, txOpt)
@@ -2875,7 +2875,7 @@ func (s *PaymentTestSuite) queryParams() paymenttypes.Params {
 	return queryParamsResponse.Params
 }
 
-func (s *PaymentTestSuite) updateGlobalSpPrice(readPrice, storePrice sdk.Dec) {
+func (s *PaymentTestSuite) updateGlobalSpPrice(readPrice, storePrice sdkmath.LegacyDec) {
 	ctx := context.Background()
 	globalPriceResBefore, _ := s.Client.QueryGlobalSpStorePriceByTime(ctx, &sptypes.QueryGlobalSpStorePriceByTimeRequest{Timestamp: 0})
 	s.T().Log("globalPriceResBefore", core.YamlString(globalPriceResBefore))

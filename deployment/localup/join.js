@@ -29,22 +29,22 @@ const main = async function () {
 
     const start = false;
     if (!start) {
-      console.log('stop all mechain');
+      console.log('stop all moca');
       const stopCmd = `bash ./deployment/localup/localup.sh stop ${validatorCount}`;
       await execPromis(stopCmd, { cwd: workPath });
       await sleep(3000);
 
-      if (!fs.existsSync(path.join(workPath, '/build/mechaind'))) {
-        console.log('compile mechain');
+      if (!fs.existsSync(path.join(workPath, '/build/mocad'))) {
+        console.log('compile moca');
         await execPromis('rm -rf ./build && make build', { cwd: workPath });
       }
 
-      console.log('init mechain');
+      console.log('init moca');
       const initCmd = `bash ./deployment/localup/localup.sh init ${validatorCount} 1`;
       await execPromis(initCmd, { cwd: workPath });
       await sleep(3000);
 
-      console.log('generate mechain');
+      console.log('generate moca');
       const generateCmd = `bash ./deployment/localup/localup.sh generate ${validatorCount} 1`;
       await execPromis(generateCmd, { cwd: workPath });
       await sleep(3000);
@@ -61,7 +61,7 @@ const main = async function () {
         await fs.outputJson(genesisPath, genesis, { spaces: 2 });
       }
 
-      console.log('start all mechain node');
+      console.log('start all moca node');
       const startCmd = `bash ./deployment/localup/localup.sh start ${validatorCount}`;
       execPromis(startCmd, { cwd: workPath }); // We got stuck here, so we continued without waiting for it to succeed.
       await sleep(6000);
@@ -82,9 +82,8 @@ const main = async function () {
 
     {
       console.log('authz grant cosmos.staking.v1beta1.MsgDelegate');
-      const exportKeyCmd = `echo "y" | ./build/mechaind keys export validator_delegator${validatorCount - 1} --unarmored-hex --unsafe --home=./deployment/localup/.local/validator${
-        validatorCount - 1
-      } --keyring-backend test`;
+      const exportKeyCmd = `echo "y" | ./build/mocad keys export validator_delegator${validatorCount - 1} --unarmored-hex --unsafe --home=./deployment/localup/.local/validator${validatorCount - 1
+        } --keyring-backend test`;
       let { stdout: privateKey } = await execPromis(exportKeyCmd, { cwd: workPath });
       privateKey = privateKey.replace('\n', '');
       const wallet = new ethers.Wallet(privateKey, provider);
@@ -101,7 +100,7 @@ const main = async function () {
     }
 
     {
-      const exportKeyCmd = `echo "y" | ./build/mechaind keys export validator0 --unarmored-hex --unsafe --home=./deployment/localup/.local/validator0 --keyring-backend test`;
+      const exportKeyCmd = `echo "y" | ./build/mocad keys export validator0 --unarmored-hex --unsafe --home=./deployment/localup/.local/validator0 --keyring-backend test`;
       let { stdout: privateKey } = await execPromis(exportKeyCmd, { cwd: workPath });
       privateKey = privateKey.replace('\n', '');
       const wallet = new ethers.Wallet(privateKey, provider);
@@ -136,7 +135,7 @@ const main = async function () {
     }
 
     /*
-    const grantCmd = `./build/mechaind tx authz grant 0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2 generic --msg-type=/cosmos.staking.v1beta1.MsgDelegate --gas="600000" --gas-prices="10000000000amoca"  --from=validator_delegator${
+    const grantCmd = `./build/mocad tx authz grant 0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2 generic --msg-type=/cosmos.staking.v1beta1.MsgDelegate --gas="600000" --gas-prices="10000000000amoca"  --from=validator_delegator${
       validatorCount - 1
     } --home=./deployment/.local/validator${validatorCount - 1} --keyring-backend=test --broadcast-mode sync -y`;
     execPromis(grantCmd, { cwd: workPath });
@@ -154,12 +153,12 @@ const main = async function () {
     await fs.outputJson(proposalPath, proposal, { spaces: 2 });
 
     console.log('submint proposal');
-    const proposalCmd = `./build/mechaind tx gov submit-proposal ./build/proposal.json --gas="600000" --gas-prices="10000000000amoca" --from=validator0 --home=./deployment/localup/.local/validator0 --keyring-backend=test --broadcast-mode sync -y`;
+    const proposalCmd = `./build/mocad tx gov submit-proposal ./build/proposal.json --gas="600000" --gas-prices="10000000000amoca" --from=validator0 --home=./deployment/localup/.local/validator0 --keyring-backend=test --broadcast-mode sync -y`;
     execPromis(proposalCmd, { cwd: workPath });
     await sleep(3000);
 
     console.log('vote proposal');
-    const voteCmd = `./build/mechaind tx gov vote 1 yes --gas="600000" --gas-prices="10000000000amoca" --from=validator0 --home=./deployment/localup/.local/validator0 --keyring-backend=test --broadcast-mode sync -y`;
+    const voteCmd = `./build/mocad tx gov vote 1 yes --gas="600000" --gas-prices="10000000000amoca" --from=validator0 --home=./deployment/localup/.local/validator0 --keyring-backend=test --broadcast-mode sync -y`;
     execPromis(voteCmd, { cwd: workPath });
     await sleep(9000);
     */

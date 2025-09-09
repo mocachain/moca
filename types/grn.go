@@ -22,7 +22,7 @@ var (
 	validGRNRegexNoWild = regexp.MustCompile("^grn:([bog]):([^:]*):([^:*]*)$")
 )
 
-// GRN define a standard ResourceName format, full name: MechainResourceName
+// GRN define a standard ResourceName format, full name: MocaResourceName
 // valid format:
 //
 //	bucket: "grn:b::bucketName"

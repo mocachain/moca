@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -57,7 +58,7 @@ Where create_storagep_provider.json contains:
 {
   "messages": [
     {
-      "@type": "/mechain.sp.MsgCreateStorageProvider",
+      "@type": "/moca.sp.MsgCreateStorageProvider",
       "description": {
         "moniker": "sp0",
         "identity": "",
@@ -71,7 +72,7 @@ Where create_storagep_provider.json contains:
       "approval_address": "0xdCE01bfaBc7c9c0865bCCeF872493B4BE3b343E8",
       "gc_address": "0x0a1C8982C619B93bA7100411Fc58382306ab431b",
       "maintenance_address": "0xbE03316B1D7c3FCB69136e47e02442d6Fb3396dB",
-      "endpoint": "https://sp0.mechain.io",
+      "endpoint": "https://sp0.moca.io",
       "deposit": {
         "denom": "amoca",
         "amount": "1000000000000000000000"
@@ -100,12 +101,12 @@ modify the related configurations as you need. Example:
 				return err
 			}
 
-			msgs, metadata, title, summary, deposit, err := govcli.ParseSubmitProposal(clientCtx.Codec, args[0])
+			proposal, msgs, deposit, err := govcli.ParseSubmitProposal(clientCtx.Codec, args[0])
 			if err != nil {
 				return err
 			}
 
-			govMsg, err := v1.NewMsgSubmitProposal(msgs, deposit, clientCtx.GetFromAddress().String(), metadata, title, summary)
+			govMsg, err := v1.NewMsgSubmitProposal(msgs, deposit, clientCtx.GetFromAddress().String(), proposal.Metadata, proposal.Title, proposal.Summary, proposal.Expedited)
 			if err != nil {
 				return fmt.Errorf("invalid message: %w", err)
 			}
@@ -470,9 +471,9 @@ type TxCreateStorageProviderConfig struct {
 	Endpoint string
 	Deposit  string
 
-	ReadPrice     sdk.Dec
+	ReadPrice     sdkmath.LegacyDec
 	FreeReadQuota uint64
-	StorePrice    sdk.Dec
+	StorePrice    sdkmath.LegacyDec
 }
 
 func PrepareConfigForTxCreateStorageProvider(flagSet *flag.FlagSet) (TxCreateStorageProviderConfig, error) {
@@ -522,7 +523,7 @@ func PrepareConfigForTxCreateStorageProvider(flagSet *flag.FlagSet) (TxCreateSto
 
 	// spAddress
 	operatorAddress, err := flagSet.GetString(FlagOperatorAddress)
-	fmt.Println(operatorAddress)
+	// fmt.Println(operatorAddress) // 调试信息已注释
 	if err != nil {
 		return c, err
 	}
@@ -534,7 +535,7 @@ func PrepareConfigForTxCreateStorageProvider(flagSet *flag.FlagSet) (TxCreateSto
 
 	// funding address
 	fundingAddress, err := flagSet.GetString(FlagFundingAddress)
-	fmt.Println(fundingAddress)
+	// fmt.Println(fundingAddress) // 调试信息已注释
 	if err != nil {
 		return c, err
 	}
@@ -615,7 +616,7 @@ func PrepareConfigForTxCreateStorageProvider(flagSet *flag.FlagSet) (TxCreateSto
 	// payment
 	readPriceStr, _ := flagSet.GetString(FlagReadPrice)
 	if readPriceStr != "" {
-		readPrice, err := sdk.NewDecFromStr(readPriceStr)
+		readPrice, err := sdkmath.LegacyNewDecFromStr(readPriceStr)
 		if err != nil {
 			return c, err
 		}
@@ -630,7 +631,7 @@ func PrepareConfigForTxCreateStorageProvider(flagSet *flag.FlagSet) (TxCreateSto
 
 	storePriceStr, _ := flagSet.GetString(FlagStorePrice)
 	if storePriceStr != "" {
-		storePrice, err := sdk.NewDecFromStr(storePriceStr)
+		storePrice, err := sdkmath.LegacyNewDecFromStr(storePriceStr)
 		if err != nil {
 			return c, err
 		}
@@ -704,8 +705,10 @@ Examples:
 			default:
 				return fmt.Errorf("status %s is not expected", newStatus)
 			}
-			if err := msg.ValidateBasic(); err != nil {
-				return err
+			if validateBasic, ok := msg.(sdk.HasValidateBasic); ok {
+				if err := validateBasic.ValidateBasic(); err != nil {
+					return err
+				}
 			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -742,11 +745,11 @@ Examples:
 			if err != nil {
 				return err
 			}
-			readPrice, err := sdk.NewDecFromStr(args[1])
+			readPrice, err := sdkmath.LegacyNewDecFromStr(args[1])
 			if err != nil {
 				return err
 			}
-			storePrice, err := sdk.NewDecFromStr(args[2])
+			storePrice, err := sdkmath.LegacyNewDecFromStr(args[2])
 			if err != nil {
 				return err
 			}

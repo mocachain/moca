@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/evmos/evmos/v12/contracts"
 	gtypes "github.com/evmos/evmos/v12/types"
-	mechaincommon "github.com/evmos/evmos/v12/types/common"
+	mocacommon "github.com/evmos/evmos/v12/types/common"
 	permTypes "github.com/evmos/evmos/v12/x/permission/types"
 	storagekeeper "github.com/evmos/evmos/v12/x/storage/keeper"
 	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
@@ -116,7 +116,7 @@ func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		Visibility:       storagetypes.VisibilityType(args.Visibility),
 		PaymentAddress:   args.PaymentAddress.String(),
 		PrimarySpAddress: args.PrimarySpAddress.String(),
-		PrimarySpApproval: &mechaincommon.Approval{
+		PrimarySpApproval: &mocacommon.Approval{
 			ExpiredHeight:              args.PrimarySpApproval.ExpiredHeight,
 			GlobalVirtualGroupFamilyId: args.PrimarySpApproval.GlobalVirtualGroupFamilyId,
 			Sig:                        args.PrimarySpApproval.Sig,
@@ -153,7 +153,7 @@ func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 			[]common.Hash{
 				common.BytesToHash(common.HexToAddress(gtypes.EmptyEvmAddress).Bytes()),
 				common.BytesToHash(common.HexToAddress(bucketInfo.Owner).Bytes()),
-				common.BytesToHash(bucketInfo.Id.Bytes()),
+				common.BytesToHash(bucketInfo.Id.BigInt().Bytes()),
 			},
 		); err != nil {
 			return nil, err
@@ -184,7 +184,7 @@ func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if args.ChargedReadQuota.Int64() == -1 {
 		msg.ChargedReadQuota = nil
 	} else {
-		msg.ChargedReadQuota = &mechaincommon.UInt64Value{Value: args.ChargedReadQuota.Uint64()}
+		msg.ChargedReadQuota = &mocacommon.UInt64Value{Value: args.ChargedReadQuota.Uint64()}
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func (c *Contract) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 		Operator:       contract.Caller().String(),
 		BucketName:     args.BucketName,
 		DstPrimarySpId: args.DstPrimarySpId,
-		DstPrimarySpApproval: &mechaincommon.Approval{
+		DstPrimarySpApproval: &mocacommon.Approval{
 			ExpiredHeight: args.DstPrimarySpApproval.ExpiredHeight,
 			// GlobalVirtualGroupFamilyId: args.DstPrimarySpApproval.GlobalVirtualGroupFamilyId,
 			Sig: args.DstPrimarySpApproval.Sig,
@@ -573,7 +573,7 @@ func (c *Contract) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		PayloadSize: args.PayloadSize,
 		Visibility:  storagetypes.VisibilityType(args.Visibility),
 		ContentType: args.ContentType,
-		PrimarySpApproval: &mechaincommon.Approval{
+		PrimarySpApproval: &mocacommon.Approval{
 			ExpiredHeight:              args.PrimarySpApproval.ExpiredHeight,
 			GlobalVirtualGroupFamilyId: args.PrimarySpApproval.GlobalVirtualGroupFamilyId,
 			Sig:                        args.PrimarySpApproval.Sig,
@@ -616,7 +616,7 @@ func (c *Contract) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		DstBucketName: args.DstBucketName,
 		SrcObjectName: args.SrcObjectName,
 		DstObjectName: args.DstObjectName,
-		DstPrimarySpApproval: &mechaincommon.Approval{
+		DstPrimarySpApproval: &mocacommon.Approval{
 			ExpiredHeight: args.DstPrimarySpApproval.ExpiredHeight,
 			// GlobalVirtualGroupFamilyId: args.DstPrimarySpApproval.GlobalVirtualGroupFamilyId,
 			Sig: args.DstPrimarySpApproval.Sig,
@@ -767,7 +767,7 @@ func (c *Contract) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 			[]common.Hash{
 				common.BytesToHash(common.HexToAddress(gtypes.EmptyEvmAddress).Bytes()),
 				common.BytesToHash(common.HexToAddress(objectInfo.Owner).Bytes()),
-				common.BytesToHash(objectInfo.Id.Bytes()),
+				common.BytesToHash(objectInfo.Id.BigInt().Bytes()),
 			},
 		); err != nil {
 			return nil, err
@@ -1173,7 +1173,7 @@ func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 			[]common.Hash{
 				common.BytesToHash(common.HexToAddress(gtypes.EmptyEvmAddress).Bytes()),
 				common.BytesToHash(common.HexToAddress(groupInfo.Owner).Bytes()),
-				common.BytesToHash(groupInfo.Id.Bytes()),
+				common.BytesToHash(groupInfo.Id.BigInt().Bytes()),
 			},
 		); err != nil {
 			return nil, err
@@ -1606,7 +1606,7 @@ func NewStatement(actions []permTypes.ActionType, effect permTypes.Effect,
 	}
 
 	if opts.LimitSize != 0 {
-		statement.LimitSize = &mechaincommon.UInt64Value{Value: opts.LimitSize}
+		statement.LimitSize = &mocacommon.UInt64Value{Value: opts.LimitSize}
 	}
 
 	return statement
@@ -1639,7 +1639,7 @@ func (c *Contract) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 				s.ExpirationTime = &tm
 			}
 			if statement.LimitSize != 0 {
-				s.LimitSize = &mechaincommon.UInt64Value{Value: statement.LimitSize}
+				s.LimitSize = &mocacommon.UInt64Value{Value: statement.LimitSize}
 			}
 			statements = append(statements, s)
 		}

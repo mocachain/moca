@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func TestMsgDeposit_ValidateBasic(t *testing.T) {
 				GlobalVirtualGroupId: 1,
 				Deposit: types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(1),
+					Amount: math.NewInt(1),
 				},
 			},
 			err: sdkerrors.ErrInvalidAddress,
@@ -37,7 +38,7 @@ func TestMsgDeposit_ValidateBasic(t *testing.T) {
 				GlobalVirtualGroupId: 1,
 				Deposit: types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(0),
+					Amount: math.NewInt(0),
 				},
 			},
 			err: sdkerrors.ErrInvalidRequest,
@@ -49,7 +50,7 @@ func TestMsgDeposit_ValidateBasic(t *testing.T) {
 				1,
 				types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(1),
+					Amount: math.NewInt(1),
 				},
 			),
 		},
@@ -79,7 +80,7 @@ func TestMsgWithdraw_ValidateBasic(t *testing.T) {
 				GlobalVirtualGroupId: 1,
 				Withdraw: types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(1),
+					Amount: math.NewInt(1),
 				},
 			},
 			err: sdkerrors.ErrInvalidAddress,
@@ -91,7 +92,7 @@ func TestMsgWithdraw_ValidateBasic(t *testing.T) {
 				GlobalVirtualGroupId: 1,
 				Withdraw: types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(0),
+					Amount: math.NewInt(0),
 				},
 			},
 			err: sdkerrors.ErrInvalidRequest,
@@ -103,7 +104,7 @@ func TestMsgWithdraw_ValidateBasic(t *testing.T) {
 				1,
 				types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(1),
+					Amount: math.NewInt(1),
 				},
 			),
 		},
@@ -251,7 +252,7 @@ func TestMsgCreateGlobalVirtualGroup_ValidateBasic(t *testing.T) {
 				[]uint32{2, 3, 4},
 				types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(1),
+					Amount: math.NewInt(1),
 				},
 			),
 		},
@@ -263,7 +264,7 @@ func TestMsgCreateGlobalVirtualGroup_ValidateBasic(t *testing.T) {
 				SecondarySpIds:  []uint32{2, 3, 4},
 				Deposit: types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(1),
+					Amount: math.NewInt(1),
 				},
 			},
 			err: sdkerrors.ErrInvalidAddress,
@@ -276,7 +277,7 @@ func TestMsgCreateGlobalVirtualGroup_ValidateBasic(t *testing.T) {
 				SecondarySpIds:  []uint32{2, 3, 4},
 				Deposit: types.Coin{
 					Denom:  "denom",
-					Amount: types.NewInt(0),
+					Amount: math.NewInt(0),
 				},
 			},
 			err: sdkerrors.ErrInvalidAddress,

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/math"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -19,8 +21,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -82,12 +83,12 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 		if coin.Amount.Sign() > 0 {
 			limit = limit.Add(sdk.Coin{
 				Denom:  coin.Denom,
-				Amount: sdk.NewIntFromBigInt(coin.Amount),
+				Amount: math.NewIntFromBigInt(coin.Amount),
 			})
 		}
 	}
 
-	// more details see https://github.com/zkMeLabs/mechain-cosmos-sdk/blob/1ad031a3d3a4b73997d72b8012397633b3cdcae2/x/authz/client/cli/tx.go#L56-L202
+	// more details see https://github.com/zkMeLabs/moca-cosmos-sdk/blob/1ad031a3d3a4b73997d72b8012397633b3cdcae2/x/authz/client/cli/tx.go#L56-L202
 	// TODO
 	var authorization authz.Authorization
 	switch args.AuthzType {
@@ -142,10 +143,6 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 		return nil, err
 	}
 
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-
 	_, err = c.authzKeeper.Grant(ctx, msg)
 	if err != nil {
 		return nil, err
@@ -188,10 +185,6 @@ func (c *Contract) Revoke(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 		MsgTypeUrl: args.MsgTypeUrl,
 	}
 	if err != nil {
-		return nil, err
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
@@ -277,10 +270,6 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	}
 
 	msg := authz.NewMsgExec(sdk.AccAddress(contract.Caller().Bytes()), msgs)
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-
 	_, err = c.authzKeeper.Exec(ctx, &msg)
 	if err != nil {
 		return nil, err

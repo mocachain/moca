@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
+
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
@@ -149,7 +151,7 @@ func (s *StorageProviderTestSuite) TestDeposit() {
 
 	deposit := sdk.Coin{
 		Denom:  s.Config.Denom,
-		Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalZKME),
+		Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 	}
 
 	msgDeposit := sptypes.NewMsgDeposit(
@@ -263,8 +265,8 @@ func (s *StorageProviderTestSuite) CheckGlobalSpStorePrice() bool {
 	s.Require().NoError(err)
 	s.T().Logf("sps: %s", sps)
 	spNum := int64(sps.Pagination.Total)
-	storePrices := make([]sdk.Dec, 0)
-	readPrices := make([]sdk.Dec, 0)
+	storePrices := make([]sdkmath.LegacyDec, 0)
+	readPrices := make([]sdkmath.LegacyDec, 0)
 	for _, sp := range sps.Sps {
 		if sp.Status == sptypes.STATUS_IN_SERVICE || sp.Status == sptypes.STATUS_IN_MAINTENANCE {
 			spStoragePrice, err := s.Client.QuerySpStoragePrice(ctx, &sptypes.QuerySpStoragePriceRequest{
@@ -284,7 +286,7 @@ func (s *StorageProviderTestSuite) CheckGlobalSpStorePrice() bool {
 	}
 
 	sort.Slice(storePrices, func(i, j int) bool { return storePrices[i].LT(storePrices[j]) })
-	var storeMedian sdk.Dec
+	var storeMedian sdkmath.LegacyDec
 	if spNum%2 == 0 {
 		storeMedian = storePrices[spNum/2-1].Add(storePrices[spNum/2]).QuoInt64(2)
 	} else {
@@ -292,7 +294,7 @@ func (s *StorageProviderTestSuite) CheckGlobalSpStorePrice() bool {
 	}
 
 	sort.Slice(readPrices, func(i, j int) bool { return readPrices[i].LT(readPrices[j]) })
-	var readMedian sdk.Dec
+	var readMedian sdkmath.LegacyDec
 	if spNum%2 == 0 {
 		readMedian = readPrices[spNum/2-1].Add(readPrices[spNum/2]).QuoInt64(2)
 	} else {
@@ -319,14 +321,14 @@ func (s *StorageProviderTestSuite) TestUpdateStorageProviderParams() {
 	s.Require().NoError(err)
 
 	updatedParams := queryParamsResp.Params
-	updatedParams.SecondarySpStorePriceRatio = sdk.NewDecFromBigIntWithPrec(big.NewInt(1), 18)
+	updatedParams.SecondarySpStorePriceRatio = sdkmath.LegacyNewDecFromBigIntWithPrec(big.NewInt(1), 18)
 	msgUpdateParams := &sptypes.MsgUpdateParams{
 		Authority: govAddr,
 		Params:    updatedParams,
 	}
 
-	proposal, err := v1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
-		s.Validator.GetAddr().String(), "", "update StorageProvider params", "Test update StorageProvider params")
+	proposal, err := v1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
+		s.Validator.GetAddr().String(), "", "update StorageProvider params", "Test update StorageProvider params", false)
 	s.Require().NoError(err)
 	txBroadCastResp, err := s.SendTxBlockWithoutCheck(proposal, s.Validator)
 	s.Require().NoError(err)
@@ -355,7 +357,7 @@ func (s *StorageProviderTestSuite) TestUpdateStorageProviderParams() {
 	txOpt := &types.TxOption{
 		Mode:      &mode,
 		Memo:      "",
-		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
+		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
 	}
 	voteBroadCastResp, err := s.SendTxBlockWithoutCheckWithTxOpt(v1.NewMsgVote(s.Validator.GetAddr(), uint64(proposalID), v1.OptionYes, ""),
 		s.Validator, txOpt)
@@ -481,9 +483,9 @@ func (s *StorageProviderTestSuite) updateParams(params sptypes.Params) {
 
 	msgProposal, err := v1.NewMsgSubmitProposal(
 		[]sdk.Msg{msgUpdateParams},
-		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalZKME))},
+		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test",
+		"test", "test", "test", false,
 	)
 	s.Require().NoError(err)
 

@@ -273,7 +273,7 @@ func (k Keeper) GetBucketExtraInfo(ctx sdk.Context, bucketInfo *types.BucketInfo
 	extraInfo := &types.BucketExtraInfo{}
 
 	if !found {
-		extraInfo.FlowRateLimit = sdk.NewInt(-1)
+		extraInfo.FlowRateLimit = sdkmath.NewInt(-1)
 	} else {
 		extraInfo.FlowRateLimit = rateLimit.FlowRateLimit
 	}

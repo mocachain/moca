@@ -12,7 +12,7 @@ import (
 )
 
 func TestOracleParams(t *testing.T) {
-	client, err := gnfdclient.NewMechainClient(test.TestRPCAddr, test.TestChainID)
+	client, err := gnfdclient.NewMocaClient(test.TestRPCAddr, test.TestEVMAddr, test.TestChainID)
 	assert.NoError(t, err)
 
 	query := oracletypes.QueryParamsRequest{}

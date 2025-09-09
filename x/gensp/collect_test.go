@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -55,7 +54,10 @@ func TestCollectTxsHandlesDirectories(t *testing.T) {
 	srvCtx := server.NewDefaultContext()
 	_ = srvCtx
 	cdc := codec.NewProtoCodec(cdctypes.NewInterfaceRegistry())
-	genesis := tmtypes.GenesisDoc{AppState: []byte("{}")}
+	genesis := &types.AppGenesis{
+		ChainID:  "test-chain",
+		AppState: []byte("{}"),
+	}
 	balItr := new(doNothingIterator)
 
 	dnc := &doNothingUnmarshalJSON{cdc}

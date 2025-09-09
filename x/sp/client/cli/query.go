@@ -121,22 +121,18 @@ func CmdStorageProviderByOperatorAddress() *cobra.Command {
 				return err
 			}
 
-			clientCtx, err := client.GetClientQueryContext(cmd)
-			if err != nil {
-				return err
-			}
+					clientCtx, err := client.GetClientQueryContext(cmd)
+		if err != nil {
+			return err
+		}
 
-			evmClient, err := clientCtx.GetEvmNode()
-			if err != nil {
-				return err
-			}
-			queryClient := NewQueryClientEVM(evmClient)
+		queryClient := types.NewQueryClient(clientCtx)
 
-			params := &types.QueryStorageProviderByOperatorAddressRequest{
-				OperatorAddress: operatorAddr.String(),
-			}
+		params := &types.QueryStorageProviderByOperatorAddressRequest{
+			OperatorAddress: operatorAddr.String(),
+		}
 
-			res, err := queryClient.StorageProviderByOperatorAddress(cmd.Context(), params)
+		res, err := queryClient.StorageProviderByOperatorAddress(cmd.Context(), params)
 			if err != nil {
 				return err
 			}

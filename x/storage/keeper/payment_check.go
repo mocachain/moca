@@ -2,10 +2,10 @@ package keeper
 
 import (
 	sdkmath "cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
+	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	"github.com/evmos/evmos/v12/internal/sequence"
+	"github.com/evmos/evmos/v12/utils"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
 	"github.com/evmos/evmos/v12/x/storage/types"
 	"github.com/pkg/errors"
@@ -289,7 +289,7 @@ Exit:
 
 // isKnownLockBalanceIssue checks if the address is the known addresses of the lock balance issue on testnet.
 func (k Keeper) isKnownLockBalanceIssue(ctx sdk.Context, address string) bool {
-	if ctx.ChainID() != upgradetypes.TestnetChainID {
+	if ctx.ChainID() != utils.TestnetChainID {
 		return false
 	}
 	if address == "0x8E15D16d6432166372Fb1e6f4A41840D71edd41F" || address == "0x9b825492966508C587536bA71425d61E822545C3" {

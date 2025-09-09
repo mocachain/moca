@@ -17,7 +17,7 @@ func TestParsePolicyIdFromQueueKey(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		expiration := time.Now().Add(time.Duration(rand.Int63())) //nolint:gosec
 		policyID := math.NewUint(rand.Uint64())                   //nolint:gosec
-		key := PolicyPrefixQueue(&expiration, policyID.Bytes())
+		key := PolicyPrefixQueue(&expiration, policyID.BigInt().Bytes())
 		recoverID := ParsePolicyIDFromQueueKey(key)
 		if !recoverID.Equal(policyID) {
 			t.Errorf("ParseIdFromQueueKey failed to recover policy id: %s", policyID.String())

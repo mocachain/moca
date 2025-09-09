@@ -4,16 +4,11 @@ import (
 	_ "embed"
 	"math/big"
 
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-
-	evmostypes "github.com/evmos/evmos/v12/types"
 	"github.com/evmos/evmos/v12/x/evm/keeper"
 	"github.com/evmos/evmos/v12/x/evm/statedb"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 
 	"github.com/ethereum/go-ethereum/common"
-
-	abci "github.com/cometbft/cometbft/abci/types"
 )
 
 func (suite *KeeperTestSuite) TestWithChainID() {
@@ -31,14 +26,14 @@ func (suite *KeeperTestSuite) TestWithChainID() {
 		},
 		{
 			"success - Evmos mainnet chain ID",
-			"mechain_5151-1",
-			1000001,
+			"moca_5151-1",
+			5151,
 			false,
 		},
 		{
 			"success - Evmos testnet chain ID",
-			"mechain_5151-1",
-			1000000,
+			"moca_5152-1",
+			5152,
 			false,
 		},
 	}
@@ -80,7 +75,8 @@ func (suite *KeeperTestSuite) TestBaseFee() {
 			suite.enableFeemarket = tc.enableFeemarket
 			suite.enableLondonHF = tc.enableLondonHF
 			suite.SetupTest()
-			suite.app.EvmKeeper.BeginBlock(suite.ctx, abci.RequestBeginBlock{})
+			err := suite.app.EvmKeeper.BeginBlock(suite.ctx)
+			suite.Require().NoError(err)
 			params := suite.app.EvmKeeper.GetParams(suite.ctx)
 			ethCfg := params.ChainConfig.EthereumConfig(suite.app.EvmKeeper.ChainID())
 			baseFee := suite.app.EvmKeeper.GetBaseFee(suite.ctx, ethCfg)
@@ -94,43 +90,33 @@ func (suite *KeeperTestSuite) TestBaseFee() {
 func (suite *KeeperTestSuite) TestGetAccountStorage() {
 	testCases := []struct {
 		name     string
-		malleate func()
-		expRes   []int
+		malleate func() common.Address
+		expStorageLen int
 	}{
 		{
 			"Only one account that's not a contract (no storage)",
-			func() {},
-			[]int{0},
+			func() common.Address {
+				// Return suite.address which should have no storage
+				return suite.address
+			},
+			0,
 		},
 		{
-			"Two accounts - one contract (with storage), one wallet",
-			func() {
+			"Contract account with storage",
+			func() common.Address {
 				supply := big.NewInt(100)
-				suite.DeployTestContract(suite.T(), suite.address, supply)
+				return suite.DeployTestContract(suite.T(), suite.address, supply)
 			},
-			[]int{2, 0},
+			2, // Contract should have some storage
 		},
 	}
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
 			suite.SetupTest()
-			tc.malleate()
-			i := 0
-			suite.app.AccountKeeper.IterateAccounts(suite.ctx, func(account authtypes.AccountI) bool {
-				ethAccount, ok := account.(evmostypes.EthAccountI)
-				if !ok {
-					// ignore non EthAccounts
-					return false
-				}
-
-				addr := ethAccount.EthAddress()
-				storage := suite.app.EvmKeeper.GetAccountStorage(suite.ctx, addr)
-
-				suite.Require().Equal(tc.expRes[i], len(storage))
-				i++
-				return false
-			})
+			addr := tc.malleate()
+			storage := suite.app.EvmKeeper.GetAccountStorage(suite.ctx, addr)
+			suite.Require().Equal(tc.expStorageLen, len(storage))
 		})
 	}
 }

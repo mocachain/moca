@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/cosmos/cosmos-sdk/store/prefix"
+	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/evmos/evmos/v12/x/storage/types"
@@ -49,6 +49,8 @@ func (k Keeper) MirrorBucketRelayerFee(ctx sdk.Context, destChainID sdk.ChainID)
 		relayerFeeParam = params.ArbitrumMirrorBucketRelayerFee
 	case k.crossChainKeeper.GetDestOptimismChainID() == destChainID:
 		relayerFeeParam = params.OptimismMirrorBucketRelayerFee
+	case k.crossChainKeeper.GetDestBaseChainID() == destChainID:
+		relayerFeeParam = params.BaseMirrorBucketRelayerFee
 	default:
 		panic(fmt.Sprintf("chain id(%d) is not supported", destChainID))
 	}
@@ -82,6 +84,8 @@ func (k Keeper) MirrorBucketAckRelayerFee(ctx sdk.Context, destChainID sdk.Chain
 		relayerFeeParam = params.ArbitrumMirrorBucketAckRelayerFee
 	case k.crossChainKeeper.GetDestOptimismChainID() == destChainID:
 		relayerFeeParam = params.OptimismMirrorBucketAckRelayerFee
+	case k.crossChainKeeper.GetDestBaseChainID() == destChainID:
+		relayerFeeParam = params.BaseMirrorBucketAckRelayerFee
 	default:
 		panic(fmt.Sprintf("chain id(%d) is not supported", destChainID))
 	}
@@ -115,6 +119,8 @@ func (k Keeper) MirrorObjectRelayerFee(ctx sdk.Context, destChainID sdk.ChainID)
 		relayerFeeParam = params.ArbitrumMirrorObjectRelayerFee
 	case k.crossChainKeeper.GetDestOptimismChainID() == destChainID:
 		relayerFeeParam = params.OptimismMirrorObjectRelayerFee
+	case k.crossChainKeeper.GetDestBaseChainID() == destChainID:
+		relayerFeeParam = params.BaseMirrorObjectRelayerFee
 	default:
 		panic(fmt.Sprintf("chain id(%d) is not supported", destChainID))
 	}
@@ -148,6 +154,8 @@ func (k Keeper) MirrorObjectAckRelayerFee(ctx sdk.Context, destChainID sdk.Chain
 		relayerFeeParam = params.ArbitrumMirrorObjectAckRelayerFee
 	case k.crossChainKeeper.GetDestOptimismChainID() == destChainID:
 		relayerFeeParam = params.OptimismMirrorObjectAckRelayerFee
+	case k.crossChainKeeper.GetDestBaseChainID() == destChainID:
+		relayerFeeParam = params.BaseMirrorObjectAckRelayerFee
 	default:
 		panic(fmt.Sprintf("chain id(%d) is not supported", destChainID))
 
@@ -180,6 +188,8 @@ func (k Keeper) MirrorGroupRelayerFee(ctx sdk.Context, destChainID sdk.ChainID) 
 		relayerFeeParam = params.ArbitrumMirrorGroupRelayerFee
 	case k.crossChainKeeper.GetDestOptimismChainID() == destChainID:
 		relayerFeeParam = params.OptimismMirrorGroupRelayerFee
+	case k.crossChainKeeper.GetDestBaseChainID() == destChainID:
+		relayerFeeParam = params.BaseMirrorGroupRelayerFee
 	default:
 		panic(fmt.Sprintf("chain id(%d) is not supported", destChainID))
 
@@ -214,6 +224,8 @@ func (k Keeper) MirrorGroupAckRelayerFee(ctx sdk.Context, destChainID sdk.ChainI
 		relayerFeeParam = params.ArbitrumMirrorGroupAckRelayerFee
 	case k.crossChainKeeper.GetDestOptimismChainID() == destChainID:
 		relayerFeeParam = params.OptimismMirrorGroupAckRelayerFee
+	case k.crossChainKeeper.GetDestBaseChainID() == destChainID:
+		relayerFeeParam = params.BaseMirrorGroupAckRelayerFee
 	default:
 		panic(fmt.Sprintf("chain id(%d) is not supported", destChainID))
 	}

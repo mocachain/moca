@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/math"
+	"cosmossdk.io/store/prefix"
+	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/evmos/evmos/v12/x/sp/types"
@@ -84,8 +85,8 @@ func (k Keeper) SetGlobalSpStorePrice(ctx sdk.Context, globalSpStorePrice types.
 func (k Keeper) UpdateGlobalSpStorePrice(ctx sdk.Context) error {
 	sps := k.GetAllStorageProviders(ctx)
 	current := ctx.BlockTime().Unix()
-	storePrices := make([]sdk.Dec, 0)
-	readPrices := make([]sdk.Dec, 0)
+	storePrices := make([]math.LegacyDec, 0)
+	readPrices := make([]math.LegacyDec, 0)
 	for _, sp := range sps {
 		if sp.Status == types.STATUS_IN_SERVICE || sp.Status == types.STATUS_IN_MAINTENANCE {
 			price, found := k.GetSpStoragePrice(ctx, sp.Id)
@@ -115,10 +116,10 @@ func (k Keeper) UpdateGlobalSpStorePrice(ctx sdk.Context) error {
 	return nil
 }
 
-func (k Keeper) calculateMedian(prices []sdk.Dec) sdk.Dec {
+func (k Keeper) calculateMedian(prices []math.LegacyDec) math.LegacyDec {
 	l := len(prices)
 	sort.Slice(prices, func(i, j int) bool { return prices[i].LT(prices[j]) })
-	var median sdk.Dec
+	var median math.LegacyDec
 	if l%2 == 0 {
 		median = prices[l/2-1].Add(prices[l/2]).QuoInt64(2)
 	} else {

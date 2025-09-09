@@ -7,7 +7,8 @@ import (
 	"fmt"
 
 	"cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/store/iavl"
+	"cosmossdk.io/store/iavl"
+	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
@@ -106,13 +107,13 @@ func (app *Evmos) reconBankChanges(ctx sdk.Context, bankIavl *iavl.Store) bool {
 	ctx.Logger().Debug("reconciliation change details", "supplyCurrent", supplyCurrent, "supplyPre", supplyPre,
 		"balanceCurrent", balanceCurrent, "balancePre", balancePre,
 		"supplyChanges", supplyChanges, "balanceChanges", balanceChanges, "height", ctx.BlockHeight(), "version", version)
-	return supplyChanges.IsEqual(balanceChanges)
+	return supplyChanges.Equal(balanceChanges)
 }
 
 // reconPaymentChanges will reconcile payment flow rate changes
 func (app *Evmos) reconPaymentChanges(ctx sdk.Context, paymentIavl *iavl.Store) bool {
-	flowCurrent := sdk.ZeroInt()
-	flowPre := sdk.ZeroInt()
+	flowCurrent := math.ZeroInt()
+	flowPre := math.ZeroInt()
 
 	diff := paymentIavl.GetDiff()
 	version := ctx.BlockHeight() - 2
@@ -159,7 +160,7 @@ func (app *Evmos) reconPaymentChanges(ctx sdk.Context, paymentIavl *iavl.Store) 
 }
 
 func (app *Evmos) saveUnbalancedBlockHeight(ctx sdk.Context) {
-	reconStore := app.CommitMultiStore().GetCommitStore(sdk.NewKVStoreKey(reconStoreKey)).(*iavl.Store)
+	reconStore := app.CommitMultiStore().GetCommitStore(storetypes.NewKVStoreKey(reconStoreKey)).(*iavl.Store)
 	bz := make([]byte, 8)
 	binary.BigEndian.PutUint64(bz, uint64(ctx.BlockHeight()))
 	reconStore.Set(unbalancedBlockHeightKey, bz)

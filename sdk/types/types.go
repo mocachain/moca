@@ -13,10 +13,10 @@ import (
 const (
 	Denom = "amoca"
 
-	// DecimalZKME defines number of amoca decimal places
-	DecimalZKME = 18
+	// DecimalMOCA defines number of amoca decimal places
+	DecimalMOCA = 18
 
-	// DecimalGwei defines number of gweiZKME decimal places
+	// DecimalGwei defines number of gweiMOCA decimal places
 	DecimalGwei = 9
 
 	// ReceiptStatusFailed is the status code of a transaction if execution failed.
@@ -27,7 +27,7 @@ const (
 
 	DefaultGasLimit = 180000
 	DefaultChainId  = 5151
-	ChainID         = "mechain_5151-1"
+	ChainID         = "moca_5151-1"
 	// EvmUrl          = "http://localhost:8545"
 	// EvmPort = 8545
 	// Endpoint        = "http://localhost:26657"
@@ -41,11 +41,10 @@ type TxOption struct {
 	Nonce              uint64
 	FeePayer           sdk.AccAddress
 	FeeGranter         sdk.AccAddress
-	Tip                *tx.Tip
 	Memo               string
 	OverrideKeyManager *keys.KeyManager
 }
 
 func NewIntFromInt64WithDecimal(amount int64, decimal int64) sdkmath.Int {
-	return sdk.NewInt(amount).Mul(sdk.NewIntFromBigInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(decimal), nil)))
+	return sdkmath.NewInt(amount).Mul(sdkmath.NewIntFromBigInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(decimal), nil)))
 }

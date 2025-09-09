@@ -469,8 +469,8 @@ func (s *ChallengeTestSuite) TestEndBlock() {
 func filterChallengeEventFromBlock(blockRes *ctypes.ResultBlockResults) []challengetypes.EventStartChallenge {
 	challengeEvents := make([]challengetypes.EventStartChallenge, 0)
 
-	for _, event := range blockRes.EndBlockEvents {
-		if event.Type == "mechain.challenge.EventStartChallenge" {
+	for _, event := range blockRes.FinalizeBlockEvents {
+		if event.Type == "moca.challenge.EventStartChallenge" {
 
 			challengeIDStr, objectIDStr, redundancyIndexStr, segmentIndexStr, spOpAddress := "", "", "", "", ""
 			for _, attr := range event.Attributes {
@@ -506,7 +506,7 @@ func filterChallengeEventFromBlock(blockRes *ctypes.ResultBlockResults) []challe
 func filterChallengeEventFromTx(txRes *sdk.TxResponse) challengetypes.EventStartChallenge {
 	challengeIDStr, objIDStr, redundancyIndexStr, segmentIndexStr, spOpAddress, expiredHeightStr := "", "", "", "", "", ""
 	for _, event := range txRes.Logs[0].Events {
-		if event.Type == "mechain.challenge.EventStartChallenge" {
+		if event.Type == "moca.challenge.EventStartChallenge" {
 			for _, attr := range event.Attributes {
 				switch attr.Key {
 				case "challenge_id":
@@ -553,8 +553,8 @@ func (s *ChallengeTestSuite) TestUpdateChallengerParams() {
 		Params:    updatedParams,
 	}
 
-	proposal, err := govtypesv1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
-		s.Validator.GetAddr().String(), "", "update Challenger params", "Test update Challenger params")
+	proposal, err := govtypesv1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
+		s.Validator.GetAddr().String(), "", "update Challenger params", "Test update Challenger params", false)
 	s.Require().NoError(err)
 	txBroadCastResp, err := s.SendTxBlockWithoutCheck(proposal, s.Validator)
 	s.Require().NoError(err)
@@ -583,7 +583,7 @@ func (s *ChallengeTestSuite) TestUpdateChallengerParams() {
 	txOpt := &types.TxOption{
 		Mode:      &mode,
 		Memo:      "",
-		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
+		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
 	}
 	voteBroadCastResp, err := s.SendTxBlockWithoutCheckWithTxOpt(govtypesv1.NewMsgVote(s.Validator.GetAddr(), uint64(proposalID), govtypesv1.OptionYes, ""),
 		s.Validator, txOpt)
@@ -663,9 +663,9 @@ func (s *ChallengeTestSuite) updateParams(params challengetypes.Params) {
 
 	msgProposal, err := govtypesv1.NewMsgSubmitProposal(
 		[]sdk.Msg{msgUpdateParams},
-		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalZKME))},
+		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test",
+		"test", "test", "test", false,
 	)
 	s.Require().NoError(err)
 

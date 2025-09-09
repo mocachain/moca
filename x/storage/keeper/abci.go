@@ -3,23 +3,24 @@ package keeper
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	"github.com/evmos/evmos/v12/utils"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
 )
 
-func BeginBlocker(ctx sdk.Context, keeper Keeper) {
+func BeginBlocker(ctx sdk.Context, keeper Keeper) error {
 	blockHeight := uint64(ctx.BlockHeight())
 	countingWindow := keeper.DiscontinueCountingWindow(ctx)
 	if blockHeight > 0 && countingWindow > 0 && blockHeight%countingWindow == 0 {
 		keeper.ClearDiscontinueObjectCount(ctx)
 		keeper.ClearDiscontinueBucketCount(ctx)
 	}
+	return nil
 }
 
-func EndBlocker(ctx sdk.Context, keeper Keeper) {
+func EndBlocker(ctx sdk.Context, keeper Keeper) error {
 	deletionMax := keeper.DiscontinueDeletionMax(ctx)
 	if deletionMax == 0 {
-		return
+		return nil
 	}
 
 	blockTime := ctx.BlockTime().Unix()
@@ -35,13 +36,13 @@ func EndBlocker(ctx sdk.Context, keeper Keeper) {
 	}
 
 	if deleted >= deletionMax {
-		return
+		return nil
 	}
 
 	// delete buckets
 	doDeleteBucket := true
 	// on testnet, we had a hot fix to disable deleting buckets after discontinue since 5946512 height
-	if ctx.BlockHeight() > 5946511 && ctx.ChainID() == upgradetypes.TestnetChainID {
+	if ctx.BlockHeight() > 5946511 && ctx.ChainID() == utils.TestnetChainID {
 		doDeleteBucket = false
 	}
 
@@ -66,4 +67,5 @@ func EndBlocker(ctx sdk.Context, keeper Keeper) {
 			panic(err)
 		}
 	}
+	return nil
 }

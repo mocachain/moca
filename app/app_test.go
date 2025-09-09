@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	sdkmath "cosmossdk.io/math"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -13,14 +15,13 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/ibc-go/v7/testing/mock"
 
-	dbm "github.com/cometbft/cometbft-db"
+	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
+	cmttypes "github.com/cometbft/cometbft/types"
 	tmtypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 
-	"github.com/evmos/evmos/v12/encoding"
 	servercfg "github.com/evmos/evmos/v12/server/config"
 	evmostypes "github.com/evmos/evmos/v12/types"
 	"github.com/evmos/evmos/v12/utils"
@@ -28,7 +29,7 @@ import (
 
 func TestEvmosExport(t *testing.T) {
 	// create public key
-	privVal := mock.NewPV()
+	privVal := cmttypes.NewMockPV()
 	pubKey, err := privVal.GetPubKey()
 	require.NoError(t, err, "public key should be created without error")
 
@@ -41,42 +42,42 @@ func TestEvmosExport(t *testing.T) {
 	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
 	balance := banktypes.Balance{
 		Address: acc.GetAddress().String(),
-		Coins:   sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, sdk.NewInt(100000000000000))),
+		Coins:   sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, sdkmath.NewInt(100000000000000))),
 	}
 
 	db := dbm.NewMemDB()
 	chainID := utils.MainnetChainID + "-1"
 	app := NewEvmos(
-		log.NewTMLogger(log.NewSyncWriter(os.Stdout)),
-		db, nil, true,
+		log.NewLogger(os.Stdout),
+		db, nil, true, map[int64]bool{},
 		DefaultNodeHome, 0,
-		encoding.MakeConfig(ModuleBasics),
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 	)
 
-	genesisState := NewDefaultGenesisState()
+	genesisState := app.DefaultGenesis()
 	genesisState = GenesisStateWithValSet(app, genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
 	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
 	require.NoError(t, err)
 
 	// Initialize the chain
-	app.InitChain(
-		abci.RequestInitChain{
+	if _, err := app.InitChain(
+		&abci.RequestInitChain{
 			ChainId:       chainID,
 			Validators:    []abci.ValidatorUpdate{},
 			AppStateBytes: stateBytes,
 		},
-	)
+	); err != nil {
+		panic(err)
+	}
 	app.Commit()
 
 	// Making a new app object with the db, so that initchain hasn't been called
 	app2 := NewEvmos(
-		log.NewTMLogger(log.NewSyncWriter(os.Stdout)),
-		db, nil, true,
+		log.NewLogger(os.Stdout),
+		db, nil, true, map[int64]bool{},
 		DefaultNodeHome, 0,
-		encoding.MakeConfig(ModuleBasics),
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
 		baseapp.SetChainID(chainID),

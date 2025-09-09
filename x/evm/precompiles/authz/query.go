@@ -2,6 +2,8 @@ package authz
 
 import (
 	"bytes"
+
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,7 +18,6 @@ import (
 	proposaltypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/evmos/evmos/v12/utils"
 	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
@@ -206,9 +207,9 @@ func OutputsAuthorization(authorization authztypes.Authorization) string {
 	proposaltypes.RegisterInterfaces(interfaceRegistry)
 	sptypes.RegisterInterfaces(interfaceRegistry)
 
-	mechainCodec := codec.NewProtoCodec(interfaceRegistry)
+	mocaCodec := codec.NewProtoCodec(interfaceRegistry)
 
-	authorizationBytes, err := mechainCodec.MarshalInterfaceJSON(authorization)
+	authorizationBytes, err := mocaCodec.MarshalInterfaceJSON(authorization)
 	if err == nil {
 		return string(authorizationBytes)
 	}

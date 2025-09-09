@@ -348,12 +348,10 @@ const main = async function () {
         console.log("Folder nodes has been cleaned up");
 
         {
-          const initFiles = `${
-            platform !== "win32" ? "./" : ""
-          }${daemonApp} testnet init-files --v ${nodesCount} --output-dir ./nodes --chain-id ${chainId} --keyring-backend test`;
-          const initFilesValidator = `${
-            platform !== "win32" ? "./" : ""
-          }${daemonApp} testnet init-files --v ${validators} --output-dir ./nodes --chain-id ${chainId} --keyring-backend test`;
+          const initFiles = `${platform !== "win32" ? "./" : ""
+            }${daemonApp} testnet init-files --v ${nodesCount} --output-dir ./nodes --chain-id ${chainId} --keyring-backend test`;
+          const initFilesValidator = `${platform !== "win32" ? "./" : ""
+            }${daemonApp} testnet init-files --v ${validators} --output-dir ./nodes --chain-id ${chainId} --keyring-backend test`;
           console.log(`Exec cmd: ${initFiles}`);
           const { stdout, stderr } = await execPromis(initFiles, {
             cwd: curDir,
@@ -588,7 +586,7 @@ const main = async function () {
           }
         }
 
-        // 生成启动命令脚本
+        // Generate startup command script
         let vbsStart =
           platform == "win32"
             ? `set ws=WScript.CreateObject("WScript.Shell")\n`
@@ -636,7 +634,7 @@ const main = async function () {
           }
         }
 
-        // 生成总的启动脚本
+        // Generate the overall startup script
         let startAllPath = path.join(
           nodesDir,
           `startAll.` + (platform == "win32" ? "vbs" : "sh")

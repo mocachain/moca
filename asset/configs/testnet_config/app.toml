@@ -366,6 +366,8 @@ dest-mantle-chain-id = 5000
 dest-arbitrum-chain-id = 42161
 # chain-id for optimism destination chain
 dest-optimism-chain-id = 10
+# chain-id for base destination chain
+dest-base-chain-id = 8453
 
 ###############################################################################
 ###                           PaymentCheck Config                           ###

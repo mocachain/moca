@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	types2 "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/golang/mock/gomock"
@@ -16,7 +17,7 @@ func (s *TestSuite) TestGenesis() {
 
 	s.accountKeeper.EXPECT().GetModuleAccount(gomock.Any(), gomock.Any()).Return(types2.NewEmptyModuleAccount(types.ModuleName))
 	s.accountKeeper.EXPECT().SetModuleAccount(gomock.Any(), gomock.Any()).Return()
-	s.bankKeeper.EXPECT().GetAllBalances(gomock.Any(), gomock.Any()).Return(sdk.NewCoins(sdk.NewCoin(genesisState.Params.DepositDenom, sdk.ZeroInt())))
+	s.bankKeeper.EXPECT().GetAllBalances(gomock.Any(), gomock.Any()).Return(sdk.NewCoins(sdk.NewCoin(genesisState.Params.DepositDenom, math.ZeroInt())))
 	virtualgroup.InitGenesis(s.ctx, *s.virtualgroupKeeper, genesisState)
 
 	got := virtualgroup.ExportGenesis(s.ctx, *s.virtualgroupKeeper)

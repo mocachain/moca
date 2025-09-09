@@ -33,7 +33,7 @@ func (app *PermissionApp) ExecuteFailAckPackage(_ sdk.Context, _ *sdk.CrossChain
 }
 
 func (app *PermissionApp) ExecuteSynPackage(ctx sdk.Context, _ *sdk.CrossChainAppContext, payload []byte) sdk.ExecuteResult {
-	pack, err := types.DeserializeCrossChainPackage(payload, types.PermissionChannelID, sdk.SynCrossChainPackageType)
+	pack, err := types.DeserializeCrossChainPackage(payload, types.PermissionChannelId, sdk.SynCrossChainPackageType)
 	if err != nil {
 		panic("deserialize Policy cross chain package error")
 	}
@@ -76,7 +76,7 @@ func (app *PermissionApp) handleDeletePolicySynPackage(ctx sdk.Context, deletePo
 		}
 	}
 
-	policy, found := app.permissionKeeper.GetPolicyByID(ctx, math.NewUintFromBigInt(deletePolicyPackage.ID))
+	policy, found := app.permissionKeeper.GetPolicyByID(ctx, math.NewUintFromBigInt(deletePolicyPackage.Id))
 	if !found {
 		return sdk.ExecuteResult{
 			Payload: types.DeletePolicyAckPackage{
@@ -126,7 +126,7 @@ func (app *PermissionApp) handleDeletePolicySynPackage(ctx sdk.Context, deletePo
 	return sdk.ExecuteResult{
 		Payload: types.DeletePolicyAckPackage{
 			Status:    types.StatusSuccess,
-			ID:        policy.Id.BigInt(),
+			Id:        policy.Id.BigInt(),
 			ExtraData: deletePolicyPackage.ExtraData,
 		}.MustSerialize(),
 	}
@@ -211,7 +211,7 @@ func (app *PermissionApp) handleCreatePolicySynPackage(ctx sdk.Context, createPo
 	return sdk.ExecuteResult{
 		Payload: types.CreatePolicyAckPackage{
 			Status:    types.StatusSuccess,
-			ID:        PolicyID.BigInt(),
+			Id:        PolicyID.BigInt(),
 			Creator:   createPolicyPackage.Operator,
 			ExtraData: createPolicyPackage.ExtraData,
 		}.MustSerialize(),
@@ -239,7 +239,7 @@ func (app *PermissionApp) getResourceOwner(ctx sdk.Context, policy *permtypes.Po
 		}
 		resOwner = sdk.MustAccAddressFromHex(groupInfo.Owner)
 	default:
-		return resOwner, gnfderrors.ErrInvalidGRN.Wrap("Unknown resource type in mechain resource name")
+		return resOwner, gnfderrors.ErrInvalidGRN.Wrap("Unknown resource type in moca resource name")
 	}
 	return resOwner, nil
 }

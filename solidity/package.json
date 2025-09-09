@@ -1,5 +1,5 @@
 {
-  "name": "mechain-solidity",
+  "name": "moca-solidity",
   "description": "Smart Contract library for Solidity",
   "version": "0.1.2",
   "files": [
@@ -24,10 +24,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/zkMeLabs/mechain.git"
+    "url": "https://github.com/MocaFoundation/moca.git"
   },
   "bugs": {
-    "url": "https://github.com/zkMeLabs/mechain/issues"
+    "url": "https://github.com/MocaFoundation/moca/issues"
   },
   "license": "Apache-2.0",
   "dependencies": {

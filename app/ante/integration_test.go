@@ -25,8 +25,8 @@ var _ = Describe("when sending a Cosmos transaction", func() {
 
 	Context("and the sender account has enough balance to pay for the transaction cost", Ordered, func() {
 		var (
-			rewardsAmt = sdk.NewInt(1e5)
-			balance    = sdk.NewInt(1e18)
+			rewardsAmt = sdkmath.NewInt(1e5)
+			balance    = sdkmath.NewInt(1e18)
 		)
 
 		BeforeEach(func() {
@@ -54,14 +54,14 @@ var _ = Describe("when sending a Cosmos transaction", func() {
 
 			rewards, err := testutil.GetTotalDelegationRewards(s.ctx, s.app.DistrKeeper, addr)
 			Expect(err).To(BeNil())
-			Expect(rewards).To(Equal(sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, sdk.NewInt(0)))))
+			Expect(rewards).To(Equal(sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, sdkmath.NewInt(0)))))
 		})
 	})
 
 	Context("and the sender account neither has enough balance nor sufficient staking rewards to pay for the transaction cost", func() {
 		var (
-			rewardsAmt = sdk.NewInt(0)
-			balance    = sdk.NewInt(0)
+			rewardsAmt = sdkmath.NewInt(0)
+			balance    = sdkmath.NewInt(0)
 		)
 
 		BeforeEach(func() {

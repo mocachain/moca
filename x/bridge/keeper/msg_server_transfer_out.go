@@ -13,7 +13,10 @@ import (
 func (k msgServer) TransferOut(goCtx context.Context, msg *types.MsgTransferOut) (*types.MsgTransferOutResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	bondDenom := k.stakingKeeper.BondDenom(ctx)
+	bondDenom, err := k.stakingKeeper.BondDenom(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if msg.Amount.Denom != bondDenom {
 		return nil, errors.Wrapf(types.ErrUnsupportedDenom, "denom is not supported")
 	}
@@ -28,7 +31,7 @@ func (k msgServer) TransferOut(goCtx context.Context, msg *types.MsgTransferOut)
 	transferAmount := sdk.Coins{*msg.Amount}.Add(relayerFee)
 
 	fromAddress := sdk.MustAccAddressFromHex(msg.From)
-	err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, fromAddress, crosschaintypes.ModuleName, transferAmount)
+	err = k.bankKeeper.SendCoinsFromAccountToModule(ctx, fromAddress, crosschaintypes.ModuleName, transferAmount)
 	if err != nil {
 		return nil, err
 	}

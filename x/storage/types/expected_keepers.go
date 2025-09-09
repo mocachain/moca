@@ -5,10 +5,9 @@ import (
 	"math/big"
 	time "time"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/cometbft/cometbft/libs/log"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -23,18 +22,18 @@ import (
 
 // AccountKeeper defines the expected account keeper used for simulations (noalias)
 type AccountKeeper interface {
-	GetSequence(sdktypes.Context, sdktypes.AccAddress) (uint64, error)
-	GetAccount(ctx sdktypes.Context, addr sdktypes.AccAddress) authtypes.AccountI
+	GetSequence(context.Context, sdktypes.AccAddress) (uint64, error)
+	GetAccount(ctx context.Context, addr sdktypes.AccAddress) sdktypes.AccountI
 	GetModuleAddress(name string) sdktypes.AccAddress
 	// Methods imported from account should be defined here
 }
 
 // BankKeeper defines the expected interface needed to retrieve account balances.
 type BankKeeper interface {
-	SpendableCoins(ctx sdktypes.Context, addr sdktypes.AccAddress) sdktypes.Coins
-	GetBalance(ctx sdktypes.Context, addr sdktypes.AccAddress, denom string) sdktypes.Coin
-	GetAllBalances(ctx sdktypes.Context, addr sdktypes.AccAddress) sdktypes.Coins
-	SendCoinsFromModuleToAccount(ctx sdktypes.Context, senderModule string, recipientAddr sdktypes.AccAddress, amt sdktypes.Coins) error
+	SpendableCoins(ctx context.Context, addr sdktypes.AccAddress) sdktypes.Coins
+	GetBalance(ctx context.Context, addr sdktypes.AccAddress, denom string) sdktypes.Coin
+	GetAllBalances(ctx context.Context, addr sdktypes.AccAddress) sdktypes.Coins
+	SendCoinsFromModuleToAccount(ctx context.Context, senderModule string, recipientAddr sdktypes.AccAddress, amt sdktypes.Coins) error
 	// Methods imported from bank should be defined here
 }
 
@@ -90,8 +89,9 @@ type CrossChainKeeper interface {
 	GetDestMantleChainID() sdktypes.ChainID
 	GetDestArbitrumChainID() sdktypes.ChainID
 	GetDestOptimismChainID() sdktypes.ChainID
+	GetDestBaseChainID() sdktypes.ChainID
 
-	CreateRawIBCPackageWithFee(ctx sdktypes.Context, chainID sdktypes.ChainID, channelID sdktypes.ChannelID, packageType sdktypes.CrossChainPackageType,
+	CreateRawIBCPackageWithFee(ctx context.Context, chainID sdktypes.ChainID, channelID sdktypes.ChannelID, packageType sdktypes.CrossChainPackageType,
 		packageLoad []byte, relayerFee *big.Int, ackRelayerFee *big.Int,
 	) (uint64, error)
 

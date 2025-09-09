@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 
 	"github.com/evmos/evmos/v12/x/sp/types"
 )
@@ -20,8 +20,8 @@ func (s *KeeperTestSuite) TestGetSpStoragePriceByTime() {
 	spStoragePrice := types.SpStoragePrice{
 		SpId:          spID,
 		UpdateTimeSec: 1,
-		ReadPrice:     sdk.NewDec(100),
-		StorePrice:    sdk.NewDec(100),
+		ReadPrice:     math.LegacyNewDec(100),
+		StorePrice:    math.LegacyNewDec(100),
 	}
 	s.spKeeper.SetSpStoragePrice(ctx, spStoragePrice)
 
@@ -32,8 +32,8 @@ func (s *KeeperTestSuite) TestGetSpStoragePriceByTime() {
 	spStoragePrice2 := types.SpStoragePrice{
 		SpId:          spID,
 		UpdateTimeSec: 100,
-		ReadPrice:     sdk.NewDec(200),
-		StorePrice:    sdk.NewDec(200),
+		ReadPrice:     math.LegacyNewDec(200),
+		StorePrice:    math.LegacyNewDec(200),
 	}
 	s.spKeeper.SetSpStoragePrice(ctx, spStoragePrice2)
 
@@ -47,16 +47,16 @@ func (s *KeeperTestSuite) TestGetGlobalSpStorePriceByTime() {
 	ctx := s.ctx
 	secondarySpStorePrice := types.GlobalSpStorePrice{
 		UpdateTimeSec:       1,
-		PrimaryStorePrice:   sdk.NewDec(100),
-		SecondaryStorePrice: sdk.NewDec(40),
-		ReadPrice:           sdk.NewDec(80),
+		PrimaryStorePrice:   math.LegacyNewDec(100),
+		SecondaryStorePrice: math.LegacyNewDec(40),
+		ReadPrice:           math.LegacyNewDec(80),
 	}
 	keeper.SetGlobalSpStorePrice(ctx, secondarySpStorePrice)
 	secondarySpStorePrice2 := types.GlobalSpStorePrice{
 		UpdateTimeSec:       100,
-		PrimaryStorePrice:   sdk.NewDec(200),
-		SecondaryStorePrice: sdk.NewDec(70),
-		ReadPrice:           sdk.NewDec(90),
+		PrimaryStorePrice:   math.LegacyNewDec(200),
+		SecondaryStorePrice: math.LegacyNewDec(70),
+		ReadPrice:           math.LegacyNewDec(90),
 	}
 	keeper.SetGlobalSpStorePrice(ctx, secondarySpStorePrice2)
 	type args struct {

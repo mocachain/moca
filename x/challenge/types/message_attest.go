@@ -85,7 +85,7 @@ func (msg *MsgAttest) ValidateBasic() error {
 func (msg *MsgAttest) GetBlsSignBytes(chainID string) [32]byte {
 	challengeIDBz := make([]byte, 8)
 	binary.BigEndian.PutUint64(challengeIDBz, msg.ChallengeId)
-	objectIDBz := msg.ObjectId.Bytes()
+	objectIDBz := msg.ObjectId.BigInt().Bytes()
 	resultBz := make([]byte, 8)
 	binary.BigEndian.PutUint64(resultBz, uint64(msg.VoteResult))
 

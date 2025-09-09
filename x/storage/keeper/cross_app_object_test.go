@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.uber.org/mock/gomock"
 
@@ -49,7 +50,7 @@ func (s *TestSuite) TestAckDeleteObject() {
 	app := keeper.NewObjectApp(storageKeeper)
 	ackPackage := types.DeleteObjectAckPackage{
 		Status:    types.StatusSuccess,
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -71,7 +72,7 @@ func (s *TestSuite) TestFailAckMirrorObject() {
 	app := keeper.NewObjectApp(storageKeeper)
 	ackPackage := types.MirrorObjectSynPackage{
 		Owner: sample.RandAccAddress(),
-		ID:    big.NewInt(10),
+		Id:    big.NewInt(10),
 	}
 
 	serializedAckPackage, err := ackPackage.Serialize()
@@ -100,7 +101,7 @@ func (s *TestSuite) TestFailAckDeleteObject() {
 	app := keeper.NewObjectApp(storageKeeper)
 	ackPackage := types.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -122,7 +123,7 @@ func (s *TestSuite) TestSynMirrorObject() {
 	app := keeper.NewObjectApp(storageKeeper)
 	synPackage := types.MirrorObjectSynPackage{
 		Owner: sample.RandAccAddress(),
-		ID:    big.NewInt(10),
+		Id:    big.NewInt(10),
 	}
 
 	serializedSynPackage, err := synPackage.Serialize()
@@ -144,7 +145,7 @@ func (s *TestSuite) TestSynDeleteObject() {
 	app := keeper.NewObjectApp(storageKeeper)
 	synPackage := types.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -166,7 +167,7 @@ func (s *TestSuite) TestSynDeleteObject() {
 
 	// case 3: normal case
 	storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(&types.ObjectInfo{
-		Id: sdk.NewUint(10),
+		Id: math.NewUint(10),
 	}, true)
 	storageKeeper.EXPECT().DeleteObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	res = app.ExecuteSynPackage(s.ctx, &sdk.CrossChainAppContext{}, serializedSynPackage)

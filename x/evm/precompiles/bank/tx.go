@@ -3,6 +3,7 @@ package bank
 import (
 	"errors"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -42,7 +43,7 @@ func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	for _, coin := range args.Amount {
 		amount = amount.Add(sdk.Coin{
 			Denom:  coin.Denom,
-			Amount: sdk.NewIntFromBigInt(coin.Amount),
+			Amount: math.NewIntFromBigInt(coin.Amount),
 		})
 	}
 
@@ -50,10 +51,6 @@ func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 		FromAddress: contract.Caller().String(),
 		ToAddress:   args.ToAddress.String(),
 		Amount:      amount,
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := bankkeeper.NewMsgServerImpl(c.bankKeeper, c.paymentKeeper)
@@ -99,7 +96,7 @@ func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 		for _, coin := range output.Amount {
 			coins = coins.Add(sdk.Coin{
 				Denom:  coin.Denom,
-				Amount: sdk.NewIntFromBigInt(coin.Amount),
+				Amount: math.NewIntFromBigInt(coin.Amount),
 			})
 		}
 
@@ -117,10 +114,6 @@ func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 			Coins:   totalCoins,
 		}},
 		Outputs: outputs,
-	}
-
-	if err = msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := bankkeeper.NewMsgServerImpl(c.bankKeeper, c.paymentKeeper)

@@ -9,7 +9,7 @@ import (
 	"github.com/evmos/evmos/v12/x/sp/types"
 )
 
-func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
+func EndBlocker(ctx sdk.Context, k keeper.Keeper) error {
 	if ctx.BlockHeight()%types.MaintenanceRecordsGCFrequencyInBlocks == 0 {
 		k.ForceUpdateMaintenanceRecords(ctx)
 	}
@@ -38,4 +38,5 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 			ctx.Logger().Error("fail to update global sp store price", "err", err)
 		}
 	}
+	return nil
 }

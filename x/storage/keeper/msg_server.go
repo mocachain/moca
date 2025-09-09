@@ -433,7 +433,7 @@ func (k msgServer) MirrorObject(goCtx context.Context, msg *types.MsgMirrorObjec
 
 	var objectInfo *types.ObjectInfo
 	found := false
-	if msg.Id.GT(sdk.NewUint(0)) {
+	if msg.Id.GT(math.NewUint(0)) {
 		objectInfo, found = k.Keeper.GetObjectInfoById(ctx, msg.Id)
 	} else {
 		objectInfo, found = k.Keeper.GetObjectInfo(ctx, msg.BucketName, msg.ObjectName)
@@ -457,7 +457,7 @@ func (k msgServer) MirrorObject(goCtx context.Context, msg *types.MsgMirrorObjec
 	owner := sdk.MustAccAddressFromHex(objectInfo.Owner)
 
 	mirrorPackage := types.MirrorObjectSynPackage{
-		ID:    objectInfo.Id.BigInt(),
+		Id:    objectInfo.Id.BigInt(),
 		Owner: owner,
 	}
 
@@ -476,7 +476,7 @@ func (k msgServer) MirrorObject(goCtx context.Context, msg *types.MsgMirrorObjec
 	ackRelayerFee := k.Keeper.MirrorObjectAckRelayerFee(ctx, destChainID)
 
 	_, err = k.crossChainKeeper.CreateRawIBCPackageWithFee(ctx, destChainID,
-		types.ObjectChannelID, sdk.SynCrossChainPackageType, encodedWrapPackage, relayerFee, ackRelayerFee)
+		types.ObjectChannelId, sdk.SynCrossChainPackageType, encodedWrapPackage, relayerFee, ackRelayerFee)
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +509,7 @@ func (k msgServer) MirrorBucket(goCtx context.Context, msg *types.MsgMirrorBucke
 
 	var bucketInfo *types.BucketInfo
 	found := false
-	if msg.Id.GT(sdk.NewUint(0)) {
+	if msg.Id.GT(math.NewUint(0)) {
 		bucketInfo, found = k.Keeper.GetBucketInfoById(ctx, msg.Id)
 	} else {
 		bucketInfo, found = k.Keeper.GetBucketInfo(ctx, msg.BucketName)
@@ -551,7 +551,7 @@ func (k msgServer) MirrorBucket(goCtx context.Context, msg *types.MsgMirrorBucke
 	ackRelayerFee := k.Keeper.MirrorBucketAckRelayerFee(ctx, destChainID)
 
 	_, err = k.crossChainKeeper.CreateRawIBCPackageWithFee(ctx, destChainID,
-		types.BucketChannelID, sdk.SynCrossChainPackageType, encodedWrapPackage, relayerFee, ackRelayerFee)
+		types.BucketChannelId, sdk.SynCrossChainPackageType, encodedWrapPackage, relayerFee, ackRelayerFee)
 	if err != nil {
 		return nil, err
 	}
@@ -584,7 +584,7 @@ func (k msgServer) MirrorGroup(goCtx context.Context, msg *types.MsgMirrorGroup)
 
 	var groupInfo *types.GroupInfo
 	found := false
-	if msg.Id.GT(sdk.NewUint(0)) {
+	if msg.Id.GT(math.NewUint(0)) {
 		groupInfo, found = k.Keeper.GetGroupInfoById(ctx, msg.Id)
 	} else {
 		groupInfo, found = k.Keeper.GetGroupInfo(ctx, operator, msg.GroupName)
@@ -602,7 +602,7 @@ func (k msgServer) MirrorGroup(goCtx context.Context, msg *types.MsgMirrorGroup)
 	}
 
 	mirrorPackage := types.MirrorGroupSynPackage{
-		ID:    groupInfo.Id.BigInt(),
+		Id:    groupInfo.Id.BigInt(),
 		Owner: operator,
 	}
 
@@ -621,7 +621,7 @@ func (k msgServer) MirrorGroup(goCtx context.Context, msg *types.MsgMirrorGroup)
 	ackRelayerFee := k.Keeper.MirrorGroupAckRelayerFee(ctx, destChainID)
 
 	_, err = k.crossChainKeeper.CreateRawIBCPackageWithFee(ctx, destChainID,
-		types.GroupChannelID, sdk.SynCrossChainPackageType, encodedWrapPackage, relayerFee, ackRelayerFee)
+		types.GroupChannelId, sdk.SynCrossChainPackageType, encodedWrapPackage, relayerFee, ackRelayerFee)
 	if err != nil {
 		return nil, err
 	}

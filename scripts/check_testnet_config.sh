@@ -3,20 +3,20 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_DIR=$(realpath "${SCRIPT_DIR}/../")
 
 echo "Starting Docker container..."
-docker run --rm -it -d --name my-validator -w /root --network mechain-network zkmelabs/mechain /bin/bash
+docker run --rm -it -d --name my-validator -w /root --network moca-network zkmelabs/moca /bin/bash
 
 echo "Initializing validator node..."
-docker exec my-validator mechaind init my-validator --chain-id mechain_5151-1 --default-denom "amoca"
+docker exec my-validator mocad init my-validator --chain-id moca_5151-1 --default-denom "amoca"
 
 echo "Copying configuration files to the container..."
-docker cp ${PROJECT_DIR}/asset/configs/testnet_config/. my-validator:/root/.mechaind/config
+docker cp ${PROJECT_DIR}/asset/configs/testnet_config/. my-validator:/root/.mocad/config
 
-echo "Starting mechaind in the container..."
-docker exec my-validator mechaind start >node.log 2>&1 &
+echo "Starting mocad in the container..."
+docker exec my-validator mocad start >node.log 2>&1 &
 
 sleep 10
 
-echo "Checking if mechaind is running and syncing blocks..."
+echo "Checking if mocad is running and syncing blocks..."
 latest_block_height=$(docker exec -it my-validator curl -s http://localhost:26657/status | jq '.result.sync_info.latest_block_height | tonumber')
 
 if [ "$latest_block_height" -gt 0 ]; then

@@ -1,2 +1,2 @@
 #!/bin/bash
-mechaind q tx $1 --node "https://testnet-lcd.mechain.tech:443" --output json
+mocad q tx $1 --node "https://devnet-lcd.mocachain.org:443" --output json

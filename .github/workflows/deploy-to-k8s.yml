@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       namespace_k8s:
-        description: deploy environment tag, example. mechain-dev/mechain-test
+        description: deploy environment tag, example. moca-dev/moca-test
         required: true
         type: string
       release_name:
@@ -45,7 +45,7 @@ jobs:
           LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
         with:
           header_template: "green"
-          header_content: "${{ github.repository }} 部署完成"
+          header_content: "${{ github.repository }} deploy success"
           message_env_tag: "devint"
           message_version: "${{ inputs.version_info }}"
           message_commit_logs: "${{ inputs.commit_info }}"
@@ -57,7 +57,7 @@ jobs:
           LARK_WEBHOOK: ${{ secrets.LARK_WEBHOOK }}
         with:
           header_template: "red"
-          header_content: "${{ github.repository }} 部署失败"
+          header_content: "${{ github.repository }} deploy failed"
           message_env_tag: "devint"
           message_version: "${{ inputs.version_info }}"
           message_commit_logs: "${{ inputs.commit_info }}"

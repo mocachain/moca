@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/spf13/cobra"
 
@@ -42,14 +42,14 @@ func ToStreamRecord(p *payment.StreamRecord) *types.StreamRecord {
 	s := &types.StreamRecord{
 		Account:           p.Account,
 		CrudTimestamp:     p.CrudTimestamp,
-		NetflowRate:       sdktypes.NewIntFromBigInt(p.NetflowRate),
-		StaticBalance:     sdktypes.NewIntFromBigInt(p.StaticBalance),
-		BufferBalance:     sdktypes.NewIntFromBigInt(p.BufferBalance),
-		LockBalance:       sdktypes.NewIntFromBigInt(p.LockBalance),
+		NetflowRate:       math.NewIntFromBigInt(p.NetflowRate),
+		StaticBalance:     math.NewIntFromBigInt(p.StaticBalance),
+		BufferBalance:     math.NewIntFromBigInt(p.BufferBalance),
+		LockBalance:       math.NewIntFromBigInt(p.LockBalance),
 		Status:            types.StreamAccountStatus(p.Status),
 		SettleTimestamp:   p.SettleTimestamp,
 		OutFlowCount:      p.OutFlowCount,
-		FrozenNetflowRate: sdktypes.NewIntFromBigInt(p.FrozenNetflowRate),
+		FrozenNetflowRate: math.NewIntFromBigInt(p.FrozenNetflowRate),
 	}
 	return s
 }
@@ -86,6 +86,31 @@ func ToAutoSettleRecord(p *payment.AutoSettleRecord) *types.AutoSettleRecord {
 		Addr:      p.Addr,
 	}
 	return s
+}
+
+// GetQueryCmd returns the cli query commands for this module
+func GetEvmQueryCmd() *cobra.Command {
+	// Group payment queries under a subcommand
+	cmd := &cobra.Command{
+		Use:                        types.ModuleName,
+		Short:                      fmt.Sprintf("Querying commands for the %s module", types.ModuleName),
+		DisableFlagParsing:         true,
+		SuggestionsMinimumDistance: 2,
+		RunE:                       client.ValidateCmd,
+	}
+
+	cmd.AddCommand(CmdEvmQueryParams())
+	cmd.AddCommand(CmdEvmListStreamRecord())
+	cmd.AddCommand(CmdEvmShowStreamRecord())
+	cmd.AddCommand(CmdEvmListPaymentAccountCount())
+	cmd.AddCommand(CmdEvmShowPaymentAccountCount())
+	cmd.AddCommand(CmdEvmListPaymentAccount())
+	cmd.AddCommand(CmdEvmShowPaymentAccount())
+	cmd.AddCommand(CmdEvmDynamicBalance())
+	cmd.AddCommand(CmdEvmGetPaymentAccountsByOwner())
+	cmd.AddCommand(CmdEvmListAutoSettleRecord())
+
+	return cmd
 }
 
 // GetQueryCmd returns the cli query commands for this module

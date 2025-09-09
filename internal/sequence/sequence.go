@@ -5,7 +5,7 @@ import (
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/math"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	storetypes "cosmossdk.io/store/types"
 )
 
 var ErrSequenceUniqueConstraint = errors.Register("sequence_u256", 1, "sequence already initialized")
@@ -78,7 +78,7 @@ const EncodedSeqLength = 4
 func (s Sequence[T]) EncodeSequence(t T) []byte {
 	switch ret := any(t).(type) {
 	case math.Uint:
-		return ret.Bytes()
+		return ret.BigInt().Bytes()
 	case uint32:
 		bz := make([]byte, EncodedSeqLength)
 		binary.BigEndian.PutUint32(bz, ret)
@@ -94,7 +94,7 @@ func (s Sequence[T]) DecodeSequence(bz []byte) T {
 	case math.Uint:
 		u := math.ZeroUint()
 		if bz != nil {
-			u = u.SetBytes(bz)
+			u = math.NewUintFromBigInt(u.BigInt().SetBytes(bz))
 		}
 		return any(u).(T)
 	case uint32:

@@ -9,7 +9,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mechaind",
+      "program": "${workspaceFolder}/cmd/mocad",
       "args": [
         "--home",
         "${workspaceFolder}/deployment/localup/.local/validator0",
@@ -18,7 +18,7 @@
         "query",
         "storage",
         "head-buckets",
-        "mechain"
+        "moca"
       ],
       "cwd": "${workspaceFolder}/build"
     },
@@ -27,7 +27,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mechaind",
+      "program": "${workspaceFolder}/cmd/mocad",
       "args": [
         "--home",
         "${workspaceFolder}/deployment/localup/.local/validator0",
@@ -44,7 +44,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mechaind",
+      "program": "${workspaceFolder}/cmd/mocad",
       "args": [
         "--home",
         "${workspaceFolder}/deployment/localup/.local/validator0",
@@ -64,7 +64,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mechaind",
+      "program": "${workspaceFolder}/cmd/mocad",
       "args": [
         "--home",
         "${workspaceFolder}/deployment/localup/.local/validator0",
@@ -84,7 +84,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mechaind",
+      "program": "${workspaceFolder}/cmd/mocad",
       "args": [
         "--home",
         "${workspaceFolder}/deployment/localup/.local/validator0",
@@ -104,21 +104,24 @@
       "request": "launch",
       "mode": "test",
       "program": "${fileDirname}",
-      "args": ["-testify.m", "^(TestTransfer)$"]
+      "args": [
+        "-testify.m",
+        "^(TestTransfer)$"
+      ]
     },
     {
-      "name": "Attach mechaind",
+      "name": "Attach mocad",
       "type": "go",
       "request": "attach",
       "mode": "local",
       "processId": 81011
     },
     {
-      "name": "Launch mechaind",
+      "name": "Launch mocad",
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mechaind",
+      "program": "${workspaceFolder}/cmd/mocad",
       "args": [
         "start",
         "--home",

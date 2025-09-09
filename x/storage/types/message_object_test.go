@@ -262,7 +262,7 @@ func TestMsgCopyObject_ValidateBasic(t *testing.T) {
 
 func TestMsgSealObject_ValidateBasic(t *testing.T) {
 	checksums := [][]byte{sample.Checksum(), sample.Checksum(), sample.Checksum(), sample.Checksum(), sample.Checksum(), sample.Checksum()}
-	blsSignDoc := NewSecondarySpSealObjectSignDoc("mechain_5151-1", 1, math.NewUint(1), GenerateHash(checksums)).GetSignBytes()
+	blsSignDoc := NewSecondarySpSealObjectSignDoc("moca_5151-1", 1, math.NewUint(1), GenerateHash(checksums)).GetSignBytes()
 	blsPrivKey, _ := bls.GenerateBlsKey()
 	aggSig, _ := blsPrivKey.Sign(blsSignDoc, votepool.DST)
 	aggSigBts, _ := aggSig.Marshal()

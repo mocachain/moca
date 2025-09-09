@@ -7,7 +7,9 @@ import (
 
 	"github.com/evmos/evmos/v12/utils"
 
+	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	simutils "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -33,10 +35,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/0xPolygon/polygon-edge/bls"
-	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
 )
 
 func (suite *KeeperTestSuite) SetupApp(checkTx bool, chainID string) {
@@ -52,11 +53,16 @@ func (suite *KeeperTestSuite) SetupApp(checkTx bool, chainID string) {
 	require.NoError(t, err)
 	suite.consAddress = sdk.ConsAddress(priv.PubKey().Address())
 
-	header := testutil.NewHeader(
-		1, time.Now().UTC(), chainID, suite.consAddress, nil, nil,
-	)
+	// create base context first, then set header, gas meter, and chain ID
+	suite.ctx = suite.app.BaseApp.NewContext(checkTx)
+	header := testutil.NewHeader(1, time.Now().UTC(), chainID, suite.consAddress, nil, nil)
+	suite.ctx = suite.ctx.WithBlockHeader(header)
+	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewInfiniteGasMeter())
+	suite.ctx = suite.ctx.WithChainID(chainID)
 
-	suite.ctx = suite.app.BaseApp.NewContext(checkTx, header)
+	// initialize first block (begin block) so tx delivery can finalize it later
+	_, err = suite.app.BeginBlocker(suite.ctx)
+	require.NoError(t, err)
 
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())
 	types.RegisterQueryServer(queryHelper, suite.app.FeeMarketKeeper)
@@ -66,16 +72,17 @@ func (suite *KeeperTestSuite) SetupApp(checkTx bool, chainID string) {
 		BaseAccount: authtypes.NewBaseAccount(sdk.AccAddress(suite.address.Bytes()), nil, 0, 0),
 		CodeHash:    common.BytesToHash(crypto.Keccak256(nil)).String(),
 	}
+	acc = suite.app.AccountKeeper.NewAccount(suite.ctx, acc).(*evmostypes.EthAccount)
 
 	suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 
 	valAddr := sdk.AccAddress(suite.address.Bytes())
 	blsSecretKey, _ := bls.GenerateBlsKey()
 	blsPk := blsSecretKey.PublicKey().Marshal()
-	validator, err := stakingtypes.NewValidator(valAddr, priv.PubKey(), stakingtypes.Description{}, valAddr, valAddr, valAddr, blsPk)
+	validator, err := stakingtypes.NewValidator(valAddr.String(), priv.PubKey(), stakingtypes.Description{}, valAddr.String(), valAddr.String(), valAddr.String(), blsPk)
 	require.NoError(t, err)
 	validator = stakingkeeper.TestingUpdateValidator(suite.app.StakingKeeper, suite.ctx, validator, true)
-	err = suite.app.StakingKeeper.Hooks().AfterValidatorCreated(suite.ctx, validator.GetOperator())
+	err = suite.app.StakingKeeper.Hooks().AfterValidatorCreated(suite.ctx, valAddr)
 	require.NoError(t, err)
 
 	err = suite.app.StakingKeeper.SetValidatorByConsAddr(suite.ctx, validator)
@@ -87,7 +94,7 @@ func (suite *KeeperTestSuite) SetupApp(checkTx bool, chainID string) {
 	err = suite.app.StakingKeeper.SetParams(suite.ctx, stakingParams)
 	require.NoError(t, err)
 
-	encodingConfig := encoding.MakeConfig(app.ModuleBasics)
+	encodingConfig := encoding.MakeConfig()
 	suite.clientCtx = client.Context{}.WithTxConfig(encodingConfig.TxConfig)
 	suite.ethSigner = ethtypes.LatestSignerForChainID(suite.app.EvmKeeper.ChainID())
 	suite.appCodec = encodingConfig.Codec
@@ -101,9 +108,25 @@ func (suite *KeeperTestSuite) Commit() {
 
 // Commit commits a block at a given time.
 func (suite *KeeperTestSuite) CommitAfter(t time.Duration) {
-	var err error
-	suite.ctx, err = testutil.Commit(suite.ctx, suite.app, t, nil)
+	// finalize current block
+	header := suite.ctx.BlockHeader()
+	_, err := suite.app.BaseApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: header.Height, ProposerAddress: header.ProposerAddress})
 	suite.Require().NoError(err)
+
+	// commit app state
+	_, err = suite.app.Commit()
+	suite.Require().NoError(err)
+
+	// advance header
+	header.Height++
+	header.Time = header.Time.Add(t)
+	header.AppHash = suite.app.LastCommitID().Hash
+	suite.ctx = suite.ctx.WithBlockHeader(header)
+
+	// begin next block
+	_, err = suite.app.BeginBlocker(suite.ctx)
+	suite.Require().NoError(err)
+
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())
 	types.RegisterQueryServer(queryHelper, suite.app.FeeMarketKeeper)
 	suite.queryClient = types.NewQueryClient(queryHelper)
@@ -113,20 +136,13 @@ func (suite *KeeperTestSuite) CommitAfter(t time.Duration) {
 // given a local (validator config) and a global (feemarket param) minGasPrice
 //
 //nolint:unparam
-func setupTestWithContext(chainID, valMinGasPrice string, minGasPrice sdk.Dec, baseFee sdkmath.Int) (*ethsecp256k1.PrivKey, banktypes.MsgSend) {
-	privKey, msg := setupTest(valMinGasPrice+s.denom, chainID)
-	params := types.DefaultParams()
-	params.MinGasPrice = minGasPrice
-	err := s.app.FeeMarketKeeper.SetParams(s.ctx, params)
-	s.Require().NoError(err)
-	s.app.FeeMarketKeeper.SetBaseFee(s.ctx, baseFee.BigInt())
-	s.Commit()
-
+func setupTestWithContext(chainID, valMinGasPrice string, minGasPrice sdkmath.LegacyDec, baseFee sdkmath.Int) (*ethsecp256k1.PrivKey, banktypes.MsgSend) {
+	privKey, msg := setupTest(valMinGasPrice+evmtypes.DefaultEVMDenom, chainID, minGasPrice, baseFee)
 	return privKey, msg
 }
 
-func setupTest(localMinGasPrices, chainID string) (*ethsecp256k1.PrivKey, banktypes.MsgSend) {
-	setupChain(localMinGasPrices, chainID)
+func setupTest(localMinGasPrices, chainID string, minGasPrice sdkmath.LegacyDec, baseFee sdkmath.Int) (*ethsecp256k1.PrivKey, banktypes.MsgSend) {
+	setupChain(localMinGasPrices, chainID, minGasPrice, baseFee)
 
 	address, privKey := utiltx.NewAccAddressAndKey()
 	amount, ok := sdkmath.NewIntFromString("10000000000000000000")
@@ -150,7 +166,7 @@ func setupTest(localMinGasPrices, chainID string) (*ethsecp256k1.PrivKey, bankty
 	return privKey, msg
 }
 
-func setupChain(localMinGasPricesStr string, chainID string) {
+func setupChain(localMinGasPricesStr string, chainID string, minGasPrice sdkmath.LegacyDec, baseFee sdkmath.Int) {
 	// Initialize the app, so we can use SetMinGasPrices to set the
 	// validator-specific min-gas-prices setting
 	db := dbm.NewMemDB()
@@ -159,9 +175,9 @@ func setupChain(localMinGasPricesStr string, chainID string) {
 		db,
 		nil,
 		true,
+		map[int64]bool{},
 		app.DefaultNodeHome,
 		5,
-		encoding.MakeConfig(app.ModuleBasics),
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		simutils.NewAppOptionsWithFlagHome(app.DefaultNodeHome),
 		baseapp.SetChainID(chainID),
@@ -169,14 +185,17 @@ func setupChain(localMinGasPricesStr string, chainID string) {
 	)
 
 	genesisState := app.NewTestGenesisState(newapp.AppCodec())
-	genesisState[types.ModuleName] = newapp.AppCodec().MustMarshalJSON(types.DefaultGenesisState())
+	fmGenesis := types.DefaultGenesisState()
+	fmGenesis.Params.MinGasPrice = minGasPrice
+	fmGenesis.Params.BaseFee = sdkmath.NewIntFromBigInt(baseFee.BigInt())
+	genesisState[types.ModuleName] = newapp.AppCodec().MustMarshalJSON(fmGenesis)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
 	s.Require().NoError(err)
 
 	// Initialize the chain
 	newapp.InitChain(
-		abci.RequestInitChain{
+		&abci.RequestInitChain{
 			ChainId:         chainID,
 			Validators:      []abci.ValidatorUpdate{},
 			AppStateBytes:   stateBytes,

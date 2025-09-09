@@ -3,18 +3,17 @@ package cosmos_test
 import (
 	"math"
 	"testing"
-	"time"
+
+	storetypes "cosmossdk.io/store/types"
 
 	"github.com/stretchr/testify/suite"
 
 	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/simapp"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -53,7 +52,7 @@ const TestGasLimit uint64 = 100000
 var chainID = utils.TestnetChainID + "-1"
 
 func (suite *AnteTestSuite) StateDB() *statedb.StateDB {
-	return statedb.New(suite.ctx, suite.app.EvmKeeper, statedb.NewEmptyTxConfig(common.BytesToHash(suite.ctx.HeaderHash().Bytes())))
+	return statedb.New(suite.ctx, suite.app.EvmKeeper, statedb.NewEmptyTxConfig(common.BytesToHash(suite.ctx.HeaderHash())))
 }
 
 func (suite *AnteTestSuite) SetupTest() {
@@ -91,24 +90,29 @@ func (suite *AnteTestSuite) SetupTest() {
 		return genesis
 	})
 
-	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 2, ChainID: chainID, Time: time.Now().UTC()})
-	suite.ctx = suite.ctx.WithMinGasPrices(sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, sdk.OneInt())))
-	suite.ctx = suite.ctx.WithBlockGasMeter(sdk.NewGasMeter(1000000000000000000))
+	suite.ctx = suite.app.BaseApp.NewContext(checkTx)
+	suite.ctx = suite.ctx.WithChainID(chainID)
+	suite.ctx = suite.ctx.WithBlockHeight(1)
+	suite.ctx = suite.ctx.WithMinGasPrices(sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, sdkmath.OneInt())))
+	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewGasMeter(1000000000000000000))
 
-	stakingParams := suite.app.StakingKeeper.GetParams(suite.ctx)
+	stakingParams, err := suite.app.StakingKeeper.GetParams(suite.ctx)
+	suite.Require().NoError(err)
 	stakingParams.BondDenom = utils.BaseDenom
 	err = suite.app.StakingKeeper.SetParams(suite.ctx, stakingParams)
 	suite.Require().NoError(err)
 
-	infCtx := suite.ctx.WithGasMeter(sdk.NewInfiniteGasMeter())
-	err = suite.app.AccountKeeper.SetParams(infCtx, authtypes.DefaultParams())
-	suite.Require().NoError(err)
+	suite.ctx = suite.ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 
-	encodingConfig := encoding.MakeConfig(app.ModuleBasics)
+	encodingConfig := encoding.MakeConfig()
 	// We're using TestMsg amino encoding in some tests, so register it here.
 	encodingConfig.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
 	eip712.AminoCodec = encodingConfig.Amino
 	eip712.ProtoCodec = codec.NewProtoCodec(encodingConfig.InterfaceRegistry)
+
+	// Register legacy amino codecs and interfaces for cosmos-sdk modules
+	suite.app.BasicModuleManager.RegisterLegacyAminoCodec(encodingConfig.Amino)
+	suite.app.BasicModuleManager.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 
 	suite.clientCtx = client.Context{}.WithTxConfig(encodingConfig.TxConfig)
 
@@ -127,21 +131,19 @@ func (suite *AnteTestSuite) SetupTest() {
 	})
 
 	suite.anteHandler = anteHandler
+
+	// Initialize EVM chain ID for tests
+	suite.app.EvmKeeper.WithChainID(suite.ctx)
 	suite.ethSigner = ethtypes.LatestSignerForChainID(suite.app.EvmKeeper.ChainID())
 
 	// fund signer acc to pay for tx fees
-	amt := sdk.NewInt(int64(math.Pow10(18) * 2))
+	amt := sdkmath.NewInt(int64(math.Pow10(18) * 2))
 	err = testutil.FundAccount(
 		suite.ctx,
 		suite.app.BankKeeper,
 		suite.priv.PubKey().Address().Bytes(),
 		sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, amt)),
 	)
-	suite.Require().NoError(err)
-
-	header := suite.ctx.BlockHeader()
-	suite.ctx = suite.ctx.WithBlockHeight(header.Height - 1)
-	suite.ctx, err = testutil.Commit(suite.ctx, suite.app, time.Second*0, nil)
 	suite.Require().NoError(err)
 }
 

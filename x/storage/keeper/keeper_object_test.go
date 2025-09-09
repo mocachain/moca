@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/golang/mock/gomock"
+
+	"go.uber.org/mock/gomock"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/types/common"
@@ -22,7 +22,7 @@ func (s *TestSuite) TestCreateObject() {
 	bucketInfo := &types.BucketInfo{
 		Owner:            operatorAddress.String(),
 		BucketName:       "bucketname",
-		Id:               sdk.NewUint(1),
+		Id:               math.NewUint(1),
 		PaymentAddress:   sample.RandAccAddress().String(),
 		ChargedReadQuota: 100,
 		BucketStatus:     types.BUCKET_STATUS_CREATED,
@@ -104,7 +104,7 @@ func (s *TestSuite) TestCreateObject() {
 
 	// case 5: object exist
 	s.storageKeeper.StoreObjectInfo(s.ctx, &types.ObjectInfo{
-		Id:         sdk.NewUint(1),
+		Id:         math.NewUint(1),
 		BucketName: bucketInfo.BucketName,
 		ObjectName: objectName,
 	})
@@ -141,24 +141,24 @@ func (s *TestSuite) TestCreateObject() {
 
 	// case 6: valid case
 	s.storageKeeper.DeleteObjectInfo(s.ctx, &types.ObjectInfo{
-		Id:         sdk.NewUint(1),
+		Id:         math.NewUint(1),
 		BucketName: bucketInfo.BucketName,
 		ObjectName: objectName,
 	})
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(types3.GlobalSpStorePrice{
-		ReadPrice:           sdk.NewDec(1),
-		PrimaryStorePrice:   sdk.NewDec(2),
-		SecondaryStorePrice: sdk.NewDec(1),
+		ReadPrice:           math.LegacyNewDec(1),
+		PrimaryStorePrice:   math.LegacyNewDec(2),
+		SecondaryStorePrice: math.LegacyNewDec(1),
 	}, nil).AnyTimes()
 	s.paymentKeeper.EXPECT().GetVersionedParamsWithTs(gomock.Any(), gomock.Any()).Return(types4.VersionedParams{
 		ReserveTime:      10000,
-		ValidatorTaxRate: sdk.NewDec(1),
+		ValidatorTaxRate: math.LegacyNewDec(1),
 	}, nil).AnyTimes()
 	s.paymentKeeper.EXPECT().UpdateStreamRecordByAddr(gomock.Any(), gomock.Any()).Return(&types4.StreamRecord{
 		Account:           "",
 		CrudTimestamp:     0,
 		NetflowRate:       math.Int{},
-		StaticBalance:     sdk.NewInt(100),
+		StaticBalance:     math.NewInt(100),
 		BufferBalance:     math.Int{},
 		LockBalance:       math.Int{},
 		Status:            0,

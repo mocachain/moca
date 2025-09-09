@@ -1,6 +1,6 @@
 {
   "genesis_time": "2025-02-13T09:04:22.291244Z",
-  "chain_id": "mechain_5151-1",
+  "chain_id": "moca_5151-1",
   "initial_height": "1",
   "consensus_params": {
     "block": {
@@ -1510,7 +1510,22 @@
           "amount": "76000000000000000000000000000"
         }
       ],
-      "denom_metadata": [{"description":"The native staking token of the Mechain.","denom_units":[{"denom":"amoca","exponent":0,"aliases":["wei"]}],"base":"amoca","display":"amoca"}],
+      "denom_metadata": [
+        {
+          "description": "The native staking token of the Moca.",
+          "denom_units": [
+            {
+              "denom": "amoca",
+              "exponent": 0,
+              "aliases": [
+                "wei"
+              ]
+            }
+          ],
+          "base": "amoca",
+          "display": "amoca"
+        }
+      ],
       "send_enabled": []
     },
     "bridge": {
@@ -1742,37 +1757,37 @@
           }
         },
         {
-          "msg_type_url": "/mechain.bridge.MsgUpdateParams",
+          "msg_type_url": "/moca.bridge.MsgUpdateParams",
           "fixed_type": {
             "fixed_gas": "0"
           }
         },
         {
-          "msg_type_url": "/mechain.sp.MsgUpdateParams",
+          "msg_type_url": "/moca.sp.MsgUpdateParams",
           "fixed_type": {
             "fixed_gas": "0"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgUpdateParams",
+          "msg_type_url": "/moca.storage.MsgUpdateParams",
           "fixed_type": {
             "fixed_gas": "0"
           }
         },
         {
-          "msg_type_url": "/mechain.payment.MsgUpdateParams",
+          "msg_type_url": "/moca.payment.MsgUpdateParams",
           "fixed_type": {
             "fixed_gas": "0"
           }
         },
         {
-          "msg_type_url": "/mechain.challenge.MsgUpdateParams",
+          "msg_type_url": "/moca.challenge.MsgUpdateParams",
           "fixed_type": {
             "fixed_gas": "0"
           }
         },
         {
-          "msg_type_url": "/mechain.permission.MsgUpdateParams",
+          "msg_type_url": "/moca.permission.MsgUpdateParams",
           "fixed_type": {
             "fixed_gas": "0"
           }
@@ -1892,301 +1907,301 @@
           }
         },
         {
-          "msg_type_url": "/mechain.bridge.MsgTransferOut",
+          "msg_type_url": "/moca.bridge.MsgTransferOut",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.sp.MsgCreateStorageProvider",
+          "msg_type_url": "/moca.sp.MsgCreateStorageProvider",
           "fixed_type": {
             "fixed_gas": "2000000"
           }
         },
         {
-          "msg_type_url": "/mechain.sp.MsgDeposit",
+          "msg_type_url": "/moca.sp.MsgDeposit",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.sp.MsgEditStorageProvider",
+          "msg_type_url": "/moca.sp.MsgEditStorageProvider",
           "fixed_type": {
             "fixed_gas": "2000000"
           }
         },
         {
-          "msg_type_url": "/mechain.sp.MsgUpdateSpStoragePrice",
+          "msg_type_url": "/moca.sp.MsgUpdateSpStoragePrice",
           "fixed_type": {
             "fixed_gas": "2000000"
           }
         },
         {
-          "msg_type_url": "/mechain.sp.MsgUpdateStorageProviderStatus",
+          "msg_type_url": "/moca.sp.MsgUpdateStorageProviderStatus",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgCreateBucket",
+          "msg_type_url": "/moca.storage.MsgCreateBucket",
           "fixed_type": {
             "fixed_gas": "2400"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgDeleteBucket",
+          "msg_type_url": "/moca.storage.MsgDeleteBucket",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgMirrorBucket",
+          "msg_type_url": "/moca.storage.MsgMirrorBucket",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgUpdateBucketInfo",
+          "msg_type_url": "/moca.storage.MsgUpdateBucketInfo",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgCreateObject",
+          "msg_type_url": "/moca.storage.MsgCreateObject",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgSealObject",
+          "msg_type_url": "/moca.storage.MsgSealObject",
           "fixed_type": {
             "fixed_gas": "120"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgMirrorObject",
+          "msg_type_url": "/moca.storage.MsgMirrorObject",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgRejectSealObject",
+          "msg_type_url": "/moca.storage.MsgRejectSealObject",
           "fixed_type": {
             "fixed_gas": "12000"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgDeleteObject",
+          "msg_type_url": "/moca.storage.MsgDeleteObject",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgCopyObject",
+          "msg_type_url": "/moca.storage.MsgCopyObject",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgCancelCreateObject",
+          "msg_type_url": "/moca.storage.MsgCancelCreateObject",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgUpdateObjectInfo",
+          "msg_type_url": "/moca.storage.MsgUpdateObjectInfo",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgDiscontinueObject",
+          "msg_type_url": "/moca.storage.MsgDiscontinueObject",
           "fixed_type": {
             "fixed_gas": "2400"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgDiscontinueBucket",
+          "msg_type_url": "/moca.storage.MsgDiscontinueBucket",
           "fixed_type": {
             "fixed_gas": "2400"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgCreateGroup",
+          "msg_type_url": "/moca.storage.MsgCreateGroup",
           "fixed_type": {
             "fixed_gas": "2400"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgDeleteGroup",
+          "msg_type_url": "/moca.storage.MsgDeleteGroup",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgLeaveGroup",
+          "msg_type_url": "/moca.storage.MsgLeaveGroup",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgUpdateGroupMember",
+          "msg_type_url": "/moca.storage.MsgUpdateGroupMember",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgUpdateGroupExtra",
+          "msg_type_url": "/moca.storage.MsgUpdateGroupExtra",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgRenewGroupMember",
+          "msg_type_url": "/moca.storage.MsgRenewGroupMember",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgMirrorGroup",
+          "msg_type_url": "/moca.storage.MsgMirrorGroup",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgPutPolicy",
+          "msg_type_url": "/moca.storage.MsgPutPolicy",
           "fixed_type": {
             "fixed_gas": "2400"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgDeletePolicy",
+          "msg_type_url": "/moca.storage.MsgDeletePolicy",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgMigrateBucket",
+          "msg_type_url": "/moca.storage.MsgMigrateBucket",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgCancelMigrateBucket",
+          "msg_type_url": "/moca.storage.MsgCancelMigrateBucket",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgCompleteMigrateBucket",
+          "msg_type_url": "/moca.storage.MsgCompleteMigrateBucket",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.storage.MsgRejectMigrateBucket",
+          "msg_type_url": "/moca.storage.MsgRejectMigrateBucket",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.payment.MsgCreatePaymentAccount",
+          "msg_type_url": "/moca.payment.MsgCreatePaymentAccount",
           "fixed_type": {
             "fixed_gas": "200000"
           }
         },
         {
-          "msg_type_url": "/mechain.payment.MsgDeposit",
+          "msg_type_url": "/moca.payment.MsgDeposit",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.payment.MsgWithdraw",
+          "msg_type_url": "/moca.payment.MsgWithdraw",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.payment.MsgDisableRefund",
+          "msg_type_url": "/moca.payment.MsgDisableRefund",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.challenge.MsgSubmit",
+          "msg_type_url": "/moca.challenge.MsgSubmit",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.challenge.MsgAttest",
+          "msg_type_url": "/moca.challenge.MsgAttest",
           "fixed_type": {
             "fixed_gas": "100"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgCreateGlobalVirtualGroup",
+          "msg_type_url": "/moca.virtualgroup.MsgCreateGlobalVirtualGroup",
           "fixed_type": {
             "fixed_gas": "1000000"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgDeleteGlobalVirtualGroup",
+          "msg_type_url": "/moca.virtualgroup.MsgDeleteGlobalVirtualGroup",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgDeposit",
+          "msg_type_url": "/moca.virtualgroup.MsgDeposit",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgWithdraw",
+          "msg_type_url": "/moca.virtualgroup.MsgWithdraw",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgSettle",
+          "msg_type_url": "/moca.virtualgroup.MsgSettle",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgSwapOut",
+          "msg_type_url": "/moca.virtualgroup.MsgSwapOut",
           "fixed_type": {
             "fixed_gas": "24000"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgCompleteSwapOut",
+          "msg_type_url": "/moca.virtualgroup.MsgCompleteSwapOut",
           "fixed_type": {
             "fixed_gas": "24000"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgCancelSwapOut",
+          "msg_type_url": "/moca.virtualgroup.MsgCancelSwapOut",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgStorageProviderExit",
+          "msg_type_url": "/moca.virtualgroup.MsgStorageProviderExit",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgCompleteStorageProviderExit",
+          "msg_type_url": "/moca.virtualgroup.MsgCompleteStorageProviderExit",
           "fixed_type": {
             "fixed_gas": "1200"
           }
         },
         {
-          "msg_type_url": "/mechain.virtualgroup.MsgUpdateParams",
+          "msg_type_url": "/moca.virtualgroup.MsgUpdateParams",
           "fixed_type": {
             "fixed_gas": "1200"
           }
@@ -2220,12 +2235,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0x9EFaBD3337ddcB8fD4129a9fBA3440dFf60A8cd7",
                 "description": {
                   "moniker": "sp0",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp0"
                 },
@@ -2235,7 +2250,7 @@
                 "approval_address": "0xb8d55aCFc792Ab9ee91D2645D4E2a428EAb8d9D6",
                 "gc_address": "0xc30c269C6a251f8e0609B19f7F9D63a404EF26Ab",
                 "maintenance_address": "0xB0272E9fb9C1f07E7D73dee9E0571A9034B06bA7",
-                "endpoint": "https://testnet-sg-sp0.mechain.tech:443",
+                "endpoint": "https://devnet-sg-sp0.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2270,12 +2285,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0x2DD1a79A9c7F7E871e27d0Ad61e64E8a8456138d",
                 "description": {
                   "moniker": "sp1",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp1"
                 },
@@ -2285,7 +2300,7 @@
                 "approval_address": "0x0C2F82000795A3Bd3D6DDCD1a165e627F735f030",
                 "gc_address": "0xcd2915012B0308EE5051d81E9Eb65a65441d0B58",
                 "maintenance_address": "0x752E528Bed7c23D37a54e907E5b59233270eDe56",
-                "endpoint": "https://testnet-sg-sp1.mechain.tech:443",
+                "endpoint": "https://devnet-sg-sp1.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2320,12 +2335,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0x07538cb407955F0BAe545FB5cd7182feAcdf7074",
                 "description": {
                   "moniker": "sp2",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp2"
                 },
@@ -2335,7 +2350,7 @@
                 "approval_address": "0x81a18FDF5bF64871B19E3947E84d06f1b8698281",
                 "gc_address": "0x3E0CcdB482a40e5E15c4C449DF7A5E63e7402eAB",
                 "maintenance_address": "0x3a585853392fbDD839E9Da2e4DaC9De995EF9e93",
-                "endpoint": "https://testnet-sg-sp2.mechain.tech:443",
+                "endpoint": "https://devnet-sg-sp2.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2370,12 +2385,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0x657C9F069fbBfb4eF668E5a21914A0E2FDbff0fc",
                 "description": {
                   "moniker": "sp3",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp3"
                 },
@@ -2385,7 +2400,7 @@
                 "approval_address": "0x5BfB236796C5704ca011e90418238333bd4938f4",
                 "gc_address": "0xcab749d8E4301Fadd0229fC269a5d5ee770417eC",
                 "maintenance_address": "0x0112948f2E4a8ADBb721CCc70130B98d00F4a14C",
-                "endpoint": "https://testnet-nj-sp0.mechain.tech:443",
+                "endpoint": "https://devnet-nj-sp0.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2420,12 +2435,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0xf224d53EB45533Ed91E075B57A0c4a87F761D283",
                 "description": {
                   "moniker": "sp4",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp4"
                 },
@@ -2435,7 +2450,7 @@
                 "approval_address": "0xfe04de686B0Bbf3Ca211406C26047585FD99578f",
                 "gc_address": "0x8de7caB42d24B4d7e506409517eD412F2C2241ff",
                 "maintenance_address": "0x03a599fe313DA1Df76F0944898C41cE6f4DE8b9F",
-                "endpoint": "https://testnet-nj-sp1.mechain.tech:443",
+                "endpoint": "https://devnet-nj-sp1.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2470,12 +2485,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0x70dE03A7A30DC09dB7f15ACC66d9f0afb4C7FAC5",
                 "description": {
                   "moniker": "sp5",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp5"
                 },
@@ -2485,7 +2500,7 @@
                 "approval_address": "0x5F903599a56A0Af4bE02c522349EBAbb5DE6FcF1",
                 "gc_address": "0xecE9cFe98f12174A7f5650bD76F6a1D270aaD7F1",
                 "maintenance_address": "0x03600b163Eb729c17218CD8E9B6Cf73bc152cDE9",
-                "endpoint": "https://testnet-nj-sp2.mechain.tech:443",
+                "endpoint": "https://devnet-nj-sp2.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2520,12 +2535,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0x4F4ff868c14996646bbF95F9eE92825766ae2CDB",
                 "description": {
                   "moniker": "sp6",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp6"
                 },
@@ -2535,7 +2550,7 @@
                 "approval_address": "0x51BD87d3Be711AAc0459dA8dc0bD4212cE8592CA",
                 "gc_address": "0x27CBf38aa964eA3437407cB259DAD83096ED7308",
                 "maintenance_address": "0x967a85628Fc9157969E78D83b89cDaede4F10B78",
-                "endpoint": "https://testnet-fr-sp0.mechain.tech:443",
+                "endpoint": "https://devnet-fr-sp0.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2570,12 +2585,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0x2ef73b8E6E8C4b19923888151f26BC84e7A19d9C",
                 "description": {
                   "moniker": "sp7",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp7"
                 },
@@ -2585,7 +2600,7 @@
                 "approval_address": "0x79a77D7D4bcaaE2E0Fa7802B4B9479bf35D6ea64",
                 "gc_address": "0x1B5A5EcD750B55Fe5584FbbEf4B4d52ea88390Dc",
                 "maintenance_address": "0x35CFFde9b8D70A51fD4c8A18bB51B95817a2BB08",
-                "endpoint": "https://testnet-fr-sp1.mechain.tech:443",
+                "endpoint": "https://devnet-fr-sp1.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2620,12 +2635,12 @@
           "body": {
             "messages": [
               {
-                "@type": "/mechain.sp.MsgCreateStorageProvider",
+                "@type": "/moca.sp.MsgCreateStorageProvider",
                 "creator": "0xA896bef9Ac53B32CD763388CD7A4F48789928107",
                 "description": {
                   "moniker": "sp8",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "detail_sp8"
                 },
@@ -2635,7 +2650,7 @@
                 "approval_address": "0xf7a468f5fE56b435E98BCF09BBb5eA31f312F44d",
                 "gc_address": "0x81d287b7a21a9D27Cd9F8b93e0181D6d3354E4C6",
                 "maintenance_address": "0x3Eb7688e9bF6C8373F4bd25A1E884081A8C0542c",
-                "endpoint": "https://testnet-fr-sp2.mechain.tech:443",
+                "endpoint": "https://devnet-fr-sp2.mocachain.org:443",
                 "deposit": {
                   "denom": "amoca",
                   "amount": "10000000000000000000000000"
@@ -2678,7 +2693,7 @@
                 "description": {
                   "moniker": "validator0",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "validator0 details"
                 },
@@ -2705,7 +2720,7 @@
                 "bls_proof": "109073b357b1c2ae0866f141db3b6ea3c705e1690c107ca230ceec7ce4da85e918a6a6416b31fa4ab6a4408bee826ca0e407292874b9f693e64d9ad838e120c6"
               }
             ],
-            "memo": "validator0@testnet-validator0.mechain.tech:26656",
+            "memo": "validator0@devnet-validator0.mocachain.org:26656",
             "timeout_height": "0",
             "extension_options": [],
             "non_critical_extension_options": []
@@ -2732,7 +2747,7 @@
                 "description": {
                   "moniker": "validator1",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "validator1 details"
                 },
@@ -2759,7 +2774,7 @@
                 "bls_proof": "2a5e2f5fe35a0ff54b9d3f2e6e395c584251f30b710aed5e9f0f011ab7a2efb62bbc5f4bad2fe1ede6cb43a5a8cd6ba4442282bc40e4880acb29d6eb1494be11"
               }
             ],
-            "memo": "validator1@testnet-validator1.mechain.tech:26656",
+            "memo": "validator1@devnet-validator1.mocachain.org:26656",
             "timeout_height": "0",
             "extension_options": [],
             "non_critical_extension_options": []
@@ -2786,7 +2801,7 @@
                 "description": {
                   "moniker": "validator2",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "validator2 details"
                 },
@@ -2813,7 +2828,7 @@
                 "bls_proof": "0f00cf9a27badeb7d97b0f5f9b3debe5eee19569c2a1b7ce54b159fe91f1ab6401037348e97cf59fffdf8a0c7942dad1f65112f6740380bd98d867e66eb73822"
               }
             ],
-            "memo": "validator2@testnet-validator2.mechain.tech:26656",
+            "memo": "validator2@devnet-validator2.mocachain.org:26656",
             "timeout_height": "0",
             "extension_options": [],
             "non_critical_extension_options": []
@@ -2840,7 +2855,7 @@
                 "description": {
                   "moniker": "validator3",
                   "identity": "",
-                  "website": "https://testnet-scan.mechain.tech",
+                  "website": "https://devnet-scan.mocachain.org",
                   "security_contact": "",
                   "details": "validator3 details"
                 },
@@ -2867,7 +2882,7 @@
                 "bls_proof": "02ba3d1b9c7e2339afab7f093599cbc41fc85817a32647eb864e4ad67d8bb33d27ea8fb0b4bbe65c4ff6cd83c19ec034fbf8f1388a6a018a20c1993e3ed51bf4"
               }
             ],
-            "memo": "validator3@testnet-validator3.mechain.tech:26656",
+            "memo": "validator3@devnet-validator3.mocachain.org:26656",
             "timeout_height": "0",
             "extension_options": [],
             "non_critical_extension_options": []
@@ -3111,7 +3126,13 @@
         "optimism_mirror_object_relayer_fee": "130000000000000",
         "optimism_mirror_object_ack_relayer_fee": "25000000000000",
         "optimism_mirror_group_relayer_fee": "130000000000000",
-        "optimism_mirror_group_ack_relayer_fee": "25000000000000"
+        "optimism_mirror_group_ack_relayer_fee": "25000000000000",
+        "base_mirror_bucket_relayer_fee": "130000000000000",
+        "base_mirror_bucket_ack_relayer_fee": "25000000000000",
+        "base_mirror_object_relayer_fee": "130000000000000",
+        "base_mirror_object_ack_relayer_fee": "25000000000000",
+        "base_mirror_group_relayer_fee": "130000000000000",
+        "base_mirror_group_ack_relayer_fee": "25000000000000"
       }
     },
     "transfer": {

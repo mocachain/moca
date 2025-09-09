@@ -170,7 +170,7 @@ func (s *VirtualGroupTestSuite) TestBasic() {
 	msgDeposit := virtualgroupmoduletypes.MsgDeposit{
 		StorageProvider:      primarySP.FundingKey.GetAddr().String(),
 		GlobalVirtualGroupId: newGVG.Id,
-		Deposit:              sdk.NewCoin(s.Config.Denom, types.NewIntFromInt64WithDecimal(1, types.DecimalZKME)),
+		Deposit:              sdk.NewCoin(s.Config.Denom, types.NewIntFromInt64WithDecimal(1, types.DecimalMOCA)),
 	}
 	s.SendTxBlock(primarySP.FundingKey, &msgDeposit)
 
@@ -185,7 +185,7 @@ func (s *VirtualGroupTestSuite) TestBasic() {
 
 	msgWithdraw := virtualgroupmoduletypes.MsgWithdraw{
 		StorageProvider:      primarySP.FundingKey.GetAddr().String(),
-		Withdraw:             sdk.NewCoin(s.Config.Denom, types.NewIntFromInt64WithDecimal(1, types.DecimalZKME)),
+		Withdraw:             sdk.NewCoin(s.Config.Denom, types.NewIntFromInt64WithDecimal(1, types.DecimalMOCA)),
 		GlobalVirtualGroupId: newGVG.Id,
 	}
 	s.SendTxBlock(primarySP.FundingKey, &msgWithdraw)
@@ -224,7 +224,7 @@ func (s *VirtualGroupTestSuite) TestBasic() {
 		SecondarySpIds:  secondarySPIDs,
 		Deposit: sdk.Coin{
 			Denom:  s.Config.Denom,
-			Amount: types.NewIntFromInt64WithDecimal(1, types.DecimalZKME),
+			Amount: types.NewIntFromInt64WithDecimal(1, types.DecimalMOCA),
 		},
 	}
 	s.SendTxBlockWithExpectErrorString(&msgCreateGVG, primarySP.OperatorKey, virtualgroupmoduletypes.ErrInvalidSecondarySPCount.Error())
@@ -243,7 +243,7 @@ func (s *VirtualGroupTestSuite) TestBasic() {
 		SecondarySpIds:  secondarySPIDs,
 		Deposit: sdk.Coin{
 			Denom:  s.Config.Denom,
-			Amount: types.NewIntFromInt64WithDecimal(1, types.DecimalZKME),
+			Amount: types.NewIntFromInt64WithDecimal(1, types.DecimalMOCA),
 		},
 	}
 	s.SendTxBlockWithExpectErrorString(&msgCreateGVG, primarySP.OperatorKey, virtualgroupmoduletypes.ErrDuplicateSecondarySP.Error())
@@ -264,7 +264,7 @@ func (s *VirtualGroupTestSuite) TestBasic() {
 		SecondarySpIds:  secondarySPIDs,
 		Deposit: sdk.Coin{
 			Denom:  s.Config.Denom,
-			Amount: types.NewIntFromInt64WithDecimal(1, types.DecimalZKME),
+			Amount: types.NewIntFromInt64WithDecimal(1, types.DecimalMOCA),
 		},
 	}
 	s.SendTxBlockWithExpectErrorString(&msgCreateGVG, primarySP.OperatorKey, virtualgroupmoduletypes.ErrDuplicateGVG.Error())
@@ -673,8 +673,8 @@ func (s *VirtualGroupTestSuite) TestUpdateVirtualGroupParams() {
 		Params:    updatedParams,
 	}
 
-	proposal, err := v1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
-		s.Validator.GetAddr().String(), "", "update virtual group params", "Test update virtual group params")
+	proposal, err := v1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
+		s.Validator.GetAddr().String(), "", "update virtual group params", "Test update virtual group params", false)
 	s.Require().NoError(err)
 	txBroadCastResp, err := s.SendTxBlockWithoutCheck(proposal, s.Validator)
 	s.Require().NoError(err)
@@ -703,7 +703,7 @@ func (s *VirtualGroupTestSuite) TestUpdateVirtualGroupParams() {
 	txOpt := &types.TxOption{
 		Mode:      &mode,
 		Memo:      "",
-		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
+		FeeAmount: sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
 	}
 	voteBroadCastResp, err := s.SendTxBlockWithoutCheckWithTxOpt(v1.NewMsgVote(s.Validator.GetAddr(), uint64(proposalID), v1.OptionYes, ""),
 		s.Validator, txOpt)
@@ -1094,8 +1094,8 @@ func (s *VirtualGroupTestSuite) TestSPForcedExit() {
 	govAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 	msgForcedExit := virtualgroupmoduletypes.NewMsgStorageProviderForcedExit(govAddr, spx.OperatorKey.GetAddr())
 
-	proposal, err := v1.NewMsgSubmitProposal([]sdk.Msg{msgForcedExit}, sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
-		s.Validator.GetAddr().String(), "", "put SP to force exit status", "put SP to force exit status")
+	proposal, err := v1.NewMsgSubmitProposal([]sdk.Msg{msgForcedExit}, sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
+		s.Validator.GetAddr().String(), "", "put SP to force exit status", "put SP to force exit status", false)
 	s.Require().NoError(err)
 	txBroadCastResp, err := s.SendTxBlockWithoutCheck(proposal, s.Validator)
 	s.Require().NoError(err)
@@ -1212,8 +1212,8 @@ func (s *VirtualGroupTestSuite) updateParams(params virtualgroupmoduletypes.Para
 		Authority: govAddr,
 		Params:    params,
 	}
-	proposal, err := v1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(1000000000000000000))),
-		s.Validator.GetAddr().String(), "", "update virtual group params", "update virtual group params")
+	proposal, err := v1.NewMsgSubmitProposal([]sdk.Msg{msgUpdateParams}, sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(1000000000000000000))),
+		s.Validator.GetAddr().String(), "", "update virtual group params", "update virtual group params", false)
 	s.Require().NoError(err)
 	txBroadCastResp, err := s.SendTxBlockWithoutCheck(proposal, s.Validator)
 	s.Require().NoError(err)
@@ -1259,7 +1259,7 @@ func (s *VirtualGroupTestSuite) TestSPExit_SwapInfo_Expired() {
 	s.Require().NoError(err)
 	updatedParams := queryParamsResp.Params
 
-	swapInValidityPeriod := sdk.NewInt(10)
+	swapInValidityPeriod := sdkmath.NewInt(10)
 	updatedParams.SwapInValidityPeriod = &swapInValidityPeriod // the swapInInfo will expire in 10 seconds
 	s.updateParams(updatedParams)
 
@@ -1375,7 +1375,7 @@ func (s *VirtualGroupTestSuite) TestSPExit_SwapInfo_Expired() {
 func filterSettleGVGEventFromTx(txRes *sdk.TxResponse) virtualgroupmoduletypes.EventSettleGlobalVirtualGroup {
 	idStr, amountStr := "", ""
 	for _, event := range txRes.Logs[0].Events {
-		if event.Type == "mechain.virtualgroup.EventSettleGlobalVirtualGroup" {
+		if event.Type == "moca.virtualgroup.EventSettleGlobalVirtualGroup" {
 			for _, attr := range event.Attributes {
 				if attr.Key == "id" {
 					idStr = strings.Trim(attr.Value, `"`)
@@ -1396,7 +1396,7 @@ func filterSettleGVGEventFromTx(txRes *sdk.TxResponse) virtualgroupmoduletypes.E
 func filterSettleGVGFamilyEventFromTx(txRes *sdk.TxResponse) virtualgroupmoduletypes.EventSettleGlobalVirtualGroupFamily {
 	idStr, spIDStr, amountStr := "", "", ""
 	for _, event := range txRes.Logs[0].Events {
-		if event.Type == "mechain.virtualgroup.EventSettleGlobalVirtualGroupFamily" {
+		if event.Type == "moca.virtualgroup.EventSettleGlobalVirtualGroupFamily" {
 			for _, attr := range event.Attributes {
 				switch attr.Key {
 				case "id":

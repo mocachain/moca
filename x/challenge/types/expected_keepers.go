@@ -1,9 +1,10 @@
 package types
 
 import (
+	"context"
+
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	sp "github.com/evmos/evmos/v12/x/sp/types"
@@ -19,8 +20,8 @@ type SpKeeper interface {
 }
 
 type StakingKeeper interface {
-	GetLastValidators(ctx sdk.Context) (validators []staking.Validator)
-	GetHistoricalInfo(ctx sdk.Context, height int64) (staking.HistoricalInfo, bool)
+	GetLastValidators(ctx context.Context) (validators []staking.Validator, err error)
+	GetHistoricalInfo(ctx context.Context, height int64) (staking.HistoricalInfo, error)
 }
 
 type StorageKeeper interface {
@@ -40,10 +41,10 @@ type PaymentKeeper interface {
 
 // AccountKeeper defines the expected account keeper used for simulations (noalias)
 type AccountKeeper interface {
-	GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI
+	GetAccount(ctx context.Context, addr sdk.AccAddress) sdk.AccountI
 }
 
 // BankKeeper defines the expected interface needed to retrieve account balances.
 type BankKeeper interface {
-	SpendableCoins(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins
+	SpendableCoins(ctx context.Context, addr sdk.AccAddress) sdk.Coins
 }

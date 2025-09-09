@@ -1404,7 +1404,7 @@ func (s *StorageTestSuite) TestExceedEachBlockLimitGC() {
 	// Create 250 Buckets
 	bucketNumber := 250
 
-	feeAmt := sdk.NewCoins(sdk.NewCoin("amoca", sdk.NewInt(int64(15000000000000))))
+	feeAmt := sdk.NewCoins(sdk.NewCoin("amoca", sdkmath.NewInt(int64(15000000000000))))
 	txOpt := sdktype.TxOption{
 		NoSimulate: true,
 		GasLimit:   3000,
@@ -1781,9 +1781,9 @@ func (s *StorageTestSuite) UpdateParams(newParams *storagetypes.Params) {
 
 	msgProposal, err := govtypesv1.NewMsgSubmitProposal(
 		[]sdk.Msg{msgUpdateParams},
-		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, sdktype.NewIntFromInt64WithDecimal(100, sdktype.DecimalZKME))},
+		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, sdktype.NewIntFromInt64WithDecimal(100, sdktype.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test",
+		"test", "test", "test", false,
 	)
 	s.Require().NoError(err)
 

@@ -104,7 +104,7 @@ func TestTryResumeStreamRecord_ResumeInMultipleBlocks(t *testing.T) {
 	gvgAddress := []sdk.AccAddress{sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress()}
 
 	gvg1 := gvgAddress[0]
-	gvg1Rate := sdk.NewInt(50)
+	gvg1Rate := sdkmath.NewInt(50)
 	outFlow1 := &types.OutFlow{
 		ToAddress: gvg1.String(),
 		Rate:      gvg1Rate,
@@ -113,7 +113,7 @@ func TestTryResumeStreamRecord_ResumeInMultipleBlocks(t *testing.T) {
 	keeper.SetOutFlow(ctx, user, outFlow1)
 
 	gvg2 := gvgAddress[1]
-	gvg2Rate := sdk.NewInt(100)
+	gvg2Rate := sdkmath.NewInt(100)
 	outFlow2 := &types.OutFlow{
 		ToAddress: gvg2.String(),
 		Rate:      gvg2Rate,
@@ -122,7 +122,7 @@ func TestTryResumeStreamRecord_ResumeInMultipleBlocks(t *testing.T) {
 	keeper.SetOutFlow(ctx, user, outFlow2)
 
 	gvg3 := gvgAddress[2]
-	gvg3Rate := sdk.NewInt(150)
+	gvg3Rate := sdkmath.NewInt(150)
 	outFlow3 := &types.OutFlow{
 		ToAddress: gvg3.String(),
 		Rate:      gvg3Rate,
@@ -207,7 +207,7 @@ func TestTryResumeStreamRecord_ResumeInMultipleBlocks_BalanceNotEnoughFinally(t 
 	gvgAddress := []sdk.AccAddress{sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress()}
 
 	gvg1 := gvgAddress[0]
-	gvg1Rate := sdk.NewInt(50)
+	gvg1Rate := sdkmath.NewInt(50)
 	outFlow1 := &types.OutFlow{
 		ToAddress: gvg1.String(),
 		Rate:      gvg1Rate,
@@ -216,7 +216,7 @@ func TestTryResumeStreamRecord_ResumeInMultipleBlocks_BalanceNotEnoughFinally(t 
 	keeper.SetOutFlow(ctx, user, outFlow1)
 
 	gvg2 := gvgAddress[1]
-	gvg2Rate := sdk.NewInt(100)
+	gvg2Rate := sdkmath.NewInt(100)
 	outFlow2 := &types.OutFlow{
 		ToAddress: gvg2.String(),
 		Rate:      gvg2Rate,
@@ -225,7 +225,7 @@ func TestTryResumeStreamRecord_ResumeInMultipleBlocks_BalanceNotEnoughFinally(t 
 	keeper.SetOutFlow(ctx, user, outFlow2)
 
 	gvg3 := gvgAddress[2]
-	gvg3Rate := sdk.NewInt(150)
+	gvg3Rate := sdkmath.NewInt(150)
 	outFlow3 := &types.OutFlow{
 		ToAddress: gvg3.String(),
 		Rate:      gvg3Rate,
@@ -331,7 +331,7 @@ func TestAutoSettle_AccountIsInResuming(t *testing.T) {
 	gvgAddress := []sdk.AccAddress{sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress()}
 
 	gvg1 := gvgAddress[0]
-	gvg1Rate := sdk.NewInt(50)
+	gvg1Rate := sdkmath.NewInt(50)
 	outFlow1 := &types.OutFlow{
 		ToAddress: gvg1.String(),
 		Rate:      gvg1Rate,
@@ -340,7 +340,7 @@ func TestAutoSettle_AccountIsInResuming(t *testing.T) {
 	keeper.SetOutFlow(ctx, user, outFlow1)
 
 	gvg2 := gvgAddress[1]
-	gvg2Rate := sdk.NewInt(100)
+	gvg2Rate := sdkmath.NewInt(100)
 	outFlow2 := &types.OutFlow{
 		ToAddress: gvg2.String(),
 		Rate:      gvg2Rate,
@@ -349,7 +349,7 @@ func TestAutoSettle_AccountIsInResuming(t *testing.T) {
 	keeper.SetOutFlow(ctx, user, outFlow2)
 
 	gvg3 := gvgAddress[2]
-	gvg3Rate := sdk.NewInt(150)
+	gvg3Rate := sdkmath.NewInt(150)
 	outFlow3 := &types.OutFlow{
 		ToAddress: gvg3.String(),
 		Rate:      gvg3Rate,
@@ -622,7 +622,7 @@ func TestAutoSettle_SettleInMultipleBlocks_AutoResumeExists(t *testing.T) {
 		LockBalance:       sdkmath.ZeroInt(),
 		Account:           user.String(),
 		Status:            types.STREAM_ACCOUNT_STATUS_FROZEN,
-		NetflowRate:       sdk.ZeroInt(),
+		NetflowRate:       sdkmath.ZeroInt(),
 		FrozenNetflowRate: rate.Neg(),
 		OutFlowCount:      3,
 	}
@@ -739,17 +739,17 @@ func TestAutoSettle_SettleInMultipleBlocks_AutoResumeExists(t *testing.T) {
 
 	gvg1StreamRecord, _ = keeper.GetStreamRecord(ctx, gvg1)
 	require.True(t, gvg1StreamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE)
-	require.Equal(t, gvg1StreamRecord.NetflowRate, sdk.NewInt(50))
+	require.Equal(t, gvg1StreamRecord.NetflowRate, sdkmath.NewInt(50))
 	require.Equal(t, gvg1StreamRecord.FrozenNetflowRate, sdkmath.ZeroInt())
 
 	gvg2StreamRecord, _ = keeper.GetStreamRecord(ctx, gvg2)
 	require.True(t, gvg2StreamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE)
-	require.Equal(t, gvg2StreamRecord.NetflowRate, sdk.NewInt(100))
+	require.Equal(t, gvg2StreamRecord.NetflowRate, sdkmath.NewInt(100))
 	require.Equal(t, gvg2StreamRecord.FrozenNetflowRate, sdkmath.ZeroInt())
 
 	gvg3StreamRecord, _ = keeper.GetStreamRecord(ctx, gvg3)
 	require.True(t, gvg3StreamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE)
-	require.Equal(t, gvg3StreamRecord.NetflowRate, sdk.NewInt(150))
+	require.Equal(t, gvg3StreamRecord.NetflowRate, sdkmath.NewInt(150))
 	require.Equal(t, gvg3StreamRecord.FrozenNetflowRate, sdkmath.ZeroInt())
 }
 

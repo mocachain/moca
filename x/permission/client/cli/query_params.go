@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,7 +14,7 @@ import (
 	"github.com/evmos/evmos/v12/x/permission/types"
 )
 
-func CmdQueryParams() *cobra.Command {
+func CmdEvmQueryParams() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "params",
 		Short: "shows the parameters of the module",
@@ -33,6 +35,30 @@ func CmdQueryParams() *cobra.Command {
 					MaximumGroupNum:                       result.MaximumGroupNum,
 					MaximumRemoveExpiredPoliciesIteration: result.MaximumRemoveExpiredPoliciesIteration,
 				}}
+
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+
+	return cmd
+}
+
+func CmdQueryParams() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "params",
+		Short: "shows the parameters of the module",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx := client.GetClientContextFromCmd(cmd)
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			res, err := queryClient.Params(context.Background(), &types.QueryParamsRequest{})
+			if err != nil {
+				return err
+			}
 
 			return clientCtx.PrintProto(res)
 		},

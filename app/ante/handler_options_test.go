@@ -5,7 +5,6 @@ import (
 	"github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/types"
 
-	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/app/ante"
 )
 
@@ -156,7 +155,7 @@ func (suite *AnteTestSuite) TestValidateHandlerOptions() {
 				FeegrantKeeper:         suite.app.FeeGrantKeeper,
 				IBCKeeper:              suite.app.IBCKeeper,
 				FeeMarketKeeper:        suite.app.FeeMarketKeeper,
-				SignModeHandler:        encoding.MakeConfig(app.ModuleBasics).TxConfig.SignModeHandler(),
+				SignModeHandler:        encoding.MakeConfig().TxConfig.SignModeHandler(),
 				SigGasConsumer:         ante.SigVerificationGasConsumer,
 				MaxTxGasWanted:         40000000,
 				TxFeeChecker:           ethante.NewDynamicFeeChecker(suite.app.EvmKeeper),

@@ -22,7 +22,7 @@ func NewObjectApp(keeper types.StorageKeeper) *ObjectApp {
 }
 
 func (app *ObjectApp) ExecuteAckPackage(ctx sdk.Context, appCtx *sdk.CrossChainAppContext, payload []byte) sdk.ExecuteResult {
-	pack, err := types.DeserializeCrossChainPackage(payload, types.ObjectChannelID, sdk.AckCrossChainPackageType)
+	pack, err := types.DeserializeCrossChainPackage(payload, types.ObjectChannelId, sdk.AckCrossChainPackageType)
 	if err != nil {
 		app.storageKeeper.Logger(ctx).Error("deserialize object cross chain package error", "payload", hex.EncodeToString(payload), "error", err.Error())
 		panic("deserialize object cross chain package error")
@@ -54,7 +54,7 @@ func (app *ObjectApp) ExecuteAckPackage(ctx sdk.Context, appCtx *sdk.CrossChainA
 }
 
 func (app *ObjectApp) ExecuteFailAckPackage(ctx sdk.Context, appCtx *sdk.CrossChainAppContext, payload []byte) sdk.ExecuteResult {
-	pack, err := types.DeserializeCrossChainPackage(payload, types.ObjectChannelID, sdk.FailAckCrossChainPackageType)
+	pack, err := types.DeserializeCrossChainPackage(payload, types.ObjectChannelId, sdk.FailAckCrossChainPackageType)
 	if err != nil {
 		app.storageKeeper.Logger(ctx).Error("deserialize object cross chain package error", "payload", hex.EncodeToString(payload), "error", err.Error())
 		panic("deserialize object cross chain package error")
@@ -85,7 +85,7 @@ func (app *ObjectApp) ExecuteFailAckPackage(ctx sdk.Context, appCtx *sdk.CrossCh
 }
 
 func (app *ObjectApp) ExecuteSynPackage(ctx sdk.Context, appCtx *sdk.CrossChainAppContext, payload []byte) sdk.ExecuteResult {
-	pack, err := types.DeserializeCrossChainPackage(payload, types.ObjectChannelID, sdk.SynCrossChainPackageType)
+	pack, err := types.DeserializeCrossChainPackage(payload, types.ObjectChannelId, sdk.SynCrossChainPackageType)
 	if err != nil {
 		app.storageKeeper.Logger(ctx).Error("deserialize object cross chain package error", "payload", hex.EncodeToString(payload), "error", err.Error())
 		panic("deserialize object cross chain package error")
@@ -159,9 +159,9 @@ func (app *ObjectApp) handleMirrorObjectAckPackage(ctx sdk.Context, appCtx *sdk.
 func (app *ObjectApp) handleMirrorObjectFailAckPackage(ctx sdk.Context, appCtx *sdk.CrossChainAppContext, mirrorObjectPackage *types.MirrorObjectSynPackage) sdk.ExecuteResult {
 	app.storageKeeper.Logger(ctx).Error("received mirror object fail ack package ")
 
-	objectInfo, found := app.storageKeeper.GetObjectInfoById(ctx, math.NewUintFromBigInt(mirrorObjectPackage.ID))
+	objectInfo, found := app.storageKeeper.GetObjectInfoById(ctx, math.NewUintFromBigInt(mirrorObjectPackage.Id))
 	if !found {
-		app.storageKeeper.Logger(ctx).Error("object does not exist", "object id", mirrorObjectPackage.ID.String())
+		app.storageKeeper.Logger(ctx).Error("object does not exist", "object id", mirrorObjectPackage.Id.String())
 		return sdk.ExecuteResult{
 			Err: types.ErrNoSuchObject,
 		}
@@ -201,9 +201,9 @@ func (app *ObjectApp) handleDeleteObjectSynPackage(ctx sdk.Context, appCtx *sdk.
 		}
 	}
 
-	app.storageKeeper.Logger(ctx).Info("process delete object syn package", "object id", deleteObjectPackage.ID.String())
+	app.storageKeeper.Logger(ctx).Info("process delete object syn package", "object id", deleteObjectPackage.Id.String())
 
-	objectInfo, found := app.storageKeeper.GetObjectInfoById(ctx, math.NewUintFromBigInt(deleteObjectPackage.ID))
+	objectInfo, found := app.storageKeeper.GetObjectInfoById(ctx, math.NewUintFromBigInt(deleteObjectPackage.Id))
 	if !found {
 		return sdk.ExecuteResult{
 			Payload: types.DeleteObjectAckPackage{
@@ -242,7 +242,7 @@ func (app *ObjectApp) handleDeleteObjectSynPackage(ctx sdk.Context, appCtx *sdk.
 	return sdk.ExecuteResult{
 		Payload: types.DeleteObjectAckPackage{
 			Status:    types.StatusSuccess,
-			ID:        objectInfo.Id.BigInt(),
+			Id:        objectInfo.Id.BigInt(),
 			ExtraData: deleteObjectPackage.ExtraData,
 		}.MustSerialize(),
 	}

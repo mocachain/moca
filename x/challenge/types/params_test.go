@@ -3,7 +3,7 @@ package types_test
 import (
 	"testing"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 	"github.com/stretchr/testify/require"
 
 	"github.com/evmos/evmos/v12/x/challenge/types"
@@ -16,43 +16,43 @@ func Test_validateParams(t *testing.T) {
 	require.NoError(t, params.Validate())
 
 	// validate slash amount min
-	params.SlashAmountMin = sdk.NewInt(-1)
+	params.SlashAmountMin = math.NewInt(-1)
 	require.Error(t, params.Validate())
 
 	// validate slash amount max
-	params.SlashAmountMin = sdk.NewInt(1)
-	params.SlashAmountMax = sdk.NewInt(-1)
+	params.SlashAmountMin = math.NewInt(1)
+	params.SlashAmountMax = math.NewInt(-1)
 	require.Error(t, params.Validate())
 
-	params.SlashAmountMin = sdk.NewInt(10)
-	params.SlashAmountMax = sdk.NewInt(1)
+	params.SlashAmountMin = math.NewInt(10)
+	params.SlashAmountMax = math.NewInt(1)
 	require.Error(t, params.Validate())
 
-	params.SlashAmountMin = sdk.NewInt(1)
-	params.SlashAmountMax = sdk.NewInt(10)
+	params.SlashAmountMin = math.NewInt(1)
+	params.SlashAmountMax = math.NewInt(10)
 	require.NoError(t, params.Validate())
 
 	// validate reward validator ratio
-	params.RewardValidatorRatio = sdk.NewDec(-1)
+	params.RewardValidatorRatio = math.LegacyNewDec(-1)
 	require.Error(t, params.Validate())
 
 	// validate reward submitter ratio
-	params.RewardValidatorRatio = sdk.NewDecWithPrec(5, 1)
-	params.RewardSubmitterRatio = sdk.NewDec(-1)
+	params.RewardValidatorRatio = math.LegacyNewDecWithPrec(5, 1)
+	params.RewardSubmitterRatio = math.LegacyNewDec(-1)
 	require.Error(t, params.Validate())
 
-	params.RewardValidatorRatio = sdk.NewDecWithPrec(8, 1)
-	params.RewardSubmitterRatio = sdk.NewDecWithPrec(7, 1)
+	params.RewardValidatorRatio = math.LegacyNewDecWithPrec(8, 1)
+	params.RewardSubmitterRatio = math.LegacyNewDecWithPrec(7, 1)
 	require.Error(t, params.Validate())
 
 	// validate submitter reward threshold
-	params.RewardValidatorRatio = sdk.NewDecWithPrec(5, 1)
-	params.RewardSubmitterRatio = sdk.NewDecWithPrec(4, 1)
-	params.RewardSubmitterThreshold = sdk.NewInt(-1)
+	params.RewardValidatorRatio = math.LegacyNewDecWithPrec(5, 1)
+	params.RewardSubmitterRatio = math.LegacyNewDecWithPrec(4, 1)
+	params.RewardSubmitterThreshold = math.NewInt(-1)
 	require.Error(t, params.Validate())
 
 	// validate heartbeat interval
-	params.RewardSubmitterThreshold = sdk.NewInt(100)
+	params.RewardSubmitterThreshold = math.NewInt(100)
 	params.HeartbeatInterval = 0
 	require.Error(t, params.Validate())
 

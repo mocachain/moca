@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
@@ -23,8 +22,8 @@ var (
 	KeyWithdrawTimeLockThreshold = []byte("WithdrawTimeLockThreshold")
 	KeyWithdrawTimeLockDuration  = []byte("WithdrawTimeLockDuration")
 
-	DefaultReserveTime      uint64  = 180 * 24 * 60 * 60       // 180 days
-	DefaultValidatorTaxRate sdk.Dec = sdk.NewDecWithPrec(1, 2) // 1%
+	DefaultReserveTime      uint64         = 180 * 24 * 60 * 60              // 180 days
+	DefaultValidatorTaxRate math.LegacyDec = math.LegacyNewDecWithPrec(1, 2) // 1%
 
 	DefaultForcedSettleTime          uint64 = 24 * 60 * 60 // 1 day
 	DefaultPaymentAccountCountLimit  uint64 = 200
@@ -43,7 +42,7 @@ func ParamKeyTable() paramtypes.KeyTable {
 // NewParams creates a new Params instance
 func NewParams(
 	reserveTime uint64,
-	validatorTaxRate sdk.Dec,
+	validatorTaxRate math.LegacyDec,
 	forcedSettleTime uint64,
 	paymentAccountCountLimit uint64,
 	maxAutoSettleFlowCount uint64,
@@ -224,12 +223,12 @@ func validateFeeDenom(v interface{}) error {
 
 // validateValidatorTaxRate validates the ValidatorTaxRate param
 func validateValidatorTaxRate(v interface{}) error {
-	validatorTaxRate, ok := v.(sdk.Dec)
+	validatorTaxRate, ok := v.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
 
-	if validatorTaxRate.IsNil() || validatorTaxRate.IsNegative() || validatorTaxRate.GT(sdk.OneDec()) {
+	if validatorTaxRate.IsNil() || validatorTaxRate.IsNegative() || validatorTaxRate.GT(math.LegacyOneDec()) {
 		return fmt.Errorf("validator tax ratio should be between 0 and 1, is %s", validatorTaxRate)
 	}
 

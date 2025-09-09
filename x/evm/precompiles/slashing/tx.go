@@ -32,9 +32,6 @@ func (c *Contract) Unjail(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 	msg := &slashingtypes.MsgUnjail{
 		ValidatorAddr: sdk.ValAddress(contract.Caller().Bytes()).String(),
 	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
 
 	server := slashingkeeper.NewMsgServerImpl(c.slashingkeeper)
 

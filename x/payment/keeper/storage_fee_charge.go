@@ -76,7 +76,7 @@ func (k Keeper) ApplyUserFlowsList(ctx sdk.Context, userFlowsList []types.UserFl
 
 func (k Keeper) applyActiveUserFlows(ctx sdk.Context, userFlows types.UserFlows, from sdk.AccAddress, streamRecord *types.StreamRecord) error {
 	rateChanges := make([]types.StreamRecordChange, 0, len(userFlows.Flows))
-	totalRate := sdk.ZeroInt()
+	totalRate := sdkmath.ZeroInt()
 	for _, flowChange := range userFlows.Flows {
 		rateChanges = append(rateChanges, *types.NewDefaultStreamRecordChangeWithAddr(sdk.MustAccAddressFromHex(flowChange.ToAddress)).WithRateChange(flowChange.Rate))
 		totalRate = totalRate.Add(flowChange.Rate)
@@ -124,7 +124,7 @@ func (k Keeper) applyFrozenUserFlows(ctx sdk.Context, userFlows types.UserFlows,
 	var activeOutFlows, frozenOutFlows []types.OutFlow
 	var activeRateChanges []types.StreamRecordChange
 	// var frozenRateChanges []types.StreamRecordChange
-	totalActiveRate, totalFrozenRate := sdk.ZeroInt(), sdk.ZeroInt()
+	totalActiveRate, totalFrozenRate := sdkmath.ZeroInt(), sdkmath.ZeroInt()
 	for _, flowChange := range userFlows.Flows {
 		outFlow := k.GetOutFlow(ctx, sdk.MustAccAddressFromHex(streamRecord.Account), types.OUT_FLOW_STATUS_ACTIVE, sdk.MustAccAddressFromHex(flowChange.ToAddress))
 		if outFlow != nil {

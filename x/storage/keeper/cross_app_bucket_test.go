@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/storage/keeper"
@@ -19,7 +20,7 @@ func (s *TestSuite) TestSynDeleteBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	deleteSynPackage := storagetypes.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -44,7 +45,7 @@ func (s *TestSuite) TestSynDeleteBucket() {
 	// case 3: delete bucket success
 	storageKeeper.EXPECT().GetBucketInfoById(gomock.Any(), gomock.Any()).Return(&storagetypes.BucketInfo{
 		BucketName: "bucket",
-		Id:         sdk.NewUint(10),
+		Id:         math.NewUint(10),
 	}, true)
 	storageKeeper.EXPECT().DeleteBucket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	res = app.ExecuteSynPackage(s.ctx, &sdk.CrossChainAppContext{}, serializedSynPackage)
@@ -59,7 +60,7 @@ func (s *TestSuite) TestSynCreateBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	createSynPackage := storagetypes.CreateBucketSynPackage{
 		Creator:          sample.RandAccAddress(),
-		BucketName:       "bucketName",
+		BucketName:       "bucketname",
 		ExtraData:        []byte("extra data"),
 		PaymentAddress:   sample.RandAccAddress(),
 		PrimarySpAddress: sample.RandAccAddress(),
@@ -78,7 +79,7 @@ func (s *TestSuite) TestSynCreateBucket() {
 	serializedSynPackage = createSynPackage.MustSerialize()
 	serializedSynPackage = append([]byte{storagetypes.OperationCreateBucket}, serializedSynPackage...)
 
-	storageKeeper.EXPECT().CreateBucket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(sdk.NewUint(1), fmt.Errorf("create error"))
+	storageKeeper.EXPECT().CreateBucket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(math.NewUint(1), fmt.Errorf("create error"))
 	res = app.ExecuteSynPackage(s.ctx, &sdk.CrossChainAppContext{}, serializedSynPackage)
 	s.Require().ErrorContains(res.Err, "create error")
 
@@ -87,7 +88,7 @@ func (s *TestSuite) TestSynCreateBucket() {
 	serializedSynPackage = createSynPackage.MustSerialize()
 	serializedSynPackage = append([]byte{storagetypes.OperationCreateBucket}, serializedSynPackage...)
 
-	storageKeeper.EXPECT().CreateBucket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(sdk.NewUint(1), nil)
+	storageKeeper.EXPECT().CreateBucket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(math.NewUint(1), nil)
 	res = app.ExecuteSynPackage(s.ctx, &sdk.CrossChainAppContext{}, serializedSynPackage)
 	s.Require().NoError(res.Err)
 }
@@ -153,7 +154,7 @@ func (s *TestSuite) TestAckCreateBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	ackPackage := storagetypes.CreateBucketAckPackage{
 		Status:    storagetypes.StatusSuccess,
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		Creator:   sample.RandAccAddress(),
 		ExtraData: []byte("extra data"),
 	}
@@ -176,7 +177,7 @@ func (s *TestSuite) TestAckDeleteBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	ackPackage := storagetypes.DeleteBucketAckPackage{
 		Status:    storagetypes.StatusSuccess,
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -252,7 +253,7 @@ func (s *TestSuite) TestFailAckDeleteBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	deleteSynPackage := storagetypes.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 

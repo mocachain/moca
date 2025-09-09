@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"time"
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/testutil"
@@ -23,7 +24,10 @@ func (suite *KeeperTestSuite) DoSetupTest() {
 	header := testutil.NewHeader(
 		1, time.Now().UTC(), chainID, suite.consAddress, nil, nil,
 	)
-	suite.ctx = suite.app.BaseApp.NewContext(checkTx, header)
+	suite.ctx = suite.app.BaseApp.NewContext(checkTx).WithBlockHeader(header).WithChainID(chainID)
+
+	// for feemarket err: block gas meter is nil when setting block gas wanted
+	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewInfiniteGasMeter())
 
 	// setup query helpers
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())

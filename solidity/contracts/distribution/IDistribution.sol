@@ -12,7 +12,6 @@ struct DelegationDelegatorReward {
     DecCoin[] rewards;
 }
 
-
 /**
  * @dev Params defines the set of params for the distribution module.
  */
@@ -22,7 +21,6 @@ struct Params {
     uint256 bonusProposerReward;
     bool withdrawAddrEnabled;
 }
-
 
 /**
  * @dev QueryValidatorSlashesRequest is the request type for the
@@ -64,10 +62,20 @@ interface IDistribution {
     ) external returns (Coin[] memory amount);
 
     /**
+     * @dev withdrawDelegatorALlRewards defines a method to withdraw rewards of delegator
+     * from all staking validators.
+     */
+    function withdrawDelegatorAllRewards()
+        external
+        returns (Coin[] memory amount);
+
+    /**
      * @dev withdrawValidatorCommission defines a method to withdraw the
      * full commission to the validator address.
      */
-    function withdrawValidatorCommission() external returns (Coin[] memory amount);
+    function withdrawValidatorCommission()
+        external
+        returns (Coin[] memory amount);
 
     /**
      * @dev fundCommunityPool defines a method to allow an account to directly
@@ -82,7 +90,14 @@ interface IDistribution {
      */
     function validatorDistributionInfo(
         address validatorAddress
-    ) external view returns (address operatorAddress, DecCoin[] memory selfBondRewards, DecCoin[] memory commission);
+    )
+        external
+        view
+        returns (
+            address operatorAddress,
+            DecCoin[] memory selfBondRewards,
+            DecCoin[] memory commission
+        );
 
     /**
      * @dev validatorOutstandingRewards queries rewards of a validator address.
@@ -111,7 +126,13 @@ interface IDistribution {
      */
     function delegationTotalRewards(
         address delegatorAddress
-    ) external view returns (DelegationDelegatorReward[] memory rewards, DecCoin[] memory total);
+    )
+        external
+        view
+        returns (
+            DelegationDelegatorReward[] memory rewards,
+            DecCoin[] memory total
+        );
 
     /**
      * @dev communityPool queries the community pool coins.
@@ -131,7 +152,13 @@ interface IDistribution {
         uint64 startingHeight,
         uint64 endingHeight,
         PageRequest calldata pagination
-    ) external view returns (ValidatorSlashEvent[] memory validatorSlashEvents, PageResponse memory pageResponse);
+    )
+        external
+        view
+        returns (
+            ValidatorSlashEvent[] memory validatorSlashEvents,
+            PageResponse memory pageResponse
+        );
 
     /**
      * @dev delegatorValidators queries the validators of a delegator.
@@ -165,6 +192,14 @@ interface IDistribution {
     );
 
     /**
+     * @dev WithdrawDelegatorAllRewards defines an Event emitted when withdraw all rewards by delegator
+     */
+    event WithdrawDelegatorAllRewards(
+        address indexed delegatorAddress,
+        string amount
+    );
+
+    /**
      * @dev WithdrawValidatorCommission defines an Event emitted when withdraw commission by validator
      */
     event WithdrawValidatorCommission(
@@ -175,8 +210,5 @@ interface IDistribution {
     /**
      * @dev FundCommunityPool defines an Event emitted when a user fund community pool
      */
-    event FundCommunityPool(
-        address indexed depositor,
-        string amount
-    );
+    event FundCommunityPool(address indexed depositor, string amount);
 }

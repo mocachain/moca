@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/prefix"
+	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -47,9 +47,9 @@ func (k Keeper) ExistsSlash(ctx sdk.Context, spID uint32, objectID sdkmath.Uint)
 func getSlashKeyBytes(spID uint32, objectID sdkmath.Uint) []byte {
 	idBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(idBytes, spID)
-	allBytes := make([]byte, 0, len(idBytes)+len(objectID.Bytes()))
+	allBytes := make([]byte, 0, len(idBytes)+len(objectID.BigInt().Bytes()))
 	copy(allBytes, idBytes)
-	allBytes = append(allBytes, objectID.Bytes()...)
+	allBytes = append(allBytes, objectID.BigInt().Bytes()...)
 	return crypto.Keccak256(allBytes)
 }
 

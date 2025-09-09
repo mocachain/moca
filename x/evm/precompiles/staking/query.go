@@ -3,6 +3,8 @@ package staking
 import (
 	"bytes"
 	"encoding/base64"
+
+	"cosmossdk.io/math"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 
 	cometbfttypes "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -575,7 +577,7 @@ func OutputsDelegation(delegationResponse stakingtypes.DelegationResponse) Deleg
 			ValidatorAddress: common.HexToAddress(deletation.ValidatorAddress),
 			Shares: Dec{
 				Amount:    deletation.Shares.BigInt(),
-				Precision: sdk.Precision,
+				Precision: math.LegacyPrecision,
 			},
 		},
 		Balance: Coin{

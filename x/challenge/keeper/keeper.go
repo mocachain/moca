@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
@@ -86,8 +86,8 @@ func (k Keeper) isInturnAttestation(ctx sdk.Context, submitter sdk.AccAddress, v
 }
 
 func (k Keeper) getInturnSubmitter(ctx sdk.Context, interval uint64) ([]byte, *types.SubmitInterval, error) {
-	historicalInfo, ok := k.stakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
-	if !ok {
+	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
+	if err != nil {
 		return nil, nil, errors.Wrap(types.ErrInvalidVoteValidatorSet, "fail to get validators")
 	}
 	validators := historicalInfo.Valset

@@ -12,7 +12,7 @@ import (
 	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
 )
 
-func BeginBlocker(ctx sdk.Context, keeper k.Keeper) {
+func BeginBlocker(ctx sdk.Context, keeper k.Keeper) error {
 	blockHeight := uint64(ctx.BlockHeight())
 	// delete expired challenges at this height
 	keeper.RemoveChallengeUntil(ctx, blockHeight)
@@ -29,20 +29,21 @@ func BeginBlocker(ctx sdk.Context, keeper k.Keeper) {
 	if blockHeight > 0 && blockHeight%params.SpSlashCountingWindow == 0 {
 		keeper.ClearSpSlashAmount(ctx)
 	}
+	return nil
 }
 
-func EndBlocker(ctx sdk.Context, keeper k.Keeper) {
+func EndBlocker(ctx sdk.Context, keeper k.Keeper) error {
 	count := keeper.GetChallengeCountCurrentBlock(ctx)
 
 	params := keeper.GetParams(ctx)
 	needed := params.ChallengeCountPerBlock
 	if count >= needed {
-		return
+		return nil
 	}
 
 	objectCount := keeper.StorageKeeper.GetObjectInfoCount(ctx)
 	if objectCount.IsZero() {
-		return
+		return nil
 	}
 
 	expiredHeight := params.ChallengeKeepAlivePeriod + uint64(ctx.BlockHeight())
@@ -136,4 +137,5 @@ func EndBlocker(ctx sdk.Context, keeper k.Keeper) {
 	if err != nil {
 		ctx.Logger().Error("failed to emit challenge events", "err", err.Error())
 	}
+	return nil
 }

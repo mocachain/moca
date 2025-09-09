@@ -1,6 +1,7 @@
 package erc20
 
 import (
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -42,7 +43,7 @@ func (c *Contract) ConvertCoin(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 
 	coin := sdk.Coin{
 		Denom:  args.Coin.Denom,
-		Amount: sdk.NewIntFromBigInt(args.Coin.Amount),
+		Amount: math.NewIntFromBigInt(args.Coin.Amount),
 	}
 
 	msg := &erc20types.MsgConvertCoin{
@@ -100,7 +101,7 @@ func (c *Contract) ConvertERC20(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 
 	msg := &erc20types.MsgConvertERC20{
 		ContractAddress: args.ContractAddress.String(),
-		Amount:          sdk.NewIntFromBigInt(args.Amount),
+		Amount:          math.NewIntFromBigInt(args.Amount),
 		Receiver:        sdk.AccAddress(args.Receiver.Bytes()).String(),
 		Sender:          contract.Caller().String(),
 	}

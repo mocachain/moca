@@ -1,13 +1,13 @@
 package cosmos_test
 
 import (
+	sdkmath "cosmossdk.io/math"
 	"fmt"
-	"time"
 
 	"cosmossdk.io/math"
+	"cosmossdk.io/x/feegrant"
 	sdktestutil "github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	cosmosante "github.com/evmos/evmos/v12/app/ante/cosmos"
 	"github.com/evmos/evmos/v12/testutil"
 	testutiltx "github.com/evmos/evmos/v12/testutil/tx"
@@ -21,9 +21,9 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 		addr, priv = testutiltx.NewAccAddressAndKey()
 		// fee granter
 		fgAddr, _   = testutiltx.NewAccAddressAndKey()
-		initBalance = sdk.NewInt(1e18)
+		initBalance = sdkmath.NewInt(1e18)
 		lowGasPrice = math.NewInt(1)
-		zero        = sdk.ZeroInt()
+		zero        = sdkmath.ZeroInt()
 	)
 
 	// Testcase definitions
@@ -83,8 +83,8 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 		},
 		{
 			name:        "fail - insufficient funds and insufficient staking rewards",
-			balance:     sdk.NewInt(1e5),
-			rewards:     sdk.NewInt(1e5),
+			balance:     sdkmath.NewInt(1e5),
+			rewards:     sdkmath.NewInt(1e5),
 			gas:         10_000_000,
 			checkTx:     false,
 			simulate:    false,
@@ -93,13 +93,13 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 			postCheck: func() {
 				// the balance should not have changed
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, addr, utils.BaseDenom)
-				suite.Require().Equal(sdk.NewInt(2e5), balance.Amount, "expected balance to be unchanged") // user not delegate
+				suite.Require().Equal(sdkmath.NewInt(2e5), balance.Amount, "expected balance to be unchanged") // user not delegate
 
 				// the rewards should not have changed
 				rewards, err := testutil.GetTotalDelegationRewards(suite.ctx, suite.app.DistrKeeper, addr)
 				suite.Require().NoError(err, "failed to get total delegation rewards")
 				suite.Require().Equal(
-					sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, sdk.NewInt(0))),
+					sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, sdkmath.NewInt(0))),
 					rewards,
 					"expected rewards to be unchanged")
 			},
@@ -117,7 +117,7 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 			malleate: func() {
 				suite.ctx = suite.ctx.WithMinGasPrices(
 					sdk.NewDecCoins(
-						sdk.NewDecCoin(utils.BaseDenom, sdk.NewInt(10_000)),
+						sdk.NewDecCoin(utils.BaseDenom, sdkmath.NewInt(10_000)),
 					),
 				)
 			},
@@ -152,7 +152,7 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 			malleate: func() {
 				suite.ctx = suite.ctx.WithMinGasPrices(
 					sdk.NewDecCoins(
-						sdk.NewDecCoin(utils.BaseDenom, sdk.NewInt(100)),
+						sdk.NewDecCoin(utils.BaseDenom, sdkmath.NewInt(100)),
 					),
 				)
 			},
@@ -265,8 +265,6 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 			var err error
 			suite.ctx, err = testutil.PrepareAccountsForDelegationRewards(suite.T(), suite.ctx, suite.app, addr, tc.balance, tc.rewards)
 			suite.Require().NoError(err, "failed to prepare accounts for delegation rewards")
-			suite.ctx, err = testutil.Commit(suite.ctx, suite.app, time.Second*0, nil)
-			suite.Require().NoError(err)
 
 			// Create an arbitrary message for testing purposes
 			msg := sdktestutil.NewTestMsg(addr)
@@ -275,6 +273,7 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 			args := testutiltx.CosmosTxArgs{
 				TxCfg:      suite.clientCtx.TxConfig,
 				Priv:       priv,
+				ChainID:    suite.ctx.ChainID(),
 				Gas:        tc.gas,
 				GasPrice:   tc.gasPrice,
 				FeeGranter: tc.feeGranter,

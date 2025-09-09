@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	dbm "github.com/cometbft/cometbft-db"
+	dbm "github.com/cosmos/cosmos-db"
 
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -18,7 +18,6 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/indexer"
 	"github.com/evmos/evmos/v12/rpc/backend/mocks"
@@ -70,7 +69,9 @@ func (suite *BackendTestSuite) SetupTest() {
 	suite.signer = utiltx.NewSigner(priv)
 	suite.Require().NoError(err)
 
-	encodingConfig := encoding.MakeConfig(app.ModuleBasics)
+	encodingConfig := encoding.MakeConfig()
+	// Register EVM module interfaces to fix MsgEthereumTx parsing
+	evmtypes.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	clientCtx := client.Context{}.WithChainID(ChainID).
 		WithHeight(1).
 		WithTxConfig(encodingConfig.TxConfig).
@@ -87,8 +88,10 @@ func (suite *BackendTestSuite) SetupTest() {
 	suite.backend.queryClient.FeeMarket = mocks.NewFeeMarketQueryClient(suite.T())
 	suite.backend.ctx = rpctypes.ContextWithHeight(1)
 
-	// Add codec
-	encCfg := encoding.MakeConfig(app.ModuleBasics)
+	// Add codec with EVM types registered
+	encCfg := encoding.MakeConfig()
+	// Register EVM module interfaces to fix MsgEthereumTx parsing
+	evmtypes.RegisterInterfaces(encCfg.InterfaceRegistry)
 	suite.backend.clientCtx.Codec = encCfg.Codec
 }
 
@@ -165,7 +168,7 @@ func (suite *BackendTestSuite) buildFormattedBlock(
 
 func (suite *BackendTestSuite) generateTestKeyring(clientDir string) (keyring.Keyring, error) {
 	buf := bufio.NewReader(os.Stdin)
-	encCfg := encoding.MakeConfig(app.ModuleBasics)
+	encCfg := encoding.MakeConfig()
 	return keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, clientDir, buf, encCfg.Codec, []keyring.Option{keyring.ETHAlgoOption()}...)
 }
 

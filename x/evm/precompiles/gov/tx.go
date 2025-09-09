@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"cosmossdk.io/math"
 	"github.com/evmos/evmos/v12/utils"
 	bridgetypes "github.com/evmos/evmos/v12/x/bridge/types"
 	challengetypes "github.com/evmos/evmos/v12/x/challenge/types"
@@ -17,6 +18,7 @@ import (
 	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
 	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
 
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -36,8 +38,7 @@ import (
 	proposaltypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -85,7 +86,7 @@ func (c *Contract) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *
 		if deposit.Amount.Sign() > 0 {
 			amount = amount.Add(sdk.Coin{
 				Denom:  deposit.Denom,
-				Amount: sdk.NewIntFromBigInt(deposit.Amount),
+				Amount: math.NewIntFromBigInt(deposit.Amount),
 			})
 		}
 	}
@@ -94,10 +95,6 @@ func (c *Contract) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *
 	msg, err := govv1beta1.NewMsgSubmitProposal(content, amount, contract.Caller().Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("invalid message: %w", err)
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	msgServer := govkeeper.NewMsgServerImpl(&c.govKeeper)
@@ -191,18 +188,14 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 		if deposit.Amount.Sign() > 0 {
 			amount = amount.Add(sdk.Coin{
 				Denom:  deposit.Denom,
-				Amount: sdk.NewIntFromBigInt(deposit.Amount),
+				Amount: math.NewIntFromBigInt(deposit.Amount),
 			})
 		}
 	}
 
-	msg, err := govv1.NewMsgSubmitProposal(msgs, amount, sdk.AccAddress(contract.Caller().Bytes()).String(), args.Metadata, args.Title, args.Summary)
+	msg, err := govv1.NewMsgSubmitProposal(msgs, amount, sdk.AccAddress(contract.Caller().Bytes()).String(), args.Metadata, args.Title, args.Summary, args.Expedited)
 	if err != nil {
 		return nil, fmt.Errorf("invalid message: %w", err)
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := govkeeper.NewMsgServerImpl(&c.govKeeper)
@@ -245,9 +238,6 @@ func (c *Contract) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 		Voter:      sdk.AccAddress(contract.Caller().Bytes()).String(),
 		Option:     govv1.VoteOption(args.Option),
 		Metadata:   args.Metadata,
-	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := govkeeper.NewMsgServerImpl(&c.govKeeper)
@@ -300,9 +290,6 @@ func (c *Contract) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		Options:    options,
 		Metadata:   args.Metadata,
 	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
 
 	server := govkeeper.NewMsgServerImpl(&c.govKeeper)
 	_, err = server.VoteWeighted(ctx, msg)
@@ -342,16 +329,13 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	var amount sdk.Coins
 	amount = amount.Add(sdk.Coin{
 		Denom:  utils.BaseDenom,
-		Amount: sdk.NewIntFromBigInt(args.Amount),
+		Amount: math.NewIntFromBigInt(args.Amount),
 	})
 
 	msg := &govv1.MsgDeposit{
 		ProposalId: args.ProposalId,
 		Depositor:  sdk.AccAddress(contract.Caller().Bytes()).String(),
 		Amount:     amount,
-	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
 	}
 
 	server := govkeeper.NewMsgServerImpl(&c.govKeeper)

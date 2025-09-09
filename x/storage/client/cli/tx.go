@@ -135,7 +135,7 @@ func CmdCreateBucket() *cobra.Command {
 				return err
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -230,7 +230,7 @@ func CmdDeleteBucket() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -298,7 +298,7 @@ func CmdUpdateBucketInfo() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -360,7 +360,7 @@ func CmdCancelCreateObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -469,7 +469,7 @@ func CmdCreateObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -573,7 +573,7 @@ func CmdCopyObject() *cobra.Command {
 				return err
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -636,7 +636,7 @@ func CmdDeleteObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -704,7 +704,7 @@ func CmdUpdateObjectInfo() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -782,7 +782,7 @@ func CmdDiscontinueObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -845,7 +845,7 @@ func CmdCreateGroup() *cobra.Command {
 			tags := GetTags(tagsStr)
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -922,7 +922,7 @@ func CmdDeleteGroup() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -983,7 +983,7 @@ func CmdLeaveGroup() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1093,7 +1093,7 @@ func CmdUpdateGroupMember() *cobra.Command {
 				}
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1190,7 +1190,7 @@ func CmdRenewGroupMember() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1250,7 +1250,7 @@ func CmdUpdateGroupExtra() *cobra.Command {
 				return err
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1315,7 +1315,7 @@ func CmdPutPolicy() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1392,7 +1392,7 @@ $ %s tx delete-policy 3
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1478,7 +1478,7 @@ func CmdMirrorBucket() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1542,7 +1542,7 @@ func CmdDiscontinueBucket() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1609,7 +1609,7 @@ func CmdMigrateBucket() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1699,7 +1699,7 @@ func CmdMirrorObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1791,7 +1791,7 @@ func CmdMirrorGroup() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}
@@ -1857,7 +1857,7 @@ func CmdSetTag() *cobra.Command {
 			resourceTags := GetTags(tagsStr)
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			gnfdCli, err := sdkclient.NewMechainClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
+			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
 			}

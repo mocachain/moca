@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/store/prefix"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/evmos/evmos/v12/internal/sequence"
@@ -70,7 +70,7 @@ func (k Keeper) AddGroupMember(ctx sdk.Context, groupID math.Uint, member sdk.Ac
 		ExpirationTime: expiration,
 	}
 	id := k.groupMemberSeq.NextVal(store)
-	store.Set(memberKey, id.Bytes())
+	store.Set(memberKey, id.BigInt().Bytes())
 	store.Set(types.GetGroupMemberByIDKey(id), k.cdc.MustMarshal(&groupMember))
 	return nil
 }
@@ -123,7 +123,7 @@ func (k Keeper) GetGroupMemberByID(ctx sdk.Context, groupMemberID math.Uint) (*t
 func (k Keeper) updatePolicy(ctx sdk.Context, policy, newPolicy *types.Policy) *types.Policy {
 	store := ctx.KVStore(k.storeKey)
 
-	policyIDBz := policy.Id.Bytes()
+	policyIDBz := policy.Id.BigInt().Bytes()
 	switch {
 	case policy.ExpirationTime == nil && newPolicy.ExpirationTime != nil:
 		store.Set(types.PolicyPrefixQueue(newPolicy.ExpirationTime, policyIDBz), []byte{})
@@ -161,7 +161,7 @@ func (k Keeper) PutPolicy(ctx sdk.Context, policy *types.Policy) (math.Uint, err
 
 			newPolicy = policy
 			if newPolicy.ExpirationTime != nil {
-				store.Set(types.PolicyPrefixQueue(newPolicy.ExpirationTime, policy.Id.Bytes()), []byte{})
+				store.Set(types.PolicyPrefixQueue(newPolicy.ExpirationTime, policy.Id.BigInt().Bytes()), []byte{})
 			}
 		}
 	case types.PRINCIPAL_TYPE_GNFD_GROUP:
@@ -194,7 +194,7 @@ func (k Keeper) PutPolicy(ctx sdk.Context, policy *types.Policy) (math.Uint, err
 
 				newPolicy = policy
 				if newPolicy.ExpirationTime != nil {
-					store.Set(types.PolicyPrefixQueue(newPolicy.ExpirationTime, policy.Id.Bytes()), []byte{})
+					store.Set(types.PolicyPrefixQueue(newPolicy.ExpirationTime, policy.Id.BigInt().Bytes()), []byte{})
 				}
 			}
 		} else {
@@ -209,7 +209,7 @@ func (k Keeper) PutPolicy(ctx sdk.Context, policy *types.Policy) (math.Uint, err
 
 			newPolicy = policy
 			if newPolicy.ExpirationTime != nil {
-				store.Set(types.PolicyPrefixQueue(newPolicy.ExpirationTime, policy.Id.Bytes()), []byte{})
+				store.Set(types.PolicyPrefixQueue(newPolicy.ExpirationTime, policy.Id.BigInt().Bytes()), []byte{})
 			}
 		}
 	default:
@@ -317,7 +317,7 @@ func (k Keeper) DeletePolicy(ctx sdk.Context, principal *types.Principal, resour
 			store.Delete(types.GetPolicyForAccountKey(resourceID, resourceType, accAddr, true))
 			store.Delete(types.GetPolicyByIDKey(policy.Id))
 			if policy.ExpirationTime != nil {
-				store.Delete(types.PolicyPrefixQueue(policy.ExpirationTime, policy.Id.Bytes()))
+				store.Delete(types.PolicyPrefixQueue(policy.ExpirationTime, policy.Id.BigInt().Bytes()))
 			}
 			policyID = policy.Id
 		}
@@ -343,7 +343,7 @@ func (k Keeper) DeletePolicy(ctx sdk.Context, principal *types.Principal, resour
 					policy, _ := k.GetPolicyByID(ctx, policyID)
 					store.Delete(types.GetPolicyByIDKey(policyID))
 					if policy.ExpirationTime != nil {
-						store.Delete(types.PolicyPrefixQueue(policy.ExpirationTime, policy.Id.Bytes()))
+						store.Delete(types.PolicyPrefixQueue(policy.ExpirationTime, policy.Id.BigInt().Bytes()))
 					}
 					updated = true
 					break // Only one should be deleted
@@ -389,7 +389,7 @@ func (k Keeper) ForceDeleteAccountPolicyForResource(ctx sdk.Context, maxDelete, 
 		policy, _ := k.GetPolicyByID(ctx, policyID)
 		if policy != nil && policy.ExpirationTime != nil {
 			// delete the policy expire queue
-			store.Delete(types.PolicyPrefixQueue(policy.ExpirationTime, policy.Id.Bytes()))
+			store.Delete(types.PolicyPrefixQueue(policy.ExpirationTime, policy.Id.BigInt().Bytes()))
 		}
 		// delete mapping policyId -> policy
 		store.Delete(types.GetPolicyByIDKey(policyID))
@@ -427,7 +427,7 @@ func (k Keeper) ForceDeleteGroupPolicyForResource(ctx sdk.Context, maxDelete, de
 			policy, _ := k.GetPolicyByID(ctx, policyID)
 			if policy != nil && policy.ExpirationTime != nil {
 				// delete the policy expire queue
-				store.Delete(types.PolicyPrefixQueue(policy.ExpirationTime, policy.Id.Bytes()))
+				store.Delete(types.PolicyPrefixQueue(policy.ExpirationTime, policy.Id.BigInt().Bytes()))
 			}
 			// delete mapping policyId -> policy
 			store.Delete(types.GetPolicyByIDKey(policyID))
@@ -492,7 +492,7 @@ func (k Keeper) ExistGroupMemberForGroup(ctx sdk.Context, groupID math.Uint) boo
 func (k Keeper) RemoveExpiredPolicies(ctx sdk.Context) {
 	exp := ctx.BlockTime()
 	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(types.PolicyQueueKeyPrefix, sdk.InclusiveEndBytes(types.PolicyByExpTimeKey(&exp)))
+	iterator := store.Iterator(types.PolicyQueueKeyPrefix, storetypes.InclusiveEndBytes(types.PolicyByExpTimeKey(&exp)))
 	defer iterator.Close()
 
 	count := uint64(0)
@@ -559,7 +559,7 @@ func (k Keeper) MigrateAccountPolicyForResources(ctx sdk.Context) {
 			// newKey might be the same as the previous one
 			resourceIDBz := iterator.Key()[:len(iterator.Key())-sdk.EthAddressLength]
 			addrBz := iterator.Key()[len(iterator.Key())-sdk.EthAddressLength:]
-			newKey := types.GetPolicyForAccountKey(math.ZeroUint().SetBytes(resourceIDBz), resourceType, addrBz, true)
+			newKey := types.GetPolicyForAccountKey(math.NewUintFromBigInt(math.ZeroUint().BigInt().SetBytes(resourceIDBz)), resourceType, addrBz, true)
 			store.Set(newKey, iterator.Value())
 		}
 	}

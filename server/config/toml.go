@@ -131,6 +131,8 @@ dest-mantle-chain-id = {{ .CrossChain.DestMantleChainId }}
 dest-arbitrum-chain-id = {{ .CrossChain.DestArbitrumChainId }}
 # chain-id for optimism destination chain
 dest-optimism-chain-id = {{ .CrossChain.DestOptimismChainId }}
+# chain-id for base destination chain
+dest-base-chain-id = {{ .CrossChain.DestBaseChainId }}
 
 ###############################################################################
 ###                           PaymentCheck Config                           ###
