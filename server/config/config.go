@@ -113,6 +113,7 @@ type AppConfig struct {
 	TLS          TLSConfig          `mapstructure:"tls"`
 	CrossChain   CrossChainConfig   `mapstructure:"cross-chain"`
 	PaymentCheck PaymentCheckConfig `mapstructure:"payment-check"`
+	TxCacheQueue TxCacheQueueConfig `mapstructure:"tx-cache-queue"`
 }
 
 // EVMConfig defines the application configuration values for the EVM.
@@ -192,6 +193,33 @@ type PaymentCheckConfig struct {
 	Interval uint32 `mapstructure:"interval"`
 }
 
+// TxCacheQueueConfig defines configuration for the transaction cache queue
+type TxCacheQueueConfig struct {
+	// Enable enables or disables the transaction cache queue
+	Enable bool `mapstructure:"enable"`
+
+	// MaxTxPerAccount sets the maximum number of transactions per account
+	MaxTxPerAccount int `mapstructure:"max-tx-per-account"`
+
+	// TxTimeout sets the timeout for cached transactions
+	TxTimeout time.Duration `mapstructure:"tx-timeout"`
+
+	// CleanupInterval sets the interval for cleanup operations
+	CleanupInterval time.Duration `mapstructure:"cleanup-interval"`
+
+	// GlobalMaxTx sets the global maximum number of cached transactions
+	GlobalMaxTx int `mapstructure:"global-max-tx"`
+
+	// RetryInterval sets the interval between retry attempts
+	RetryInterval time.Duration `mapstructure:"retry-interval"`
+
+	// MaxRetries sets the maximum number of retry attempts
+	MaxRetries int `mapstructure:"max-retries"`
+
+	// ReplacementGasPercent sets the minimum gas price increase for transaction replacement
+	ReplacementGasPercent int `mapstructure:"replacement-gas-percent"`
+}
+
 func NewDefaultAppConfig(denom string) *AppConfig {
 	srvCfg := config.DefaultConfig()
 	// The SDK's default minimum gas price is set to "" (empty value) inside
@@ -250,6 +278,7 @@ func NewAppConfig(denom string) (string, interface{}) {
 		TLS:          *DefaultTLSConfig(),
 		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
+		TxCacheQueue: *DefaultTxCacheQueueConfig(),
 	}
 
 	customAppTemplate := config.DefaultConfigTemplate + DefaultConfigTemplate + DefaultCustomAppTemplate
@@ -266,6 +295,7 @@ func DefaultConfig() *AppConfig {
 		TLS:          *DefaultTLSConfig(),
 		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
+		TxCacheQueue: *DefaultTxCacheQueueConfig(),
 	}
 }
 
@@ -428,6 +458,42 @@ func (c PaymentCheckConfig) Validate() error {
 	return nil
 }
 
+// DefaultTxCacheQueueConfig returns the default transaction cache queue configuration
+func DefaultTxCacheQueueConfig() *TxCacheQueueConfig {
+	return &TxCacheQueueConfig{
+		Enable:                false,        // Disabled by default for safety
+		MaxTxPerAccount:       1000,         // Increased for high-load production
+		TxTimeout:             1 * time.Minute, // Reduced from 5 minutes
+		CleanupInterval:       15 * time.Second, // More frequent cleanup
+		GlobalMaxTx:           50000,        // Increased for high-load production
+		RetryInterval:         500 * time.Millisecond, // Faster retry
+		MaxRetries:            3,
+		ReplacementGasPercent: 10,           // 10% minimum gas price increase for replacement
+	}
+}
+
+func (c TxCacheQueueConfig) Validate() error {
+	if c.MaxTxPerAccount <= 0 {
+		return fmt.Errorf("max-tx-per-account must be positive")
+	}
+	if c.TxTimeout <= 0 {
+		return fmt.Errorf("tx-timeout must be positive")
+	}
+	if c.CleanupInterval <= 0 {
+		return fmt.Errorf("cleanup-interval must be positive")
+	}
+	if c.GlobalMaxTx <= 0 {
+		return fmt.Errorf("global-max-tx must be positive")
+	}
+	if c.RetryInterval <= 0 {
+		return fmt.Errorf("retry-interval must be positive")
+	}
+	if c.MaxRetries < 0 {
+		return fmt.Errorf("max-retries must be non-negative")
+	}
+	return nil
+}
+
 // GetConfig returns a fully parsed Config object.
 func GetConfig(v *viper.Viper) (AppConfig, error) {
 	cfg, err := config.GetConfig(v)
@@ -480,6 +546,15 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			Enabled:  v.GetBool("payment-check.enabled"),
 			Interval: v.GetUint32("payment-check.interval"),
 		},
+		TxCacheQueue: TxCacheQueueConfig{
+			Enable:          v.GetBool("tx-cache-queue.enable"),
+			MaxTxPerAccount: v.GetInt("tx-cache-queue.max-tx-per-account"),
+			TxTimeout:       v.GetDuration("tx-cache-queue.tx-timeout"),
+			CleanupInterval: v.GetDuration("tx-cache-queue.cleanup-interval"),
+			GlobalMaxTx:     v.GetInt("tx-cache-queue.global-max-tx"),
+			RetryInterval:   v.GetDuration("tx-cache-queue.retry-interval"),
+			MaxRetries:      v.GetInt("tx-cache-queue.max-retries"),
+		},
 	}, nil
 }
 
@@ -512,6 +587,10 @@ func (c AppConfig) ValidateBasic() error {
 
 	if err := c.PaymentCheck.Validate(); err != nil {
 		return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid paymentcheck config value: %s", err.Error())
+	}
+
+	if err := c.TxCacheQueue.Validate(); err != nil {
+		return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid tx-cache-queue config value: %s", err.Error())
 	}
 
 	return c.Config.ValidateBasic()

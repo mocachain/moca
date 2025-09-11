@@ -94,6 +94,13 @@ ldflags += -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma
 ifeq (,$(findstring nostrip,$(COSMOS_BUILD_OPTIONS)))
   ldflags += -w -s
 endif
+
+# Suppress macOS linker warnings and deprecated API warnings
+ifeq ($(shell uname -s),Darwin)
+  ldflags += -extldflags "-Wl,-w"
+  export CGO_CFLAGS := -Wno-deprecated-declarations $(CGO_CFLAGS)
+endif
+
 ldflags += $(LDFLAGS)
 ldflags := $(strip $(ldflags))
 
@@ -395,7 +402,7 @@ proto-format:
 
 proto-lint:
 	@echo "Linting Protobuf files"
-	@$(protoImage) buf lint --error-format=json	
+	@$(protoImage) buf lint --error-format=json
 
 proto-check-breaking:
 	@echo "Checking Protobuf files for breaking changes"
@@ -597,7 +604,7 @@ build-dcf:
 start-dc:
 	docker compose up -d
 	docker compose ps
-	
+
 stop-dc:
 	docker compose down --volumes
 

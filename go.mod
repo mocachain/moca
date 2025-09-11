@@ -32,6 +32,7 @@ require (
 	github.com/cosmos/ibc-go/modules/capability v1.0.1
 	github.com/cosmos/ibc-go/v10 v10.1.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+	github.com/emirpasic/gods v1.18.1
 	github.com/ethereum/go-ethereum v1.15.5
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/mock v1.6.0

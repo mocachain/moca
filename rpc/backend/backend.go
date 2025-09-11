@@ -20,8 +20,8 @@ import (
 	"math/big"
 	"time"
 
-	"cosmossdk.io/math"
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -154,6 +154,7 @@ type Backend struct {
 	cfg                 config.AppConfig
 	allowUnprotectedTxs bool
 	indexer             evmostypes.EVMTxIndexer
+	txCacheQueue        *TransactionCacheQueue // Transaction cache queue for nonce ordering
 }
 
 // NewBackend creates a new Backend instance for cosmos and ethereum namespaces
@@ -174,7 +175,7 @@ func NewBackend(
 		panic(err)
 	}
 
-	return &Backend{
+	backend := &Backend{
 		ctx:                 context.Background(),
 		clientCtx:           clientCtx,
 		queryClient:         rpctypes.NewQueryClient(clientCtx),
@@ -183,5 +184,34 @@ func NewBackend(
 		cfg:                 appConf,
 		allowUnprotectedTxs: allowUnprotectedTxs,
 		indexer:             indexer,
+	}
+
+	// Initialize transaction cache queue from app configuration
+	cacheQueueConfig := convertAppConfigToCacheQueueConfig(appConf.TxCacheQueue)
+	backend.txCacheQueue = NewTransactionCacheQueue(cacheQueueConfig)
+	backend.txCacheQueue.SetBackend(backend)
+
+	// Start nonce-based cache cleaner if cache queue is enabled
+	if backend.txCacheQueue.IsEnabled() {
+		logger.Info("Starting nonce-based cache cleaner for cache queue processing")
+		backend.startNonceBasedCleaner()
+	} else {
+		logger.Info("Transaction cache queue is disabled, skipping nonce-based cleaner startup")
+	}
+
+	return backend
+}
+
+
+// convertAppConfigToCacheQueueConfig converts server config to backend cache queue config
+func convertAppConfigToCacheQueueConfig(appConfig config.TxCacheQueueConfig) *CacheQueueConfig {
+	return &CacheQueueConfig{
+		Enable:          appConfig.Enable,
+		MaxTxPerAccount: appConfig.MaxTxPerAccount,
+		TxTimeout:       appConfig.TxTimeout,
+		CleanupInterval: appConfig.CleanupInterval,
+		GlobalMaxTx:     appConfig.GlobalMaxTx,
+		RetryInterval:   appConfig.RetryInterval,
+		MaxRetries:      appConfig.MaxRetries,
 	}
 }

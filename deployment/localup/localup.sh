@@ -291,6 +291,11 @@ function generate_genesis() {
 	# enable telemetry for validator0
 	execute_with_mode "sed -i -e \"/other sinks such as Prometheus/{N;s/enable = false/enable = true/;}\" ${local_env}/validator0/config/app.toml" "${CONFIG_LOG}" "Enable telemetry for validator0"
 
+	# enable tx-cache-queue for all validators
+	for ((i = 0; i < ${size}; i++)); do
+		execute_with_mode "sed -i -e \"/Enable or disable the transaction cache queue for nonce ordering/{N;s/enable = false/enable = true/;}\" ${local_env}/validator${i}/config/app.toml" "${CONFIG_LOG}" "Enable tx-cache-queue for validator${i}"
+	done
+
 	end_step
 }
 

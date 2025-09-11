@@ -102,7 +102,7 @@ func (b *Backend) SetEtherbase(etherbase common.Address) bool {
 	// Assemble transaction from fields
 	builder, ok := b.clientCtx.TxConfig.NewTxBuilder().(authtx.ExtensionOptionsTxBuilder)
 	if !ok {
-		b.logger.Debug("clientCtx.TxConfig.NewTxBuilder returns unsupported builder", "error", err.Error())
+		b.logger.Debug("clientCtx.TxConfig.NewTxBuilder returns unsupported builder")
 		return false
 	}
 
@@ -112,10 +112,10 @@ func (b *Backend) SetEtherbase(etherbase common.Address) bool {
 		return false
 	}
 
-	// Fetch minimun gas price to calculate fees using the configuration.
+	// Fetch minimum gas price to calculate fees using the configuration.
 	minGasPrices := b.cfg.GetMinGasPrices()
 	if len(minGasPrices) == 0 || minGasPrices.Empty() {
-		b.logger.Debug("the minimun fee is not set")
+		b.logger.Debug("the minimum fee is not set")
 		return false
 	}
 	minGasPriceValue := minGasPrices[0].Amount

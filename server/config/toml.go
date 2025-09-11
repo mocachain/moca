@@ -142,4 +142,29 @@ dest-base-chain-id = {{ .CrossChain.DestBaseChainId }}
 enabled = {{ .PaymentCheck.Enabled }}
 # interval - the block interval run check payment
 interval = {{ .PaymentCheck.Interval }}
+
+###############################################################################
+###                         Transaction Cache Queue                         ###
+###############################################################################
+[tx-cache-queue]
+# Enable or disable the transaction cache queue for nonce ordering
+enable = {{ .TxCacheQueue.Enable }}
+
+# Maximum number of transactions per account that can be cached
+max-tx-per-account = {{ .TxCacheQueue.MaxTxPerAccount }}
+
+# Timeout for cached transactions before they are considered expired
+tx-timeout = "{{ .TxCacheQueue.TxTimeout }}"
+
+# Interval for cleaning up expired transactions
+cleanup-interval = "{{ .TxCacheQueue.CleanupInterval }}"
+
+# Global maximum number of cached transactions across all accounts
+global-max-tx = {{ .TxCacheQueue.GlobalMaxTx }}
+
+# Retry interval for failed transaction broadcasts
+retry-interval = "{{ .TxCacheQueue.RetryInterval }}"
+
+# Maximum number of retry attempts for broadcasting transactions
+max-retries = {{ .TxCacheQueue.MaxRetries }}
 `

@@ -141,6 +141,89 @@ func (b *Backend) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 		return common.Hash{}, err
 	}
 
+	// Extract sender address and nonce for cache queue processing
+	txHash := ethereumTx.AsTransaction().Hash()
+
+	// Get sender address from transaction
+	signer := ethtypes.LatestSignerForChainID(b.chainID)
+	from, err := ethtypes.Sender(signer, tx)
+	if err != nil {
+		b.logger.Error("failed to recover sender from transaction", "error", err.Error())
+		return common.Hash{}, err
+	}
+
+	txNonce := tx.Nonce()
+	b.logger.Debug("processing transaction",
+		"hash", txHash.Hex(),
+		"from", from.Hex(),
+		"nonce", txNonce)
+
+	// Smart routing: check if cache queue is enabled and should handle this transaction
+	if b.txCacheQueue.IsEnabled() {
+		shouldCache, err := b.shouldCacheTransaction(from, txNonce)
+		if err != nil {
+			b.logger.Error("failed to determine cache strategy", "error", err.Error())
+			// Fall through to direct broadcast on error
+		} else if shouldCache {
+			b.logger.Info("transaction routed to cache queue",
+				"hash", txHash.Hex(),
+				"from", from.Hex(),
+				"nonce", txNonce)
+
+			// Route to cache queue
+			return b.txCacheQueue.ProcessTransaction(data, from, txNonce)
+		}
+	}
+
+	// Direct broadcast path (for consecutive nonces or when cache is disabled)
+	b.logger.Debug("transaction routed to direct broadcast",
+		"hash", txHash.Hex(),
+		"from", from.Hex(),
+		"nonce", txNonce)
+
+	return b.broadcastTransaction(ethereumTx, data)
+}
+
+// shouldCacheTransaction determines whether a transaction should be cached or broadcast directly
+func (b *Backend) shouldCacheTransaction(from common.Address, txNonce uint64) (bool, error) {
+	// Get current expected nonce for the account
+	currentNonce, err := b.GetTransactionCount(from, rpctypes.EthLatestBlockNumber)
+	if err != nil {
+		return false, fmt.Errorf("failed to get current nonce for %s: %w", from.Hex(), err)
+	}
+
+	expectedNonce := uint64(*currentNonce)
+
+	b.logger.Debug("nonce comparison",
+		"address", from.Hex(),
+		"txNonce", txNonce,
+		"expectedNonce", expectedNonce)
+
+	// If transaction nonce matches expected nonce, broadcast directly
+	if txNonce == expectedNonce {
+		return false, nil // Direct broadcast
+	}
+
+	// If transaction nonce is in the future, cache it
+	if txNonce > expectedNonce {
+		b.logger.Info("transaction nonce gap detected, caching",
+			"address", from.Hex(),
+			"txNonce", txNonce,
+			"expectedNonce", expectedNonce,
+			"gap", txNonce-expectedNonce)
+		return true, nil // Cache
+	}
+
+	// If transaction nonce is in the past, it's likely a duplicate or replay
+	b.logger.Warn("transaction nonce is in the past",
+		"address", from.Hex(),
+		"txNonce", txNonce,
+		"expectedNonce", expectedNonce)
+	return false, nil // Let direct broadcast handle the error
+}
+
+// broadcastTransaction handles the direct broadcast path
+func (b *Backend) broadcastTransaction(ethereumTx *evmtypes.MsgEthereumTx, rawTxBytes []byte) (common.Hash, error) {
 	// Query params to use the EVM denomination
 	res, err := b.queryClient.QueryClient.Params(b.ctx, &evmtypes.QueryParamsRequest{})
 	if err != nil {
@@ -173,6 +256,7 @@ func (b *Backend) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 		return txHash, err
 	}
 
+	b.logger.Info("transaction broadcasted successfully", "hash", txHash.Hex())
 	return txHash, nil
 }
 
