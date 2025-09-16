@@ -88,7 +88,7 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 		}
 	}
 
-	// more details see https://github.com/zkMeLabs/moca-cosmos-sdk/blob/1ad031a3d3a4b73997d72b8012397633b3cdcae2/x/authz/client/cli/tx.go#L56-L202
+	// more details see https://github.com/MocaFoundation/moca-cosmos-sdk/blob/1ad031a3d3a4b73997d72b8012397633b3cdcae2/x/authz/client/cli/tx.go#L56-L202
 	// TODO
 	var authorization authz.Authorization
 	switch args.AuthzType {

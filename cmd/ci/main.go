@@ -103,7 +103,7 @@ func main() {
 	config := ComposeConfig{
 		NodeSize:       4,
 		SPSize:         3,
-		Image:          "zkmelabs/moca",
+		Image:          "mocafoundation/moca",
 		DeploymentPath: "./deployment/dockerup/",
 		BasePorts: PortConfig{
 			AddressPort: 28750,

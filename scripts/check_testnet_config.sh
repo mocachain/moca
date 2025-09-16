@@ -3,7 +3,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_DIR=$(realpath "${SCRIPT_DIR}/../")
 
 echo "Starting Docker container..."
-docker run --rm -it -d --name my-validator -w /root --network moca-network zkmelabs/moca /bin/bash
+docker run --rm -it -d --name my-validator -w /root --network moca-network mocafoundation/moca /bin/bash
 
 echo "Initializing validator node..."
 docker exec my-validator mocad init my-validator --chain-id moca_5151-1 --default-denom "amoca"

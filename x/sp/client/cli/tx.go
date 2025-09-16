@@ -523,7 +523,7 @@ func PrepareConfigForTxCreateStorageProvider(flagSet *flag.FlagSet) (TxCreateSto
 
 	// spAddress
 	operatorAddress, err := flagSet.GetString(FlagOperatorAddress)
-	// fmt.Println(operatorAddress) // 调试信息已注释
+	// fmt.Println(operatorAddress)
 	if err != nil {
 		return c, err
 	}
@@ -535,7 +535,7 @@ func PrepareConfigForTxCreateStorageProvider(flagSet *flag.FlagSet) (TxCreateSto
 
 	// funding address
 	fundingAddress, err := flagSet.GetString(FlagFundingAddress)
-	// fmt.Println(fundingAddress) // 调试信息已注释
+	// fmt.Println(fundingAddress)
 	if err != nil {
 		return c, err
 	}

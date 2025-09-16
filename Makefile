@@ -10,7 +10,7 @@ EVMOS_BINARY = mocad
 BUILDDIR ?= $(CURDIR)/build
 HTTPS_GIT := https://github.com/evmos/evmos.git
 DOCKER := $(shell which docker)
-NAMESPACE := zkmelabs
+NAMESPACE := mocafoundation
 PROJECT := moca
 DOCKER_IMAGE := $(NAMESPACE)/$(PROJECT)
 COMMIT_HASH := $(shell git rev-parse --short=7 HEAD)

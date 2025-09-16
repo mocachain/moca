@@ -1,7 +1,7 @@
 services:
   init:
     container_name: init-moca
-    image: "zkmelabs/moca"
+    image: "mocafoundation/moca"
     networks:
       - moca-network
     volumes:
@@ -20,7 +20,7 @@ services:
     depends_on:
       init:
         condition: service_healthy
-    image: "zkmelabs/moca"
+    image: "mocafoundation/moca"
     networks:
       - moca-network
     ports:
@@ -40,7 +40,7 @@ services:
     depends_on:
       init:
         condition: service_healthy
-    image: "zkmelabs/moca"
+    image: "mocafoundation/moca"
     networks:
       - moca-network
     ports:
@@ -60,7 +60,7 @@ services:
     depends_on:
       init:
         condition: service_healthy
-    image: "zkmelabs/moca"
+    image: "mocafoundation/moca"
     networks:
       - moca-network
     ports:
@@ -80,7 +80,7 @@ services:
     depends_on:
       init:
         condition: service_healthy
-    image: "zkmelabs/moca"
+    image: "mocafoundation/moca"
     networks:
       - moca-network
     ports:
