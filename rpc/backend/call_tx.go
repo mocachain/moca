@@ -159,7 +159,7 @@ func (b *Backend) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 		"nonce", txNonce)
 
 	// Smart routing: check if cache queue is enabled and should handle this transaction
-	if b.txCacheQueue.IsEnabled() {
+	if b.txCacheQueue != nil && b.txCacheQueue.IsEnabled() {
 		shouldCache, err := b.shouldCacheTransaction(from, txNonce)
 		if err != nil {
 			b.logger.Error("failed to determine cache strategy", "error", err.Error())

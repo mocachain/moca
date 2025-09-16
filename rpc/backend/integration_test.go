@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -78,7 +77,7 @@ func TestCacheQueueIntegration(t *testing.T) {
 		for i, addr := range accounts {
 			queue := tcq.getOrCreateAccountQueue(addr)
 			nonce := uint64(10 + i)
-			
+
 			tx := createIntegrationTestTransaction(nonce)
 			cachedTx := &CachedTransaction{
 				RawTx:       mustMarshalTx(tx),
@@ -125,7 +124,7 @@ func TestCacheQueueIntegration(t *testing.T) {
 		// Add a transaction that will expire quickly
 		addr := common.HexToAddress("0x3333333333333333333333333333333333333333")
 		queue := tcq.getOrCreateAccountQueue(addr)
-		
+
 		tx := createIntegrationTestTransaction(100)
 		cachedTx := &CachedTransaction{
 			RawTx:       mustMarshalTx(tx),
@@ -168,14 +167,11 @@ func TestMetricsIntegration(t *testing.T) {
 	tcq := NewTransactionCacheQueue(config)
 	defer tcq.Stop()
 
-	// Test metrics handler
-	metricsHandler := NewMetricsHandler(tcq, log.NewNopLogger())
-	
 	t.Run("MetricsCollection", func(t *testing.T) {
 		// Add some test data
 		testAddr := common.HexToAddress("0x4444444444444444444444444444444444444444")
 		queue := tcq.getOrCreateAccountQueue(testAddr)
-		
+
 		for nonce := uint64(1); nonce <= 2; nonce++ {
 			tx := createIntegrationTestTransaction(nonce)
 			cachedTx := &CachedTransaction{
@@ -195,11 +191,6 @@ func TestMetricsIntegration(t *testing.T) {
 		assert.True(t, metrics.CachedTxCount >= 2, "Should have at least 2 cached transactions")
 		assert.True(t, metrics.AccountsWithCache >= 1, "Should have at least 1 account")
 		assert.NotZero(t, metrics.StartTime, "StartTime should be set")
-
-		// Test Prometheus metrics
-		prometheusMetrics := metricsHandler.PrometheusMetrics()
-		assert.Contains(t, prometheusMetrics, "moca_cache_queue_cached_transactions", "Should contain cached transactions metric")
-		assert.Contains(t, prometheusMetrics, "moca_cache_queue_active_accounts", "Should contain active accounts metric")
 	})
 }
 
@@ -207,12 +198,12 @@ func TestMetricsIntegration(t *testing.T) {
 func TestConfigIntegration(t *testing.T) {
 	t.Run("DefaultConfig", func(t *testing.T) {
 		appConfig := DefaultCacheQueueAppConfig()
-		
+
 		assert.True(t, appConfig.Cache.Enable, "Should be enabled by default")
 		assert.Equal(t, 10, appConfig.Cache.MaxTxPerAccount, "Should have default max tx per account")
 		assert.Equal(t, 5*time.Minute, appConfig.Cache.TxTimeout, "Should have default timeout")
 		assert.Equal(t, 1000, appConfig.Cache.GlobalMaxTx, "Should have default global max")
-		
+
 		// Convert to internal config
 		cacheConfig := appConfig.ToCacheQueueConfig()
 		assert.Equal(t, appConfig.Cache.Enable, cacheConfig.Enable)

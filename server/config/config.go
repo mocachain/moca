@@ -207,6 +207,9 @@ type TxCacheQueueConfig struct {
 	// CleanupInterval sets the interval for cleanup operations
 	CleanupInterval time.Duration `mapstructure:"cleanup-interval"`
 
+	// NoncePollingInterval sets the interval for nonce-based polling cleanup
+	NoncePollingInterval time.Duration `mapstructure:"nonce-polling-interval"`
+
 	// GlobalMaxTx sets the global maximum number of cached transactions
 	GlobalMaxTx int `mapstructure:"global-max-tx"`
 
@@ -462,10 +465,11 @@ func (c PaymentCheckConfig) Validate() error {
 func DefaultTxCacheQueueConfig() *TxCacheQueueConfig {
 	return &TxCacheQueueConfig{
 		Enable:                false,        // Disabled by default for safety
-		MaxTxPerAccount:       1000,         // Increased for high-load production
-		TxTimeout:             1 * time.Minute, // Reduced from 5 minutes
-		CleanupInterval:       15 * time.Second, // More frequent cleanup
-		GlobalMaxTx:           50000,        // Increased for high-load production
+		MaxTxPerAccount:       10000,        // Increased for tps.js testing (CACHE_TX=5000)
+		TxTimeout:             1 * time.Minute, // Increased timeout for testing scenarios
+		CleanupInterval:       1 * time.Second, // Very frequent cleanup for high-frequency testing
+		NoncePollingInterval:  100 * time.Millisecond, // Faster nonce polling for high-frequency testing
+		GlobalMaxTx:           100000,       // Increased for high-load testing
 		RetryInterval:         500 * time.Millisecond, // Faster retry
 		MaxRetries:            3,
 		ReplacementGasPercent: 10,           // 10% minimum gas price increase for replacement
@@ -473,6 +477,11 @@ func DefaultTxCacheQueueConfig() *TxCacheQueueConfig {
 }
 
 func (c TxCacheQueueConfig) Validate() error {
+	// Skip validation if cache queue is disabled
+	if !c.Enable {
+		return nil
+	}
+
 	if c.MaxTxPerAccount <= 0 {
 		return fmt.Errorf("max-tx-per-account must be positive")
 	}
@@ -547,13 +556,14 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			Interval: v.GetUint32("payment-check.interval"),
 		},
 		TxCacheQueue: TxCacheQueueConfig{
-			Enable:          v.GetBool("tx-cache-queue.enable"),
-			MaxTxPerAccount: v.GetInt("tx-cache-queue.max-tx-per-account"),
-			TxTimeout:       v.GetDuration("tx-cache-queue.tx-timeout"),
-			CleanupInterval: v.GetDuration("tx-cache-queue.cleanup-interval"),
-			GlobalMaxTx:     v.GetInt("tx-cache-queue.global-max-tx"),
-			RetryInterval:   v.GetDuration("tx-cache-queue.retry-interval"),
-			MaxRetries:      v.GetInt("tx-cache-queue.max-retries"),
+			Enable:               v.GetBool("tx-cache-queue.enable"),
+			MaxTxPerAccount:      v.GetInt("tx-cache-queue.max-tx-per-account"),
+			TxTimeout:            v.GetDuration("tx-cache-queue.tx-timeout"),
+			CleanupInterval:      v.GetDuration("tx-cache-queue.cleanup-interval"),
+			NoncePollingInterval: v.GetDuration("tx-cache-queue.nonce-polling-interval"),
+			GlobalMaxTx:          v.GetInt("tx-cache-queue.global-max-tx"),
+			RetryInterval:        v.GetDuration("tx-cache-queue.retry-interval"),
+			MaxRetries:           v.GetInt("tx-cache-queue.max-retries"),
 		},
 	}, nil
 }

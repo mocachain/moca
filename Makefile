@@ -95,11 +95,6 @@ ifeq (,$(findstring nostrip,$(COSMOS_BUILD_OPTIONS)))
   ldflags += -w -s
 endif
 
-# Suppress macOS linker warnings and deprecated API warnings
-ifeq ($(shell uname -s),Darwin)
-  ldflags += -extldflags "-Wl,-w"
-  export CGO_CFLAGS := -Wno-deprecated-declarations $(CGO_CFLAGS)
-endif
 
 ldflags += $(LDFLAGS)
 ldflags := $(strip $(ldflags))

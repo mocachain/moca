@@ -399,7 +399,6 @@ func NewTransactionCacheQueue(config *CacheQueueConfig) *TransactionCacheQueue {
 	if config == nil {
 		config = DefaultCacheQueueConfig()
 	}
-
 	tcq := &TransactionCacheQueue{
 		accounts: make(map[common.Address]*AccountQueue),
 		config:   config,
@@ -413,12 +412,14 @@ func NewTransactionCacheQueue(config *CacheQueueConfig) *TransactionCacheQueue {
 	if config.Enable {
 		tcq.startBackgroundTasks()
 	}
-
 	return tcq
 }
 
 // IsEnabled returns true if the cache queue is enabled
 func (tcq *TransactionCacheQueue) IsEnabled() bool {
+	if tcq.config == nil {
+		return false
+	}
 	return tcq.config.Enable
 }
 

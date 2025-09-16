@@ -17,6 +17,7 @@ package backend
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -188,17 +189,16 @@ func NewBackend(
 
 	// Initialize transaction cache queue from app configuration
 	cacheQueueConfig := convertAppConfigToCacheQueueConfig(appConf.TxCacheQueue)
-	backend.txCacheQueue = NewTransactionCacheQueue(cacheQueueConfig)
-	backend.txCacheQueue.SetBackend(backend)
 
-	// Start nonce-based cache cleaner if cache queue is enabled
-	if backend.txCacheQueue.IsEnabled() {
-		logger.Info("Starting nonce-based cache cleaner for cache queue processing")
+	// Only create cache queue if enabled to avoid initialization overhead
+	if cacheQueueConfig.Enable {
+		backend.txCacheQueue = NewTransactionCacheQueue(cacheQueueConfig)
+		backend.txCacheQueue.SetBackend(backend)
+		logger.Info("CACHE QUEUE ENABLED - Starting nonce-based cache cleaner", "config", fmt.Sprintf("%+v", cacheQueueConfig))
 		backend.startNonceBasedCleaner()
 	} else {
-		logger.Info("Transaction cache queue is disabled, skipping nonce-based cleaner startup")
+		logger.Info("CACHE QUEUE DISABLED - Using minimal placeholder for optimal performance", "config", fmt.Sprintf("%+v", cacheQueueConfig))
 	}
-
 	return backend
 }
 
@@ -206,12 +206,14 @@ func NewBackend(
 // convertAppConfigToCacheQueueConfig converts server config to backend cache queue config
 func convertAppConfigToCacheQueueConfig(appConfig config.TxCacheQueueConfig) *CacheQueueConfig {
 	return &CacheQueueConfig{
-		Enable:          appConfig.Enable,
-		MaxTxPerAccount: appConfig.MaxTxPerAccount,
-		TxTimeout:       appConfig.TxTimeout,
-		CleanupInterval: appConfig.CleanupInterval,
-		GlobalMaxTx:     appConfig.GlobalMaxTx,
-		RetryInterval:   appConfig.RetryInterval,
-		MaxRetries:      appConfig.MaxRetries,
+		Enable:                appConfig.Enable,
+		MaxTxPerAccount:       appConfig.MaxTxPerAccount,
+		TxTimeout:             appConfig.TxTimeout,
+		CleanupInterval:       appConfig.CleanupInterval,
+		NoncePollingInterval:  appConfig.NoncePollingInterval,
+		GlobalMaxTx:           appConfig.GlobalMaxTx,
+		RetryInterval:         appConfig.RetryInterval,
+		MaxRetries:            appConfig.MaxRetries,
+		ReplacementGasPercent: appConfig.ReplacementGasPercent,
 	}
 }

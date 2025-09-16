@@ -159,6 +159,9 @@ tx-timeout = "{{ .TxCacheQueue.TxTimeout }}"
 # Interval for cleaning up expired transactions
 cleanup-interval = "{{ .TxCacheQueue.CleanupInterval }}"
 
+# Interval for nonce-based polling cleanup
+nonce-polling-interval = "{{ .TxCacheQueue.NoncePollingInterval }}"
+
 # Global maximum number of cached transactions across all accounts
 global-max-tx = {{ .TxCacheQueue.GlobalMaxTx }}
 
