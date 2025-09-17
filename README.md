@@ -52,9 +52,9 @@ interacting with the platform, enabling users to create and manipulate data in a
 
 ## Documentation
 
-Visit our official [documentation site](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd) for more info.
+Visit our official [documentation site](https://docs.moca.network/ ) for more info.
 
-More advanced script and command line usage, please refer to the [Tutorial](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-J07cdQjtZoN949x9Truu6z0RsQb).
+More advanced script and command line usage, please refer to the [Tutorial](https://docs.moca.network/ ).
 
 ## Key Modules
 
@@ -74,14 +74,14 @@ And the following modules are in cosmos-sdk:
 - `x/staking`:  based on the Proof-of-Stake logic. The elected validators are responsible for the security of the moca blockchain.
 They get involved in the governance and staking of the blockchain.
 
-Refer to the [docs](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd) to dive deep into these modules.
+Refer to the [docs](https://docs.moca.network/ ) to dive deep into these modules.
 
 ## Running node
 
-- [Interacting with the Node](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd)
-- [Run Local Network](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-W4nedCNrBocF2PxExwyupmZ9s56)
-- [Run Node](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-MxWcdZ1ZioMhCixEjuYuDhl1sXb)
-- [Become Validator](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-Ff26dlv6ooXRG5x8bhPufs0TsRh)
+- [Interacting with the Node](https://docs.moca.network/ )
+- [Run Local Network](https://docs.moca.network/ )
+- [Run Node](https://docs.moca.network/ )
+- [Become Validator](https://docs.moca.network/ )
 
 ## Related Projects
 
@@ -126,5 +126,5 @@ This project is fork from:
 
 + [greenfield](https://github.com/bnb-chain/greenfield)
 + [evmos v12](https://github.com/evmos/evmos/tree/release/v12.x.x)
-  
+
 Significant changes have been made to adapt the project for specific use cases, but much of the core functionality comes from the original project.
