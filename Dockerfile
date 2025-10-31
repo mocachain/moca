@@ -1,4 +1,4 @@
-FROM golang:1.23.6-bullseye AS builder
+FROM golang:1.24.6-bullseye AS builder
 
 ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
@@ -14,7 +14,7 @@ COPY . .
 RUN make build
 
 
-FROM golang:1.23.6-bullseye
+FROM golang:1.24.6-bullseye
 
 RUN apt-get update -y && apt-get install ca-certificates jq -y
 
