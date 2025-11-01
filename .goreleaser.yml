@@ -1,0 +1,95 @@
+version: 2
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - id: "mocad-darwin"
+    main: ./cmd/mocad
+    binary: bin/mocad
+    env:
+      - CGO_ENABLED=1
+      - CC=o64-clang
+      - CXX=o64-clang++
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    flags:
+      - -tags=cgo
+    ldflags:
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=moca -X github.com/cosmos/cosmos-sdk/version.AppName=mocad -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+  - id: "mocad-darwin-arm64"
+    main: ./cmd/mocad
+    binary: bin/mocad
+    env:
+      - CGO_ENABLED=1
+      - CC=oa64-clang
+      - CXX=oa64-clang++
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    flags:
+      - -tags=cgo
+    ldflags:
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=moca -X github.com/cosmos/cosmos-sdk/version.AppName=mocad -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+  - id: "mocad-linux"
+    main: ./cmd/mocad
+    binary: bin/mocad
+    env:
+      - CGO_ENABLED=1
+      - CC=gcc
+      - CXX=g++
+    goos:
+      - linux
+    goarch:
+      - amd64
+    flags:
+      - -tags=cgo
+    ldflags:
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=moca -X github.com/cosmos/cosmos-sdk/version.AppName=mocad -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+  - id: "mocad-linux-arm64"
+    main: ./cmd/mocad
+    binary: bin/mocad
+    env:
+      - CGO_ENABLED=1
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+    goos:
+      - linux
+    goarch:
+      - arm64
+    flags:
+      - -tags=cgo
+    ldflags:
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=moca -X github.com/cosmos/cosmos-sdk/version.AppName=mocad -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Os }}_{{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - src: asset/configs/mainnet_config
+        dst: mainnet_config
+      - src: asset/configs/testnet_config
+        dst: testnet_config
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  replace_existing_artifacts: true

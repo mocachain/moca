@@ -1,0 +1,26 @@
+name: E2E Test
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - feat/kevin/e2e
+
+jobs:
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          check-latest: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test E2E
+        run: |
+          make test-e2e
