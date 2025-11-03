@@ -283,28 +283,28 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => ../moca-cosmos-sdk/api
-	cosmossdk.io/client/v2 => ../moca-cosmos-sdk/client/v2
-	cosmossdk.io/simapp => ../moca-cosmos-sdk/simapp
-	cosmossdk.io/store => ../moca-cosmos-sdk/store
-	cosmossdk.io/x/evidence => ../moca-cosmos-sdk/x/evidence
-	cosmossdk.io/x/feegrant => ../moca-cosmos-sdk/x/feegrant
-	cosmossdk.io/x/nft => ../moca-cosmos-sdk/x/nft
-	cosmossdk.io/x/tx => ../moca-cosmos-sdk/x/tx
-	cosmossdk.io/x/upgrade => ../moca-cosmos-sdk/x/upgrade
-	github.com/0xPolygon/polygon-edge v1.3.3 => ../polygon-edge
+	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v0.0.0-20251101023441-c0785f6b2321
+	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.0.0-20251101023441-c0785f6b2321
+	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v0.0.0-20251101023441-c0785f6b2321
+	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v0.0.0-20251101023441-c0785f6b2321
+	cosmossdk.io/x/evidence => github.com/mocachain/moca-cosmos-sdk/x/evidence v0.0.0-20251101023441-c0785f6b2321
+	cosmossdk.io/x/feegrant => github.com/mocachain/moca-cosmos-sdk/x/feegrant v0.0.0-20251101023441-c0785f6b2321
+	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v0.0.0-20251101023441-c0785f6b2321
+	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v0.0.0-20251101023441-c0785f6b2321
+	cosmossdk.io/x/upgrade => github.com/mocachain/moca-cosmos-sdk/x/upgrade v0.0.0-20251101023441-c0785f6b2321
+	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v0.0.0-20251101014808-391be2ac88a2
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// use cosmos fork of keyring
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
-	github.com/cometbft/cometbft => ../moca-cometbft
-	github.com/cometbft/cometbft-db => ../moca-cometbft-db
+	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v0.0.0-20251101020132-22e554efb8f9
+	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v0.0.0-20251101014743-4ae80f941d7e
 	// use Cosmos-SDK fork to enable Ledger functionality
-	github.com/cosmos/cosmos-sdk => ../moca-cosmos-sdk
-	github.com/cosmos/iavl => ../moca-iavl
-	github.com/cosmos/ibc-go/v10 => ../moca-ibc-go
+	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v0.0.0-20251101023441-c0785f6b2321
+	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v0.0.0-20251101014745-84176d5bfcbb
+	github.com/cosmos/ibc-go/v10 => github.com/mocachain/moca-ibc-go/v10 v10.0.0-20251101014751-4bd3b7e6b47a
 	// use Evmos geth fork
-	github.com/ethereum/go-ethereum => ../go-ethereum
+	github.com/ethereum/go-ethereum => github.com/mocachain/go-ethereum v0.0.0-20250415055204-fbf69808eb10
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// use cosmos flavored protobufs
