@@ -1,0 +1,43 @@
+package keeper
+
+import (
+	"fmt"
+
+	"cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/evmos/evmos/v12/x/sp/types"
+)
+
+func (k Keeper) InitGenesis(ctx sdk.Context, genState types.GenesisState) {
+	depositAmount := math.ZeroInt()
+	for _, sp := range genState.StorageProviders {
+		s := sp
+		k.SetStorageProvider(ctx, &s)
+
+		switch sp.GetStatus() {
+		case types.STATUS_IN_SERVICE,
+			types.STATUS_IN_JAILED:
+			depositAmount = depositAmount.Add(sp.GetTotalDeposit())
+		default:
+			panic("invalid initialization storage provider status in genesis block")
+		}
+	}
+
+	depositCoins := sdk.NewCoins(sdk.NewCoin(genState.Params.DepositDenom, depositAmount))
+
+	spDepositPool := k.accountKeeper.GetModuleAccount(ctx, types.ModuleName)
+	if spDepositPool == nil {
+		panic(fmt.Sprintf("%s module account has not been set", types.ModuleName))
+	}
+
+	// if account has zero balance it probably means it's not set, so we set it
+	depositBalance := k.bankKeeper.GetAllBalances(ctx, spDepositPool.GetAddress())
+	if depositBalance.IsZero() {
+		k.accountKeeper.SetModuleAccount(ctx, spDepositPool)
+	}
+
+	if !depositBalance.Equal(depositCoins) {
+		panic(fmt.Sprintf("sp deposit pool balance is different from sp deposit coins: %s <-> %s", depositBalance.String(), depositCoins.String()))
+	}
+}

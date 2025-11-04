@@ -1,0 +1,105 @@
+package sequence_test
+
+import (
+	"fmt"
+	"testing"
+
+	"cosmossdk.io/log"
+	"cosmossdk.io/math"
+	sdkstore "cosmossdk.io/store"
+	"cosmossdk.io/store/metrics"
+	storetypes "cosmossdk.io/store/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/evmos/evmos/v12/internal/sequence"
+)
+
+type MockContext struct {
+	db    *dbm.MemDB
+	store storetypes.CommitMultiStore
+}
+
+func (m MockContext) KVStore(key storetypes.StoreKey) storetypes.KVStore {
+	if s := m.store.GetCommitKVStore(key); s != nil {
+		return s
+	}
+	m.store.MountStoreWithDB(key, storetypes.StoreTypeIAVL, m.db)
+	if err := m.store.LoadLatestVersion(); err != nil {
+		panic(err)
+	}
+	return m.store.GetCommitKVStore(key)
+}
+
+func NewMockContext() *MockContext {
+	db := dbm.NewMemDB()
+	return &MockContext{
+		db:    dbm.NewMemDB(),
+		store: sdkstore.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics()),
+	}
+}
+
+func TestSequenceUniqueConstraint(t *testing.T) {
+	ctx := NewMockContext()
+	store := ctx.KVStore(storetypes.NewKVStoreKey("test"))
+
+	seq := sequence.NewSequence[uint32]([]byte{0x1})
+	err := seq.InitVal(store, 0)
+	require.NoError(t, err)
+	err = seq.InitVal(store, 1)
+	require.True(t, sequence.ErrSequenceUniqueConstraint.Is(err))
+}
+
+func TestSequenceIncrementsUint256(t *testing.T) {
+	ctx := NewMockContext()
+	store := ctx.KVStore(storetypes.NewKVStoreKey("test"))
+	seq := sequence.NewSequence[math.Uint]([]byte{0x1})
+	max := math.NewUint(1000)
+	i := math.ZeroUint()
+	for i.LT(max) {
+		id := seq.NextVal(store)
+		curID := seq.CurVal(store)
+		i = i.Incr()
+		assert.True(t, i.Equal(id))
+		assert.True(t, i.Equal(curID))
+	}
+}
+
+func TestSequenceIncrementsU32(t *testing.T) {
+	ctx := NewMockContext()
+	store := ctx.KVStore(storetypes.NewKVStoreKey("test"))
+	seq := sequence.NewSequence[uint32]([]byte{0x1})
+	max := uint32(10)
+	i := uint32(0)
+	for i < max {
+		id := seq.NextVal(store)
+		curID := seq.CurVal(store)
+		i++
+		assert.Equal(t, i, id)
+		assert.Equal(t, i, curID)
+		fmt.Print("i= ", i, "id=", id, "curID", curID)
+	}
+}
+
+func TestSequenceU32(t *testing.T) {
+	ctx := NewMockContext()
+	store := ctx.KVStore(storetypes.NewKVStoreKey("test"))
+
+	seq := sequence.NewSequence[uint32]([]byte{0x1})
+	err := seq.InitVal(store, 0)
+	require.NoError(t, err)
+	n := seq.NextVal(store)
+	require.Equal(t, n, uint32(1))
+}
+
+func TestSequenceU256(t *testing.T) {
+	ctx := NewMockContext()
+	store := ctx.KVStore(storetypes.NewKVStoreKey("test"))
+
+	seq := sequence.NewSequence[math.Uint]([]byte{0x1})
+	err := seq.InitVal(store, math.ZeroUint())
+	require.NoError(t, err)
+	n := seq.NextVal(store)
+	require.Equal(t, n, math.OneUint())
+}

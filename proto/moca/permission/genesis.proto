@@ -1,0 +1,13 @@
+syntax = "proto3";
+package moca.permission;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "moca/permission/params.proto";
+
+option go_package = "github.com/evmos/evmos/v12/x/permission/types";
+
+// GenesisState defines the permission module's genesis state.
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+}
