@@ -51,8 +51,8 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/samber/lo v1.39.0
 	github.com/spf13/cast v1.7.1
-	github.com/spf13/cobra v1.8.1
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/cobra v1.10.1
+	github.com/spf13/pflag v1.0.9
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tyler-smith/go-bip39 v1.1.0
