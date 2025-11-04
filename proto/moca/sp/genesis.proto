@@ -1,0 +1,17 @@
+syntax = "proto3";
+package moca.sp;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "moca/sp/params.proto";
+import "moca/sp/types.proto";
+
+option go_package = "github.com/evmos/evmos/v12/x/sp/types";
+
+// GenesisState defines the sp module's genesis state.
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+  // this used by starport scaffolding # genesis/proto/state
+  repeated StorageProvider storage_providers = 2 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+  repeated SpStoragePrice sp_storage_price_list = 3 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+}

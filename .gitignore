@@ -1,0 +1,122 @@
+# OS
+.DS_Store
+*.swp
+*.swo
+*.swl
+*.swm
+*.swn
+.idea
+*.pyc
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+.dccache
+
+# Build
+*.test
+.glide/
+vendor
+build/*
+!build/dev.js
+!build/config.default.json
+!build/package.json
+!build/README*.md
+bin
+tools/bin/*
+docs/_build
+docs/tutorial
+docs/node_modules
+docs/assets
+docs/modules
+docs/cosmos-sdk
+docs/ethermint
+docs/ibc-go
+dist
+tools-stamp
+docs-tools-stamp
+proto-tools-stamp
+golangci-lint
+keyring_test_cosmos
+./**/dist
+secret.yml
+artifacts/*
+tmp-swagger-gen
+github.com/
+# vue/
+
+# Local docker volume mappings
+localnet-setup
+.testnets
+
+# Testing
+coverage.txt
+*.out
+sim_log_file
+tests/**/tmp/*
+yarn.lock
+
+# Vagrant
+.vagrant/
+*.box
+*.log
+vagrant
+
+# IDE
+.idea/
+*.iml
+*.code-workspace
+
+# Graphviz
+dependency-graph.png
+
+# Latex
+*.aux
+*.out
+*.synctex.gz
+
+# Contracts
+*.bin
+*.abi
+
+# Node.js
+**/node_modules
+
+
+# OpenZeppelin contracts
+contracts/@openzeppelin/*
+
+# localup
+deployment/localup/.local
+
+# devnetup
+deployment/devnetup/.local
+
+# dockerup
+deployment/dockerup/.local
+deployment/dockerup/genesis.json
+deployment/dockerup/.env-e
+deployment/dockerup/persistent_peers.txt
+deployment/dockerup/sp.json
+deployment/dockerup/validator.json
+deployment/dockerup/proposal.json
+deployment/dockerup/tx.json
+init_done
+
+
+dist
+
+
+scripts/tx.json
+scripts/proposal.json
+scripts/proposal_status.json
+scripts/all_validators.yaml
+
+deployment/.local
+sp.json
+deployment/dockerup/send_tokens.sh
+deployment/dockerup/.env
+deployment/testnet/keys.json
+
+CLAUDE.md
