@@ -1,8 +1,6 @@
 module github.com/evmos/evmos/v12
 
-go 1.23.6
-
-toolchain go1.23.11
+go 1.24.0
 
 require (
 	cosmossdk.io/api v0.7.6
@@ -61,7 +59,7 @@ require (
 	go.uber.org/mock v0.3.0
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
 	golang.org/x/net v0.34.0
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.18.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.5
