@@ -15,6 +15,24 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      # Free up disk space before heavy builds
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false # Keep Docker images - we need Docker for release
+          swap-storage: true
+
       # Setup QEMU for multi-arch builds
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -30,12 +48,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: true
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -53,9 +65,6 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-
-      - name: Release Dry Run
-        run: make release-dry-run
 
       - name: Setup Release Environment
         env:
