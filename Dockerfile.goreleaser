@@ -1,0 +1,14 @@
+# Dockerfile.goreleaser
+# This Dockerfile is used by GoReleaser to build multi-arch Docker images
+# GoReleaser handles the compilation and copies the pre-built binary
+FROM golang:1.23.6-bullseye
+
+RUN apt-get update -y && apt-get install ca-certificates jq -y
+
+WORKDIR /root
+
+# GoReleaser will copy the pre-built binary here
+COPY bin/mocad /usr/bin/mocad
+
+CMD ["mocad"]
+
