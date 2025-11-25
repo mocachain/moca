@@ -10,5 +10,4 @@ WORKDIR /root
 # GoReleaser will copy the pre-built binary here
 COPY bin/mocad /usr/bin/mocad
 
-CMD ["mocad"]
-
+ENTRYPOINT ["mocad"]
