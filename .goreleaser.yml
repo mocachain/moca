@@ -103,7 +103,7 @@ archives:
       - src: asset/configs/testnet_config
         dst: testnet_config
 
-# Multi-arch Docker images
+# Multi-arch Docker images - VERSION TAGS ONLY
 dockers:
   # https://goreleaser.com/customization/docker/
   - use: buildx
@@ -113,7 +113,6 @@ dockers:
       - mocad-linux
     image_templates:
       - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:{{ .Version }}-amd64"
-      - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:latest-amd64"
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
@@ -131,7 +130,6 @@ dockers:
       - mocad-linux-arm64
     image_templates:
       - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:{{ .Version }}-arm64"
-      - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:latest-arm64"
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64/v8"
@@ -142,18 +140,58 @@ dockers:
       - "--label=org.opencontainers.image.source={{.GitURL}}"
     dockerfile: Dockerfile.goreleaser
 
+  # LATEST TAGS - only for stable releases (without suffix)
+  - use: buildx
+    goos: linux
+    goarch: amd64
+    ids:
+      - mocad-linux
+    image_templates:
+      - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:latest-amd64"
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+    dockerfile: Dockerfile.goreleaser
+    skip_push: auto # Skip for pre-releases
+
+  - use: buildx
+    goos: linux
+    goarch: arm64
+    ids:
+      - mocad-linux-arm64
+    image_templates:
+      - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:latest-arm64"
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+    dockerfile: Dockerfile.goreleaser
+    skip_push: auto # Skip for pre-releases
+
 # Docker manifests for unified multi-arch images
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
+  # Version-specific manifest (always created)
   - name_template: "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:{{ .Version }}"
     image_templates:
       - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:{{ .Version }}-amd64"
       - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:{{ .Version }}-arm64"
 
+  # Latest manifest (only for stable releases without suffix)
   - name_template: "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:latest"
     image_templates:
       - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:latest-amd64"
       - "ghcr.io/{{ .Env.REPO_OWNER }}/{{ .ProjectName }}:latest-arm64"
+    skip_push: auto # Skip for pre-releases
 
 changelog:
   sort: asc
@@ -167,4 +205,5 @@ checksum:
   name_template: "checksums.txt"
 
 release:
+  prerelease: auto # Auto-detect pre-releases based on version suffix
   replace_existing_artifacts: true
