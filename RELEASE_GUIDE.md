@@ -20,8 +20,16 @@ types of releases such as pre-releases and release candidates.
 
 ```bash
 # Exmaple pre-release tag
-git tag -a v1.0.6-beta.1 -m "Pre-Release v1.0.6-beta.1"
-git push origin v1.0.6-beta.1
+git tag -a v1.0.1-alpha.1 -m "Pre-Release v1.0.1-alpha.1"
+git push origin v1.0.1-alpha.1
+```
+
+OR, for a production release:
+
+```bash
+# Exmaple production release tag
+git tag -a v1.0.1 -m "Production Release v1.0.1"
+git push origin v1.0.1
 ```
 
 ### Option 2. Create a release via the GitHub UI
@@ -34,7 +42,7 @@ will be automatically triggered by the new tag.
 3. Enter the release name and description and create a new tag.
 4. Click the "Publish release" button.
 
-## **What Happens When a Tag is Pushed or a Release is Created**
+## **What Happens When a versioned Tag is Pushed or a Release is Created**
 
 With either method, GitHub Actions will automatically:
 
