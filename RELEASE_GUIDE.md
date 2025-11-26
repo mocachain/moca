@@ -19,7 +19,7 @@ See [Version Tagging Convention](#version-tagging-convention) for more informati
 types of releases such as pre-releases and release candidates.
 
 ```bash
-# Exmaple pre-release tag
+# Example: pre-release tag
 git tag -a v1.0.1-alpha.1 -m "Pre-Release v1.0.1-alpha.1"
 git push origin v1.0.1-alpha.1
 ```
@@ -27,7 +27,7 @@ git push origin v1.0.1-alpha.1
 OR, for a production release:
 
 ```bash
-# Exmaple production release tag
+# Example: production release tag
 git tag -a v1.0.1 -m "Production Release v1.0.1"
 git push origin v1.0.1
 ```
