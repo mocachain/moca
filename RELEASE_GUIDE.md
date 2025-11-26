@@ -95,13 +95,14 @@ Each archive includes:
 Download the appropriate archive for your platform
 
 ```bash
-wget https://github.com/sledro/moca/releases/download/latest/mocad_linux_x86_64.tar.gz
+wget https://github.com/sledro/moca/releases/download/v1.0.1/mocad_darwin_arm64.tar.gz
 ```
 
 Extract
 
 ```bash
-tar -xzf mocad_linux_x86_64.tar.gz
+tar -xzf mocad_darwin_arm64.tar.gz
+
 ```
 
 Move binary to PATH
@@ -121,7 +122,7 @@ mocad version
 Pull the image (automatically selects correct architecture)
 
 ```bash
-docker pull ghcr.io/sledro/mocad:v1.0.6-beta.1
+docker pull ghcr.io/sledro/mocad:v1.0.1
 ```
 
 Or use latest
@@ -141,7 +142,7 @@ docker run -d \
  -p 9090:9090 \
  -p 8545:8545 \
  -p 8546:8546 \
- ghcr.io/sledro/mocad:latest \
+ ghcr.io/sledro/mocad:v1.0.1 \
  start --home /root/.mocad
 ```
 
