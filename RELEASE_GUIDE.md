@@ -76,15 +76,15 @@ Each archive includes:
 
 **Multi-arch manifests** (automatically selects correct architecture):
 
-- `ghcr.io/sledro/mocad:v1.0.0`
-- `ghcr.io/sledro/mocad:latest`
+- `ghcr.io/mocachain/mocad:v1.0.0`
+- `ghcr.io/mocachain/mocad:latest`
 
 **Architecture-specific images**:
 
-- `ghcr.io/sledro/mocad:v1.0.0-amd64`
-- `ghcr.io/sledro/mocad:v1.0.0-arm64`
-- `ghcr.io/sledro/mocad:latest-amd64`
-- `ghcr.io/sledro/mocad:latest-arm64`
+- `ghcr.io/mocachain/mocad:v1.0.0-amd64`
+- `ghcr.io/mocachain/mocad:v1.0.0-arm64`
+- `ghcr.io/mocachain/mocad:latest-amd64`
+- `ghcr.io/mocachain/mocad:latest-arm64`
 
 > **Note**: Docker image paths use lowercase repository owner (`mocachain` not `MocaChain`) per Docker registry requirements.
 
@@ -95,7 +95,7 @@ Each archive includes:
 Download the appropriate archive for your platform
 
 ```bash
-wget https://github.com/sledro/moca/releases/download/v1.0.1/mocad_darwin_arm64.tar.gz
+wget https://github.com/mocachain/moca/releases/download/v1.0.1/mocad_darwin_arm64.tar.gz
 ```
 
 Extract
@@ -122,13 +122,13 @@ mocad version
 Pull the image (automatically selects correct architecture)
 
 ```bash
-docker pull ghcr.io/sledro/mocad:v1.0.1
+docker pull ghcr.io/mocachain/mocad:v1.0.1
 ```
 
 Or use latest
 
 ```bash
-docker pull ghcr.io/sledro/mocad:latest
+docker pull ghcr.io/mocachain/mocad:latest
 ```
 
 Run
@@ -142,7 +142,7 @@ docker run -d \
  -p 9090:9090 \
  -p 8545:8545 \
  -p 8546:8546 \
- ghcr.io/sledro/mocad:v1.0.1 \
+ ghcr.io/mocachain/mocad:v1.0.1 \
  start --home /root/.mocad
 ```
 
