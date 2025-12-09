@@ -14,7 +14,7 @@ builds:
   # https://goreleaser.com/customization/build/
   - id: "mocad-darwin"
     main: ./cmd/mocad
-    binary: darwin_amd64/mocad
+    binary: mocad
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-O -D__BLST_PORTABLE__
@@ -33,7 +33,7 @@ builds:
 
   - id: "mocad-darwin-arm64"
     main: ./cmd/mocad
-    binary: darwin_arm64/mocad
+    binary: mocad
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-O -D__BLST_PORTABLE__
@@ -52,7 +52,7 @@ builds:
 
   - id: "mocad-linux"
     main: ./cmd/mocad
-    binary: linux_amd64/mocad
+    binary: mocad
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-O -D__BLST_PORTABLE__
@@ -71,7 +71,7 @@ builds:
 
   - id: "mocad-linux-arm64"
     main: ./cmd/mocad
-    binary: linux_arm64/mocad
+    binary: mocad
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-O -D__BLST_PORTABLE__
