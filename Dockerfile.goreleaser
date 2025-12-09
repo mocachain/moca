@@ -7,7 +7,7 @@ RUN apt-get update -y && apt-get install ca-certificates jq -y
 
 WORKDIR /root
 
-# GoReleaser will copy the pre-built binary here
-COPY bin/mocad /usr/bin/mocad
+# GoReleaser copies the pre-built binary as 'mocad' in the build context
+COPY mocad /usr/bin/mocad
 
 ENTRYPOINT ["mocad"]
