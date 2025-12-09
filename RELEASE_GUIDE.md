@@ -48,7 +48,7 @@ With either method, GitHub Actions will automatically:
 
 1. ✅ Free up ~25GB of disk space by removing unused tools
 2. ✅ Build binaries for Darwin (amd64, arm64) and Linux (amd64, arm64) with CGO
-3. ✅ Create archives with mainnet and testnet config files
+3. ✅ Upload raw binaries (no archives)
 4. ✅ Generate checksums
 5. ✅ Build multi-arch Docker images for linux/amd64 and linux/arm64
 6. ✅ Push images to GitHub Container Registry (ghcr.io)
@@ -60,55 +60,53 @@ You can now manually update the release notes in the GitHub UI if needed.
 
 ### Binaries
 
-- `mocad_darwin_x86_64.tar.gz` - macOS Intel
-- `mocad_darwin_arm64.tar.gz` - macOS Apple Silicon
-- `mocad_linux_x86_64.tar.gz` - Linux AMD64
-- `mocad_linux_arm64.tar.gz` - Linux ARM64
+Raw binaries organized by platform:
+
+- `darwin_amd64/mocad` - macOS Intel
+- `darwin_arm64/mocad` - macOS Apple Silicon
+- `linux_amd64/mocad` - Linux AMD64
+- `linux_arm64/mocad` - Linux ARM64
 - `checksums.txt` - SHA256 checksums
-
-Each archive includes:
-
-- Pre-compiled `mocad` binary
-- `mainnet_config/` directory with configuration files
-- `testnet_config/` directory with configuration files
 
 ### Docker Images
 
 **Multi-arch manifests** (automatically selects correct architecture):
 
-- `ghcr.io/mocachain/mocad:v1.0.0`
-- `ghcr.io/mocachain/mocad:latest`
+- `ghcr.io/sledro/mocad:v1.0.0`
+- `ghcr.io/sledro/mocad:latest`
 
 **Architecture-specific images**:
 
-- `ghcr.io/mocachain/mocad:v1.0.0-amd64`
-- `ghcr.io/mocachain/mocad:v1.0.0-arm64`
-- `ghcr.io/mocachain/mocad:latest-amd64`
-- `ghcr.io/mocachain/mocad:latest-arm64`
-
-> **Note**: Docker image paths use lowercase repository owner (`mocachain` not `MocaChain`) per Docker registry requirements.
+- `ghcr.io/sledro/mocad:v1.0.0-amd64`
+- `ghcr.io/sledro/mocad:v1.0.0-arm64`
+- `ghcr.io/sledro/mocad:latest-amd64`
+- `ghcr.io/sledro/mocad:latest-arm64`
 
 ## **Using Released Artifacts**
 
 ### Option 1. Binary Installation
 
-Download the appropriate archive for your platform
+Download the appropriate binary for your platform
 
 ```bash
-wget https://github.com/mocachain/moca/releases/download/v1.0.1/mocad_darwin_arm64.tar.gz
+# macOS Apple Silicon
+wget https://github.com/sledro/moca/releases/download/v1.0.1/darwin_arm64/mocad
+
+# macOS Intel
+wget https://github.com/sledro/moca/releases/download/v1.0.1/darwin_amd64/mocad
+
+# Linux AMD64
+wget https://github.com/sledro/moca/releases/download/v1.0.1/linux_amd64/mocad
+
+# Linux ARM64
+wget https://github.com/sledro/moca/releases/download/v1.0.1/linux_arm64/mocad
 ```
 
-Extract
+Make executable and move to PATH
 
 ```bash
-tar -xzf mocad_darwin_arm64.tar.gz
-
-```
-
-Move binary to PATH
-
-```bash
-sudo mv bin/mocad /usr/local/bin/
+chmod +x mocad
+sudo mv mocad /usr/local/bin/
 ```
 
 Verify
@@ -122,13 +120,13 @@ mocad version
 Pull the image (automatically selects correct architecture)
 
 ```bash
-docker pull ghcr.io/mocachain/mocad:v1.0.1
+docker pull ghcr.io/sledro/mocad:v1.0.1
 ```
 
 Or use latest
 
 ```bash
-docker pull ghcr.io/mocachain/mocad:latest
+docker pull ghcr.io/sledro/mocad:latest
 ```
 
 Run
@@ -142,7 +140,7 @@ docker run -d \
  -p 9090:9090 \
  -p 8545:8545 \
  -p 8546:8546 \
- ghcr.io/mocachain/mocad:v1.0.1 \
+ ghcr.io/sledro/mocad:v1.0.1 \
  start --home /root/.mocad
 ```
 

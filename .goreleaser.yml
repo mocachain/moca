@@ -14,7 +14,7 @@ builds:
   # https://goreleaser.com/customization/build/
   - id: "mocad-darwin"
     main: ./cmd/mocad
-    binary: bin/mocad
+    binary: darwin_amd64/mocad
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-O -D__BLST_PORTABLE__
@@ -33,7 +33,7 @@ builds:
 
   - id: "mocad-darwin-arm64"
     main: ./cmd/mocad
-    binary: bin/mocad
+    binary: darwin_arm64/mocad
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-O -D__BLST_PORTABLE__
@@ -52,7 +52,7 @@ builds:
 
   - id: "mocad-linux"
     main: ./cmd/mocad
-    binary: bin/mocad
+    binary: linux_amd64/mocad
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-O -D__BLST_PORTABLE__
@@ -71,7 +71,7 @@ builds:
 
   - id: "mocad-linux-arm64"
     main: ./cmd/mocad
-    binary: bin/mocad
+    binary: linux_arm64/mocad
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-O -D__BLST_PORTABLE__
@@ -89,19 +89,8 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
-  - format: tar.gz
-    name_template: >-
-      {{ .ProjectName }}_{{ .Os }}_{{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-    format_overrides:
-      - goos: windows
-        format: zip
-    files:
-      - src: asset/configs/mainnet_config
-        dst: mainnet_config
-      - src: asset/configs/testnet_config
-        dst: testnet_config
+  - format: binary
+    name_template: "{{ .Os }}_{{ .Arch }}/{{ .ProjectName }}"
 
 # Multi-arch Docker images - VERSION TAGS ONLY
 dockers:
