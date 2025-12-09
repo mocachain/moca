@@ -90,7 +90,7 @@ builds:
 
 archives:
   - format: binary
-    name_template: "{{ .Os }}_{{ .Arch }}/{{ .ProjectName }}"
+    name_template: "{{ .Os }}_{{ .Arch }}_{{ .ProjectName }}"
 
 # Multi-arch Docker images - VERSION TAGS ONLY
 dockers:
