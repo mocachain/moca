@@ -170,4 +170,22 @@ retry-interval = "{{ .TxCacheQueue.RetryInterval }}"
 
 # Maximum number of retry attempts for broadcasting transactions
 max-retries = {{ .TxCacheQueue.MaxRetries }}
+
+###############################################################################
+###                                Hardforks                                ###
+###############################################################################
+[hardforks]
+# Map of "height" = { name = "...", info = "..." } used to schedule x/upgrade plans
+# automatically at BeginBlock when the configured height is reached.
+#
+# This is intended for operator-managed / localnet / emergency upgrades where governance
+# is unavailable.
+#
+# Fields:
+#   name - (required) the upgrade plan name
+#   info - (optional) application-specific upgrade info, e.g. JSON for Cosmovisor
+#
+# Example:
+# "1200" = { name = "testnet-gov-param-fix", info = '{"binaries":{"linux/amd64":"url..."}}' }
+# "5000" = { name = "another-upgrade" }
 `
