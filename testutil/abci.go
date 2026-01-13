@@ -28,6 +28,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/testutil/tx"
 )
@@ -39,6 +40,9 @@ import (
 //  3. EndBlock
 //  4. Commit
 func Commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (sdk.Context, error) {
+	if cms, ok := ctx.MultiStore().(storetypes.CacheMultiStore); ok {
+		cms.Write()
+	}
 	header, err := commit(ctx, app, t, vs)
 	if err != nil {
 		return ctx, err

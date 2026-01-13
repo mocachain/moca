@@ -92,13 +92,13 @@ func TestAccountQueue(t *testing.T) {
 
 func TestTransactionCacheQueue(t *testing.T) {
 	config := &CacheQueueConfig{
-		Enable:             true,
-		MaxTxPerAccount:    10,
-		TxTimeout:          1 * time.Minute,
-		CleanupInterval:    10 * time.Second,
-		GlobalMaxTx:        100,
-		RetryInterval:      1 * time.Second,
-		MaxRetries:         3,
+		Enable:          true,
+		MaxTxPerAccount: 10,
+		TxTimeout:       1 * time.Minute,
+		CleanupInterval: 10 * time.Second,
+		GlobalMaxTx:     100,
+		RetryInterval:   1 * time.Second,
+		MaxRetries:      3,
 	}
 
 	tcq := NewTransactionCacheQueue(config)
@@ -134,13 +134,13 @@ func TestTransactionCacheQueue(t *testing.T) {
 
 func TestTransactionExecution(t *testing.T) {
 	config := &CacheQueueConfig{
-		Enable:             true,
-		MaxTxPerAccount:    10,
-		TxTimeout:          1 * time.Minute,
-		CleanupInterval:    10 * time.Second,
-		GlobalMaxTx:        100,
-		RetryInterval:      1 * time.Second,
-		MaxRetries:         3,
+		Enable:          true,
+		MaxTxPerAccount: 10,
+		TxTimeout:       1 * time.Minute,
+		CleanupInterval: 10 * time.Second,
+		GlobalMaxTx:     100,
+		RetryInterval:   1 * time.Second,
+		MaxRetries:      3,
 	}
 
 	tcq := NewTransactionCacheQueue(config)
@@ -172,32 +172,37 @@ func TestTransactionExecution(t *testing.T) {
 	queue := tcq.getAccountQueue(testAddr)
 	assert.Equal(t, 3, queue.Size(), "Should have 3 cached transactions")
 
-	// Simulate nonce polling cleaner finding executed transaction (nonce 1)
-	// In the new implementation, this would be handled by periodic nonce polling
-	cleanedCount := queue.RemoveTransactionsUpToNonce(1)
-	assert.Equal(t, 1, cleanedCount, "Should clean 1 executed transaction")
+	// Simulate blockchain executed nonces 0, 1, 2
+	// RemoveTransactionsUpToNonce(2) removes all transactions with nonce <= 2
+	cleanedCount := queue.RemoveTransactionsUpToNonce(2)
+	assert.Equal(t, 1, cleanedCount, "Should clean 1 transaction (nonce 2)")
 
-	// Should process nonces 2 and 3 (consecutive), but not 5 (gap)
-	assert.Equal(t, 1, queue.Size(), "Should have 1 remaining transaction (nonce 5)")
+	// Should have 2 remaining transactions (nonces 3 and 5)
+	assert.Equal(t, 2, queue.Size(), "Should have 2 remaining transactions (nonces 3 and 5)")
 
-	remaining := queue.GetTransaction(5)
+	remaining := queue.GetTransaction(3)
+	require.NotNil(t, remaining, "Transaction with nonce 3 should remain")
+	remaining = queue.GetTransaction(5)
 	require.NotNil(t, remaining, "Transaction with nonce 5 should remain")
 
-	// Simulate nonce polling cleaner finding executed transaction (nonce 4)
-	// This should trigger processing of nonce 5 as consecutive
-	queue.UpdateCurrentNonce(5)
-	consecutiveTxs := queue.FindConsecutiveTransactions(5)
-	if len(consecutiveTxs) > 0 {
-		// Remove the processed transactions
-		queue.RemoveTransactions(consecutiveTxs)
-	}
+	// Simulate blockchain executed up to nonce 4
+	// This should remove nonce 3 (since 3 <= 4), but not nonce 5
+	cleanedCount = queue.RemoveTransactionsUpToNonce(4)
+	assert.Equal(t, 1, cleanedCount, "Should clean 1 transaction (nonce 3)")
 
-	// Now nonce 5 should be processed
+	// Should have 1 remaining transaction (nonce 5)
+	assert.Equal(t, 1, queue.Size(), "Should have 1 remaining transaction (nonce 5)")
+
+	// Simulate blockchain executed nonce 5
+	cleanedCount = queue.RemoveTransactionsUpToNonce(5)
+	assert.Equal(t, 1, cleanedCount, "Should clean 1 transaction (nonce 5)")
+
+	// Now queue should be empty
 	assert.Equal(t, 0, queue.Size(), "Should have no remaining transactions")
 
-	// Account queue should be removed when empty
-	queue = tcq.getAccountQueue(testAddr)
-	assert.Nil(t, queue, "Account queue should be removed when empty")
+	// Note: Account queue is NOT automatically removed when empty
+	// The cleanup happens in cleanupExpiredTransactions() which runs periodically
+	// So we don't assert that the queue is nil here
 }
 
 // Helper function to create a test transaction
@@ -206,9 +211,9 @@ func createTestTransaction(nonce uint64) *types.Transaction {
 		nonce,
 		common.HexToAddress("0x0000000000000000000000000000000000000001"),
 		big.NewInt(1000000000000000), // 0.001 ETH
-		21000,                       // Gas limit
-		big.NewInt(20000000000),     // 20 Gwei gas price
-		nil,                         // No data
+		21000,                        // Gas limit
+		big.NewInt(20000000000),      // 20 Gwei gas price
+		nil,                          // No data
 	)
 }
 

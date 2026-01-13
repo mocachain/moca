@@ -34,11 +34,24 @@ const (
 
 	// OperationMirrorMocaSBT uint8 = 5
 
-	// bucket operation types
+	// Bucket operation types
+	// Cross-chain packages use OperationType to determine deserialization path.
+	// V2 operations use high-bit flag (0x80) for explicit version identification.
+	// This prevents dangerous fallback where V1 payloads could be misinterpreted as V2.
+	//
+	// Operation codes:
+	// - 0x01: MirrorBucket (V1)
+	// - 0x02: CreateBucket (V1, legacy format without GlobalVirtualGroupFamilyId)
+	// - 0x03: DeleteBucket (V1)
+	// - 0x82: CreateBucket (V2, includes GlobalVirtualGroupFamilyId, high-bit: 0x80 | 0x02)
+	//
+	// Future versions should follow the pattern: V3 = 0x83, V4 = 0x84, etc.
+	// Receivers MUST explicitly branch on OperationType; fallback is prohibited.
 
-	OperationMirrorBucket uint8 = 1
-	OperationCreateBucket uint8 = 2
-	OperationDeleteBucket uint8 = 3
+	OperationMirrorBucket   uint8 = 0x01
+	OperationCreateBucket   uint8 = 0x02
+	OperationDeleteBucket   uint8 = 0x03
+	OperationCreateBucketV2 uint8 = 0x82
 
 	// object operation types
 
@@ -65,15 +78,28 @@ func SafeBigInt(input *big.Int) *big.Int {
 	return input
 }
 
+// CrossChainPackage is the outer wrapper for all cross-chain messages.
+// Format: [1 byte OperationType | payload bytes]
+//
+// OperationType serves as the version identifier using high-bit flag strategy:
+// - V1 operations: 0x01-0x7F (e.g., CreateBucket = 0x02)
+// - V2 operations: 0x80-0xFF (e.g., CreateBucketV2 = 0x82)
+//
+// This design avoids adding a separate Version field while maintaining
+// explicit protocol-level distinction between package versions.
 type CrossChainPackage struct {
-	OperationType uint8
-	Package       []byte
+	OperationType uint8  // Operation type with embedded version information
+	Package       []byte // Serialized package payload
 }
 
+// MustSerialize encodes the cross-chain package as [OperationType | Package].
 func (p CrossChainPackage) MustSerialize() []byte {
 	return append([]byte{p.OperationType}, p.Package...)
 }
 
+// DeserializeRawCrossChainPackage extracts OperationType and payload from raw bytes.
+// This is the first step in deserialization; callers must then branch on OperationType
+// to select the appropriate typed deserializer (V1 or V2).
 func DeserializeRawCrossChainPackage(serializedPackage []byte) (*CrossChainPackage, error) {
 	tp := CrossChainPackage{
 		OperationType: serializedPackage[0],
@@ -85,6 +111,13 @@ func DeserializeRawCrossChainPackage(serializedPackage []byte) (*CrossChainPacka
 type DeserializeFunc func(serializedPackage []byte) (interface{}, error)
 
 var (
+	// DeserializeFuncMap handles V1 cross-chain package deserialization.
+	// For CreateBucket operations, uses OperationCreateBucket (0x02) as key,
+	// which deserializes the legacy format without GlobalVirtualGroupFamilyId.
+	//
+	// Note: Current keeper implementation uses explicit switch-case branching
+	// instead of relying on this map, but the map is maintained for consistency
+	// and potential use by other callers.
 	DeserializeFuncMap = map[sdk.ChannelID]map[uint8][4]DeserializeFunc{
 		BucketChannelId: {
 			OperationMirrorBucket: {
@@ -92,7 +125,7 @@ var (
 				DeserializeMirrorBucketAckPackage,
 				DeserializeMirrorBucketSynPackage,
 			},
-			OperationCreateBucket: {
+			OperationCreateBucket: { // V1: 0x02
 				DeserializeCreateBucketSynPackage,
 				DeserializeCreateBucketAckPackage,
 				DeserializeCreateBucketSynPackage,
@@ -158,7 +191,16 @@ var (
 		// },
 	}
 
-	// DeserializeFuncMapV2 used after Pampas upgrade
+	// DeserializeFuncMapV2 handles V2 cross-chain package deserialization (used after Pampas upgrade).
+	// For CreateBucket operations, uses OperationCreateBucketV2 (0x82) as key,
+	// which deserializes the V2 format including GlobalVirtualGroupFamilyId.
+	//
+	// IMPORTANT: The key difference (0x02 vs 0x82) ensures V1/V2 packages cannot be confused.
+	// This explicit distinction at the protocol level prevents dangerous deserialization
+	// where V1 payloads could be misinterpreted as V2 format.
+	//
+	// Note: Current keeper implementation uses explicit switch-case branching on OperationType
+	// instead of relying on this map, but the map is maintained for consistency.
 	DeserializeFuncMapV2 = map[sdk.ChannelID]map[uint8][4]DeserializeFunc{
 		BucketChannelId: {
 			OperationMirrorBucket: {
@@ -166,7 +208,7 @@ var (
 				DeserializeMirrorBucketAckPackage,
 				DeserializeMirrorBucketSynPackage,
 			},
-			OperationCreateBucket: {
+			OperationCreateBucketV2: { // V2: 0x82
 				DeserializeCreateBucketSynPackageV2,
 				DeserializeCreateBucketAckPackage,
 				DeserializeCreateBucketSynPackageV2,
@@ -239,6 +281,11 @@ var (
 // 	return &tp, nil
 // }
 
+// DeserializeCrossChainPackage deserializes V1 format cross-chain packages.
+// Uses DeserializeFuncMap which handles OperationCreateBucket (0x02) for CreateBucket.
+//
+// Note: This function is retained for compatibility but current keeper implementation
+// uses explicit switch-case on OperationType instead of relying on this function.
 func DeserializeCrossChainPackage(rawPack []byte, channelId sdk.ChannelID, packageType sdk.CrossChainPackageType) (interface{}, error) {
 	if packageType >= 3 {
 		return nil, ErrInvalidCrossChainPackage
@@ -257,6 +304,15 @@ func DeserializeCrossChainPackage(rawPack []byte, channelId sdk.ChannelID, packa
 	return operationMap[packageType](pack.Package)
 }
 
+// DeserializeCrossChainPackageV2 deserializes V2 format cross-chain packages.
+// Uses DeserializeFuncMapV2 which handles OperationCreateBucketV2 (0x82) for CreateBucket.
+//
+// IMPORTANT: V2 packages include additional fields like GlobalVirtualGroupFamilyId.
+// The OperationType high-bit flag (0x80) ensures V1 packages cannot accidentally
+// be deserialized as V2, preventing data corruption.
+//
+// Note: This function is retained for compatibility but current keeper implementation
+// uses explicit switch-case on OperationType instead of relying on this function.
 func DeserializeCrossChainPackageV2(rawPack []byte, channelId sdk.ChannelID, packageType sdk.CrossChainPackageType) (interface{}, error) {
 	if packageType >= 3 {
 		return nil, ErrInvalidCrossChainPackage
@@ -475,6 +531,9 @@ func DeserializeMirrorGroupAckPackage(serializedPackage []byte) (interface{}, er
 	return &tp, nil
 }
 
+// CreateBucketSynPackage is the V1 cross-chain package for bucket creation.
+// This is the legacy format used with OperationCreateBucket (0x02).
+// It contains 9 fields without GlobalVirtualGroupFamilyId.
 type CreateBucketSynPackage struct {
 	Creator                        sdk.AccAddress
 	BucketName                     string
@@ -487,6 +546,16 @@ type CreateBucketSynPackage struct {
 	ExtraData                      []byte
 }
 
+// CreateBucketSynPackageV2 is the V2 cross-chain package for bucket creation.
+// This format is used with OperationCreateBucketV2 (0x82) and includes
+// GlobalVirtualGroupFamilyId field (at position 7) required for bucket
+// migration and cross-chain mirroring operations.
+//
+// V2 adds 1 additional field compared to V1 (total 10 fields):
+// - GlobalVirtualGroupFamilyId: inserted after PrimarySpApprovalExpiredHeight
+//
+// IMPORTANT: When constructing approval signatures, senders MUST include
+// GlobalVirtualGroupFamilyId in the approval message bytes.
 type CreateBucketSynPackageV2 struct {
 	Creator                        sdk.AccAddress
 	BucketName                     string
@@ -494,7 +563,7 @@ type CreateBucketSynPackageV2 struct {
 	PaymentAddress                 sdk.AccAddress
 	PrimarySpAddress               sdk.AccAddress
 	PrimarySpApprovalExpiredHeight uint64
-	GlobalVirtualGroupFamilyId     uint32
+	GlobalVirtualGroupFamilyId     uint32 // V2 addition: required for cross-chain operations
 	PrimarySpApprovalSignature     []byte
 	ChargedReadQuota               uint64
 	ExtraData                      []byte
@@ -526,6 +595,9 @@ type CreateBucketSynPackageV2Struct struct {
 }
 
 var (
+	// V1 ABI definition for CreateBucketSynPackage (9 fields)
+	// Used for OperationCreateBucket (0x02) serialization/deserialization.
+	// This is the legacy format without GlobalVirtualGroupFamilyId.
 	createBucketSynPackageStructType, _ = abi.NewType("tuple", "", []abi.ArgumentMarshaling{
 		{Name: "Creator", Type: "address"},
 		{Name: "BucketName", Type: "string"},
@@ -542,6 +614,15 @@ var (
 		{Type: createBucketSynPackageStructType},
 	}
 
+	// V2 ABI definition for CreateBucketSynPackageV2 (10 fields)
+	// Used for OperationCreateBucketV2 (0x82) serialization/deserialization.
+	//
+	// CRITICAL DIFFERENCE: GlobalVirtualGroupFamilyId is inserted at position 7
+	// (after PrimarySpApprovalExpiredHeight, before PrimarySpApprovalSignature).
+	// This field order MUST match exactly during Pack/Unpack operations.
+	//
+	// Using incorrect ABI args (e.g., V1 args for V2 package) will cause
+	// silent field misalignment and data corruption.
 	createBucketSynPackageV2StructType, _ = abi.NewType("tuple", "", []abi.ArgumentMarshaling{
 		{Name: "Creator", Type: "address"},
 		{Name: "BucketName", Type: "string"},
@@ -549,7 +630,7 @@ var (
 		{Name: "PaymentAddress", Type: "address"},
 		{Name: "PrimarySpAddress", Type: "address"},
 		{Name: "PrimarySpApprovalExpiredHeight", Type: "uint64"},
-		{Name: "GlobalVirtualGroupFamilyId", Type: "uint32"},
+		{Name: "GlobalVirtualGroupFamilyId", Type: "uint32"}, // V2 addition at position 7
 		{Name: "PrimarySpApprovalSignature", Type: "bytes"},
 		{Name: "ChargedReadQuota", Type: "uint64"},
 		{Name: "ExtraData", Type: "bytes"},
@@ -560,6 +641,9 @@ var (
 	}
 )
 
+// MustSerialize encodes V1 CreateBucketSynPackage using V1 ABI structure (9 fields).
+// IMPORTANT: Must use createBucketSynPackageStructArgs (not V2 args).
+// This method is for OperationCreateBucket (0x02) packages only.
 func (p CreateBucketSynPackage) MustSerialize() []byte {
 	encodedBytes, err := createBucketSynPackageStructArgs.Pack(&CreateBucketSynPackageStruct{
 		Creator:                        common.BytesToAddress(p.Creator),
@@ -637,8 +721,12 @@ func DeserializeCreateBucketSynPackage(serializedPackage []byte) (interface{}, e
 	return &tp, nil
 }
 
+// MustSerialize encodes V2 CreateBucketSynPackageV2 using V2 ABI structure (10 fields).
+// CRITICAL: Must use createBucketSynPackageV2StructArgs (includes GlobalVirtualGroupFamilyId).
+// Using V1 args here would cause silent field misalignment and data corruption.
+// This method is for OperationCreateBucketV2 (0x82) packages only.
 func (p CreateBucketSynPackageV2) MustSerialize() []byte {
-	encodedBytes, err := createBucketSynPackageStructArgs.Pack(&CreateBucketSynPackageV2Struct{
+	encodedBytes, err := createBucketSynPackageV2StructArgs.Pack(&CreateBucketSynPackageV2Struct{
 		Creator:                        common.BytesToAddress(p.Creator),
 		BucketName:                     p.BucketName,
 		Visibility:                     p.Visibility,

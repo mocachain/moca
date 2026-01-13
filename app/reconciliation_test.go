@@ -8,7 +8,9 @@ import (
 )
 
 func TestParseDenomFromBalanceKey(t *testing.T) {
-	key, _ := hex.DecodeString("0214cf150037e47b0c53e826a2d0050de1da2c8f5caa424e42")
+	// Balance key format: prefix (02) + address length (14) + address (20 bytes) + denom
+	// "amoca" in hex is 616d6f6361
+	key, _ := hex.DecodeString("0214cf150037e47b0c53e826a2d0050de1da2c8f5caa616d6f6361")
 	require.Equal(t, "amoca", parseDenomFromBalanceKey(key))
 }
 
@@ -18,6 +20,8 @@ func TestParseAddressFromBalanceKey(t *testing.T) {
 }
 
 func TestParseDenomFromSupplyKey(t *testing.T) {
-	key, _ := hex.DecodeString("00424e42")
+	// Supply key format: prefix (00) + denom
+	// "amoca" in hex is 616d6f6361
+	key, _ := hex.DecodeString("00616d6f6361")
 	require.Equal(t, "amoca", parseDenomFromSupplyKey(key))
 }

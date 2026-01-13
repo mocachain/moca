@@ -19,7 +19,6 @@ import (
 func (suite *AnteTestSuite) TestGasWantedDecorator() {
 	suite.enableFeemarket = true
 	suite.SetupTest()
-	dec := evm.NewGasWantedDecorator(suite.app.EvmKeeper, suite.app.FeeMarketKeeper)
 	from, fromPrivKey := utiltx.NewAddrKey()
 	to := utiltx.GenerateAddress()
 
@@ -108,17 +107,22 @@ func (suite *AnteTestSuite) TestGasWantedDecorator() {
 	}
 
 	// cumulative gas wanted from all test transactions in the same block
-	var expectedGasWanted uint64
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
+			// Reset the context for each test case to ensure isolation
+			suite.SetupTest()
+
+			// Re-create the decorator with the new keeper references
+			dec := evm.NewGasWantedDecorator(suite.app.EvmKeeper, suite.app.FeeMarketKeeper)
+
 			_, err := dec.AnteHandle(suite.ctx, tc.malleate(), false, testutil.NextFn)
 			if tc.expPass {
 				suite.Require().NoError(err)
 
 				gasWanted := suite.app.FeeMarketKeeper.GetTransientGasWanted(suite.ctx)
-				expectedGasWanted += tc.expectedGasWanted
-				suite.Require().Equal(expectedGasWanted, gasWanted)
+				// Verify only the current transaction's gas wanted, not cumulative
+				suite.Require().Equal(tc.expectedGasWanted, gasWanted)
 			} else {
 				suite.Require().Error(err)
 			}

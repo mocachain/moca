@@ -73,7 +73,7 @@ func (suite *AnteTestSuite) SetupTest() {
 		return genesis
 	})
 
-	suite.ctx = suite.app.BaseApp.NewContext(checkTx)
+	suite.ctx = suite.app.BaseApp.NewContext(checkTx).WithBlockHeight(2)
 	suite.ctx = suite.ctx.WithMinGasPrices(sdk.NewDecCoins(sdk.NewDecCoin(evmtypes.DefaultEVMDenom, sdkmath.OneInt())))
 	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewGasMeter(1000000000000000000))
 	// Set chain ID in context for EVM keeper initialization
@@ -123,7 +123,9 @@ func (suite *AnteTestSuite) SetupTest() {
 
 func TestAnteTestSuite(t *testing.T) {
 	suite.Run(t, &AnteTestSuite{
-		enableLondonHF: true,
+		enableLondonHF:           true,
+		useLegacyEIP712Extension: true,
+		useLegacyEIP712TypedData: true,
 	})
 
 	// Re-run the tests with EIP-712 Legacy encodings to ensure backwards compatibility.
@@ -136,7 +138,7 @@ func TestAnteTestSuite(t *testing.T) {
 
 	suite.Run(t, &AnteTestSuite{
 		enableLondonHF:           true,
-		useLegacyEIP712Extension: false,
+		useLegacyEIP712Extension: true,
 		useLegacyEIP712TypedData: true,
 	})
 }

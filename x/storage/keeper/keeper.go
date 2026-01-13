@@ -112,6 +112,17 @@ func (k Keeper) CreateBucket(
 ) (sdkmath.Uint, error) {
 	store := ctx.KVStore(k.storeKey)
 
+	// LOW-015 Fix: Enforce MaxBucketsPerAccount limit
+	maxBuckets := k.MaxBucketsPerAccount(ctx)
+	if maxBuckets > 0 {
+		currentCount := k.GetBucketCountByOwner(ctx, ownerAcc)
+		if currentCount >= uint64(maxBuckets) {
+			return sdkmath.ZeroUint(), storagetypes.ErrAccessDenied.Wrapf(
+				"account %s has reached max bucket limit: %d/%d",
+				ownerAcc.String(), currentCount, maxBuckets)
+		}
+	}
+
 	// check if the bucket exist
 	bucketKey := storagetypes.GetBucketKey(bucketName)
 	if store.Has(bucketKey) {
@@ -138,6 +149,23 @@ func (k Keeper) CreateBucket(
 	err = k.VerifySP(ctx, sp, ownerAcc)
 	if err != nil {
 		return sdkmath.ZeroUint(), err
+	}
+
+	// INFO-019 Fix: Verify PrimarySpApproval signature and expiration
+	if opts.PrimarySpApproval == nil {
+		return sdkmath.ZeroUint(), storagetypes.ErrInvalidApproval.Wrap("primary sp approval is required")
+	}
+	// Check expiration first (cheap operation)
+	if opts.PrimarySpApproval.ExpiredHeight < uint64(ctx.BlockHeight()) {
+		return sdkmath.ZeroUint(), storagetypes.ErrInvalidApproval.Wrap("primary sp approval expired")
+	}
+	// Approval bytes must exist for signature verification
+	if opts.ApprovalMsgBytes == nil || len(opts.ApprovalMsgBytes) == 0 {
+		return sdkmath.ZeroUint(), storagetypes.ErrInvalidApproval.Wrap("approval message bytes is required for signature verification")
+	}
+	// Verify signature (expensive operation)
+	if err := k.VerifySPAndSignature(ctx, sp, opts.ApprovalMsgBytes, opts.PrimarySpApproval.Sig, ownerAcc); err != nil {
+		return sdkmath.ZeroUint(), errors.Wrap(err, "failed to verify primary sp approval signature")
 	}
 
 	gvgFamily, err := k.virtualGroupKeeper.GetAndCheckGVGFamilyAvailableForNewBucket(ctx, opts.PrimarySpApproval.GlobalVirtualGroupFamilyId)
@@ -207,6 +235,9 @@ func (k Keeper) CreateBucket(
 	if err != nil {
 		return sdkmath.ZeroUint(), err
 	}
+
+	// LOW-015 Fix: Increment bucket count after successful creation
+	k.IncrementBucketCount(ctx, ownerAcc)
 
 	return bucketInfo.Id, nil
 }
@@ -308,6 +339,9 @@ func (k Keeper) doDeleteBucket(ctx sdk.Context, operator sdk.AccAddress, bucketI
 		return err
 	}
 
+	// LOW-015 Fix: Decrement bucket count after successful deletion
+	k.DecrementBucketCount(ctx, sdk.MustAccAddressFromHex(bucketInfo.Owner))
+
 	return nil
 }
 
@@ -404,7 +438,7 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 				k.DecreaseLockedObjectCount(ctx, bucketInfo.Id)
 			}
 		}
-		if err := k.doDeleteObject(ctx, spOperatorAddr, bucketInfo, &objectInfo); err != nil {
+		if err := k.doDeleteObject(ctx, spOperatorAddr, bucketInfo, &objectInfo, objectStatus); err != nil {
 			ctx.Logger().Error("do delete object err", "err", err)
 			return false, deleted, err
 		}
@@ -1095,14 +1129,14 @@ func (k Keeper) DeleteObject(
 	}
 	k.SetInternalBucketInfo(ctx, bucketInfo.Id, internalBucketInfo)
 
-	err = k.doDeleteObject(ctx, operator, bucketInfo, objectInfo)
+	err = k.doDeleteObject(ctx, operator, bucketInfo, objectInfo, objectInfo.ObjectStatus)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (k Keeper) doDeleteObject(ctx sdk.Context, operator sdk.AccAddress, bucketInfo *storagetypes.BucketInfo, objectInfo *storagetypes.ObjectInfo) error {
+func (k Keeper) doDeleteObject(ctx sdk.Context, operator sdk.AccAddress, bucketInfo *storagetypes.BucketInfo, objectInfo *storagetypes.ObjectInfo, originalStatus storagetypes.ObjectStatus) error {
 	store := ctx.KVStore(k.storeKey)
 
 	bbz := k.cdc.MustMarshal(bucketInfo)
@@ -1131,7 +1165,30 @@ func (k Keeper) doDeleteObject(ctx sdk.Context, operator sdk.AccAddress, bucketI
 		ObjectId:            objectInfo.Id,
 		LocalVirtualGroupId: objectInfo.LocalVirtualGroupId,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Burn object NFT token only if the object was originally sealed AND has payload size > 0
+	// NFTs are only minted for non-empty objects (PayloadSize > 0) during SealObject.
+	// Empty objects (PayloadSize = 0) are sealed directly on creation via SealEmptyObjectOnVirtualGroup and never mint NFTs.
+	// Use originalStatus instead of objectInfo.ObjectStatus to handle cases where the status
+	// has been changed to DISCONTINUED before deletion (e.g., in ForceDeleteObject/ForceDeleteBucket)
+	if originalStatus == storagetypes.OBJECT_STATUS_SEALED && objectInfo.PayloadSize > 0 {
+		if _, err := k.CallEVM(
+			ctx,
+			contracts.ERC721NonTransferableContract.ABI,
+			contracts.ObjectControlHubAddress,
+			contracts.ObjectERC721TokenAddress,
+			true,
+			"burn",
+			objectInfo.Id.BigInt(),
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ForceDeleteObject will delete object without permission check, it is used for discontinue request from sps.
@@ -1179,7 +1236,7 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		}
 	}
 
-	err = k.doDeleteObject(ctx, sdk.MustAccAddressFromHex(spInState.OperatorAddress), bucketInfo, objectInfo)
+	err = k.doDeleteObject(ctx, sdk.MustAccAddressFromHex(spInState.OperatorAddress), bucketInfo, objectInfo, objectStatus)
 	if err != nil {
 		ctx.Logger().Error("do delete object err", "err", err)
 		return err
@@ -1231,8 +1288,14 @@ func (k Keeper) CopyObject(
 			operator.String(), srcObjectInfo.BucketName, srcObjectInfo.ObjectName)
 	}
 
-	err = k.VerifySP(ctx, dstPrimarySP, operator)
-	if err != nil {
+	// LOW-017: enforce dst primary SP approval validation (non-nil, not expired, and signature verified)
+	if opts.PrimarySpApproval == nil {
+		return sdkmath.ZeroUint(), storagetypes.ErrInvalidApproval.Wrap("primary sp approval is required")
+	}
+	if opts.PrimarySpApproval.ExpiredHeight < uint64(ctx.BlockHeight()) {
+		return sdkmath.ZeroUint(), storagetypes.ErrInvalidApproval.Wrap("primary sp approval expired")
+	}
+	if err := k.VerifySPAndSignature(ctx, dstPrimarySP, opts.ApprovalMsgBytes, opts.PrimarySpApproval.Sig, operator); err != nil {
 		return sdkmath.ZeroUint(), err
 	}
 
@@ -2632,7 +2695,7 @@ func (k Keeper) UpdateObjectContent(
 
 	if payloadSize == 0 {
 		internalBucketInfo := k.MustGetInternalBucketInfo(ctx, bucketInfo.Id)
-		err := k.UnChargeObjectStoreFee(ctx, bucketInfo, k.MustGetInternalBucketInfo(ctx, bucketInfo.Id), objectInfo)
+		err := k.UnChargeObjectStoreFee(ctx, bucketInfo, internalBucketInfo, objectInfo)
 		if err != nil {
 			return err
 		}
@@ -2786,4 +2849,37 @@ func (k Keeper) DecreaseLockedObjectCount(ctx sdk.Context, bucketID sdkmath.Uint
 	bz = make([]byte, 8)
 	binary.BigEndian.PutUint64(bz, after)
 	store.Set(key, bz)
+}
+
+// LOW-015 Fix: Bucket count management per owner
+func (k Keeper) GetBucketCountByOwner(ctx sdk.Context, owner sdk.AccAddress) uint64 {
+	store := ctx.KVStore(k.storeKey)
+	key := storagetypes.GetBucketCountByOwnerKey(owner)
+	bz := store.Get(key)
+	if bz == nil {
+		return 0
+	}
+	return binary.BigEndian.Uint64(bz)
+}
+
+func (k Keeper) IncrementBucketCount(ctx sdk.Context, owner sdk.AccAddress) {
+	store := ctx.KVStore(k.storeKey)
+	key := storagetypes.GetBucketCountByOwnerKey(owner)
+	count := k.GetBucketCountByOwner(ctx, owner)
+
+	bz := make([]byte, 8)
+	binary.BigEndian.PutUint64(bz, count+1)
+	store.Set(key, bz)
+}
+
+func (k Keeper) DecrementBucketCount(ctx sdk.Context, owner sdk.AccAddress) {
+	store := ctx.KVStore(k.storeKey)
+	key := storagetypes.GetBucketCountByOwnerKey(owner)
+	count := k.GetBucketCountByOwner(ctx, owner)
+
+	if count > 0 {
+		bz := make([]byte, 8)
+		binary.BigEndian.PutUint64(bz, count-1)
+		store.Set(key, bz)
+	}
 }

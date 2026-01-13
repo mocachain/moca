@@ -3,8 +3,8 @@ package storageprovider
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 
-	"cosmossdk.io/math"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/evmos/v12/types"
@@ -45,9 +45,9 @@ func GetAbiEvent(name string) abi.Event {
 }
 
 type UpdateSPPriceArgs struct {
-	ReadPrice     math.LegacyDec `abi:"readPrice"`
-	FreeReadQuota uint64         `abi:"freeReadQuota"`
-	StorePrice    math.LegacyDec `abi:"storePrice"`
+	ReadPrice     *big.Int `abi:"readPrice"`
+	FreeReadQuota uint64   `abi:"freeReadQuota"`
+	StorePrice    *big.Int `abi:"storePrice"`
 }
 
 // Validate UpdateSPPriceArgs the args

@@ -2,6 +2,7 @@ package bank
 
 import (
 	"errors"
+	"fmt"
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -13,8 +14,11 @@ import (
 )
 
 const (
-	SendGas      = 60_000
-	MultiSendGas = 80_000
+	SendGas               = 60_000
+	MultiSendBaseGas      = 60_000 // Base gas for MultiSend
+	MultiSendPerOutputGas = 30_000 // Additional gas per output
+	MultiSendPerCoinGas   = 10_000 // Additional gas per coin in all outputs
+	MaxMultiSendOutputs   = 100    // Maximum number of outputs allowed
 
 	SendMethodName      = "send"
 	MultiSendMethodName = "multiSend"
@@ -87,6 +91,14 @@ func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate outputs length
+	if len(args.Outputs) == 0 {
+		return nil, errors.New("outputs cannot be empty")
+	}
+	if len(args.Outputs) > MaxMultiSendOutputs {
+		return nil, fmt.Errorf("too many outputs: got %d, max allowed %d", len(args.Outputs), MaxMultiSendOutputs)
 	}
 
 	var totalCoins sdk.Coins

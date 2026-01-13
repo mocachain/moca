@@ -42,7 +42,13 @@ import (
 const (
 	GrantGas  = 60_000
 	RevokeGas = 60_000
-	ExecGas   = 60_000
+
+	// Dynamic gas constants for Exec
+	ExecBaseGas         = 60_000   // Base gas for Exec
+	ExecPerMsgGas       = 50_000   // Additional gas per message
+	MaxExecMsgs         = 20       // Maximum number of messages
+	MaxExecPayloadBytes = 256_000  // Maximum payload size in bytes
+	ExecPerByteGas      = 10       // Gas cost per byte
 
 	GrantMethodName  = "grant"
 	RevokeMethodName = "revoke"
@@ -59,6 +65,15 @@ const (
 	AuthzTypeRedelegate = "redelegate"
 	AuthzTypeSpDeposit  = "spDeposit"
 )
+
+// calc_per_msg_bytes calculates the total byte length of all messages
+func calcPerMsgBytes(msgs []string) int {
+	total := 0
+	for _, m := range msgs {
+		total += len(m)
+	}
+	return total
+}
 
 // Grant implements the MsgServer.Grant method to create a new grant.
 func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
@@ -222,6 +237,20 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate messages length
+	if len(args.Msgs) == 0 {
+		return nil, fmt.Errorf("messages cannot be empty")
+	}
+	if len(args.Msgs) > MaxExecMsgs {
+		return nil, fmt.Errorf("too many messages: got %d, max allowed %d", len(args.Msgs), MaxExecMsgs)
+	}
+
+	// Validate payload size
+	payloadSize := calcPerMsgBytes(args.Msgs)
+	if payloadSize > MaxExecPayloadBytes {
+		return nil, fmt.Errorf("payload too large: %d bytes (max %d)", payloadSize, MaxExecPayloadBytes)
 	}
 
 	interfaceRegistry := codectypes.NewInterfaceRegistry()

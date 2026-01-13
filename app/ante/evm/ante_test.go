@@ -7,12 +7,10 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	ethparams "github.com/ethereum/go-ethereum/params"
@@ -657,249 +655,9 @@ func (suite *AnteTestSuite) TestAnteHandler() {
 				return txBuilder.GetTx()
 			}, false, false, true,
 		},
-		{
-			"passes - EIP-712 multi-key",
-			func() sdk.Tx {
-				numKeys := 5
-				privKeys, pubKeys := suite.GenerateMultipleKeys(numKeys)
-				pk := kmultisig.NewLegacyAminoPubKey(numKeys, pubKeys)
+		// NOTE: Cosmos multisig with EIP-712 tests have been removed.
+		// This feature is not supported. Use EVM multisig (e.g., Gnosis Safe) instead.
 
-				msg := banktypes.NewMsgSend(
-					sdk.AccAddress(pk.Address()),
-					addr[:],
-					sdk.NewCoins(
-						sdk.NewCoin(
-							"evmos",
-							sdkmath.NewInt(1),
-						),
-					),
-				)
-
-				txBuilder := suite.CreateTestSignedMultisigTx(
-					privKeys,
-					signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
-					msg,
-					suite.ctx.ChainID(),
-					2000000,
-					"EIP-712",
-				)
-
-				return txBuilder.GetTx()
-			}, false, false, true,
-		},
-		{
-			"passes - Mixed multi-key",
-			func() sdk.Tx {
-				numKeys := 5
-				privKeys, pubKeys := suite.GenerateMultipleKeys(numKeys)
-				pk := kmultisig.NewLegacyAminoPubKey(numKeys, pubKeys)
-
-				msg := banktypes.NewMsgSend(
-					sdk.AccAddress(pk.Address()),
-					addr[:],
-					sdk.NewCoins(
-						sdk.NewCoin(
-							"evmos",
-							sdkmath.NewInt(1),
-						),
-					),
-				)
-
-				txBuilder := suite.CreateTestSignedMultisigTx(
-					privKeys,
-					signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
-					msg,
-					suite.ctx.ChainID(),
-					2000000,
-					"mixed", // Combine EIP-712 and standard signatures
-				)
-
-				return txBuilder.GetTx()
-			}, false, false, true,
-		},
-		{
-			"passes - Mixed multi-key with MsgVote",
-			func() sdk.Tx {
-				numKeys := 5
-				privKeys, pubKeys := suite.GenerateMultipleKeys(numKeys)
-				pk := kmultisig.NewLegacyAminoPubKey(numKeys, pubKeys)
-
-				msg := govtypes.NewMsgVote(
-					sdk.AccAddress(pk.Address()),
-					1,
-					govtypes.OptionYes,
-				)
-
-				txBuilder := suite.CreateTestSignedMultisigTx(
-					privKeys,
-					signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
-					msg,
-					suite.ctx.ChainID(),
-					2000000,
-					"mixed", // Combine EIP-712 and standard signatures
-				)
-
-				return txBuilder.GetTx()
-			}, false, false, true,
-		},
-		{
-			"Fails - Multi-Key with incorrect Chain ID",
-			func() sdk.Tx {
-				numKeys := 5
-				privKeys, pubKeys := suite.GenerateMultipleKeys(numKeys)
-				pk := kmultisig.NewLegacyAminoPubKey(numKeys, pubKeys)
-
-				msg := banktypes.NewMsgSend(
-					sdk.AccAddress(pk.Address()),
-					addr[:],
-					sdk.NewCoins(
-						sdk.NewCoin(
-							"evmos",
-							sdkmath.NewInt(1),
-						),
-					),
-				)
-
-				txBuilder := suite.CreateTestSignedMultisigTx(
-					privKeys,
-					signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
-					msg,
-					"moca_5151-1",
-					2000000,
-					"mixed",
-				)
-
-				return txBuilder.GetTx()
-			}, false, false, false,
-		},
-		{
-			"Fails - Multi-Key with incorrect sign mode",
-			func() sdk.Tx {
-				numKeys := 5
-				privKeys, pubKeys := suite.GenerateMultipleKeys(numKeys)
-				pk := kmultisig.NewLegacyAminoPubKey(numKeys, pubKeys)
-
-				msg := banktypes.NewMsgSend(
-					sdk.AccAddress(pk.Address()),
-					addr[:],
-					sdk.NewCoins(
-						sdk.NewCoin(
-							"evmos",
-							sdkmath.NewInt(1),
-						),
-					),
-				)
-
-				txBuilder := suite.CreateTestSignedMultisigTx(
-					privKeys,
-					signing.SignMode_SIGN_MODE_DIRECT,
-					msg,
-					suite.ctx.ChainID(),
-					2000000,
-					"mixed",
-				)
-
-				return txBuilder.GetTx()
-			}, false, false, false,
-		},
-		{
-			"Fails - Multi-Key with too little gas",
-			func() sdk.Tx {
-				numKeys := 5
-				privKeys, pubKeys := suite.GenerateMultipleKeys(numKeys)
-				pk := kmultisig.NewLegacyAminoPubKey(numKeys, pubKeys)
-
-				msg := banktypes.NewMsgSend(
-					sdk.AccAddress(pk.Address()),
-					addr[:],
-					sdk.NewCoins(
-						sdk.NewCoin(
-							"evmos",
-							sdkmath.NewInt(1),
-						),
-					),
-				)
-
-				txBuilder := suite.CreateTestSignedMultisigTx(
-					privKeys,
-					signing.SignMode_SIGN_MODE_DIRECT,
-					msg,
-					suite.ctx.ChainID(),
-					2000,
-					"mixed", // Combine EIP-712 and standard signatures
-				)
-
-				return txBuilder.GetTx()
-			}, false, false, false,
-		},
-		{
-			"Fails - Multi-Key with different payload than one signed",
-			func() sdk.Tx {
-				numKeys := 1
-				privKeys, pubKeys := suite.GenerateMultipleKeys(numKeys)
-				pk := kmultisig.NewLegacyAminoPubKey(numKeys, pubKeys)
-
-				msg := banktypes.NewMsgSend(
-					sdk.AccAddress(pk.Address()),
-					addr[:],
-					sdk.NewCoins(
-						sdk.NewCoin(
-							"evmos",
-							sdkmath.NewInt(1),
-						),
-					),
-				)
-
-				txBuilder := suite.CreateTestSignedMultisigTx(
-					privKeys,
-					signing.SignMode_SIGN_MODE_DIRECT,
-					msg,
-					suite.ctx.ChainID(),
-					2000,
-					"EIP-712",
-				)
-
-				msg.Amount[0].Amount = sdkmath.NewInt(5)
-				err := txBuilder.SetMsgs(msg)
-				suite.Require().NoError(err)
-
-				return txBuilder.GetTx()
-			}, false, false, false,
-		},
-		{
-			"Fails - Multi-Key with messages added after signing",
-			func() sdk.Tx {
-				numKeys := 1
-				privKeys, pubKeys := suite.GenerateMultipleKeys(numKeys)
-				pk := kmultisig.NewLegacyAminoPubKey(numKeys, pubKeys)
-
-				msg := banktypes.NewMsgSend(
-					sdk.AccAddress(pk.Address()),
-					addr[:],
-					sdk.NewCoins(
-						sdk.NewCoin(
-							"evmos",
-							sdkmath.NewInt(1),
-						),
-					),
-				)
-
-				txBuilder := suite.CreateTestSignedMultisigTx(
-					privKeys,
-					signing.SignMode_SIGN_MODE_DIRECT,
-					msg,
-					suite.ctx.ChainID(),
-					2000,
-					"EIP-712",
-				)
-
-				// Duplicate
-				err := txBuilder.SetMsgs(msg, msg)
-				suite.Require().NoError(err)
-
-				return txBuilder.GetTx()
-			}, false, false, false,
-		},
 		{
 			"Fails - Single-Signer EIP-712 with messages added after signing",
 			func() sdk.Tx {
@@ -916,7 +674,7 @@ func (suite *AnteTestSuite) TestAnteHandler() {
 
 				txBuilder := suite.CreateTestSingleSignedTx(
 					privKey,
-					signing.SignMode_SIGN_MODE_DIRECT,
+					signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
 					msg,
 					suite.ctx.ChainID(),
 					2000,

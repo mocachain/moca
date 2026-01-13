@@ -40,7 +40,7 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	case RevokeMethodName:
 		return RevokeGas
 	case ExecMethodName:
-		return ExecGas
+		return c.calculateExecGas(input)
 	case GrantsMethodName:
 		return GrantsGas
 	case GranterGrantsMethodName:
@@ -104,4 +104,37 @@ func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, ar
 		BlockNumber: evm.Context.BlockNumber.Uint64(),
 	})
 	return nil
+}
+
+// calculateExecGas calculates gas cost based on number of messages and payload size
+func (c *Contract) calculateExecGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return ExecBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return ExecBaseGas
+	}
+
+	var args ExecArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return ExecBaseGas
+	}
+
+	// Calculate number of messages (capped at max)
+	numMsgs := uint64(len(args.Msgs))
+	if numMsgs > MaxExecMsgs {
+		numMsgs = MaxExecMsgs
+	}
+
+	// Calculate payload size (capped at max)
+	payloadSize := uint64(calcPerMsgBytes(args.Msgs))
+	if payloadSize > MaxExecPayloadBytes {
+		payloadSize = MaxExecPayloadBytes
+	}
+
+	// Gas formula: Base + PerMsg * num + PerByte * size
+	return ExecBaseGas + (numMsgs * ExecPerMsgGas) + (payloadSize * ExecPerByteGas)
 }

@@ -357,8 +357,10 @@ func (k Keeper) EstimateGas(c context.Context, req *types.EthCallRequest) (*type
 			msg.IsFake(),
 		)
 
-		// pass false to not commit StateDB
-		rsp, err = k.ApplyMessageWithConfig(ctx, msg, nil, false, cfg, txConfig)
+		// Create a cache context to isolate state changes from precompile calls across binary search iterations
+		// Note: commit=false only prevents EVM StateDB from committing, but precompiles may still modify module state in ctx.
+		tmpCtx, _ := ctx.CacheContext()
+		rsp, err = k.ApplyMessageWithConfig(tmpCtx, msg, nil, false, cfg, txConfig)
 		if err != nil {
 			if errors.Is(err, core.ErrIntrinsicGas) {
 				return true, nil, nil // Special case, raise gas limit

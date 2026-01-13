@@ -28,6 +28,41 @@ func NewPrecompiledContract(ctx sdk.Context, bankKeeper bankkeeper.Keeper, payme
 	}
 }
 
+// calculateMultiSendGas calculates gas cost based on number of outputs and total coins
+func (c *Contract) calculateMultiSendGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return MultiSendBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return MultiSendBaseGas
+	}
+
+	var args MultiSendArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return MultiSendBaseGas
+	}
+
+	// Calculate dynamic gas: base + per_output * num_outputs + per_coin * total_coins
+	numOutputs := uint64(len(args.Outputs))
+	if numOutputs > MaxMultiSendOutputs {
+		numOutputs = MaxMultiSendOutputs
+	}
+
+	// Count total coins across all outputs
+	totalCoins := uint64(0)
+	for i, output := range args.Outputs {
+		if i >= MaxMultiSendOutputs {
+			break
+		}
+		totalCoins += uint64(len(output.Amount))
+	}
+
+	return MultiSendBaseGas + (numOutputs * MultiSendPerOutputGas) + (totalCoins * MultiSendPerCoinGas)
+}
+
 func (c *Contract) Address() common.Address {
 	return bankAddress
 }
@@ -42,7 +77,7 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	case SendMethodName:
 		return SendGas
 	case MultiSendMethodName:
-		return MultiSendGas
+		return c.calculateMultiSendGas(input)
 	case BalanceMethodName:
 		return BalanceGas
 	case AllBalancesMethodName:

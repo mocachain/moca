@@ -317,11 +317,10 @@ func (args *ListObjectsByBucketIdArgs) Validate() error {
 }
 
 type SealObjectArgs struct {
-	SealAddress                 common.Address `abi:"sealAddress"` // primary sp's operator addr or secondary sp's seal addr
-	BucketName                  string         `abi:"bucketName"`
-	ObjectName                  string         `abi:"objectName"`
-	GlobalVirtualGroupID        uint32         `abi:"globalVirtualGroupId"`
-	SecondarySpBlsAggSignatures string         `abi:"secondarySpBlsAggSignatures"`
+	BucketName                  string `abi:"bucketName"`
+	ObjectName                  string `abi:"objectName"`
+	GlobalVirtualGroupID        uint32 `abi:"globalVirtualGroupId"`
+	SecondarySpBlsAggSignatures string `abi:"secondarySpBlsAggSignatures"`
 }
 
 // Validate SealObjectArgs args
@@ -330,12 +329,11 @@ func (args *SealObjectArgs) Validate() error {
 }
 
 type SealObjectV2Args struct {
-	SealAddress                 common.Address `abi:"sealAddress"` // primary sp's operator addr or secondary sp's seal addr
-	BucketName                  string         `abi:"bucketName"`
-	ObjectName                  string         `abi:"objectName"`
-	GlobalVirtualGroupID        uint32         `abi:"globalVirtualGroupId"`
-	SecondarySpBlsAggSignatures string         `abi:"secondarySpBlsAggSignatures"`
-	ExpectChecksums             []string       `abi:"expectChecksums"`
+	BucketName                  string   `abi:"bucketName"`
+	ObjectName                  string   `abi:"objectName"`
+	GlobalVirtualGroupID        uint32   `abi:"globalVirtualGroupId"`
+	SecondarySpBlsAggSignatures string   `abi:"secondarySpBlsAggSignatures"`
+	ExpectChecksums             []string `abi:"expectChecksums"`
 }
 
 // Validate SealObjectV2Args args
@@ -405,6 +403,16 @@ type UpdateObjectContentArgs struct {
 
 // Validate UpdateObjectInfoArgs args
 func (args *UpdateObjectContentArgs) Validate() error {
+	return nil
+}
+
+type CancelUpdateObjectContentArgs struct {
+	BucketName string `abi:"bucketName"`
+	ObjectName string `abi:"objectName"`
+}
+
+// Validate CancelUpdateObjectContentArgs args
+func (args *CancelUpdateObjectContentArgs) Validate() error {
 	return nil
 }
 
@@ -506,7 +514,6 @@ func (args *DeleteGroupArgs) Validate() error {
 }
 
 type LeaveGroupArgs struct {
-	Member     common.Address `abi:"member"`
 	GroupOwner common.Address `abi:"groupOwner"`
 	GroupName  string         `abi:"groupName"`
 }
@@ -556,16 +563,6 @@ type ToggleSPAsDelegatedAgentArgs struct {
 
 // Validate ToggleSPAsDelegatedAgentArgs args
 func (args *ToggleSPAsDelegatedAgentArgs) Validate() error {
-	return nil
-}
-
-type UpdateParamsArgs struct {
-	Authority string `abi:"authority"`
-	Params    Params `abi:"params"`
-}
-
-// Validate UpdateParamsArgs args
-func (args *UpdateParamsArgs) Validate() error {
 	return nil
 }
 

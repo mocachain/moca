@@ -105,10 +105,19 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 		evm.StateDB.AddBalance(contract.Caller(), res.Amount[0].Amount.BigInt())
 	}
 
+	// topic[1] must be withdrawAddress, not validatorAddress
+	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
+	withdrawRes, err := querier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
+		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	withdrawAddr := common.HexToAddress(withdrawRes.WithdrawAddress)
 	if err := c.AddLog(
 		evm,
 		MustEvent(WithdrawDelegatorRewardEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.ValidatorAddress.Bytes())},
+		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(withdrawAddr.Bytes())},
 		res.Amount.String(),
 	); err != nil {
 		return nil, err
@@ -146,6 +155,15 @@ func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, con
 		return nil, err
 	}
 
+	// query delegator's withdraw address once for logging topics
+	withdrawRes, err := querier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
+		DelegatorAddress: delegator,
+	})
+	if err != nil {
+		return nil, err
+	}
+	withdrawAddr := common.HexToAddress(withdrawRes.WithdrawAddress)
+
 	var total sdk.Coins
 	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
 	for _, validator := range resQuery.Validators {
@@ -165,7 +183,10 @@ func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, con
 		if err := c.AddLog(
 			evm,
 			MustEvent(WithdrawDelegatorRewardEventName),
-			[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.HexToHash(validator)},
+			[]common.Hash{
+				common.BytesToHash(contract.Caller().Bytes()),
+				common.BytesToHash(withdrawAddr.Bytes()),
+			},
 			res.Amount.String(),
 		); err != nil {
 			return nil, err

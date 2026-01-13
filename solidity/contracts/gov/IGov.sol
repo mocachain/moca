@@ -134,7 +134,8 @@ interface IGov {
         Coin[] memory initialDeposit,
         string memory metadata,
         string memory title,
-        string memory summary
+        string memory summary,
+        bool expedited
     ) external returns (uint64 proposalId);
 
     /**

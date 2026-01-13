@@ -39,16 +39,6 @@ func GetAbiEvent(name string) abi.Event {
 	return permissionABI.Events[name]
 }
 
-type UpdateParamsArgs struct {
-	// Operator string `abi:"operator"`
-	Authority string `abi:"authority"`
-	Params    Params `abi:"params"`
-}
-
-// Validate UpdateParamsArgs the args
-func (args *UpdateParamsArgs) Validate() error {
-	return nil
-}
 
 type ParamsArgs struct {
 	// Operator string `abi:"operator"`

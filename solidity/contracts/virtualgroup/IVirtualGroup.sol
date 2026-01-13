@@ -81,7 +81,6 @@ interface IVirtualGroup {
      * @dev completeSPExit defines a method for sp complete to exit.
      */
     function completeSPExit(
-        string memory storageProvider,
         string memory operator
     ) external returns (bool success);
 

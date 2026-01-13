@@ -123,7 +123,7 @@ type VersionedParams struct {
 
 // IPaymentMetaData contains all meta data concerning the IPayment contract.
 var IPaymentMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"}],\"name\":\"CreatePaymentAccount\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"}],\"name\":\"Deposit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DisableRefund\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"}],\"name\":\"UpdateParams\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"}],\"name\":\"Withdraw\",\"type\":\"event\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"autoSettleRecords\",\"outputs\":[{\"components\":[{\"internalType\":\"int64\",\"name\":\"timestamp\",\"type\":\"int64\"},{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"}],\"internalType\":\"structAutoSettleRecord[]\",\"name\":\"autoSettleRecords\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"createPaymentAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"}],\"name\":\"delayedWithdrawal\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"from\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"unlockTimestamp\",\"type\":\"int64\"}],\"internalType\":\"structDelayedWithdrawalRecord\",\"name\":\"delayedWithdrawal\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"to\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"deposit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"}],\"name\":\"disableRefund\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"}],\"name\":\"dynamicBalance\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"dynamicBalance\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"crudTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint256\",\"name\":\"netflowRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"staticBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bufferBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockBalance\",\"type\":\"uint256\"},{\"internalType\":\"int32\",\"name\":\"status\",\"type\":\"int32\"},{\"internalType\":\"int64\",\"name\":\"settleTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint64\",\"name\":\"outFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"frozenNetflowRate\",\"type\":\"uint256\"}],\"internalType\":\"structStreamRecord\",\"name\":\"streamRecord\",\"type\":\"tuple\"},{\"internalType\":\"int64\",\"name\":\"currentTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint256\",\"name\":\"bankBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"availableBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockedFee\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"changeRate\",\"type\":\"uint256\"}],\"internalType\":\"structDynamicBalance\",\"name\":\"dynamicBalance\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"}],\"name\":\"outFlows\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"toAddress\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"rate\",\"type\":\"uint256\"},{\"internalType\":\"int32\",\"name\":\"status\",\"type\":\"int32\"}],\"internalType\":\"structOutFlow[]\",\"name\":\"outFlows\",\"type\":\"tuple[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"params\",\"outputs\":[{\"components\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"reserveTime\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"validatorTaxRate\",\"type\":\"uint256\"}],\"internalType\":\"structVersionedParams\",\"name\":\"versionedParams\",\"type\":\"tuple\"},{\"internalType\":\"uint64\",\"name\":\"paymentAccountCountLimit\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"forcedSettleTime\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoSettleFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoResumeFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"string\",\"name\":\"feeDenom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"withdrawTimeLockThreshold\",\"type\":\"uint256\"},{\"internalType\":\"uint64\",\"name\":\"withdrawTimeLockDuration\",\"type\":\"uint64\"}],\"internalType\":\"structParams\",\"name\":\"params\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"int64\",\"name\":\"timestamp\",\"type\":\"int64\"}],\"name\":\"paramsByTimestamp\",\"outputs\":[{\"components\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"reserveTime\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"validatorTaxRate\",\"type\":\"uint256\"}],\"internalType\":\"structVersionedParams\",\"name\":\"versionedParams\",\"type\":\"tuple\"},{\"internalType\":\"uint64\",\"name\":\"paymentAccountCountLimit\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"forcedSettleTime\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoSettleFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoResumeFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"string\",\"name\":\"feeDenom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"withdrawTimeLockThreshold\",\"type\":\"uint256\"},{\"internalType\":\"uint64\",\"name\":\"withdrawTimeLockDuration\",\"type\":\"uint64\"}],\"internalType\":\"structParams\",\"name\":\"params\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"}],\"name\":\"paymentAccount\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"refundable\",\"type\":\"bool\"}],\"internalType\":\"structPaymentAccount\",\"name\":\"paymentAccount\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"}],\"name\":\"paymentAccountCount\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"},{\"internalType\":\"uint64\",\"name\":\"count\",\"type\":\"uint64\"}],\"internalType\":\"structPaymentAccountCount\",\"name\":\"paymentAccountCount\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"paymentAccountCounts\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"},{\"internalType\":\"uint64\",\"name\":\"count\",\"type\":\"uint64\"}],\"internalType\":\"structPaymentAccountCount[]\",\"name\":\"paymentAccountCounts\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"paymentAccounts\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"refundable\",\"type\":\"bool\"}],\"internalType\":\"structPaymentAccount[]\",\"name\":\"paymentAccounts\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"}],\"name\":\"paymentAccountsByOwner\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"accounts\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"}],\"name\":\"streamRecord\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"crudTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint256\",\"name\":\"netflowRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"staticBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bufferBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockBalance\",\"type\":\"uint256\"},{\"internalType\":\"int32\",\"name\":\"status\",\"type\":\"int32\"},{\"internalType\":\"int64\",\"name\":\"settleTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint64\",\"name\":\"outFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"frozenNetflowRate\",\"type\":\"uint256\"}],\"internalType\":\"structStreamRecord\",\"name\":\"streamRecord\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"streamRecords\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"crudTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint256\",\"name\":\"netflowRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"staticBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bufferBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockBalance\",\"type\":\"uint256\"},{\"internalType\":\"int32\",\"name\":\"status\",\"type\":\"int32\"},{\"internalType\":\"int64\",\"name\":\"settleTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint64\",\"name\":\"outFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"frozenNetflowRate\",\"type\":\"uint256\"}],\"internalType\":\"structStreamRecord[]\",\"name\":\"streamRecords\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"authority\",\"type\":\"string\"},{\"components\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"reserveTime\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"validatorTaxRate\",\"type\":\"uint256\"}],\"internalType\":\"structVersionedParams\",\"name\":\"versionedParams\",\"type\":\"tuple\"},{\"internalType\":\"uint64\",\"name\":\"paymentAccountCountLimit\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"forcedSettleTime\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoSettleFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoResumeFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"string\",\"name\":\"feeDenom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"withdrawTimeLockThreshold\",\"type\":\"uint256\"},{\"internalType\":\"uint64\",\"name\":\"withdrawTimeLockDuration\",\"type\":\"uint64\"}],\"internalType\":\"structParams\",\"name\":\"params\",\"type\":\"tuple\"}],\"name\":\"updateParams\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"from\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"withdraw\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"}],\"name\":\"CreatePaymentAccount\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"}],\"name\":\"Deposit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DisableRefund\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"}],\"name\":\"Withdraw\",\"type\":\"event\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"autoSettleRecords\",\"outputs\":[{\"components\":[{\"internalType\":\"int64\",\"name\":\"timestamp\",\"type\":\"int64\"},{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"}],\"internalType\":\"structAutoSettleRecord[]\",\"name\":\"autoSettleRecords\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"createPaymentAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"}],\"name\":\"delayedWithdrawal\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"from\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"unlockTimestamp\",\"type\":\"int64\"}],\"internalType\":\"structDelayedWithdrawalRecord\",\"name\":\"delayedWithdrawal\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"to\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"deposit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"}],\"name\":\"disableRefund\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"}],\"name\":\"dynamicBalance\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"dynamicBalance\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"crudTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint256\",\"name\":\"netflowRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"staticBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bufferBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockBalance\",\"type\":\"uint256\"},{\"internalType\":\"int32\",\"name\":\"status\",\"type\":\"int32\"},{\"internalType\":\"int64\",\"name\":\"settleTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint64\",\"name\":\"outFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"frozenNetflowRate\",\"type\":\"uint256\"}],\"internalType\":\"structStreamRecord\",\"name\":\"streamRecord\",\"type\":\"tuple\"},{\"internalType\":\"int64\",\"name\":\"currentTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint256\",\"name\":\"bankBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"availableBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockedFee\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"changeRate\",\"type\":\"uint256\"}],\"internalType\":\"structDynamicBalance\",\"name\":\"dynamicBalance\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"}],\"name\":\"outFlows\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"toAddress\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"rate\",\"type\":\"uint256\"},{\"internalType\":\"int32\",\"name\":\"status\",\"type\":\"int32\"}],\"internalType\":\"structOutFlow[]\",\"name\":\"outFlows\",\"type\":\"tuple[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"params\",\"outputs\":[{\"components\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"reserveTime\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"validatorTaxRate\",\"type\":\"uint256\"}],\"internalType\":\"structVersionedParams\",\"name\":\"versionedParams\",\"type\":\"tuple\"},{\"internalType\":\"uint64\",\"name\":\"paymentAccountCountLimit\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"forcedSettleTime\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoSettleFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoResumeFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"string\",\"name\":\"feeDenom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"withdrawTimeLockThreshold\",\"type\":\"uint256\"},{\"internalType\":\"uint64\",\"name\":\"withdrawTimeLockDuration\",\"type\":\"uint64\"}],\"internalType\":\"structParams\",\"name\":\"params\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"int64\",\"name\":\"timestamp\",\"type\":\"int64\"}],\"name\":\"paramsByTimestamp\",\"outputs\":[{\"components\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"reserveTime\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"validatorTaxRate\",\"type\":\"uint256\"}],\"internalType\":\"structVersionedParams\",\"name\":\"versionedParams\",\"type\":\"tuple\"},{\"internalType\":\"uint64\",\"name\":\"paymentAccountCountLimit\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"forcedSettleTime\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoSettleFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"maxAutoResumeFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"string\",\"name\":\"feeDenom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"withdrawTimeLockThreshold\",\"type\":\"uint256\"},{\"internalType\":\"uint64\",\"name\":\"withdrawTimeLockDuration\",\"type\":\"uint64\"}],\"internalType\":\"structParams\",\"name\":\"params\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"}],\"name\":\"paymentAccount\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"refundable\",\"type\":\"bool\"}],\"internalType\":\"structPaymentAccount\",\"name\":\"paymentAccount\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"}],\"name\":\"paymentAccountCount\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"},{\"internalType\":\"uint64\",\"name\":\"count\",\"type\":\"uint64\"}],\"internalType\":\"structPaymentAccountCount\",\"name\":\"paymentAccountCount\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"paymentAccountCounts\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"},{\"internalType\":\"uint64\",\"name\":\"count\",\"type\":\"uint64\"}],\"internalType\":\"structPaymentAccountCount[]\",\"name\":\"paymentAccountCounts\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"paymentAccounts\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"addr\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"refundable\",\"type\":\"bool\"}],\"internalType\":\"structPaymentAccount[]\",\"name\":\"paymentAccounts\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"owner\",\"type\":\"string\"}],\"name\":\"paymentAccountsByOwner\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"accounts\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"}],\"name\":\"streamRecord\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"crudTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint256\",\"name\":\"netflowRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"staticBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bufferBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockBalance\",\"type\":\"uint256\"},{\"internalType\":\"int32\",\"name\":\"status\",\"type\":\"int32\"},{\"internalType\":\"int64\",\"name\":\"settleTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint64\",\"name\":\"outFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"frozenNetflowRate\",\"type\":\"uint256\"}],\"internalType\":\"structStreamRecord\",\"name\":\"streamRecord\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"streamRecords\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"account\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"crudTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint256\",\"name\":\"netflowRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"staticBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bufferBalance\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockBalance\",\"type\":\"uint256\"},{\"internalType\":\"int32\",\"name\":\"status\",\"type\":\"int32\"},{\"internalType\":\"int64\",\"name\":\"settleTimestamp\",\"type\":\"int64\"},{\"internalType\":\"uint64\",\"name\":\"outFlowCount\",\"type\":\"uint64\"},{\"internalType\":\"uint256\",\"name\":\"frozenNetflowRate\",\"type\":\"uint256\"}],\"internalType\":\"structStreamRecord[]\",\"name\":\"streamRecords\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"from\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"withdraw\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // IPaymentABI is the input ABI used to generate the binding from.
@@ -794,27 +794,6 @@ func (_IPayment *IPaymentTransactorSession) DisableRefund(addr string) (*types.T
 	return _IPayment.Contract.DisableRefund(&_IPayment.TransactOpts, addr)
 }
 
-// UpdateParams is a paid mutator transaction binding the contract method 0x6737b841.
-//
-// Solidity: function updateParams(string authority, ((uint64,uint256),uint64,uint64,uint64,uint64,string,uint256,uint64) params) returns(bool success)
-func (_IPayment *IPaymentTransactor) UpdateParams(opts *bind.TransactOpts, authority string, params Params) (*types.Transaction, error) {
-	return _IPayment.contract.Transact(opts, "updateParams", authority, params)
-}
-
-// UpdateParams is a paid mutator transaction binding the contract method 0x6737b841.
-//
-// Solidity: function updateParams(string authority, ((uint64,uint256),uint64,uint64,uint64,uint64,string,uint256,uint64) params) returns(bool success)
-func (_IPayment *IPaymentSession) UpdateParams(authority string, params Params) (*types.Transaction, error) {
-	return _IPayment.Contract.UpdateParams(&_IPayment.TransactOpts, authority, params)
-}
-
-// UpdateParams is a paid mutator transaction binding the contract method 0x6737b841.
-//
-// Solidity: function updateParams(string authority, ((uint64,uint256),uint64,uint64,uint64,uint64,string,uint256,uint64) params) returns(bool success)
-func (_IPayment *IPaymentTransactorSession) UpdateParams(authority string, params Params) (*types.Transaction, error) {
-	return _IPayment.Contract.UpdateParams(&_IPayment.TransactOpts, authority, params)
-}
-
 // Withdraw is a paid mutator transaction binding the contract method 0x30b39a62.
 //
 // Solidity: function withdraw(string from, uint256 amount) returns(bool success)
@@ -1262,150 +1241,6 @@ func (_IPayment *IPaymentFilterer) WatchDisableRefund(opts *bind.WatchOpts, sink
 func (_IPayment *IPaymentFilterer) ParseDisableRefund(log types.Log) (*IPaymentDisableRefund, error) {
 	event := new(IPaymentDisableRefund)
 	if err := _IPayment.contract.UnpackLog(event, "DisableRefund", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// IPaymentUpdateParamsIterator is returned from FilterUpdateParams and is used to iterate over the raw logs and unpacked data for UpdateParams events raised by the IPayment contract.
-type IPaymentUpdateParamsIterator struct {
-	Event *IPaymentUpdateParams // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *IPaymentUpdateParamsIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(IPaymentUpdateParams)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(IPaymentUpdateParams)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *IPaymentUpdateParamsIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *IPaymentUpdateParamsIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// IPaymentUpdateParams represents a UpdateParams event raised by the IPayment contract.
-type IPaymentUpdateParams struct {
-	Creator common.Address
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterUpdateParams is a free log retrieval operation binding the contract event 0xdb2e743561971fc97db45300fcd12c1e9e20b20d485aa6f0259c3374f4a4dafd.
-//
-// Solidity: event UpdateParams(address indexed creator)
-func (_IPayment *IPaymentFilterer) FilterUpdateParams(opts *bind.FilterOpts, creator []common.Address) (*IPaymentUpdateParamsIterator, error) {
-
-	var creatorRule []interface{}
-	for _, creatorItem := range creator {
-		creatorRule = append(creatorRule, creatorItem)
-	}
-
-	logs, sub, err := _IPayment.contract.FilterLogs(opts, "UpdateParams", creatorRule)
-	if err != nil {
-		return nil, err
-	}
-	return &IPaymentUpdateParamsIterator{contract: _IPayment.contract, event: "UpdateParams", logs: logs, sub: sub}, nil
-}
-
-// WatchUpdateParams is a free log subscription operation binding the contract event 0xdb2e743561971fc97db45300fcd12c1e9e20b20d485aa6f0259c3374f4a4dafd.
-//
-// Solidity: event UpdateParams(address indexed creator)
-func (_IPayment *IPaymentFilterer) WatchUpdateParams(opts *bind.WatchOpts, sink chan<- *IPaymentUpdateParams, creator []common.Address) (event.Subscription, error) {
-
-	var creatorRule []interface{}
-	for _, creatorItem := range creator {
-		creatorRule = append(creatorRule, creatorItem)
-	}
-
-	logs, sub, err := _IPayment.contract.WatchLogs(opts, "UpdateParams", creatorRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(IPaymentUpdateParams)
-				if err := _IPayment.contract.UnpackLog(event, "UpdateParams", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseUpdateParams is a log parse operation binding the contract event 0xdb2e743561971fc97db45300fcd12c1e9e20b20d485aa6f0259c3374f4a4dafd.
-//
-// Solidity: event UpdateParams(address indexed creator)
-func (_IPayment *IPaymentFilterer) ParseUpdateParams(log types.Log) (*IPaymentUpdateParams, error) {
-	event := new(IPaymentUpdateParams)
-	if err := _IPayment.contract.UnpackLog(event, "UpdateParams", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

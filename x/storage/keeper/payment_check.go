@@ -289,11 +289,22 @@ Exit:
 
 // isKnownLockBalanceIssue checks if the address is the known addresses of the lock balance issue on testnet.
 func (k Keeper) isKnownLockBalanceIssue(ctx sdk.Context, address string) bool {
-	if ctx.ChainID() != utils.TestnetChainID {
+	if ctx.ChainID() != utils.TestnetChainID+"-1" {
 		return false
 	}
-	if address == "0x8E15D16d6432166372Fb1e6f4A41840D71edd41F" || address == "0x9b825492966508C587536bA71425d61E822545C3" {
-		return true
+
+	// Moca testnet currently has no known lock balance issues
+	// The original BNB GreenField testnet addresses should not be applied to Moca testnet
+	mocaTestnetKnownIssues := []string{
+		// Add Moca testnet specific addresses here when/if any are identified
 	}
+
+	// Check against Moca testnet known issues
+	for _, addr := range mocaTestnetKnownIssues {
+		if address == addr {
+			return true
+		}
+	}
+
 	return false
 }

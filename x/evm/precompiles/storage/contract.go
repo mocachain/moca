@@ -46,7 +46,20 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	if err != nil {
 		return 0
 	}
-	return c.gasMeters[method.Name]
+
+	// Special handling for dynamic gas methods
+	switch method.Name {
+	case PutPolicyMethodName:
+		return c.calculatePutPolicyGas(input)
+	case RenewGroupMemberMethodName:
+		return c.calculateRenewGroupMemberGas(input)
+	case UpdateGroupMethodName:
+		return c.calculateUpdateGroupGas(input)
+	case DiscontinueObjectMethodName:
+		return c.calculateDiscontinueObjectGas(input)
+	default:
+		return c.gasMeters[method.Name]
+	}
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
@@ -102,6 +115,122 @@ func (c *Contract) AddOtherLog(evm *vm.EVM, event abi.Event, address common.Addr
 		BlockNumber: evm.Context.BlockNumber.Uint64(),
 	})
 	return nil
+}
+
+// calculatePutPolicyGas calculates gas cost based on statements and their nested fields
+func (c *Contract) calculatePutPolicyGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return PutPolicyBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return PutPolicyBaseGas
+	}
+
+	var args PutPolicyArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return PutPolicyBaseGas
+	}
+
+	// Calculate dynamic gas: base + per_statement * num_statements + per_action * total_actions + per_resource * total_resources
+	numStatements := uint64(len(args.Statements))
+	if numStatements > MaxPolicyStatements {
+		numStatements = MaxPolicyStatements
+	}
+
+	// Count total actions and resources across all statements
+	totalActions := uint64(0)
+	totalResources := uint64(0)
+	for i, statement := range args.Statements {
+		if i >= MaxPolicyStatements {
+			break
+		}
+		totalActions += uint64(len(statement.Actions))
+		totalResources += uint64(len(statement.Resources))
+	}
+
+	return PutPolicyBaseGas + (numStatements * PutPolicyPerStatementGas) +
+		(totalActions * PutPolicyPerActionGas) + (totalResources * PutPolicyPerResourceGas)
+}
+
+// calculateRenewGroupMemberGas calculates gas cost based on number of members
+func (c *Contract) calculateRenewGroupMemberGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return RenewGroupMemberBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return RenewGroupMemberBaseGas
+	}
+
+	var args RenewGroupMemberArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return RenewGroupMemberBaseGas
+	}
+
+	// Calculate dynamic gas: base + per_member * num_members
+	numMembers := uint64(len(args.Members))
+	if numMembers > MaxRenewGroupMembers {
+		numMembers = MaxRenewGroupMembers
+	}
+
+	return RenewGroupMemberBaseGas + (numMembers * RenewGroupMemberPerMemberGas)
+}
+
+// calculateUpdateGroupGas calculates gas cost based on total members to add/delete
+func (c *Contract) calculateUpdateGroupGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return UpdateGroupBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return UpdateGroupBaseGas
+	}
+
+	var args UpdateGroupArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return UpdateGroupBaseGas
+	}
+
+	// Calculate dynamic gas: base + per_member * (num_add + num_delete)
+	totalMembers := uint64(len(args.MembersToAdd) + len(args.MembersToDelete))
+	if totalMembers > MaxUpdateGroupMembers {
+		totalMembers = MaxUpdateGroupMembers
+	}
+
+	return UpdateGroupBaseGas + (totalMembers * UpdateGroupPerMemberGas)
+}
+
+// calculateDiscontinueObjectGas calculates gas cost based on number of object IDs
+func (c *Contract) calculateDiscontinueObjectGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return DiscontinueObjectBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return DiscontinueObjectBaseGas
+	}
+
+	var args DiscontinueObjectArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return DiscontinueObjectBaseGas
+	}
+
+	// Calculate dynamic gas: base + per_id * num_ids
+	numIds := uint64(len(args.ObjectIds))
+	if numIds > MaxDiscontinueObjectIds {
+		numIds = MaxDiscontinueObjectIds
+	}
+
+	return DiscontinueObjectBaseGas + (numIds * DiscontinueObjectPerIdGas)
 }
 
 func (c *Contract) registerMethod(methodName string, gas uint64, handler precompiledContractFunc, eventName string) {

@@ -40,12 +40,15 @@ import (
 
 	evtypes "cosmossdk.io/x/evidence/types"
 	"cosmossdk.io/x/feegrant"
+	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	govtypesv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	apitypes "github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/evmos/evmos/v12/e2e/core"
 	"github.com/evmos/evmos/v12/testutil/sample"
 	utiltx "github.com/evmos/evmos/v12/testutil/tx"
+	evmostypes "github.com/evmos/evmos/v12/types"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 )
 
@@ -512,20 +515,68 @@ func (suite *AnteTestSuite) GenerateMultipleKeys(n int) ([]cryptotypes.PrivKey, 
 }
 
 // generateSingleSignature signs the given sign doc bytes using the given signType (EIP-712 or Standard)
-func (suite *AnteTestSuite) generateSingleSignature(signMode signing.SignMode, privKey cryptotypes.PrivKey, signDocBytes []byte, signType string) (signature signing.SignatureV2) {
+func (suite *AnteTestSuite) generateSingleSignature(signMode signing.SignMode, privKey cryptotypes.PrivKey, signDocBytes []byte, signType string, chainID string, msg sdk.Msg, txBuilder client.TxBuilder, accNum uint64, seq uint64) (signature signing.SignatureV2) {
 	var (
-		msg []byte
-		err error
+		msgBytes []byte
 	)
 
-	msg = signDocBytes
+	msgBytes = signDocBytes
 
 	if signType == "EIP-712" {
-		msg, err = eip712.GetEIP712BytesForMsg(signDocBytes)
+		parsedChainID, err := evmostypes.ParseChainID(chainID)
 		suite.Require().NoError(err)
+
+		registry := codectypes.NewInterfaceRegistry()
+		evmostypes.RegisterInterfaces(registry)
+		cryptocodec.RegisterInterfaces(registry)
+		evmosCodec := codec.NewProtoCodec(registry)
+
+		feeDelegation := &eip712.FeeDelegationOptions{
+			FeePayer: sdk.AccAddress(privKey.PubKey().Address()),
+		}
+
+		tx := txBuilder.GetTx()
+		feeTx, ok := tx.(sdk.FeeTx)
+		suite.Require().True(ok)
+
+		stdFee := legacytx.StdFee{
+			Amount: feeTx.GetFee(),
+			Gas:    feeTx.GetGas(),
+		}
+
+		msgs := tx.GetMsgs()
+
+		stdSignBytes := legacytx.StdSignBytes(
+			chainID,
+			accNum,
+			seq,
+			0, // TimeoutHeight
+			stdFee,
+			msgs,
+			tx.(authsigning.Tx).GetMemo(), // Memo
+		)
+
+		typedData, err := eip712.LegacyWrapTxToTypedData(
+			evmosCodec,
+			parsedChainID.Uint64(),
+			msg,
+			stdSignBytes,
+			feeDelegation,
+		)
+		suite.Require().NoError(err)
+
+		// Hash the typed data
+		hash, _, err := apitypes.TypedDataAndHash(typedData)
+		suite.Require().NoError(err)
+		msgBytes = hash
 	}
 
-	sigBytes, _ := privKey.Sign(msg)
+	sigBytes, _ := privKey.Sign(msgBytes)
+
+	if signType == "EIP-712" {
+		sigBytes[64] += 27
+	}
+
 	sigData := &signing.SingleSignatureData{
 		SignMode:  signMode,
 		Signature: sigBytes,
@@ -538,7 +589,7 @@ func (suite *AnteTestSuite) generateSingleSignature(signMode signing.SignMode, p
 }
 
 // generateMultikeySignatures signs a set of messages using each private key within a given multi-key
-func (suite *AnteTestSuite) generateMultikeySignatures(signMode signing.SignMode, privKeys []cryptotypes.PrivKey, signDocBytes []byte, signType string) (signatures []signing.SignatureV2) {
+func (suite *AnteTestSuite) generateMultikeySignatures(signMode signing.SignMode, privKeys []cryptotypes.PrivKey, signDocBytes []byte, signType string, chainID string, msg sdk.Msg, txBuilder client.TxBuilder, accNum uint64, seq uint64) (signatures []signing.SignatureV2) {
 	n := len(privKeys)
 	signatures = make([]signing.SignatureV2, n)
 
@@ -560,6 +611,11 @@ func (suite *AnteTestSuite) generateMultikeySignatures(signMode signing.SignMode
 			privKey,
 			signDocBytes,
 			currentType,
+			chainID,
+			msg,
+			txBuilder,
+			accNum,
+			seq,
 		)
 	}
 
@@ -585,6 +641,23 @@ func (suite *AnteTestSuite) createSignerBytes(chainID string, signMode signing.S
 		AccountNumber: acc.GetAccountNumber(),
 		Sequence:      acc.GetSequence(),
 		PubKey:        pubKey,
+	}
+
+	// For EIP-712, we need to ensure the ExtensionOptionsWeb3Tx is set correctly with Hex FeePayer
+	if signMode == signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON {
+		parsedChainID, err := evmostypes.ParseChainID(chainID)
+		if err == nil {
+			option, err := codectypes.NewAnyWithValue(&evmostypes.ExtensionOptionsWeb3Tx{
+				FeePayer:         common.BytesToAddress(pubKey.Address()).Hex(),
+				TypedDataChainID: parsedChainID.Uint64(),
+				FeePayerSig:      nil,
+			})
+			suite.Require().NoError(err)
+
+			builder, ok := txBuilder.(authtx.ExtensionOptionsTxBuilder)
+			suite.Require().True(ok)
+			builder.SetExtensionOptions(option)
+		}
 	}
 
 	signerBytes, err := authsigning.GetSignBytesAdapter(
@@ -642,8 +715,14 @@ func (suite *AnteTestSuite) CreateTestSignedMultisigTx(privKeys []cryptotypes.Pr
 
 	signerBytes := suite.createSignerBytes(chainID, signMode, multiKey, txBuilder)
 
+	// Get account number and sequence
+	acc, err := sdkante.GetSignerAcc(suite.ctx, suite.app.AccountKeeper, sdk.AccAddress(multiKey.Address()))
+	suite.Require().NoError(err)
+	accNum := acc.GetAccountNumber()
+	seq := acc.GetSequence()
+
 	// Sign for each key and update signature field
-	sigs := suite.generateMultikeySignatures(signMode, privKeys, signerBytes, signType)
+	sigs := suite.generateMultikeySignatures(signMode, privKeys, signerBytes, signType, chainID, msg, txBuilder, accNum, seq)
 	for _, pkSig := range sigs {
 		err := multisig.AddSignatureV2(sig, pkSig, pubKeys)
 		suite.Require().NoError(err)
@@ -675,7 +754,40 @@ func (suite *AnteTestSuite) CreateTestSingleSignedTx(privKey cryptotypes.PrivKey
 
 	signerBytes := suite.createSignerBytes(chainID, signMode, pubKey, txBuilder)
 
-	sigData := suite.generateSingleSignature(signMode, privKey, signerBytes, signType)
+	// Get account number and sequence
+	acc, err := sdkante.GetSignerAcc(suite.ctx, suite.app.AccountKeeper, sdk.AccAddress(pubKey.Address()))
+	suite.Require().NoError(err)
+	accNum := acc.GetAccountNumber()
+	seq := acc.GetSequence()
+
+	sigData := suite.generateSingleSignature(signMode, privKey, signerBytes, signType, chainID, msg, txBuilder, accNum, seq)
+
+	if signType == "EIP-712" {
+		// For EIP-712, the signature goes into the ExtensionOptionsWeb3Tx, and the Cosmos signature must be empty.
+		// We need to retrieve the extension option we set earlier in createSignerBytes
+		tx := txBuilder.GetTx()
+		txWithExtensions, ok := tx.(sdkante.HasExtensionOptionsTx)
+		suite.Require().True(ok)
+		opts := txWithExtensions.GetExtensionOptions()
+		// We expect one option which is ExtensionOptionsWeb3Tx
+		if len(opts) > 0 {
+			if extOpt, ok := opts[0].GetCachedValue().(*evmostypes.ExtensionOptionsWeb3Tx); ok {
+				extOpt.FeePayerSig = sigData.Data.(*signing.SingleSignatureData).Signature
+
+				// Update the extension option
+				newOpt, err := codectypes.NewAnyWithValue(extOpt)
+				suite.Require().NoError(err)
+
+				builder, ok := txBuilder.(authtx.ExtensionOptionsTxBuilder)
+				suite.Require().True(ok)
+				builder.SetExtensionOptions(newOpt)
+
+				// Clear the signature in the Cosmos wrapper
+				sigData.Data.(*signing.SingleSignatureData).Signature = nil
+			}
+		}
+	}
+
 	err = txBuilder.SetSignatures(sigData)
 	suite.Require().NoError(err)
 

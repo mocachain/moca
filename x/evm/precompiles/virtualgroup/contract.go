@@ -39,9 +39,9 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	case DeleteGlobalVirtualGroupMethodName:
 		return DeleteGlobalVirtualGroupGas
 	case SwapOutMethodName:
-		return SwapOutGas
+		return c.calculateSwapOutGas(input)
 	case CompleteSwapOutMethodName:
-		return CompleteSwapOutGas
+		return c.calculateCompleteSwapOutGas(input)
 	case SPExitMethodName:
 		return SPExitGas
 	case CompleteSPExitMethodName:
@@ -124,4 +124,56 @@ func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, ar
 		BlockNumber: evm.Context.BlockNumber.Uint64(),
 	})
 	return nil
+}
+
+// calculateSwapOutGas calculates gas cost based on number of GVG IDs
+func (c *Contract) calculateSwapOutGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return SwapOutBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return SwapOutBaseGas
+	}
+
+	var args SwapOutArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return SwapOutBaseGas
+	}
+
+	// Calculate dynamic gas: base + per_gvg * num_gvgs
+	numGvgIds := uint64(len(args.GvgIds))
+	if numGvgIds > MaxSwapOutGvgIds {
+		numGvgIds = MaxSwapOutGvgIds
+	}
+
+	return SwapOutBaseGas + (numGvgIds * SwapOutPerGvgIdGas)
+}
+
+// calculateCompleteSwapOutGas calculates gas cost based on number of GVG IDs
+func (c *Contract) calculateCompleteSwapOutGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return CompleteSwapOutBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return CompleteSwapOutBaseGas
+	}
+
+	var args CompleteSwapOutArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return CompleteSwapOutBaseGas
+	}
+
+	// Calculate dynamic gas: base + per_gvg * num_gvgs
+	numGvgIds := uint64(len(args.GvgIds))
+	if numGvgIds > MaxCompleteSwapOutGvgIds {
+		numGvgIds = MaxCompleteSwapOutGvgIds
+	}
+
+	return CompleteSwapOutBaseGas + (numGvgIds * CompleteSwapOutPerGvgIdGas)
 }

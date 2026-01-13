@@ -17,6 +17,7 @@ import (
 
 	"github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/sdk/client/test"
+	"github.com/evmos/evmos/v12/x/storage/client/cli"
 )
 
 type CLITestSuite struct {
@@ -67,4 +68,50 @@ func (s *CLITestSuite) SetupSuite() {
 	}
 }
 
-// TODO: Add more tests
+func (s *CLITestSuite) TestUpdateGroupMember_SliceBuild_Aligned_NoPanic() {
+	cmd := cli.GetTxCmd()
+
+	// args: update-group-member [group-name] [member-to-add] [member-expiration-to-add] [member-to-delete] --privatekey xxx
+	groupName := "test-group"
+	membersToAdd := "0x1111111111111111111111111111111111111111,0x2222222222222222222222222222222222222222"
+	expirations := "0,0" // 0 means default MaxTimeStamp will be used in precompile
+	membersToDelete := ""
+
+	args := []string{
+		"update-group-member",
+		groupName,
+		membersToAdd,
+		expirations,
+		membersToDelete,
+		"--privatekey", "", // trigger downstream error without affecting slice construction
+	}
+
+	s.Require().NotPanics(func() {
+		_, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, args)
+		// We do not expect success because network/EVM context is not configured in unit tests.
+		s.Require().Error(err)
+	})
+}
+
+func (s *CLITestSuite) TestRenewGroupMember_SliceBuild_Aligned_NoPanic() {
+	cmd := cli.GetTxCmd()
+
+	// args: renew-group-member [group-name] [member] [member-expiration] --privatekey xxx
+	groupName := "test-group"
+	members := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	expirations := "0,0"
+
+	args := []string{
+		"renew-group-member",
+		groupName,
+		members,
+		expirations,
+		"--privatekey", "",
+	}
+
+	s.Require().NotPanics(func() {
+		_, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, args)
+		// As above, success is not required; ensure no panic from slice construction.
+		s.Require().Error(err)
+	})
+}

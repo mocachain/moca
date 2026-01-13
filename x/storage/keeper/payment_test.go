@@ -30,6 +30,7 @@ type TestSuite struct {
 
 	cdc           codec.Codec
 	storageKeeper *keeper.Keeper
+	storeKey      storetypes.StoreKey
 
 	accountKeeper      *types.MockAccountKeeper
 	spKeeper           *types.MockSpKeeper
@@ -47,6 +48,7 @@ type TestSuite struct {
 func (s *TestSuite) SetupTest() {
 	encCfg := moduletestutil.MakeTestEncodingConfig(challenge.AppModuleBasic{})
 	key := storetypes.NewKVStoreKey(types.StoreKey)
+	s.storeKey = key
 	testCtx := testutil.DefaultContextWithDB(s.T(), key, storetypes.NewTransientStoreKey("transient_test"))
 	header := testCtx.Ctx.BlockHeader()
 	header.Time = time.Now()

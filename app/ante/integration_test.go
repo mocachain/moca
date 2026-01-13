@@ -30,6 +30,7 @@ var _ = Describe("when sending a Cosmos transaction", func() {
 		)
 
 		BeforeEach(func() {
+			s.SetupTest()
 			addr, priv = testutiltx.NewAccAddressAndKey()
 
 			msg = &banktypes.MsgSend{
@@ -65,6 +66,7 @@ var _ = Describe("when sending a Cosmos transaction", func() {
 		)
 
 		BeforeEach(func() {
+			s.SetupTest()
 			addr, priv = testutiltx.NewAccAddressAndKey()
 
 			msg = &banktypes.MsgSend{

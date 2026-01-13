@@ -85,7 +85,7 @@ type MultiSendArgs struct {
 
 // Validate MultiSend args
 func (args *MultiSendArgs) Validate() error {
-	if len(args.Outputs) <= 1 {
+	if len(args.Outputs) < 1 {
 		return fmt.Errorf("the number of outputs is %v, need to greater than 1", len(args.Outputs))
 	}
 

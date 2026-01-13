@@ -6,6 +6,16 @@
 //
 // These tests help validate the need for and effectiveness of RPC Cache Queue implementation.
 //
+// Prerequisites:
+//
+//  1. Start MOCA Chain node with ETH RPC enabled:
+//     cd /Users/liushangliang/github/zkme/moca
+//     make localup
+//     # or
+//     ./deployment/localup/localup.sh
+//
+//  2. Ensure test account has sufficient balance for gas fees
+//
 // Usage:
 //
 //	# Run all nonce-related tests
@@ -456,6 +466,7 @@ func (s *MsgPoolTestSuite) TestOutOfOrderTransactionWithCacheQueue() {
 	s.T().Log("This test serves as a comparison to TestOutOfOrderTransactionSubmissionFailed")
 	s.T().Log("to verify whether the RPC cache queue is functioning correctly.")
 }
+
 
 // Helper function to describe result status
 func resultStatus(err error) string {

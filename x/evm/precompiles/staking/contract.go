@@ -99,7 +99,7 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 		case UndelegateMethodName:
 			ret, err = c.Undelegate(ctx, evm, contract, readonly)
 		case RedelegateMethodName:
-			ret, err = c.Redelegatge(ctx, evm, contract, readonly)
+			ret, err = c.Redelegate(ctx, evm, contract, readonly)
 		case CancelUnbondingDelegationMethodName:
 			ret, err = c.CancelUnbondingDelegation(ctx, evm, contract, readonly)
 		case DelegationMethodName:

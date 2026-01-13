@@ -2,6 +2,7 @@ package virtualgroup
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"cosmossdk.io/math"
@@ -18,14 +19,21 @@ import (
 const (
 	CreateGlobalVirtualGroupGas = 60_000
 	DeleteGlobalVirtualGroupGas = 60_000
-	SwapOutGas                  = 60_000
-	CompleteSwapOutGas          = 60_000
 	SPExitGas                   = 60_000
 	CompleteSPExitGas           = 60_000
 	DepositGas                  = 60_000
 	ReserveSwapInGas            = 60_000
 	CompleteSwapInGas           = 60_000
 	CancelSwapInGas             = 60_000
+
+	// Dynamic gas constants
+	SwapOutBaseGas     = 60_000 // Base gas for SwapOut
+	SwapOutPerGvgIdGas = 20_000 // Additional gas per GVG ID
+	MaxSwapOutGvgIds   = 50     // Maximum number of GVG IDs for SwapOut
+
+	CompleteSwapOutBaseGas     = 60_000 // Base gas for CompleteSwapOut
+	CompleteSwapOutPerGvgIdGas = 20_000 // Additional gas per GVG ID
+	MaxCompleteSwapOutGvgIds   = 50     // Maximum number of GVG IDs for CompleteSwapOut
 
 	CreateGlobalVirtualGroupMethodName = "createGlobalVirtualGroup"
 	DeleteGlobalVirtualGroupMethodName = "deleteGlobalVirtualGroup"
@@ -54,6 +62,9 @@ const (
 func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("send method readonly")
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(CreateGlobalVirtualGroupMethodName)
@@ -102,6 +113,9 @@ func (c *Contract) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 	if readonly {
 		return nil, errors.New("delete global virtual group method readonly")
 	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
 
 	method := MustMethod(DeleteGlobalVirtualGroupMethodName)
 
@@ -131,7 +145,6 @@ func (c *Contract) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 		evm,
 		MustEvent(DeleteGlobalVirtualGroupEventName),
 		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
-		big.NewInt(int64(args.GlobalVirtualGroupId)),
 	); err != nil {
 		return nil, err
 	}
@@ -144,6 +157,9 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	if readonly {
 		return nil, errors.New("swapout method readonly")
 	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
 
 	method := MustMethod(SwapOutMethodName)
 
@@ -151,6 +167,14 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate GVG IDs length
+	if len(args.GvgIds) == 0 {
+		return nil, errors.New("GVG IDs cannot be empty")
+	}
+	if len(args.GvgIds) > MaxSwapOutGvgIds {
+		return nil, fmt.Errorf("too many GVG IDs: got %d, max allowed %d", len(args.GvgIds), MaxSwapOutGvgIds)
 	}
 
 	msg := &virtualgrouptypes.MsgSwapOut{
@@ -193,6 +217,9 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 	if readonly {
 		return nil, errors.New("complete swapout method readonly")
 	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
 
 	method := MustMethod(CompleteSwapOutMethodName)
 
@@ -200,6 +227,14 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate GVG IDs length
+	if len(args.GvgIds) == 0 {
+		return nil, errors.New("GVG IDs cannot be empty")
+	}
+	if len(args.GvgIds) > MaxCompleteSwapOutGvgIds {
+		return nil, fmt.Errorf("too many GVG IDs: got %d, max allowed %d", len(args.GvgIds), MaxCompleteSwapOutGvgIds)
 	}
 
 	msg := &virtualgrouptypes.MsgCompleteSwapOut{
@@ -235,6 +270,9 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 func (c *Contract) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("sp exit method readonly")
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(SPExitMethodName)
@@ -276,6 +314,9 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	if readonly {
 		return nil, errors.New("complete sp exit method readonly")
 	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
 
 	method := MustMethod(CompleteSPExitMethodName)
 
@@ -286,7 +327,7 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	}
 
 	msg := &virtualgrouptypes.MsgCompleteStorageProviderExit{
-		StorageProvider: args.StorageProvider,
+		StorageProvider: contract.Caller().String(),
 		Operator:        args.Operator,
 	}
 
@@ -304,7 +345,10 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	if err := c.AddLog(
 		evm,
 		MustEvent(CompleteSPExitEventName),
-		[]common.Hash{common.BytesToHash([]byte(args.StorageProvider)), common.BytesToHash([]byte(args.Operator))},
+		[]common.Hash{
+			common.BytesToHash(common.HexToAddress(contract.Caller().String()).Bytes()),
+			common.BytesToHash(common.HexToAddress(args.Operator).Bytes()),
+		},
 	); err != nil {
 		return nil, err
 	}
@@ -316,6 +360,9 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("deposit method readonly")
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(DepositMethodName)
@@ -362,6 +409,9 @@ func (c *Contract) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	if readonly {
 		return nil, errors.New("reserve swapin method readonly")
 	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
 
 	method := MustMethod(ReserveSwapInMethodName)
 
@@ -405,6 +455,9 @@ func (c *Contract) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	if readonly {
 		return nil, errors.New("complete swapin method readonly")
 	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
 
 	method := MustMethod(CompleteSwapInMethodName)
 
@@ -446,6 +499,9 @@ func (c *Contract) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 func (c *Contract) CancelSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("cancel swapin method readonly")
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(CancelSwapInMethodName)

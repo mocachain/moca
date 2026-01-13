@@ -7,6 +7,16 @@
 //   - Latency measurements
 //   - Resource utilization tracking
 //
+// Prerequisites:
+//
+//  1. Start MOCA Chain node with cache queue enabled and monitoring:
+//     cd /Users/liushangliang/github/zkme/moca
+//     make localup
+//     # or with cache queue and metrics enabled
+//     ./deployment/localup/localup.sh --tx-cache-queue.enable=true --telemetry.enabled=true
+//
+//  2. Ensure test account has sufficient balance for test transactions
+//
 // Usage:
 //
 //	# Run all performance tests
@@ -58,15 +68,15 @@ func (s *CacheQueuePerformanceTestSuite) TearDownSuite() {
 
 // PerformanceMetrics holds performance measurement data
 type PerformanceMetrics struct {
-	TotalTransactions  int
-	SuccessfulTxs      int
-	FailedTxs          int
-	Duration           time.Duration
-	ThroughputTxPerSec float64
-	AvgLatencyMs       float64
-	MinLatencyMs       float64
-	MaxLatencyMs       float64
-	MemoryUsageMB      float64
+	TotalTransactions    int
+	SuccessfulTxs       int
+	FailedTxs           int
+	Duration            time.Duration
+	ThroughputTxPerSec  float64
+	AvgLatencyMs        float64
+	MinLatencyMs        float64
+	MaxLatencyMs        float64
+	MemoryUsageMB       float64
 }
 
 // TestCacheQueueThroughput measures transaction throughput
@@ -95,11 +105,11 @@ func (s *CacheQueuePerformanceTestSuite) TestCacheQueueThroughput() {
 	s.T().Log("\n=== Throughput Test Scenarios ===")
 
 	testScenarios := []struct {
-		name        string
-		numTxs      int
-		concurrency int
-		nonceGap    uint64
-		description string
+		name            string
+		numTxs          int
+		concurrency     int
+		nonceGap        uint64
+		description     string
 	}{
 		{
 			name:        "Sequential High Volume",
@@ -254,7 +264,7 @@ func (s *CacheQueuePerformanceTestSuite) runThroughputTest(
 
 	// Calculate metrics
 	metrics := PerformanceMetrics{
-		TotalTransactions:  numTxs,
+		TotalTransactions:   numTxs,
 		SuccessfulTxs:      successCount,
 		FailedTxs:          errorCount,
 		Duration:           totalDuration,
@@ -536,7 +546,7 @@ func (s *CacheQueuePerformanceTestSuite) TestCacheQueueResourceUtilization() {
 
 	for i := 0; i < resourceTestTxs; i++ {
 		var nonce uint64
-
+		
 		// Mix immediate and cached transactions
 		if i%3 == 0 {
 			nonce = currentNonce + uint64(i/3) // Some immediate transactions
@@ -557,7 +567,7 @@ func (s *CacheQueuePerformanceTestSuite) TestCacheQueueResourceUtilization() {
 		s.Require().NoError(err, "Failed to sign resource test transaction %d", i+1)
 
 		err = s.ethClient.SendTransaction(context.Background(), signedTx)
-
+		
 		if err == nil {
 			successCount++
 		} else {
@@ -585,14 +595,14 @@ func (s *CacheQueuePerformanceTestSuite) TestCacheQueueResourceUtilization() {
 	s.T().Logf("Processing rate: %.2f tx/sec", float64(resourceTestTxs)/workloadDuration.Seconds())
 
 	s.T().Log("\nMemory Statistics:")
-	s.T().Logf("  Memory allocations: %d → %d (delta: %d)",
+	s.T().Logf("  Memory allocations: %d → %d (delta: %d)", 
 		initialMemStats.Mallocs, finalMemStats.Mallocs, finalMemStats.Mallocs-initialMemStats.Mallocs)
-	s.T().Logf("  Memory frees: %d → %d (delta: %d)",
+	s.T().Logf("  Memory frees: %d → %d (delta: %d)", 
 		initialMemStats.Frees, finalMemStats.Frees, finalMemStats.Frees-initialMemStats.Frees)
-	s.T().Logf("  Active allocations: %d → %d",
+	s.T().Logf("  Active allocations: %d → %d", 
 		initialMemStats.Mallocs-initialMemStats.Frees, finalMemStats.Mallocs-finalMemStats.Frees)
-	s.T().Logf("  Heap memory: %.2f MB → %.2f MB (delta: %.2f MB)",
-		float64(initialMemStats.Alloc)/1024/1024,
+	s.T().Logf("  Heap memory: %.2f MB → %.2f MB (delta: %.2f MB)", 
+		float64(initialMemStats.Alloc)/1024/1024, 
 		float64(finalMemStats.Alloc)/1024/1024,
 		float64(finalMemStats.Alloc-initialMemStats.Alloc)/1024/1024)
 
