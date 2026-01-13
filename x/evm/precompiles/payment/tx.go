@@ -19,7 +19,6 @@ const (
 	DepositMethodName              = "deposit"
 	DisableRefundMethodName        = "disableRefund"
 	WithdrawMethodName             = "withdraw"
-	UpdateParamsMethodName         = "updateParams"
 )
 
 func (c *Contract) registerTx() {
@@ -27,12 +26,14 @@ func (c *Contract) registerTx() {
 	c.registerMethod(DepositMethodName, 60_000, c.Deposit, "Deposit")
 	c.registerMethod(DisableRefundMethodName, 60_000, c.DisableRefund, "DisableRefund")
 	c.registerMethod(WithdrawMethodName, 60_000, c.Withdraw, "Withdraw")
-	c.registerMethod(UpdateParamsMethodName, 60_000, c.UpdateParams, "UpdateParams")
 }
 
 func (c *Contract) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("create payment account method readonly")
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(CreatePaymentAccountMethodName)
 	msg := &paymenttypes.MsgCreatePaymentAccount{
@@ -62,6 +63,9 @@ func (c *Contract) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *
 func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("deposit method readonly")
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(DepositMethodName)
 	var args DepositArgs
@@ -97,6 +101,9 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 func (c *Contract) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("disable refund method readonly")
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DisableRefundMethodName)
@@ -137,6 +144,9 @@ func (c *Contract) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	if readonly {
 		return nil, errors.New("withdraw method readonly")
 	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
 
 	method := GetAbiMethod(WithdrawMethodName)
 
@@ -166,59 +176,6 @@ func (c *Contract) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[WithdrawMethodName]),
-		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
-		},
-	); err != nil {
-		return nil, err
-	}
-	return method.Outputs.Pack(true)
-}
-
-func (c *Contract) UpdateParams(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, errors.New("update params method readonly")
-	}
-
-	method := GetAbiMethod(UpdateParamsMethodName)
-
-	var args UpdateParamsArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
-		return nil, err
-	}
-	withdrawTimeLockThreshold := math.NewIntFromBigInt(args.Params.WithdrawTimeLockThreshold)
-	msg := &paymenttypes.MsgUpdateParams{
-		Authority: args.Authority,
-		Params: paymenttypes.Params{
-			VersionedParams: paymenttypes.VersionedParams{
-				ReserveTime:      args.Params.VersionedParams.ReserveTime,
-				ValidatorTaxRate: math.LegacyNewDecFromBigInt(args.Params.VersionedParams.ValidatorTaxRate),
-			},
-			PaymentAccountCountLimit:  args.Params.PaymentAccountCountLimit,
-			ForcedSettleTime:          args.Params.ForcedSettleTime,
-			MaxAutoSettleFlowCount:    args.Params.MaxAutoSettleFlowCount,
-			MaxAutoResumeFlowCount:    args.Params.MaxAutoResumeFlowCount,
-			FeeDenom:                  args.Params.FeeDenom,
-			WithdrawTimeLockThreshold: &withdrawTimeLockThreshold,
-			WithdrawTimeLockDuration:  args.Params.WithdrawTimeLockDuration,
-		},
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-
-	server := paymentkeeper.NewMsgServerImpl(c.paymentKeeper)
-	_, err = server.UpdateParams(ctx, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[UpdateParamsMethodName]),
 		[]common.Hash{
 			common.BytesToHash(contract.Caller().Bytes()),
 		},

@@ -38,9 +38,18 @@ import (
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	icagenesistypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/genesis/types"
+	icatypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	ibctypes "github.com/cosmos/ibc-go/v10/modules/core/types"
 
 	"github.com/cosmos/cosmos-sdk/x/crisis"
+	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	"github.com/evmos/evmos/v12/cmd/config"
 	servercfg "github.com/evmos/evmos/v12/server/config"
 	evmostypes "github.com/evmos/evmos/v12/types"
@@ -142,7 +151,6 @@ func Setup(
 			panic(err)
 		}
 
-		// Initialize the chain
 		if _, err := app.InitChain(
 			&abci.RequestInitChain{
 				ChainId:         chainID,
@@ -153,6 +161,7 @@ func Setup(
 		); err != nil {
 			panic(err)
 		}
+
 	}
 
 	return app
@@ -204,7 +213,8 @@ func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
 			MinSelfDelegation: math.ZeroInt(),
 		}
 		validators = append(validators, validator)
-		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), val.Address.String(), math.LegacyOneDec()))
+		// NOTE: Use sdk.AccAddress(val.Address).String() to match the OperatorAddress format
+		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), sdk.AccAddress(val.Address).String(), math.LegacyOneDec()))
 
 	}
 	// set validators and delegations
@@ -233,6 +243,35 @@ func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
 	// update total supply
 	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, []banktypes.Metadata{}, []banktypes.SendEnabled{})
 	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)
+
+	// set distribution genesis
+	distrGenesis := distributiontypes.DefaultGenesisState()
+	distrGenesis.FeePool = distributiontypes.InitialFeePool()
+	genesisState[distributiontypes.ModuleName] = app.AppCodec().MustMarshalJSON(distrGenesis)
+
+	// set transfer genesis
+	transferGenesis := ibctransfertypes.DefaultGenesisState()
+	genesisState[ibctransfertypes.ModuleName] = app.AppCodec().MustMarshalJSON(transferGenesis)
+
+	// set ica genesis
+	icaGenesis := icagenesistypes.DefaultGenesis()
+	genesisState[icatypes.ModuleName] = app.AppCodec().MustMarshalJSON(icaGenesis)
+
+	// set capability genesis
+	capabilityGenesis := capabilitytypes.DefaultGenesis()
+	genesisState[capabilitytypes.ModuleName] = app.AppCodec().MustMarshalJSON(capabilityGenesis)
+
+	// set crisis genesis
+	crisisGenesis := crisistypes.DefaultGenesisState()
+	genesisState[crisistypes.ModuleName] = app.AppCodec().MustMarshalJSON(crisisGenesis)
+
+	// set gov genesis
+	govGenesis := govv1.DefaultGenesisState()
+	genesisState[govtypes.ModuleName] = app.AppCodec().MustMarshalJSON(govGenesis)
+
+	// set ibc genesis
+	ibcGenesis := ibctypes.DefaultGenesisState()
+	genesisState["ibc"] = app.AppCodec().MustMarshalJSON(ibcGenesis)
 
 	return genesisState
 }

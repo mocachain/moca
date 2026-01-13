@@ -42,7 +42,7 @@ func EndBlocker(ctx sdk.Context, keeper Keeper) error {
 	// delete buckets
 	doDeleteBucket := true
 	// on testnet, we had a hot fix to disable deleting buckets after discontinue since 5946512 height
-	if ctx.BlockHeight() > 5946511 && ctx.ChainID() == utils.TestnetChainID {
+	if ctx.BlockHeight() > 5946511 && ctx.ChainID() == utils.TestnetChainID+"-1" {
 		doDeleteBucket = false
 	}
 

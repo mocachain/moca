@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -37,14 +38,14 @@ func (suite *AnteTestSuite) SetupTest() {
 	consAddress := sdk.ConsAddress(privCons.PubKey().Address())
 
 	isCheckTx := false
-	chainID := utils.MainnetChainID + "-1"
+	chainID := "evmos_9001-1"
 	suite.app = app.Setup(isCheckTx, feemarkettypes.DefaultGenesisState(), chainID)
 	suite.Require().NotNil(suite.app.AppCodec())
 
 	header := testutil.NewHeader(
 		1, time.Now().UTC(), chainID, consAddress, nil, nil)
 	suite.ctx = suite.app.BaseApp.NewContext(isCheckTx)
-	suite.ctx = suite.ctx.WithBlockHeader(header)
+	suite.ctx = suite.ctx.WithBlockHeader(header).WithBlockGasMeter(storetypes.NewInfiniteGasMeter()).WithChainID(chainID)
 
 	suite.denom = utils.BaseDenom
 	evmParams := suite.app.EvmKeeper.GetParams(suite.ctx)

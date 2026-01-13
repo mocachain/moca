@@ -134,8 +134,7 @@ func (args *SPExitArgs) Validate() error {
 }
 
 type CompleteSPExitArgs struct {
-	StorageProvider string `abi:"storageProvider"`
-	Operator        string `abi:"operator"`
+	Operator string `abi:"operator"`
 }
 
 // Validate CompleteSPExitArgs the args

@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"time"
 
 	cmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -135,6 +134,9 @@ func CmdCreateBucket() *cobra.Command {
 				return err
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -230,6 +232,9 @@ func CmdDeleteBucket() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -298,6 +303,9 @@ func CmdUpdateBucketInfo() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -360,6 +368,9 @@ func CmdCancelCreateObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -469,6 +480,9 @@ func CmdCreateObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -573,6 +587,9 @@ func CmdCopyObject() *cobra.Command {
 				return err
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -636,6 +653,9 @@ func CmdDeleteObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -704,6 +724,9 @@ func CmdUpdateObjectInfo() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -782,6 +805,9 @@ func CmdDiscontinueObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -845,6 +871,9 @@ func CmdCreateGroup() *cobra.Command {
 			tags := GetTags(tagsStr)
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -922,6 +951,9 @@ func CmdDeleteGroup() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -983,6 +1015,9 @@ func CmdLeaveGroup() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1004,7 +1039,6 @@ func CmdLeaveGroup() *cobra.Command {
 			}
 
 			txRsp, err := session.LeaveGroup(
-				ethcmn.Address(km.GetAddr()),
 				ethcmn.Address(groupOwner),
 				argGroupName,
 			)
@@ -1048,9 +1082,8 @@ func CmdUpdateGroupMember() *cobra.Command {
 				return errors.New("[member-to-add] and [member-expiration-to-add] should have the same length")
 			}
 
-			msgGroupMemberToAdd := make([]*types.MsgGroupMember, 0, len(argMemberToAdd))
-			groupMembersToAdd := make([]ethcmn.Address, 0, len(argMemberToAdd))
-			var expirationTime []int64
+			groupMembersToAdd := make([]ethcmn.Address, 0, len(membersToAdd))
+			expirationTime := make([]int64, 0, len(membersToAdd))
 			if len(membersToAdd) > 0 {
 				for i := range membersToAdd {
 					if len(membersToAdd[i]) > 0 {
@@ -1058,26 +1091,23 @@ func CmdUpdateGroupMember() *cobra.Command {
 						if err != nil {
 							return err
 						}
-						groupMembersToAdd[i] = ethcmn.Address(memberToAdd)
-						member := types.MsgGroupMember{
-							Member: membersToAdd[i],
-						}
+						groupMembersToAdd = append(groupMembersToAdd, ethcmn.Address(memberToAdd))
+						var unix int64
 						if len(memberExpirationStr[i]) > 0 {
-							unix, err := strconv.ParseInt(memberExpirationStr[i], 10, 64)
+							parsedUnix, err := strconv.ParseInt(memberExpirationStr[i], 10, 64)
 							if err != nil {
 								return err
 							}
-							expirationTime[i] = unix
-							expiration := time.Unix(unix, 0)
-							member.ExpirationTime = &expiration
+							unix = parsedUnix
+						} else {
+							unix = 0
 						}
+						expirationTime = append(expirationTime, unix)
 
-						msgGroupMemberToAdd = append(msgGroupMemberToAdd, &member)
 					}
 				}
 			}
 
-			var memberAddrsToDelete []sdk.AccAddress
 			var groupMembersToDelete []ethcmn.Address
 			if len(argMemberToDelete) != 0 {
 				membersToDelete := strings.Split(argMemberToDelete, ",")
@@ -1088,11 +1118,13 @@ func CmdUpdateGroupMember() *cobra.Command {
 							return err
 						}
 						groupMembersToDelete = append(groupMembersToDelete, ethcmn.Address(memberAddr))
-						memberAddrsToDelete = append(memberAddrsToDelete, memberAddr)
 					}
 				}
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1162,34 +1194,34 @@ func CmdRenewGroupMember() *cobra.Command {
 				return errors.New("member and member-expiration should have the same length")
 			}
 
-			msgGroupMember := make([]*types.MsgGroupMember, 0, len(argMember))
-			var groupMembers []ethcmn.Address
-			var expirationTime []int64
+			groupMembers := make([]ethcmn.Address, 0, len(members))
+			expirationTime := make([]int64, 0, len(members))
 			for i := range members {
 				if len(members[i]) > 0 {
 					memberToRenew, err := sdk.AccAddressFromHexUnsafe(members[i])
 					if err != nil {
 						return err
 					}
-					groupMembers[i] = ethcmn.Address(memberToRenew)
-					member := types.MsgGroupMember{
-						Member: members[i],
-					}
+					groupMembers = append(groupMembers, ethcmn.Address(memberToRenew))
+					var unix int64
 					if len(memberExpirationStr[i]) > 0 {
-						unix, err := strconv.ParseInt(memberExpirationStr[i], 10, 64)
+						parsedUnix, err := strconv.ParseInt(memberExpirationStr[i], 10, 64)
 						if err != nil {
 							return err
 						}
-						expirationTime[i] = unix
-						expiration := time.Unix(unix, 0)
-						member.ExpirationTime = &expiration
+						unix = parsedUnix
+					} else {
+						unix = 0
 					}
+					expirationTime = append(expirationTime, unix)
 
-					msgGroupMember = append(msgGroupMember, &member)
 				}
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1250,6 +1282,9 @@ func CmdUpdateGroupExtra() *cobra.Command {
 				return err
 			}
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1315,6 +1350,9 @@ func CmdPutPolicy() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1392,6 +1430,9 @@ $ %s tx delete-policy 3
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1478,6 +1519,9 @@ func CmdMirrorBucket() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1542,6 +1586,9 @@ func CmdDiscontinueBucket() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1609,6 +1656,9 @@ func CmdMigrateBucket() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1699,6 +1749,9 @@ func CmdMirrorObject() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1791,6 +1844,9 @@ func CmdMirrorGroup() *cobra.Command {
 			}
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err
@@ -1857,6 +1913,9 @@ func CmdSetTag() *cobra.Command {
 			resourceTags := GetTags(tagsStr)
 
 			km, err := keys.NewPrivateKeyManager(argPrivateKey)
+			if err != nil {
+				return err
+			}
 			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
 			if err != nil {
 				return err

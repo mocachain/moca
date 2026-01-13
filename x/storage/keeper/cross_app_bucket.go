@@ -56,34 +56,66 @@ func (app *BucketApp) ExecuteAckPackage(ctx sdk.Context, appCtx *sdk.CrossChainA
 	return result
 }
 
+// ExecuteFailAckPackage processes failed acknowledgment cross-chain packages.
+//
+// IMPORTANT: This function uses explicit branching on OperationType to distinguish
+// V1 and V2 package formats. V1 and V2 CreateBucket operations are handled separately:
+// - OperationCreateBucket (0x02): V1 format without GlobalVirtualGroupFamilyId
+// - OperationCreateBucketV2 (0x82): V2 format with GlobalVirtualGroupFamilyId
+//
+// The high-bit flag in OperationType (0x80) ensures packages cannot be misinterpreted.
+// Fallback deserialization (try V2, then V1) is explicitly prohibited as it can cause
+// silent data corruption where V1 payloads are incorrectly parsed as V2.
+//
+// Unknown OperationType values will trigger panic as a safety measure.
 func (app *BucketApp) ExecuteFailAckPackage(ctx sdk.Context, appCtx *sdk.CrossChainAppContext, payload []byte) sdk.ExecuteResult {
-	var pack interface{}
-	var err error
-	pack, err = types.DeserializeCrossChainPackage(payload, types.BucketChannelId, sdk.FailAckCrossChainPackageType)
+	rawPack, err := types.DeserializeRawCrossChainPackage(payload)
 	if err != nil {
-		app.storageKeeper.Logger(ctx).Error("deserialize bucket cross chain package error", "payload", hex.EncodeToString(payload), "error", err.Error())
-		panic("deserialize bucket cross chain package error")
+		app.storageKeeper.Logger(ctx).Error("deserialize raw cross chain package error", "payload", hex.EncodeToString(payload), "error", err.Error())
+		panic("deserialize raw cross chain package error")
 	}
 
 	var operationType uint8
 	var result sdk.ExecuteResult
-	switch p := pack.(type) {
-	case *types.MirrorBucketSynPackage:
+	switch rawPack.OperationType {
+	case types.OperationMirrorBucket:
+		p, derr := types.DeserializeMirrorBucketSynPackage(rawPack.Package)
+		if derr != nil {
+			app.storageKeeper.Logger(ctx).Error("deserialize mirror bucket failack package error", "error", derr.Error())
+			panic("deserialize mirror bucket failack package error")
+		}
 		operationType = types.OperationMirrorBucket
-		result = app.handleMirrorBucketFailAckPackage(ctx, appCtx, p)
-	case *types.CreateBucketSynPackage:
+		result = app.handleMirrorBucketFailAckPackage(ctx, appCtx, p.(*types.MirrorBucketSynPackage))
+	case types.OperationCreateBucket: // V1: 0x02 (legacy format without GlobalVirtualGroupFamilyId)
+		p, derr := types.DeserializeCreateBucketSynPackage(rawPack.Package)
+		if derr != nil {
+			app.storageKeeper.Logger(ctx).Error("deserialize create bucket (v1) failack package error", "error", derr.Error())
+			panic("deserialize create bucket (v1) failack package error")
+		}
 		operationType = types.OperationCreateBucket
-		result = app.handleCreateBucketFailAckPackage(ctx, appCtx, p)
-	case *types.CreateBucketSynPackageV2:
-		operationType = types.OperationCreateBucket
-		result = app.handleCreateBucketFailAckPackageV2(ctx, appCtx, p)
-	case *types.DeleteBucketSynPackage:
+		result = app.handleCreateBucketFailAckPackage(ctx, appCtx, p.(*types.CreateBucketSynPackage))
+	case types.OperationCreateBucketV2: // V2: 0x82 (includes GlobalVirtualGroupFamilyId)
+		p, derr := types.DeserializeCreateBucketSynPackageV2(rawPack.Package)
+		if derr != nil {
+			app.storageKeeper.Logger(ctx).Error("deserialize create bucket (v2) failack package error", "error", derr.Error())
+			panic("deserialize create bucket (v2) failack package error")
+		}
+		operationType = types.OperationCreateBucketV2
+		result = app.handleCreateBucketFailAckPackageV2(ctx, appCtx, p.(*types.CreateBucketSynPackageV2))
+	case types.OperationDeleteBucket:
+		p, derr := types.DeserializeDeleteBucketSynPackage(rawPack.Package)
+		if derr != nil {
+			app.storageKeeper.Logger(ctx).Error("deserialize delete bucket failack package error", "error", derr.Error())
+			panic("deserialize delete bucket failack package error")
+		}
 		operationType = types.OperationDeleteBucket
-		result = app.handleDeleteBucketFailAckPackage(ctx, appCtx, p)
+		result = app.handleDeleteBucketFailAckPackage(ctx, appCtx, p.(*types.DeleteBucketSynPackage))
 	default:
 		panic("unknown cross chain ack package type")
 	}
 
+	// Wrap response payload with OperationType to maintain V1/V2 consistency.
+	// The response OperationType matches the request (V2 request → V2 response).
 	if len(result.Payload) != 0 {
 		wrapPayload := types.CrossChainPackage{
 			OperationType: operationType,
@@ -95,34 +127,66 @@ func (app *BucketApp) ExecuteFailAckPackage(ctx sdk.Context, appCtx *sdk.CrossCh
 	return result
 }
 
+// ExecuteSynPackage processes synchronous cross-chain packages.
+//
+// IMPORTANT: This function uses explicit branching on OperationType to distinguish
+// V1 and V2 package formats. V1 and V2 CreateBucket operations are handled separately:
+// - OperationCreateBucket (0x02): V1 format without GlobalVirtualGroupFamilyId
+// - OperationCreateBucketV2 (0x82): V2 format with GlobalVirtualGroupFamilyId
+//
+// The high-bit flag in OperationType (0x80) ensures packages cannot be misinterpreted.
+// Fallback deserialization (try V2, then V1) is explicitly prohibited as it can cause
+// silent data corruption where V1 payloads are incorrectly parsed as V2.
+//
+// Unknown OperationType values will trigger panic as a safety measure.
 func (app *BucketApp) ExecuteSynPackage(ctx sdk.Context, appCtx *sdk.CrossChainAppContext, payload []byte) sdk.ExecuteResult {
-	var pack interface{}
-	var err error
-	pack, err = types.DeserializeCrossChainPackage(payload, types.BucketChannelId, sdk.FailAckCrossChainPackageType)
+	rawPack, err := types.DeserializeRawCrossChainPackage(payload)
 	if err != nil {
-		app.storageKeeper.Logger(ctx).Error("deserialize bucket cross chain package error", "payload", hex.EncodeToString(payload), "error", err.Error())
-		panic("deserialize bucket cross chain package error")
+		app.storageKeeper.Logger(ctx).Error("deserialize raw cross chain package error", "payload", hex.EncodeToString(payload), "error", err.Error())
+		panic("deserialize raw cross chain package error")
 	}
 
 	var operationType uint8
 	var result sdk.ExecuteResult
-	switch p := pack.(type) {
-	case *types.MirrorBucketSynPackage:
+	switch rawPack.OperationType {
+	case types.OperationMirrorBucket:
+		p, derr := types.DeserializeMirrorBucketSynPackage(rawPack.Package)
+		if derr != nil {
+			app.storageKeeper.Logger(ctx).Error("deserialize mirror bucket syn package error", "error", derr.Error())
+			panic("deserialize mirror bucket syn package error")
+		}
 		operationType = types.OperationMirrorBucket
-		result = app.handleMirrorBucketSynPackage(ctx, appCtx, p)
-	case *types.CreateBucketSynPackage:
+		result = app.handleMirrorBucketSynPackage(ctx, appCtx, p.(*types.MirrorBucketSynPackage))
+	case types.OperationCreateBucket: // V1: 0x02 (legacy format without GlobalVirtualGroupFamilyId)
+		p, derr := types.DeserializeCreateBucketSynPackage(rawPack.Package)
+		if derr != nil {
+			app.storageKeeper.Logger(ctx).Error("deserialize create bucket (v1) syn package error", "error", derr.Error())
+			panic("deserialize create bucket (v1) syn package error")
+		}
 		operationType = types.OperationCreateBucket
-		result = app.handleCreateBucketSynPackage(ctx, appCtx, p)
-	case *types.CreateBucketSynPackageV2:
-		operationType = types.OperationCreateBucket
-		result = app.handleCreateBucketSynPackageV2(ctx, appCtx, p)
-	case *types.DeleteBucketSynPackage:
+		result = app.handleCreateBucketSynPackage(ctx, appCtx, p.(*types.CreateBucketSynPackage))
+	case types.OperationCreateBucketV2: // V2: 0x82 (includes GlobalVirtualGroupFamilyId)
+		p, derr := types.DeserializeCreateBucketSynPackageV2(rawPack.Package)
+		if derr != nil {
+			app.storageKeeper.Logger(ctx).Error("deserialize create bucket (v2) syn package error", "error", derr.Error())
+			panic("deserialize create bucket (v2) syn package error")
+		}
+		operationType = types.OperationCreateBucketV2
+		result = app.handleCreateBucketSynPackageV2(ctx, appCtx, p.(*types.CreateBucketSynPackageV2))
+	case types.OperationDeleteBucket:
+		p, derr := types.DeserializeDeleteBucketSynPackage(rawPack.Package)
+		if derr != nil {
+			app.storageKeeper.Logger(ctx).Error("deserialize delete bucket syn package error", "error", derr.Error())
+			panic("deserialize delete bucket syn package error")
+		}
 		operationType = types.OperationDeleteBucket
-		result = app.handleDeleteBucketSynPackage(ctx, appCtx, p)
+		result = app.handleDeleteBucketSynPackage(ctx, appCtx, p.(*types.DeleteBucketSynPackage))
 	default:
 		panic("unknown cross chain ack package type")
 	}
 
+	// Wrap response payload with OperationType to maintain V1/V2 consistency.
+	// The response OperationType matches the request (V2 request → V2 response).
 	if len(result.Payload) != 0 {
 		wrapPayload := types.CrossChainPackage{
 			OperationType: operationType,

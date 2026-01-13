@@ -20,6 +20,8 @@ MOUNT_PATH := $(shell pwd)/build/:/root/
 E2E_SKIP_CLEANUP := false
 
 export GO111MODULE = on
+export GOPRIVATE = github.com/mocachain/*
+export GONOSUMDB = github.com/mocachain/*
 
 # Default target executed when no arguments are given to make.
 default_target: all

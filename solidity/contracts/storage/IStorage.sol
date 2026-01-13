@@ -523,7 +523,6 @@ interface IStorage {
      * @dev sealObject defines a method for seal a object.
      */
     function sealObject(
-        address sealAddress,
         string memory bucketName,
         string memory objectName,
         uint32 globalVirtualGroupId,
@@ -534,7 +533,6 @@ interface IStorage {
      * @dev sealObjectV2 defines a method for seal a object with IsAgentUpload.
      */
     function sealObjectV2(
-        address sealAddress,
         string memory bucketName,
         string memory objectName,
         uint32 globalVirtualGroupId,
@@ -594,6 +592,14 @@ interface IStorage {
         uint64 payloadSize,
         string memory contentType,
         string[] memory expectChecksums
+    ) external returns (bool success);
+
+    /**
+     * @dev cancelUpdateObjectContent defines a method for cancel updating a object content.
+     */
+    function cancelUpdateObjectContent(
+        string memory bucketName,
+        string memory objectName
     ) external returns (bool success);
 
     /**
@@ -811,7 +817,6 @@ interface IStorage {
      * @dev leaveGroup defines a method for leave a group.
      */
     function leaveGroup(
-        address member,
         address groupOwner,
         string memory groupName
     ) external returns (bool success);
@@ -915,13 +920,6 @@ interface IStorage {
         string memory bucketName
     ) external returns (bool success);
 
-    /**
-     * @dev updateParams defines a method for update params of modular storage.
-     */
-    function updateParams(
-        string memory authority,
-        Params memory params
-    ) external returns (bool success);
 
     /**
      * @dev CreateBucket defines an Event emitted when a user create a bucket
@@ -938,7 +936,7 @@ interface IStorage {
      */
     event UpdateBucketInfo(
         address indexed operator,
-        bytes32 indexed bucketName,
+        string indexed bucketName,
         address indexed paymentAddress,
         uint8 visibility
     );
@@ -1023,12 +1021,12 @@ interface IStorage {
     /**
      * @dev SealObject defines an Event emitted when a user seal a object
      */
-    event SealObject(address indexed creator, address indexed sealAddress);
+    event SealObject(address indexed creator);
 
     /**
      * @dev SealObjectV2 defines an Event emitted when a user seal a object with IsAgentUpload
      */
-    event SealObjectV2(address indexed creator, address indexed sealAddress);
+    event SealObjectV2(address indexed creator);
 
     /**
      * @dev RejectSealObject defines an Event emitted when a sp reject seal a object
@@ -1060,6 +1058,14 @@ interface IStorage {
      * @dev DelegateUpdateObjectContent defines an Event emitted when a user delegate update a object content
      */
     event DelegateUpdateObjectContent(
+        address indexed operator,
+        string indexed objectName
+    );
+
+    /**
+     * @dev CancelUpdateObjectContent defines an Event emitted when a user cancel update a object content
+     */
+    event CancelUpdateObjectContent(
         address indexed operator,
         string indexed objectName
     );
@@ -1124,8 +1130,4 @@ interface IStorage {
      */
     event ToggleSPAsDelegatedAgent(address indexed creator);
 
-    /**
-     * @dev UpdateParams defines an Event emitted when a user update params of modular storage
-     */
-    event UpdateParams(address indexed creator);
 }

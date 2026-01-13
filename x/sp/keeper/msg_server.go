@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"time"
@@ -188,6 +189,18 @@ func (k msgServer) EditStorageProvider(goCtx context.Context, msg *types.MsgEdit
 
 	changed := false
 
+	// capture old indices before mutation
+	oldSealAddr := sp.GetSealAccAddress()
+	oldApprovalAddr := sp.GetApprovalAccAddress()
+	oldGcAddr := sp.GetGcAccAddress()
+	oldBlsKey := make([]byte, len(sp.BlsKey))
+	copy(oldBlsKey, sp.BlsKey)
+
+	sealChanged := false
+	approvalChanged := false
+	gcChanged := false
+	blsChanged := false
+
 	// replace endpoint
 	if len(msg.Endpoint) != 0 {
 		sp.Endpoint = msg.Endpoint
@@ -205,18 +218,36 @@ func (k msgServer) EditStorageProvider(goCtx context.Context, msg *types.MsgEdit
 
 	if msg.SealAddress != "" {
 		sealAcc := sdk.MustAccAddressFromHex(msg.SealAddress)
+		if other, found := k.GetStorageProviderBySealAddr(ctx, sealAcc); found && other.Id != sp.Id {
+			return nil, types.ErrStorageProviderSealAddrExists
+		}
+		if !sealAcc.Equals(oldSealAddr) {
+			sealChanged = true
+		}
 		sp.SealAddress = sealAcc.String()
 		changed = true
 	}
 
 	if msg.ApprovalAddress != "" {
 		approvalAcc := sdk.MustAccAddressFromHex(msg.ApprovalAddress)
+		if other, found := k.GetStorageProviderByApprovalAddr(ctx, approvalAcc); found && other.Id != sp.Id {
+			return nil, types.ErrStorageProviderApprovalAddrExists
+		}
+		if !approvalAcc.Equals(oldApprovalAddr) {
+			approvalChanged = true
+		}
 		sp.ApprovalAddress = approvalAcc.String()
 		changed = true
 	}
 
 	if msg.GcAddress != "" {
 		gcAcc := sdk.MustAccAddressFromHex(msg.GcAddress)
+		if other, found := k.GetStorageProviderByGcAddr(ctx, gcAcc); found && other.Id != sp.Id {
+			return nil, types.ErrStorageProviderGcAddrExists
+		}
+		if !gcAcc.Equals(oldGcAddr) {
+			gcChanged = true
+		}
 		sp.GcAddress = gcAcc.String()
 		changed = true
 	}
@@ -230,8 +261,14 @@ func (k msgServer) EditStorageProvider(goCtx context.Context, msg *types.MsgEdit
 		if err != nil || len(blsPk) != sdk.BLSPubKeyLength {
 			return nil, types.ErrStorageProviderInvalidBlsKey
 		}
+		if other, found := k.GetStorageProviderByBlsKey(ctx, blsPk); found && other.Id != sp.Id {
+			return nil, types.ErrStorageProviderBlsKeyExists
+		}
 		if err = k.checkBlsProof(blsPk, msg.BlsProof); err != nil {
 			return nil, err
+		}
+		if !bytes.Equal(blsPk, oldBlsKey) {
+			blsChanged = true
 		}
 		sp.BlsKey = blsPk
 		changed = true
@@ -239,6 +276,21 @@ func (k msgServer) EditStorageProvider(goCtx context.Context, msg *types.MsgEdit
 
 	if !changed {
 		return nil, types.ErrStorageProviderNotChanged
+	}
+
+	// delete old indices for changed fields to avoid stale mappings
+	store := ctx.KVStore(k.storeKey)
+	if sealChanged {
+		store.Delete(types.GetStorageProviderBySealAddrKey(oldSealAddr))
+	}
+	if approvalChanged {
+		store.Delete(types.GetStorageProviderByApprovalAddrKey(oldApprovalAddr))
+	}
+	if gcChanged {
+		store.Delete(types.GetStorageProviderByGcAddrKey(oldGcAddr))
+	}
+	if blsChanged {
+		store.Delete(types.GetStorageProviderByBlsKeyKey(oldBlsKey))
 	}
 
 	k.SetStorageProvider(ctx, sp)

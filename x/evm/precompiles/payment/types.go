@@ -94,15 +94,6 @@ func (args *PaymentAccountArgs) Validate() error {
 	return nil
 }
 
-type UpdateParamsArgs struct {
-	Authority string `abi:"authority"`
-	Params    Params `abi:"params"`
-}
-
-// Validate UpdateParamsArgs the args
-func (args *UpdateParamsArgs) Validate() error {
-	return nil
-}
 
 type ParamsByTimestampArgs struct {
 	Timestamp int64 `abi:"timestamp"`

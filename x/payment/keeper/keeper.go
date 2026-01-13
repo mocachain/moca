@@ -9,6 +9,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 
 	"github.com/evmos/evmos/v12/x/payment/types"
 )
@@ -68,10 +70,25 @@ func (k Keeper) Withdraw(ctx sdk.Context, fromAddr, toAddr sdk.AccAddress, amoun
 		return errors.Wrapf(err, "update stream record failed %s", fromAddr.String())
 	}
 	k.SetStreamRecord(ctx, streamRecord)
-	err = k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, toAddr, sdk.NewCoins(sdk.NewCoin(k.GetParams(ctx).FeeDenom, amount)))
-	if err != nil {
-		return errors.Wrapf(err, "send coins from module to account failed %s", toAddr.String())
+
+	coins := sdk.NewCoins(sdk.NewCoin(k.GetParams(ctx).FeeDenom, amount))
+
+	// Check if recipient is the distribution module account
+	distModuleAcc := authtypes.NewModuleAddress(distrtypes.ModuleName)
+	if toAddr.Equals(distModuleAcc) {
+		// Transfer to distribution module using SendCoinsFromModuleToModule (bypasses blocklist)
+		err = k.bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, distrtypes.ModuleName, coins)
+		if err != nil {
+			return errors.Wrapf(err, "send coins from module to module failed, recipient module: %s", distrtypes.ModuleName)
+		}
+	} else {
+		// Transfer to regular account using SendCoinsFromModuleToAccount
+		err = k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, toAddr, coins)
+		if err != nil {
+			return errors.Wrapf(err, "send coins from module to account failed %s", toAddr.String())
+		}
 	}
+
 	return nil
 }
 

@@ -7,6 +7,16 @@
 //   - Invalid transaction handling
 //   - Concurrent access patterns
 //
+// Prerequisites:
+//
+//  1. Start MOCA Chain node with cache queue enabled:
+//     cd /Users/liushangliang/github/zkme/moca
+//     make localup
+//     # or with cache queue enabled
+//     ./deployment/localup/localup.sh --tx-cache-queue.enable=true
+//
+//  2. Ensure test account has sufficient balance for gas fees
+//
 // Usage:
 //
 //	# Run all edge case tests
@@ -195,13 +205,13 @@ func (s *CacheQueueEdgeCasesTestSuite) TestCacheQueueMemoryPressure() {
 		s.Require().NoError(err, "Failed to sign memory pressure transaction %d", i+1)
 
 		err = s.ethClient.SendTransaction(context.Background(), signedTx)
-
+		
 		if err == nil {
 			successCount++
 		} else {
 			rejectedCount++
 			errorMsg := err.Error()
-
+			
 			// Categorize error types
 			if contains(errorMsg, "nonce") {
 				errorTypes["nonce"]++
@@ -330,8 +340,8 @@ func (s *CacheQueueEdgeCasesTestSuite) TestCacheQueueConcurrentAccess() {
 		} else {
 			errorCount++
 			errorMsg := err.Error()
-			if contains(errorMsg, "concurrent") || contains(errorMsg, "race") ||
-				contains(errorMsg, "lock") || contains(errorMsg, "deadlock") {
+			if contains(errorMsg, "concurrent") || contains(errorMsg, "race") || 
+			   contains(errorMsg, "lock") || contains(errorMsg, "deadlock") {
 				concurrencyErrors++
 			}
 		}
@@ -379,49 +389,49 @@ func (s *CacheQueueEdgeCasesTestSuite) TestCacheQueueInvalidTransactions() {
 	s.T().Log("\n=== Testing various invalid transaction scenarios ===")
 
 	testCases := []struct {
-		name           string
-		gasPrice       *big.Int
+		name         string
+		gasPrice     *big.Int
 		transferAmount *big.Int
-		gasLimit       uint64
-		nonce          uint64
-		expectError    bool
-		description    string
+		gasLimit     uint64
+		nonce        uint64
+		expectError  bool
+		description  string
 	}{
 		{
-			name:           "Zero Gas Price",
-			gasPrice:       big.NewInt(0),
+			name:         "Zero Gas Price",
+			gasPrice:     big.NewInt(0),
 			transferAmount: big.NewInt(1000000000000000),
-			gasLimit:       gasLimit,
-			nonce:          currentNonce + 50,
-			expectError:    true,
-			description:    "Transaction with zero gas price should be rejected",
+			gasLimit:     gasLimit,
+			nonce:        currentNonce + 50,
+			expectError:  true,
+			description:  "Transaction with zero gas price should be rejected",
 		},
 		{
-			name:           "Extremely Low Gas",
-			gasPrice:       big.NewInt(1),
+			name:         "Extremely Low Gas",
+			gasPrice:     big.NewInt(1),
 			transferAmount: big.NewInt(1000000000000000),
-			gasLimit:       1,
-			nonce:          currentNonce + 51,
-			expectError:    true,
-			description:    "Transaction with insufficient gas should be rejected",
+			gasLimit:     1,
+			nonce:        currentNonce + 51,
+			expectError:  true,
+			description:  "Transaction with insufficient gas should be rejected",
 		},
 		{
-			name:           "Excessive Transfer Amount",
-			gasPrice:       big.NewInt(20000000000),
+			name:         "Excessive Transfer Amount",
+			gasPrice:     big.NewInt(20000000000),
 			transferAmount: new(big.Int).Exp(big.NewInt(10), big.NewInt(30), nil), // Huge amount
-			gasLimit:       gasLimit,
-			nonce:          currentNonce + 52,
-			expectError:    true,
-			description:    "Transaction with excessive amount should be rejected",
+			gasLimit:     gasLimit,
+			nonce:        currentNonce + 52,
+			expectError:  true,
+			description:  "Transaction with excessive amount should be rejected",
 		},
 		{
-			name:           "Valid Transaction",
-			gasPrice:       big.NewInt(20000000000),
+			name:         "Valid Transaction",
+			gasPrice:     big.NewInt(20000000000),
 			transferAmount: big.NewInt(1000000000000000),
-			gasLimit:       gasLimit,
-			nonce:          currentNonce + 53,
-			expectError:    false,
-			description:    "Valid transaction should be accepted or cached",
+			gasLimit:     gasLimit,
+			nonce:        currentNonce + 53,
+			expectError:  false,
+			description:  "Valid transaction should be accepted or cached",
 		},
 	}
 

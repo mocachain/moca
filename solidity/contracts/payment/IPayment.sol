@@ -99,13 +99,6 @@ interface IPayment {
         uint256 amount
     ) external returns (bool success);
 
-    /**
-     * @dev updateParams defines a method for update params of modular payment.
-     */
-    function updateParams(
-        string memory authority,
-        Params memory params
-    ) external returns (bool success);
 
     /**
      * @dev paymentAccountsByOwner defines a method for queries all payment accounts by a owner.
@@ -243,8 +236,4 @@ interface IPayment {
      */
     event Withdraw(address indexed creator);
 
-    /**
-     * @dev UpdateParams defines an Event emitted when a user update params of modular payment
-     */
-    event UpdateParams(address indexed creator);
 }

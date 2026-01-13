@@ -259,3 +259,276 @@ func TestApplyUserFlows_Frozen(t *testing.T) {
 	require.True(t, to2Record.LockBalance.Int64() == 0)
 	require.True(t, to2Record.BufferBalance.Int64() == 0)
 }
+
+func TestMergeUserFlows(t *testing.T) {
+	k, _, _ := makePaymentKeeper(t)
+
+	// Test case 1: Empty list
+	t.Run("EmptyList", func(t *testing.T) {
+		result := k.MergeUserFlows([]types.UserFlows{})
+		require.Empty(t, result)
+	})
+
+	// Test case 2: Single UserFlows
+	t.Run("SingleUserFlows", func(t *testing.T) {
+		from := sample.RandAccAddress()
+		to1 := sample.RandAccAddress()
+		to2 := sample.RandAccAddress()
+
+		userFlows := types.UserFlows{
+			From: from,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(100)},
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(200)},
+			},
+		}
+
+		result := k.MergeUserFlows([]types.UserFlows{userFlows})
+		require.Len(t, result, 1)
+		require.Equal(t, from.String(), result[0].From.String())
+		require.Len(t, result[0].Flows, 2)
+	})
+
+	// Test case 3: Multiple UserFlows with different From addresses
+	t.Run("DifferentFromAddresses", func(t *testing.T) {
+		from1 := sample.RandAccAddress()
+		from2 := sample.RandAccAddress()
+		to1 := sample.RandAccAddress()
+		to2 := sample.RandAccAddress()
+
+		userFlows1 := types.UserFlows{
+			From: from1,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(100)},
+			},
+		}
+
+		userFlows2 := types.UserFlows{
+			From: from2,
+			Flows: []types.OutFlow{
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(200)},
+			},
+		}
+
+		result := k.MergeUserFlows([]types.UserFlows{userFlows1, userFlows2})
+		require.Len(t, result, 2)
+
+		// Check that results are sorted by From address
+		require.True(t, result[0].From.String() < result[1].From.String())
+	})
+
+	// Test case 4: Multiple UserFlows with same From address - positive and negative flows
+	t.Run("SameFromAddressWithPositiveAndNegativeFlows", func(t *testing.T) {
+		from := sample.RandAccAddress()
+		to1 := sample.RandAccAddress()
+		to2 := sample.RandAccAddress()
+
+		// First UserFlows: positive rates
+		userFlows1 := types.UserFlows{
+			From: from,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(100)},
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(200)},
+			},
+		}
+
+		// Second UserFlows: negative rates (to cancel previous charges)
+		userFlows2 := types.UserFlows{
+			From: from,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(-50)},
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(-100)},
+			},
+		}
+
+		// Third UserFlows: new positive rates
+		userFlows3 := types.UserFlows{
+			From: from,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(30)},
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(60)},
+			},
+		}
+
+		result := k.MergeUserFlows([]types.UserFlows{userFlows1, userFlows2, userFlows3})
+		require.Len(t, result, 1)
+		require.Equal(t, from.String(), result[0].From.String())
+		require.Len(t, result[0].Flows, 2)
+
+		// Check merged rates: to1: 100 + (-50) + 30 = 80, to2: 200 + (-100) + 60 = 160
+		flows := result[0].Flows
+
+		// Find flows by ToAddress instead of assuming order
+		to1Flow := findFlowByToAddress(flows, to1.String())
+		to2Flow := findFlowByToAddress(flows, to2.String())
+
+		require.NotNil(t, to1Flow)
+		require.Equal(t, sdkmath.NewInt(80), to1Flow.Rate)
+		require.NotNil(t, to2Flow)
+		require.Equal(t, sdkmath.NewInt(160), to2Flow.Rate)
+	})
+
+	// Test case 5: Same From address with flows that cancel out to zero
+	t.Run("SameFromAddressWithZeroResult", func(t *testing.T) {
+		from := sample.RandAccAddress()
+		to1 := sample.RandAccAddress()
+		to2 := sample.RandAccAddress()
+
+		// First UserFlows: positive rates
+		userFlows1 := types.UserFlows{
+			From: from,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(100)},
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(200)},
+			},
+		}
+
+		// Second UserFlows: negative rates that exactly cancel out
+		userFlows2 := types.UserFlows{
+			From: from,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(-100)},
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(-200)},
+			},
+		}
+
+		result := k.MergeUserFlows([]types.UserFlows{userFlows1, userFlows2})
+		require.Len(t, result, 1)
+		require.Equal(t, from.String(), result[0].From.String())
+		require.Empty(t, result[0].Flows) // All flows should be filtered out as they sum to zero
+	})
+
+	// Test case 6: Complex scenario with multiple From addresses and mixed flows
+	t.Run("ComplexScenario", func(t *testing.T) {
+		from1 := sample.RandAccAddress()
+		from2 := sample.RandAccAddress()
+		to1 := sample.RandAccAddress()
+		to2 := sample.RandAccAddress()
+		to3 := sample.RandAccAddress()
+
+		// Multiple UserFlows for from1
+		userFlows1a := types.UserFlows{
+			From: from1,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(100)},
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(200)},
+			},
+		}
+
+		userFlows1b := types.UserFlows{
+			From: from1,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(-50)},
+				{ToAddress: to3.String(), Rate: sdkmath.NewInt(150)},
+			},
+		}
+
+		// Single UserFlows for from2
+		userFlows2 := types.UserFlows{
+			From: from2,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(300)},
+				{ToAddress: to2.String(), Rate: sdkmath.NewInt(400)},
+			},
+		}
+
+		result := k.MergeUserFlows([]types.UserFlows{userFlows1a, userFlows1b, userFlows2})
+		require.Len(t, result, 2)
+
+		// Results should be sorted by From address
+		require.True(t, result[0].From.String() < result[1].From.String())
+
+		// Find the results for each From address
+		var from1Result, from2Result types.UserFlows
+		if result[0].From.String() == from1.String() {
+			from1Result = result[0]
+			from2Result = result[1]
+		} else {
+			from1Result = result[1]
+			from2Result = result[0]
+		}
+
+		// Check from1 result: to1: 100 + (-50) = 50, to2: 200, to3: 150
+		require.Len(t, from1Result.Flows, 3)
+		from1Flows := from1Result.Flows
+		sort.Slice(from1Flows, func(i, j int) bool {
+			return from1Flows[i].ToAddress < from1Flows[j].ToAddress
+		})
+
+		// Find flows by ToAddress instead of assuming order
+		to1Flow := findFlowByToAddress(from1Flows, to1.String())
+		to2Flow := findFlowByToAddress(from1Flows, to2.String())
+		to3Flow := findFlowByToAddress(from1Flows, to3.String())
+
+		require.NotNil(t, to1Flow)
+		require.Equal(t, sdkmath.NewInt(50), to1Flow.Rate)
+		require.NotNil(t, to2Flow)
+		require.Equal(t, sdkmath.NewInt(200), to2Flow.Rate)
+		require.NotNil(t, to3Flow)
+		require.Equal(t, sdkmath.NewInt(150), to3Flow.Rate)
+
+		// Check from2 result: to1: 300, to2: 400
+		require.Len(t, from2Result.Flows, 2)
+		from2Flows := from2Result.Flows
+		sort.Slice(from2Flows, func(i, j int) bool {
+			return from2Flows[i].ToAddress < from2Flows[j].ToAddress
+		})
+
+		// Find flows by ToAddress instead of assuming order
+		to1Flow2 := findFlowByToAddress(from2Flows, to1.String())
+		to2Flow2 := findFlowByToAddress(from2Flows, to2.String())
+
+		require.NotNil(t, to1Flow2)
+		require.Equal(t, sdkmath.NewInt(300), to1Flow2.Rate)
+		require.NotNil(t, to2Flow2)
+		require.Equal(t, sdkmath.NewInt(400), to2Flow2.Rate)
+	})
+
+	// Test case 7: Edge case with duplicate ToAddress in same UserFlows
+	t.Run("DuplicateToAddressInSameUserFlows", func(t *testing.T) {
+		from := sample.RandAccAddress()
+		to1 := sample.RandAccAddress()
+
+		// Create two UserFlows with the same From address to trigger merging
+		userFlows1 := types.UserFlows{
+			From: from,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(100)},
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(200)},
+			},
+		}
+
+		userFlows2 := types.UserFlows{
+			From: from,
+			Flows: []types.OutFlow{
+				{ToAddress: to1.String(), Rate: sdkmath.NewInt(-50)},
+			},
+		}
+
+		result := k.MergeUserFlows([]types.UserFlows{userFlows1, userFlows2})
+		require.Len(t, result, 1)
+
+		// The MergeOutFlows should merge the duplicate ToAddress flows
+		// Let's check if MergeOutFlows is working correctly
+		allFlows := append(userFlows1.Flows, userFlows2.Flows...)
+		mergedFlows := k.MergeOutFlows(allFlows)
+		require.Len(t, mergedFlows, 1)
+		require.Equal(t, to1.String(), mergedFlows[0].ToAddress)
+		require.Equal(t, sdkmath.NewInt(250), mergedFlows[0].Rate) // 100 + 200 + (-50) = 250
+
+		// Now check the result from MergeUserFlows
+		require.Len(t, result[0].Flows, 1)
+		require.Equal(t, to1.String(), result[0].Flows[0].ToAddress)
+		require.Equal(t, sdkmath.NewInt(250), result[0].Flows[0].Rate)
+	})
+}
+
+// Helper function to find flow by ToAddress
+func findFlowByToAddress(flows []types.OutFlow, toAddress string) *types.OutFlow {
+	for _, flow := range flows {
+		if flow.ToAddress == toAddress {
+			return &flow
+		}
+	}
+	return nil
+}

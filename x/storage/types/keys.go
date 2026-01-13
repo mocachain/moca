@@ -67,6 +67,9 @@ var (
 
 	BucketRateLimitPrefix       = []byte{0x71}
 	BucketRateLimitStatusPrefix = []byte{0x72}
+
+	// LOW-015 Fix: Bucket count per owner for enforcing MaxBucketsPerAccount limit
+	BucketCountByOwnerPrefix = []byte{0x73}
 )
 
 // GetBucketKey return the bucket name store key
@@ -187,4 +190,9 @@ func GetBucketFlowRateLimitKey(paymentAccount, bucketOwner sdk.AccAddress, bucke
 func GetBucketFlowRateLimitStatusKey(bucketName string) []byte {
 	bucketNameHash := crypto.Keccak256([]byte(bucketName))
 	return append(BucketRateLimitPrefix, bucketNameHash...)
+}
+
+// GetBucketCountByOwnerKey return the bucket count by owner store key
+func GetBucketCountByOwnerKey(owner sdk.AccAddress) []byte {
+	return append(BucketCountByOwnerPrefix, owner.Bytes()...)
 }

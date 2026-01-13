@@ -185,9 +185,12 @@ func (c *Contract) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 	return method.Outputs.Pack(completionTime)
 }
 
-func (c *Contract) Redelegatge(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+func (c *Contract) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, types.ErrReadOnly
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, types.ErrInvalidCaller
 	}
 	method := MustMethod(RedelegateMethodName)
 

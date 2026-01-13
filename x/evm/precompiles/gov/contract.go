@@ -1,6 +1,7 @@
 package gov
 
 import (
+	"encoding/json"
 	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -46,7 +47,7 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	case LegacySubmitProposalMethodName:
 		return LegacySubmitProposalGas
 	case SubmitProposalMethodName:
-		return SubmitProposalGas
+		return c.calculateSubmitProposalGas(input)
 	case VoteMethodName:
 		return VoteGas
 	case VoteWeightedMethodName:
@@ -140,4 +141,44 @@ func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, ar
 		BlockNumber: evm.Context.BlockNumber.Uint64(),
 	})
 	return nil
+}
+
+// calculateSubmitProposalGas calculates gas cost based on number of messages and payload size
+func (c *Contract) calculateSubmitProposalGas(input []byte) uint64 {
+	if len(input) < 4 {
+		return SubmitProposalBaseGas
+	}
+
+	method, err := GetMethodByID(input)
+	if err != nil {
+		return SubmitProposalBaseGas
+	}
+
+	var args SubmitProposalArgs
+	err = types.ParseMethodArgs(method, &args, input[4:])
+	if err != nil {
+		return SubmitProposalBaseGas
+	}
+
+	// Parse messages to count them
+	var messages []json.RawMessage
+	err = json.Unmarshal([]byte(args.Messages), &messages)
+	if err != nil {
+		return SubmitProposalBaseGas
+	}
+
+	// Calculate number of messages (capped at max)
+	numMsgs := uint64(len(messages))
+	if numMsgs > MaxSubmitProposalMsgs {
+		numMsgs = MaxSubmitProposalMsgs
+	}
+
+	// Calculate payload size (capped at max)
+	payloadSize := uint64(calcPerMsgBytes(messages))
+	if payloadSize > MaxSubmitProposalPayloadBytes {
+		payloadSize = MaxSubmitProposalPayloadBytes
+	}
+
+	// Gas formula: Base + PerMsg * num + PerByte * size
+	return SubmitProposalBaseGas + (numMsgs * SubmitProposalPerMsgGas) + (payloadSize * SubmitProposalPerByteGas)
 }

@@ -1243,8 +1243,6 @@ func (app *Evmos) ModuleAccountAddrs() map[string]bool {
 // allowed to receive external tokens.
 func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 	blockedAddrs := app.ModuleAccountAddrs()
-	delete(blockedAddrs, authtypes.NewModuleAddress(govtypes.ModuleName).String())
-	delete(blockedAddrs, authtypes.NewModuleAddress(distrtypes.ModuleName).String())
 
 	blockedPrecompilesHex := []string{
 		evmostypes.BankAddress,
@@ -1545,6 +1543,12 @@ func (app *Evmos) setupUpgradeHandlers() {
 	if err != nil {
 		panic(fmt.Errorf("failed to read upgrade info from disk: %w", err))
 	}
+
+	// Upgrade handlers
+	app.UpgradeKeeper.SetUpgradeHandler("v1.1.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		// noop
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
 
 	var storeUpgrades *storetypes.StoreUpgrades
 

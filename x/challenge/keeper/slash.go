@@ -47,9 +47,10 @@ func (k Keeper) ExistsSlash(ctx sdk.Context, spID uint32, objectID sdkmath.Uint)
 func getSlashKeyBytes(spID uint32, objectID sdkmath.Uint) []byte {
 	idBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(idBytes, spID)
-	allBytes := make([]byte, 0, len(idBytes)+len(objectID.BigInt().Bytes()))
-	copy(allBytes, idBytes)
-	allBytes = append(allBytes, objectID.BigInt().Bytes()...)
+	objBytes := objectID.BigInt().Bytes()
+
+	// Correctly concatenate by appending spID bytes before objectID bytes
+	allBytes := append(idBytes, objBytes...)
 	return crypto.Keccak256(allBytes)
 }
 

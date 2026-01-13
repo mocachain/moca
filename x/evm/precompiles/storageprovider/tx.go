@@ -3,6 +3,7 @@ package storageprovider
 import (
 	"errors"
 
+	"cosmossdk.io/math"
 	"github.com/ethereum/go-ethereum/common"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -25,6 +26,9 @@ func (c *Contract) UpdateSPPrice(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	if readonly {
 		return nil, errors.New("update sp price method readonly")
 	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
 	method := GetAbiMethod(UpdateSPPriceMethodName)
 	var args UpdateSPPriceArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -33,9 +37,9 @@ func (c *Contract) UpdateSPPrice(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 	msg := &sptypes.MsgUpdateSpStoragePrice{
 		SpAddress:     contract.Caller().String(),
-		ReadPrice:     args.ReadPrice,
+		ReadPrice:     math.LegacyNewDecFromBigIntWithPrec(args.ReadPrice, math.LegacyPrecision),
 		FreeReadQuota: args.FreeReadQuota,
-		StorePrice:    args.StorePrice,
+		StorePrice:    math.LegacyNewDecFromBigIntWithPrec(args.StorePrice, math.LegacyPrecision),
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err

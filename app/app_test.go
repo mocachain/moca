@@ -58,20 +58,31 @@ func TestEvmosExport(t *testing.T) {
 
 	genesisState := app.DefaultGenesis()
 	genesisState = GenesisStateWithValSet(app, genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
+
 	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
 	require.NoError(t, err)
 
 	// Initialize the chain
-	if _, err := app.InitChain(
+	_, err = app.InitChain(
 		&abci.RequestInitChain{
 			ChainId:       chainID,
 			Validators:    []abci.ValidatorUpdate{},
 			AppStateBytes: stateBytes,
 		},
-	); err != nil {
-		panic(err)
-	}
-	app.Commit()
+	)
+	require.NoError(t, err)
+
+	// In Cosmos SDK v0.50+, we need to call FinalizeBlock before Commit
+	// to ensure that the state changes from InitGenesis are written to the underlying store.
+	// FinalizeBlock calls workingHash() which in turn calls finalizeBlockState.ms.Write().
+	_, err = app.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: 1,
+	})
+	require.NoError(t, err)
+
+	// Commit to persist the state
+	_, err = app.Commit()
+	require.NoError(t, err)
 
 	// Making a new app object with the db, so that initchain hasn't been called
 	app2 := NewEvmos(
@@ -82,6 +93,7 @@ func TestEvmosExport(t *testing.T) {
 		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 	)
+
 	_, err = app2.ExportAppStateAndValidators(false, []string{}, []string{})
 	require.NoError(t, err, "ExportAppStateAndValidators should not have an error")
 }

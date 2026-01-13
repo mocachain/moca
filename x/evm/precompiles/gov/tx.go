@@ -46,10 +46,21 @@ import (
 
 const (
 	LegacySubmitProposalGas = 60_000
-	SubmitProposalGas       = 60_000
 	VoteGas                 = 60_000
 	VoteWeightedGas         = 60_000
 	DepositGas              = 60_000
+
+	// Dynamic gas constants for SubmitProposal
+	SubmitProposalBaseGas         = 60_000  // Base gas for SubmitProposal
+	SubmitProposalPerMsgGas       = 50_000  // Additional gas per message
+	MaxSubmitProposalMsgs         = 20      // Maximum number of messages
+	MaxSubmitProposalPayloadBytes = 256_000 // Maximum payload size in bytes
+	SubmitProposalPerByteGas      = 10      // Gas cost per byte
+
+	// Gov field limits (aligned with Cosmos SDK)
+	MaxTitleLength           = 140
+	DefaultMaxMetadataLength = 255
+	DefaultMaxSummaryLength  = 40 * DefaultMaxMetadataLength
 
 	LegacySubmitProposalMethodName = "legacySubmitProposal"
 	SubmitProposalMethodName       = "submitProposal"
@@ -63,6 +74,15 @@ const (
 	VoteWeightedEventName         = "VoteWeighted"
 	DepositEventName              = "Deposit"
 )
+
+// calcPerMsgBytes calculates the total byte length of all messages
+func calcPerMsgBytes(msgs []json.RawMessage) int {
+	total := 0
+	for _, m := range msgs {
+		total += len(m)
+	}
+	return total
+}
 
 func (c *Contract) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
@@ -137,6 +157,31 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	err = json.Unmarshal([]byte(args.Messages), &messages)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate messages length
+	if len(messages) == 0 {
+		return nil, fmt.Errorf("messages cannot be empty")
+	}
+	if len(messages) > MaxSubmitProposalMsgs {
+		return nil, fmt.Errorf("too many messages: got %d, max allowed %d", len(messages), MaxSubmitProposalMsgs)
+	}
+
+	// Validate payload size
+	payloadSize := calcPerMsgBytes(messages)
+	if payloadSize > MaxSubmitProposalPayloadBytes {
+		return nil, fmt.Errorf("payload too large: %d bytes (max %d)", payloadSize, MaxSubmitProposalPayloadBytes)
+	}
+
+	// Validate field lengths
+	if len(args.Title) > MaxTitleLength {
+		return nil, fmt.Errorf("title too long: %d characters (max %d)", len(args.Title), MaxTitleLength)
+	}
+	if len(args.Summary) > DefaultMaxSummaryLength {
+		return nil, fmt.Errorf("summary too long: %d characters (max %d)", len(args.Summary), DefaultMaxSummaryLength)
+	}
+	if len(args.Metadata) > DefaultMaxMetadataLength {
+		return nil, fmt.Errorf("metadata too long: %d characters (max %d)", len(args.Metadata), DefaultMaxMetadataLength)
 	}
 
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
