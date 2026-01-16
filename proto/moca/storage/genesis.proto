@@ -1,0 +1,13 @@
+syntax = "proto3";
+package moca.storage;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "moca/storage/params.proto";
+
+option go_package = "github.com/evmos/evmos/v12/x/storage/types";
+
+// GenesisState defines the bridge module's genesis state.
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+}

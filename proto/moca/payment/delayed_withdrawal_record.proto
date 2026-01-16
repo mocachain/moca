@@ -1,0 +1,25 @@
+syntax = "proto3";
+package moca.payment;
+
+import "amino/amino.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/evmos/evmos/v12/x/payment/types";
+
+message DelayedWithdrawalRecord {
+  option (amino.name) = "evmos/x/payment/DelayedWithdrawalRecord";
+  // the withdrawal address
+  string addr = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // the withdrawal amount
+  string amount = 2 [
+    (cosmos_proto.scalar) = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+  // the withdrawal from payment account address
+  string from = 3 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // unlock timestamp is the unix timestamp to unlock the withdrawal
+  int64 unlock_timestamp = 4;
+}

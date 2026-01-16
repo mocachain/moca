@@ -1,0 +1,60 @@
+package keeper
+
+import (
+	"cosmossdk.io/log"
+	"github.com/cosmos/cosmos-sdk/codec"
+	storetypes "cosmossdk.io/store/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/evmos/evmos/v12/internal/sequence"
+	"github.com/evmos/evmos/v12/x/sp/types"
+)
+
+type (
+	Keeper struct {
+		cdc           codec.BinaryCodec
+		storeKey      storetypes.StoreKey
+		accountKeeper types.AccountKeeper
+		bankKeeper    types.BankKeeper
+		authzKeeper   types.AuthzKeeper
+
+		spSequence sequence.Sequence[uint32]
+		authority  string
+	}
+)
+
+func NewKeeper(
+	cdc codec.BinaryCodec,
+	key storetypes.StoreKey,
+	ak types.AccountKeeper,
+	bk types.BankKeeper,
+	azk types.AuthzKeeper,
+	authority string,
+) *Keeper {
+	k := &Keeper{
+		cdc:           cdc,
+		storeKey:      key,
+		accountKeeper: ak,
+		bankKeeper:    bk,
+		authzKeeper:   azk,
+		authority:     authority,
+	}
+
+	k.spSequence = sequence.NewSequence[uint32](types.StorageProviderSequenceKey)
+	return k
+}
+
+func (k Keeper) GetAuthority() string {
+	return k.authority
+}
+
+func (k Keeper) Logger(ctx sdk.Context) log.Logger {
+	return ctx.Logger().With("module", "x/"+types.ModuleName)
+}
+
+func (k Keeper) GetNextSpID(ctx sdk.Context) uint32 {
+	store := ctx.KVStore(k.storeKey)
+
+	seq := k.spSequence.NextVal(store)
+	return seq
+}
