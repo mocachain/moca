@@ -148,6 +148,7 @@ import (
 	ibctransfer "github.com/cosmos/ibc-go/v10/modules/apps/transfer"
 
 	ethante "github.com/evmos/evmos/v12/app/ante/evm"
+	"github.com/evmos/evmos/v12/app/upgrades"
 	"github.com/evmos/evmos/v12/encoding"
 	servercfg "github.com/evmos/evmos/v12/server/config"
 	srvflags "github.com/evmos/evmos/v12/server/flags"
@@ -1549,6 +1550,12 @@ func (app *Evmos) setupUpgradeHandlers() {
 		// noop
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
+
+	// testnet only upgrade Handlers
+	app.UpgradeKeeper.SetUpgradeHandler(
+		"testnet-gov-param-fix",
+		upgrades.TestnetGovParamFix(&app.GovKeeper, app.EvmKeeper, app.mm, app.configurator),
+	)
 
 	var storeUpgrades *storetypes.StoreUpgrades
 
