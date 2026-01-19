@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/spf13/viper"
@@ -114,6 +115,15 @@ type AppConfig struct {
 	CrossChain   CrossChainConfig   `mapstructure:"cross-chain"`
 	PaymentCheck PaymentCheckConfig `mapstructure:"payment-check"`
 	TxCacheQueue TxCacheQueueConfig `mapstructure:"tx-cache-queue"`
+
+	// Hardforks is a mapping from block height -> hardfork entry (name + optional info).
+	// Intended for operator-managed / localnet / emergency upgrades when governance is unavailable.
+	//
+	// TOML example (inline table syntax):
+	// [hardforks]
+	// "1200" = { name = "testnet-gov-param-fix", info = '{"binaries":{...}}' }
+	// "5000" = { name = "another-upgrade" }
+	Hardforks map[string]HardforkEntry `mapstructure:"hardforks"`
 }
 
 // EVMConfig defines the application configuration values for the EVM.
@@ -223,6 +233,14 @@ type TxCacheQueueConfig struct {
 	ReplacementGasPercent int `mapstructure:"replacement-gas-percent"`
 }
 
+// HardforkEntry defines a single hardfork configuration with upgrade name and optional info.
+type HardforkEntry struct {
+	// Name is the upgrade plan name (required)
+	Name string `mapstructure:"name"`
+	// Info is optional application-specific upgrade info (e.g. for Cosmovisor)
+	Info string `mapstructure:"info"`
+}
+
 func NewDefaultAppConfig(denom string) *AppConfig {
 	srvCfg := config.DefaultConfig()
 	// The SDK's default minimum gas price is set to "" (empty value) inside
@@ -248,6 +266,8 @@ func NewDefaultAppConfig(denom string) *AppConfig {
 		TLS:          *DefaultTLSConfig(),
 		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
+		TxCacheQueue: *DefaultTxCacheQueueConfig(),
+		Hardforks:    map[string]HardforkEntry{},
 	}
 }
 
@@ -282,6 +302,7 @@ func NewAppConfig(denom string) (string, interface{}) {
 		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
 		TxCacheQueue: *DefaultTxCacheQueueConfig(),
+		Hardforks:    map[string]HardforkEntry{},
 	}
 
 	customAppTemplate := config.DefaultConfigTemplate + DefaultConfigTemplate + DefaultCustomAppTemplate
@@ -299,6 +320,7 @@ func DefaultConfig() *AppConfig {
 		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
 		TxCacheQueue: *DefaultTxCacheQueueConfig(),
+		Hardforks:    map[string]HardforkEntry{},
 	}
 }
 
@@ -464,15 +486,15 @@ func (c PaymentCheckConfig) Validate() error {
 // DefaultTxCacheQueueConfig returns the default transaction cache queue configuration
 func DefaultTxCacheQueueConfig() *TxCacheQueueConfig {
 	return &TxCacheQueueConfig{
-		Enable:                false,        // Disabled by default for safety
-		MaxTxPerAccount:       10000,        // Increased for tps.js testing (CACHE_TX=5000)
-		TxTimeout:             1 * time.Minute, // Increased timeout for testing scenarios
-		CleanupInterval:       1 * time.Second, // Very frequent cleanup for high-frequency testing
+		Enable:                false,                  // Disabled by default for safety
+		MaxTxPerAccount:       10000,                  // Increased for tps.js testing (CACHE_TX=5000)
+		TxTimeout:             1 * time.Minute,        // Increased timeout for testing scenarios
+		CleanupInterval:       1 * time.Second,        // Very frequent cleanup for high-frequency testing
 		NoncePollingInterval:  100 * time.Millisecond, // Faster nonce polling for high-frequency testing
-		GlobalMaxTx:           100000,       // Increased for high-load testing
+		GlobalMaxTx:           100000,                 // Increased for high-load testing
 		RetryInterval:         500 * time.Millisecond, // Faster retry
 		MaxRetries:            3,
-		ReplacementGasPercent: 10,           // 10% minimum gas price increase for replacement
+		ReplacementGasPercent: 10, // 10% minimum gas price increase for replacement
 	}
 }
 
@@ -565,7 +587,18 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			RetryInterval:        v.GetDuration("tx-cache-queue.retry-interval"),
 			MaxRetries:           v.GetInt("tx-cache-queue.max-retries"),
 		},
+		Hardforks: parseHardforks(v),
 	}, nil
+}
+
+// parseHardforks returns mapping: height -> HardforkEntry.
+func parseHardforks(v *viper.Viper) map[string]HardforkEntry {
+	result := make(map[string]HardforkEntry)
+	err := v.UnmarshalKey("hardforks", &result)
+	if err != nil {
+		panic(fmt.Errorf("failed to unmarshal hardforks: %w", err))
+	}
+	return result
 }
 
 // ParseConfig retrieves the default environment configuration for the
@@ -601,6 +634,16 @@ func (c AppConfig) ValidateBasic() error {
 
 	if err := c.TxCacheQueue.Validate(); err != nil {
 		return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid tx-cache-queue config value: %s", err.Error())
+	}
+
+	for heightStr, entry := range c.Hardforks {
+		if entry.Name == "" {
+			return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid hardfork config: plan name cannot be empty for height %q", heightStr)
+		}
+		height, err := strconv.ParseInt(heightStr, 10, 64)
+		if err != nil || height <= 0 {
+			return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid hardfork config: height %q must be a positive integer", heightStr)
+		}
 	}
 
 	return c.Config.ValidateBasic()
