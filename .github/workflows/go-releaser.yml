@@ -52,8 +52,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ env.OWNER_LC }}
-          password: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -74,13 +74,11 @@ jobs:
 
       - name: Setup Release Environment
         env:
-          GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_OWNER: ${{ env.OWNER_LC }}
-          PRIVATE_REPO_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
         run: |-
-          echo 'GITHUB_TOKEN=${{secrets.PRIVATE_REPO_TOKEN}}' > .release-env
+          echo 'GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}' > .release-env
           echo 'REPO_OWNER=${{ env.OWNER_LC }}' >> .release-env
-          echo 'PRIVATE_REPO_TOKEN=${{secrets.PRIVATE_REPO_TOKEN}}' >> .release-env
 
       - name: Release Publish
         run: make release
