@@ -554,6 +554,7 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			HTTPIdleTimeout:          v.GetDuration("json-rpc.http-idle-timeout"),
 			MaxOpenConnections:       v.GetInt("json-rpc.max-open-connections"),
 			EnableIndexer:            v.GetBool("json-rpc.enable-indexer"),
+			AllowUnprotectedTxs:      v.GetBool("json-rpc.allow-unprotected-txs"),
 			MetricsAddress:           v.GetString("json-rpc.metrics-address"),
 			FixRevertGasRefundHeight: v.GetInt64("json-rpc.fix-revert-gas-refund-height"),
 		},
@@ -586,6 +587,7 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			GlobalMaxTx:          v.GetInt("tx-cache-queue.global-max-tx"),
 			RetryInterval:        v.GetDuration("tx-cache-queue.retry-interval"),
 			MaxRetries:           v.GetInt("tx-cache-queue.max-retries"),
+			ReplacementGasPercent: v.GetInt("tx-cache-queue.replacement-gas-percent"),
 		},
 		Hardforks: parseHardforks(v),
 	}, nil
