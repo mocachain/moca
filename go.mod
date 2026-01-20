@@ -283,26 +283,27 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v0.0.0-20260113055413-802fccc4bf1c
-	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.0.0-20260113055413-802fccc4bf1c
-	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v0.0.0-20260113055413-802fccc4bf1c
-	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v0.0.0-20260113055413-802fccc4bf1c
-	cosmossdk.io/x/evidence => github.com/mocachain/moca-cosmos-sdk/x/evidence v0.0.0-20260113055413-802fccc4bf1c
-	cosmossdk.io/x/feegrant => github.com/mocachain/moca-cosmos-sdk/x/feegrant v0.0.0-20260113055413-802fccc4bf1c
-	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v0.0.0-20260113055413-802fccc4bf1c
-	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v0.0.0-20260113055413-802fccc4bf1c
-	cosmossdk.io/x/upgrade => github.com/mocachain/moca-cosmos-sdk/x/upgrade v0.0.0-20260113055413-802fccc4bf1c
+	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v0.0.0-20260113104156-261025039034
+	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.0.0-20260113104156-261025039034
+	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v0.0.0-20260113104156-261025039034
+	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v0.0.0-20260113104156-261025039034
+	cosmossdk.io/x/evidence => github.com/mocachain/moca-cosmos-sdk/x/evidence v0.0.0-20260113104156-261025039034
+	cosmossdk.io/x/feegrant => github.com/mocachain/moca-cosmos-sdk/x/feegrant v0.0.0-20260113104156-261025039034
+	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v0.0.0-20260113104156-261025039034
+	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v0.0.0-20260113104156-261025039034
+	cosmossdk.io/x/upgrade => github.com/mocachain/moca-cosmos-sdk/x/upgrade v0.0.0-20260113104156-261025039034
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
-	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.1.0
-	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.1.0
-	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.1.0
-	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v1.1.0
-	github.com/cosmos/ibc-go/v10 => github.com/mocachain/moca-ibc-go/v10 v10.1.0
+	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v0.0.0-20260113104200-2af17c45ee8d
+	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v0.0.0-20260113105716-05358ecfa4cd
+	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v0.0.0-20260113104156-261025039034
+	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v0.0.0-20260113105719-2f0efa78b7fa
+	github.com/cosmos/ibc-go/v10 => github.com/mocachain/moca-ibc-go/v10 v10.0.0-20260113104241-1b62ed28954f
 	github.com/ethereum/go-ethereum => github.com/mocachain/go-ethereum v1.10.27-moca.1
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/tyler-smith/go-bip39 => github.com/mocachain/go-bip39 v1.1.0-moca.3
 )
