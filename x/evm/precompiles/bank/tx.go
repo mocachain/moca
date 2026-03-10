@@ -2,7 +2,6 @@ package bank
 
 import (
 	"errors"
-	"fmt"
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -91,14 +90,6 @@ func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
 	if err != nil {
 		return nil, err
-	}
-
-	// Validate outputs length
-	if len(args.Outputs) == 0 {
-		return nil, errors.New("outputs cannot be empty")
-	}
-	if len(args.Outputs) > MaxMultiSendOutputs {
-		return nil, fmt.Errorf("too many outputs: got %d, max allowed %d", len(args.Outputs), MaxMultiSendOutputs)
 	}
 
 	var totalCoins sdk.Coins

@@ -179,7 +179,13 @@ interface IGov {
         address voter,
         address depositor,
         PageRequest calldata pagination
-    ) external view returns (Proposal[] calldata proposals, PageResponse calldata pageResponse);
+    )
+        external
+        view
+        returns (
+            Proposal[] calldata proposals,
+            PageResponse calldata pageResponse
+        );
 
     /**
      * @dev vote queries voted information based on proposalID, voterAddr.
@@ -195,7 +201,10 @@ interface IGov {
     function votes(
         uint64 proposalId,
         PageRequest calldata pagination
-    ) external view returns (VoteData[] calldata votes, PageResponse calldata pageResponse);
+    )
+        external
+        view
+        returns (VoteData[] calldata votes, PageResponse calldata pageResponse);
 
     /**
      * @dev deposit queries single deposit information based proposalID, depositAddr.
@@ -211,7 +220,13 @@ interface IGov {
     function deposits(
         uint64 proposalId,
         PageRequest calldata pagination
-    ) external view returns (DepositData[] calldata deposits, PageResponse calldata pageResponse);
+    )
+        external
+        view
+        returns (
+            DepositData[] calldata deposits,
+            PageResponse calldata pageResponse
+        );
 
     /**
      * @dev params queries the gov params.
@@ -228,41 +243,25 @@ interface IGov {
     /**
      * @dev LegacySubmitProposal defines an Event emitted when a legacy proposal submited.
      */
-    event LegacySubmitProposal(
-        address indexed proposer,
-        uint64 proposalId
-    );
+    event LegacySubmitProposal(address indexed proposer, uint64 proposalId);
 
     /**
      * @dev SubmitProposal defines an Event emitted when a proposal submited.
      */
-    event SubmitProposal(
-        address indexed proposer,
-        uint64 proposalId
-    );
+    event SubmitProposal(address indexed proposer, uint64 proposalId);
 
     /**
      * @dev Vote defines an Event emitted when a proposal voted.
      */
-    event Vote(
-        address indexed voter,
-        uint64 proposalId,
-        uint8 option
-    );
+    event Vote(address indexed voter, uint64 proposalId, uint8 option);
 
     /**
      * @dev Vote defines an Event emitted when a proposal vote weighted.
      */
-    event VoteWeighted(
-        address indexed voter,
-        uint64 proposalId
-    );
+    event VoteWeighted(address indexed voter, uint64 proposalId);
 
     /**
      * @dev Vote defines an Event emitted when a proposal deposited by a depositor.
      */
-    event Deposit(
-        address indexed depositor,
-        uint64 proposalId
-    );
+    event Deposit(address indexed depositor, uint64 proposalId);
 }

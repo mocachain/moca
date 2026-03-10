@@ -155,7 +155,6 @@ func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, con
 		return nil, err
 	}
 
-	// query delegator's withdraw address once for logging topics
 	withdrawRes, err := querier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
 		DelegatorAddress: delegator,
 	})
@@ -183,10 +182,7 @@ func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, con
 		if err := c.AddLog(
 			evm,
 			MustEvent(WithdrawDelegatorRewardEventName),
-			[]common.Hash{
-				common.BytesToHash(contract.Caller().Bytes()),
-				common.BytesToHash(withdrawAddr.Bytes()),
-			},
+			[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(withdrawAddr.Bytes())},
 			res.Amount.String(),
 		); err != nil {
 			return nil, err

@@ -24,10 +24,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mocachain/moca.git"
+    "url": "https://github.com/zkMeLabs/moca.git"
   },
   "bugs": {
-    "url": "https://github.com/mocachain/moca/issues"
+    "url": "https://github.com/zkMeLabs/moca/issues"
   },
   "license": "Apache-2.0",
   "dependencies": {

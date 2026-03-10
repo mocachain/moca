@@ -29,7 +29,13 @@ relayer0_prikey=3c7ea76ddb53539174caae1dd960b308981933bd6e95196556ba29063200df9c
 sp0_prikey=ebbeb28b89bc7ec5da6441ed70452cc413f96ea33a7c790aba06810ae441b776
 
 bin_name=mocad
-bin=${PROJECT_ROOT}/build/${bin_name}
+# Check if mocad exists in build directory
+if [ -f "${PROJECT_ROOT}/build/${bin_name}" ]; then
+    bin=${PROJECT_ROOT}/build/${bin_name}
+else
+    echo "Error: ${bin_name} not found in ${PROJECT_ROOT}/build/"
+    exit 1
+fi
 
 function init() {
 	size=$1
@@ -124,8 +130,6 @@ function generate_genesis() {
 		"0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"
 		"0xa0Ee7A142d267C1f36714E4a8F75612F20a79720"
 		"0x000000000000000000000000000000000000dead"
-		"0x76d244CE05c3De4BbC6fDd7F56379B145709ade9"
-		"0xF03Af05bE1a3ADF6Df23E7ee9A151718284FAE1a"
 	)
 
 	declare -a validator_addrs=()
@@ -291,11 +295,6 @@ function generate_genesis() {
 	# enable telemetry for validator0
 	execute_with_mode "sed -i -e \"/other sinks such as Prometheus/{N;s/enable = false/enable = true/;}\" ${local_env}/validator0/config/app.toml" "${CONFIG_LOG}" "Enable telemetry for validator0"
 
-	# enable tx-cache-queue for all validators
-	for ((i = 0; i < ${size}; i++)); do
-		execute_with_mode "sed -i -e \"/Enable or disable the transaction cache queue for nonce ordering/{N;s/enable = false/enable = true/;}\" ${local_env}/validator${i}/config/app.toml" "${CONFIG_LOG}" "Enable tx-cache-queue for validator${i}"
-	done
-
 	end_step
 }
 
@@ -317,6 +316,8 @@ function start() {
 			--p2p.external-address 127.0.0.1:$((${VALIDATOR_P2P_PORT_START} + ${i})) \
 			--rpc.laddr tcp://0.0.0.0:$((${VALIDATOR_RPC_PORT_START} + ${i})) \
 			--rpc.unsafe true \
+			--json-rpc.address 0.0.0.0:8545 \
+			--json-rpc.ws-address 0.0.0.0:8546 \
 			--log_format json >${local_env}/validator${i}/logs/node.log 2>&1 &"
 
 		execute_with_mode "$start_cmd" "${START_LOG}" "Start validator${i} node process"

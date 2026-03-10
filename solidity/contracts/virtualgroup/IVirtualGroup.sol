@@ -136,6 +136,11 @@ interface IVirtualGroup {
     event SwapOut(address indexed storageProvider, uint256 familyId);
 
     /**
+     * @dev CompleteSwapOut defines an Event emitted when a sp complete swap out.
+     */
+    event CompleteSwapOut(address indexed storageProvider, uint256 familyId);
+
+    /**
      * @dev SPExit defines an Event emitted when a sp exit.
      */
     event SPExit(address indexed storageProvider);

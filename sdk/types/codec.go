@@ -1,7 +1,6 @@
 package types
 
 import (
-	evidencetypes "cosmossdk.io/x/evidence/types"
 	feegranttypes "cosmossdk.io/x/feegrant"
 	"cosmossdk.io/x/nft"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -52,7 +51,8 @@ func Codec() *codec.ProtoCodec {
 	consensustypes.RegisterInterfaces(interfaceRegistry)
 	oracletypes.RegisterInterfaces(interfaceRegistry)
 	nft.RegisterInterfaces(interfaceRegistry)
-	evidencetypes.RegisterInterfaces(interfaceRegistry)
+	// evidencetypes.RegisterInterfaces is not available in cosmossdk.io/x/evidence
+	// Evidence interfaces are registered via module manager in app.go
 	gashubtypes.RegisterInterfaces(interfaceRegistry)
 	minttypes.RegisterInterfaces(interfaceRegistry)
 	vgtypes.RegisterInterfaces(interfaceRegistry)

@@ -1,10 +1,9 @@
 package backend
 
 import (
+	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"math/big"
-
-	sdkmath "cosmossdk.io/math"
 
 	tmrpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
@@ -257,7 +256,7 @@ func (suite *BackendTestSuite) TestSetEtherbase() {
 				RegisterValidatorAccount(queryClient, suite.acc)
 				RegisterParams(queryClient, &header, 1)
 				c := sdk.NewDecCoin(types.AttoEvmos, sdkmath.NewIntFromBigInt(big.NewInt(1)))
-				suite.backend.cfg.SetMinGasPrices(sdk.DecCoins{c})
+				suite.backend.cfg.SetMinGasPrices(sdk.NewDecCoins(c))
 				delAddr, _ := suite.backend.GetCoinbase()
 				// account, _ := suite.backend.clientCtx.AccountRetriever.GetAccount(suite.backend.clientCtx, delAddr)
 				delCommonAddr := common.BytesToAddress(delAddr.Bytes())
@@ -282,7 +281,7 @@ func (suite *BackendTestSuite) TestSetEtherbase() {
 		//		RegisterStatus(client)
 		//		RegisterValidatorAccount(queryClient, suite.acc)
 		//		c := sdk.NewDecCoin(types.AttoEvmos, sdkmath.NewIntFromBigInt(big.NewInt(1)))
-		//		suite.backend.cfg.SetMinGasPrices(sdk.DecCoins{c})
+		//		suite.backend.cfg.SetMinGasPrices(sdkmath.LegacyDecCoins{c})
 		//		delAddr, _ := suite.backend.GetCoinbase()
 		//		account, _ := suite.backend.clientCtx.AccountRetriever.GetAccount(suite.backend.clientCtx, delAddr)
 		//		delCommonAddr := common.BytesToAddress(delAddr.Bytes())

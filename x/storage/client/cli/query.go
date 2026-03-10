@@ -219,8 +219,8 @@ func ToPolicy(p *storage.Policy) *pertypes.Policy {
 	return s
 }
 
-// GetEVMQueryCmd returns the evm cli query commands for this module
-func GetEVMQueryCmd() *cobra.Command {
+// GetQueryCmd returns the cli query commands for this module
+func GetQueryCmd() *cobra.Command {
 	// Group storage queries under a subcommand
 	storageQueryCmd := &cobra.Command{
 		Use:                        types.ModuleName,
@@ -231,23 +231,23 @@ func GetEVMQueryCmd() *cobra.Command {
 	}
 
 	storageQueryCmd.AddCommand(
-		CmdEVMQueryParams(),
-		CmdEVMHeadBucket(),
-		CmdEVMHeadObject(),
-		CmdEVMListBuckets(),
-		CmdEVMListObjects(),
-		CmdEVMVerifyPermission(),
-		CmdEVMHeadGroup(),
-		CmdEVMListGroups(),
-		CmdEVMHeadGroupMember(),
-		CmdEVMQueryAccountPolicy(),
-		CmdEVMQueryGroupPolicy(),
+		CmdQueryParams(),
+		CmdHeadBucket(),
+		CmdHeadObject(),
+		CmdListBuckets(),
+		CmdListObjects(),
+		CmdVerifyPermission(),
+		CmdHeadGroup(),
+		CmdListGroups(),
+		CmdHeadGroupMember(),
+		CmdQueryAccountPolicy(),
+		CmdQueryGroupPolicy(),
 	)
 
 	return storageQueryCmd
 }
 
-func CmdEVMHeadBucket() *cobra.Command {
+func CmdHeadBucket() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "head-bucket [bucket-name]",
 		Short: "Query bucket by bucket name",
@@ -282,7 +282,7 @@ func CmdEVMHeadBucket() *cobra.Command {
 	return cmd
 }
 
-func CmdEVMHeadObject() *cobra.Command {
+func CmdHeadObject() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "head-object [bucket-name] [object-name]",
 		Short: "Query object by bucket-name and object-name",
@@ -318,7 +318,7 @@ func CmdEVMHeadObject() *cobra.Command {
 	return cmd
 }
 
-func CmdEVMListBuckets() *cobra.Command {
+func CmdListBuckets() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-buckets",
 		Short: "Query all list buckets",
@@ -356,7 +356,7 @@ func CmdEVMListBuckets() *cobra.Command {
 	return cmd
 }
 
-func CmdEVMListObjects() *cobra.Command {
+func CmdListObjects() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-objects [bucket-name]",
 		Short: "Query list objects of the bucket",
@@ -399,7 +399,7 @@ func CmdEVMListObjects() *cobra.Command {
 	return cmd
 }
 
-func CmdEVMVerifyPermission() *cobra.Command {
+func CmdVerifyPermission() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify-permission [operator] [bucket-name] [object-name] [action-type]",
 		Short: "Query verify if the operator has permission for the bucket/object's action",
@@ -441,7 +441,7 @@ func CmdEVMVerifyPermission() *cobra.Command {
 	return cmd
 }
 
-func CmdEVMHeadGroup() *cobra.Command {
+func CmdHeadGroup() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "head-group [group-owner] [group-name]",
 		Short: "Query the group info",
@@ -476,7 +476,7 @@ func CmdEVMHeadGroup() *cobra.Command {
 	return cmd
 }
 
-func CmdEVMListGroups() *cobra.Command {
+func CmdListGroups() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-groups [group-owner]",
 		Short: "Query list groups of owner",
@@ -519,7 +519,7 @@ func CmdEVMListGroups() *cobra.Command {
 	return cmd
 }
 
-func CmdEVMHeadGroupMember() *cobra.Command {
+func CmdHeadGroupMember() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "head-group-member [group-owner] [group-name] [group-member]",
 		Short: "Query the group member info",
@@ -555,7 +555,7 @@ func CmdEVMHeadGroupMember() *cobra.Command {
 	return cmd
 }
 
-func CmdEVMQueryAccountPolicy() *cobra.Command {
+func CmdQueryAccountPolicy() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "account-policy [grn] [principle-address]",
 		Short: "Query the policy for a account that enforced on the resource",
@@ -605,7 +605,7 @@ Examples:
 	return cmd
 }
 
-func CmdEVMQueryGroupPolicy() *cobra.Command {
+func CmdQueryGroupPolicy() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "group-policy [grn] [principle-group-id]",
 		Short: "Query the policy for a group that enforced on the resource",

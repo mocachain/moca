@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -44,11 +43,11 @@ const (
 	RevokeGas = 60_000
 
 	// Dynamic gas constants for Exec
-	ExecBaseGas         = 60_000   // Base gas for Exec
-	ExecPerMsgGas       = 50_000   // Additional gas per message
-	MaxExecMsgs         = 20       // Maximum number of messages
-	MaxExecPayloadBytes = 256_000  // Maximum payload size in bytes
-	ExecPerByteGas      = 10       // Gas cost per byte
+	ExecBaseGas         = 60_000  // Base gas for Exec
+	ExecPerMsgGas       = 50_000  // Additional gas per message
+	MaxExecMsgs         = 20      // Maximum number of messages
+	MaxExecPayloadBytes = 256_000 // Maximum payload size in bytes
+	ExecPerByteGas      = 10      // Gas cost per byte
 
 	GrantMethodName  = "grant"
 	RevokeMethodName = "revoke"
@@ -66,8 +65,8 @@ const (
 	AuthzTypeSpDeposit  = "spDeposit"
 )
 
-// calc_per_msg_bytes calculates the total byte length of all messages
-func calcPerMsgBytes(msgs []string) int {
+// CalcPerMsgBytes calculates the total byte length of all messages
+func CalcPerMsgBytes(msgs []string) int {
 	total := 0
 	for _, m := range msgs {
 		total += len(m)
@@ -103,7 +102,7 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 		}
 	}
 
-	// more details see https://github.com/mocachain/moca-cosmos-sdk/blob/1ad031a3d3a4b73997d72b8012397633b3cdcae2/x/authz/client/cli/tx.go#L56-L202
+	// more details see https://github.com/MocaFoundation/moca-cosmos-sdk/blob/1ad031a3d3a4b73997d72b8012397633b3cdcae2/x/authz/client/cli/tx.go#L56-L202
 	// TODO
 	var authorization authz.Authorization
 	switch args.AuthzType {
@@ -149,9 +148,10 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 		return nil, fmt.Errorf("invalid authorization type %s", args.AuthzType)
 	}
 
-	var expiration *time.Time = nil
+	var expiration *time.Time
 	if args.Expiration > 0 {
-		*expiration = time.Unix(args.Expiration, 0)
+		exp := time.Unix(args.Expiration, 0)
+		expiration = &exp
 	}
 	msg, err := authz.NewMsgGrant(contract.Caller().Bytes(), args.Grantee.Bytes(), authorization, expiration)
 	if err != nil {
@@ -239,20 +239,6 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 		return nil, err
 	}
 
-	// Validate messages length
-	if len(args.Msgs) == 0 {
-		return nil, fmt.Errorf("messages cannot be empty")
-	}
-	if len(args.Msgs) > MaxExecMsgs {
-		return nil, fmt.Errorf("too many messages: got %d, max allowed %d", len(args.Msgs), MaxExecMsgs)
-	}
-
-	// Validate payload size
-	payloadSize := calcPerMsgBytes(args.Msgs)
-	if payloadSize > MaxExecPayloadBytes {
-		return nil, fmt.Errorf("payload too large: %d bytes (max %d)", payloadSize, MaxExecPayloadBytes)
-	}
-
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 
 	authtypes.RegisterInterfaces(interfaceRegistry)
@@ -264,7 +250,7 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	govv1.RegisterInterfaces(interfaceRegistry)
 	crisistypes.RegisterInterfaces(interfaceRegistry)
 	ibctransfertypes.RegisterInterfaces(interfaceRegistry)
-	upgradetypes.RegisterInterfaces(interfaceRegistry)
+	// Note: upgradetypes.RegisterInterfaces is not available in v0.50, interfaces are registered via module manager
 	proposal.RegisterInterfaces(interfaceRegistry)
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 	types.RegisterInterfaces(interfaceRegistry)

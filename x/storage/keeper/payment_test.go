@@ -15,14 +15,13 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/challenge"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
 	sptypes "github.com/evmos/evmos/v12/x/sp/types"
 	"github.com/evmos/evmos/v12/x/storage/keeper"
 	"github.com/evmos/evmos/v12/x/storage/types"
 	virtualgroupmoduletypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
-	"go.uber.org/mock/gomock"
 )
 
 type TestSuite struct {
@@ -38,7 +37,6 @@ type TestSuite struct {
 	crossChainKeeper   *types.MockCrossChainKeeper
 	paymentKeeper      *types.MockPaymentKeeper
 	virtualGroupKeeper *types.MockVirtualGroupKeeper
-	evmKeeper          *types.MockEVMKeeper
 
 	ctx         sdk.Context
 	queryClient types.QueryClient
@@ -68,10 +66,6 @@ func (s *TestSuite) SetupTest() {
 	paymentKeeper := types.NewMockPaymentKeeper(ctrl)
 	virtualGroupKeeper := types.NewMockVirtualGroupKeeper(ctrl)
 	evmKeeper := types.NewMockEVMKeeper(ctrl)
-
-	evmKeeper.EXPECT().EstimateGas(gomock.Any(), gomock.Any()).Return(&evmtypes.EstimateGasResponse{Gas: 21000}, nil).AnyTimes()
-	evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
-
 	s.storageKeeper = keeper.NewKeeper(
 		encCfg.Codec,
 		key,
@@ -93,7 +87,6 @@ func (s *TestSuite) SetupTest() {
 	s.crossChainKeeper = crossChainKeeper
 	s.paymentKeeper = paymentKeeper
 	s.virtualGroupKeeper = virtualGroupKeeper
-	s.evmKeeper = evmKeeper
 
 	err := s.storageKeeper.SetParams(s.ctx, types.DefaultParams())
 	s.Require().NoError(err)

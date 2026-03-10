@@ -53,8 +53,8 @@ echo "Configuring Git to use token for GitHub access..."
 git config --global url."https://${TOKEN}@github.com/".insteadOf "https://github.com/"
 
 echo "Setting GOPRIVATE and GONOSUMDB..."
-export GOPRIVATE="github.com/mocachain/*"
-export GONOSUMDB="github.com/mocachain/*"
+export GOPRIVATE="github.com/MocaFoundation/*"
+export GONOSUMDB="github.com/MocaFoundation/*"
 
 export GITHUB_TOKEN="$TOKEN"
 

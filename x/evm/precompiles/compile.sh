@@ -35,7 +35,7 @@ check_and_install_abigen() {
 
   if [ "$current_version" != "$desired_abigen_version" ]; then
     echo "Installing abigen version $desired_abigen_version..."
-    GOBIN="$gopath/bin" go install github.com/ethereum/go-ethereum/cmd/abigen@v1.15.11
+    GOBIN="$gopath/bin" go install github.com/ethereum/go-ethereum/cmd/abigen@v1.14.5
     if [ ! -f "$abigen_path" ]; then
       echo "abigen installation failed, please check your Go setup." && exit 1
     fi

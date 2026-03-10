@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	sdkmath "cosmossdk.io/math"
 	"encoding/hex"
 	"math/big"
 	"reflect"
@@ -9,8 +10,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	sdkmath "cosmossdk.io/math"
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -485,7 +484,8 @@ func (s *StorageProviderTestSuite) updateParams(params sptypes.Params) {
 		[]sdk.Msg{msgUpdateParams},
 		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test", false,
+		"test", "test", "test",
+		false,
 	)
 	s.Require().NoError(err)
 

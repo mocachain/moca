@@ -1,11 +1,11 @@
 package keeper_test
 
 import (
+	storetypes "cosmossdk.io/store/types"
 	"fmt"
 	"math"
 	"math/big"
 
-	storetypes "cosmossdk.io/store/types"
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"

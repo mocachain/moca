@@ -117,17 +117,10 @@ func (suite *KeeperTestSuite) TestQueryCosmosAccount() {
 		{
 			"success",
 			func() {
-				// Get the actual account to see what number was assigned
-				acc := suite.app.AccountKeeper.GetAccount(suite.ctx, suite.address.Bytes())
-				var accNum uint64
-				if acc != nil {
-					accNum = acc.GetAccountNumber()
-				}
-				
 				expAccount = &types.QueryCosmosAccountResponse{
 					CosmosAddress: sdk.AccAddress(suite.address.Bytes()).String(),
 					Sequence:      0,
-					AccountNumber: accNum,
+					AccountNumber: 0,
 				}
 				req = &types.QueryCosmosAccountRequest{
 					Address: suite.address.String(),
@@ -140,13 +133,13 @@ func (suite *KeeperTestSuite) TestQueryCosmosAccount() {
 			func() {
 				acc := suite.app.AccountKeeper.GetAccount(suite.ctx, suite.address.Bytes())
 				suite.Require().NoError(acc.SetSequence(10))
-				originalAccNum := acc.GetAccountNumber()
+				suite.Require().NoError(acc.SetAccountNumber(1))
 				suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 
 				expAccount = &types.QueryCosmosAccountResponse{
 					CosmosAddress: sdk.AccAddress(suite.address.Bytes()).String(),
 					Sequence:      10,
-					AccountNumber: originalAccNum,
+					AccountNumber: 1,
 				}
 				req = &types.QueryCosmosAccountRequest{
 					Address: suite.address.String(),

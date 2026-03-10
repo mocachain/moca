@@ -101,7 +101,8 @@ func (s *BridgeTestSuite) TestGovChannel() {
 		[]sdk.Msg{msgUpdatePermissions},
 		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, gnfdtypes.NewIntFromInt64WithDecimal(100, gnfdtypes.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test", false,
+		"test", "test", "test",
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -176,7 +177,8 @@ func (s *BridgeTestSuite) TestGovChannel() {
 		[]sdk.Msg{msgUpdatePermissions},
 		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, gnfdtypes.NewIntFromInt64WithDecimal(100, gnfdtypes.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test", false,
+		"test", "test", "test",
+		false,
 	)
 	s.Require().NoError(err)
 

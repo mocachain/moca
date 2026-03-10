@@ -46,9 +46,7 @@ func TestBankDenomMetadata(t *testing.T) {
 	client, err := gnfdclient.NewMocaClient(test.TestRPCAddr, test.TestEVMAddr, test.TestChainID)
 	assert.NoError(t, err)
 
-	query := banktypes.QueryDenomMetadataRequest{
-		Denom: "amoca", // Add denom to avoid invalid request error
-	}
+	query := banktypes.QueryDenomMetadataRequest{}
 	res, err := client.BankQueryClient.DenomMetadata(context.Background(), &query)
 	assert.NoError(t, err)
 

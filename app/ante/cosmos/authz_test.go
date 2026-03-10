@@ -1,12 +1,12 @@
 package cosmos_test
 
 import (
-	sdkmath "cosmossdk.io/math"
 	"fmt"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
 	"math/big"
 	"testing"
 	"time"
+
+	sdkmath "cosmossdk.io/math"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
@@ -21,6 +21,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	cosmosante "github.com/evmos/evmos/v12/app/ante/cosmos"
 	testutil "github.com/evmos/evmos/v12/testutil"
+	utiltx "github.com/evmos/evmos/v12/testutil/tx"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 )
 
@@ -29,17 +30,6 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 	require.NoError(t, err)
 
 	distantFuture := time.Date(9000, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	// create a dummy MsgEthereumTx for the test
-	msgEthereumTx := evmtypes.NewTx(&evmtypes.EvmTxArgs{
-		ChainID:   big.NewInt(9000),
-		Nonce:     0,
-		GasLimit:  1000000,
-		GasFeeCap: big.NewInt(1000000000),
-		GasTipCap: big.NewInt(1),
-		Input:     nil,
-		Accesses:  &ethtypes.AccessList{},
-	})
 
 	validator := testAddresses[4]
 	stakingAuthDelegate, err := stakingtypes.NewStakeAuthorization([]sdk.AccAddress{validator}, nil, stakingtypes.AuthorizationType_AUTHORIZATION_TYPE_DELEGATE, nil)
@@ -74,7 +64,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 		{
 			"enabled msg MsgEthereumTx - blocked msg not wrapped in MsgExec",
 			[]sdk.Msg{
-				msgEthereumTx,
+				&evmtypes.MsgEthereumTx{},
 			},
 			false,
 			nil,
@@ -159,7 +149,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 				newMsgExec(
 					testAddresses[1],
 					[]sdk.Msg{
-						msgEthereumTx,
+						&evmtypes.MsgEthereumTx{},
 					},
 				),
 			},
@@ -183,7 +173,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 							testAddresses[3],
 							sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 100e6)),
 						),
-						msgEthereumTx,
+						&evmtypes.MsgEthereumTx{},
 					},
 				),
 			},
@@ -197,7 +187,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 					testAddresses[1],
 					2,
 					[]sdk.Msg{
-						msgEthereumTx,
+						&evmtypes.MsgEthereumTx{},
 					},
 				),
 			},
@@ -467,8 +457,7 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 
 			resDeliverTx, err := suite.app.FinalizeBlock(
 				&abci.RequestFinalizeBlock{
-					Height: suite.ctx.BlockHeight(),
-					Txs:    [][]byte{bz},
+					Txs: [][]byte{bz},
 				},
 			)
 			suite.Require().NoError(err)

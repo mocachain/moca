@@ -1,5 +1,14 @@
 #!/usr/bin/make -f
 
+# Load .env file if it exists
+-include .env
+export
+
+# Configure git to use HTTPS+Token for private repositories if GITHUB_TOKEN is set
+ifdef GITHUB_TOKEN
+  $(shell git config --global url."https://$(GITHUB_TOKEN):@github.com/".insteadOf "https://github.com/" 2>/dev/null)
+endif
+
 PACKAGES_NOSIMULATION=$(shell go list ./... | grep -v '/simulation')
 VERSION ?= $(shell echo $(shell git describe --tags --always) | sed 's/^v//')
 TMVERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::')
@@ -10,7 +19,7 @@ EVMOS_BINARY = mocad
 BUILDDIR ?= $(CURDIR)/build
 HTTPS_GIT := https://github.com/evmos/evmos.git
 DOCKER := $(shell which docker)
-NAMESPACE := mocachain
+NAMESPACE := zkmelabs
 PROJECT := moca
 DOCKER_IMAGE := $(NAMESPACE)/$(PROJECT)
 COMMIT_HASH := $(shell git rev-parse --short=7 HEAD)
@@ -20,8 +29,6 @@ MOUNT_PATH := $(shell pwd)/build/:/root/
 E2E_SKIP_CLEANUP := false
 
 export GO111MODULE = on
-export GOPRIVATE = github.com/mocachain/*
-export GONOSUMDB = github.com/mocachain/*
 
 # Default target executed when no arguments are given to make.
 default_target: all
@@ -96,8 +103,6 @@ ldflags += -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma
 ifeq (,$(findstring nostrip,$(COSMOS_BUILD_OPTIONS)))
   ldflags += -w -s
 endif
-
-
 ldflags += $(LDFLAGS)
 ldflags := $(strip $(ldflags))
 
@@ -504,7 +509,7 @@ localnet-show-logstream:
 
 PACKAGE_NAME:=github.com/evmos/evmos
 GOLANG_CROSS_VERSION  = v1.22
-GOPATH ?= '$(HOME)/go'
+GOPATH ?= $(HOME)/go
 release-dry-run:
 	docker run \
 		--rm \

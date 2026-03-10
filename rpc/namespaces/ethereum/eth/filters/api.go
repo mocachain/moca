@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	"golang.org/x/time/rate"
 )
 
 // FilterAPI gathers
@@ -65,6 +66,9 @@ type Backend interface {
 	RPCFilterCap() int32
 	RPCLogsCap() int32
 	RPCBlockRangeCap() int32
+	RPCQueryTimeout() time.Duration
+	RPCGetLogsRateLimit() int
+	RPCGetLogsBurstLimit() int
 }
 
 // consider a filter inactive if it has not been polled for within deadline
@@ -84,23 +88,42 @@ type filter struct {
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such as blocks, transactions and logs.
 type PublicFilterAPI struct {
-	logger    log.Logger
-	clientCtx client.Context
-	backend   Backend
-	events    *EventSystem
-	filtersMu sync.Mutex
-	filters   map[rpc.ID]*filter
+	logger      log.Logger
+	clientCtx   client.Context
+	backend     Backend
+	events      *EventSystem
+	filtersMu   sync.Mutex
+	filters     map[rpc.ID]*filter
+	rateLimiter *rate.Limiter // Rate limiter for eth_getLogs queries
 }
 
 // NewPublicAPI returns a new PublicFilterAPI instance.
 func NewPublicAPI(logger log.Logger, clientCtx client.Context, tmWSClient *rpcclient.WSClient, backend Backend) *PublicFilterAPI {
 	logger = logger.With("api", "filter")
+	
+	// Get rate limit configuration from backend
+	rateLimit := backend.RPCGetLogsRateLimit()
+	if rateLimit <= 0 {
+		rateLimit = 50 // Default: 50 requests per second
+	}
+	
+	burstLimit := backend.RPCGetLogsBurstLimit()
+	if burstLimit <= 0 {
+		burstLimit = 100 // Default: 100 burst
+	}
+	
+	// Create a rate limiter with configurable limits
+	// This prevents overwhelming the system with too many eth_getLogs queries
+	limiter := rate.NewLimiter(rate.Limit(rateLimit), burstLimit)
+	logger.Info("eth_getLogs rate limiter initialized", "rate", rateLimit, "burst", burstLimit)
+	
 	api := &PublicFilterAPI{
-		logger:    logger,
-		clientCtx: clientCtx,
-		backend:   backend,
-		filters:   make(map[rpc.ID]*filter),
-		events:    NewEventSystem(logger, tmWSClient),
+		logger:      logger,
+		clientCtx:   clientCtx,
+		backend:     backend,
+		filters:     make(map[rpc.ID]*filter),
+		events:      NewEventSystem(logger, tmWSClient),
+		rateLimiter: limiter,
 	}
 
 	go api.timeoutLoop()
@@ -528,6 +551,20 @@ func (api *PublicFilterAPI) NewFilter(criteria filters.FilterCriteria) (rpc.ID, 
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([]*ethtypes.Log, error) {
+	// Apply rate limiting to prevent overwhelming the system
+	if err := api.rateLimiter.Wait(ctx); err != nil {
+		api.logger.Debug("rate limit exceeded for eth_getLogs", "error", err.Error())
+		return nil, fmt.Errorf("rate limit exceeded: %w", err)
+	}
+
+	// Apply query timeout to prevent long-running queries
+	queryTimeout := api.backend.RPCQueryTimeout()
+	if queryTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, queryTimeout)
+		defer cancel()
+	}
+
 	var filter *Filter
 	if crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
@@ -578,6 +615,20 @@ func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ethtypes.Log, error) {
+	// Apply rate limiting to prevent overwhelming the system
+	if err := api.rateLimiter.Wait(ctx); err != nil {
+		api.logger.Debug("rate limit exceeded for eth_getFilterLogs", "error", err.Error())
+		return nil, fmt.Errorf("rate limit exceeded: %w", err)
+	}
+
+	// Apply query timeout to prevent long-running queries
+	queryTimeout := api.backend.RPCQueryTimeout()
+	if queryTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, queryTimeout)
+		defer cancel()
+	}
+
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
 	api.filtersMu.Unlock()

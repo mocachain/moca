@@ -2,7 +2,6 @@ package virtualgroup
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"cosmossdk.io/math"
@@ -22,18 +21,15 @@ const (
 	SPExitGas                   = 60_000
 	CompleteSPExitGas           = 60_000
 	DepositGas                  = 60_000
+	SwapOutBaseGas              = 60_000
+	SwapOutPerGvgIdGas          = 20_000
+	MaxSwapOutGvgIds            = 50
+	CompleteSwapOutBaseGas      = 60_000
+	CompleteSwapOutPerGvgIdGas  = 10_000
+	MaxCompleteSwapOutGvgIds    = 100
 	ReserveSwapInGas            = 60_000
 	CompleteSwapInGas           = 60_000
 	CancelSwapInGas             = 60_000
-
-	// Dynamic gas constants
-	SwapOutBaseGas     = 60_000 // Base gas for SwapOut
-	SwapOutPerGvgIdGas = 20_000 // Additional gas per GVG ID
-	MaxSwapOutGvgIds   = 50     // Maximum number of GVG IDs for SwapOut
-
-	CompleteSwapOutBaseGas     = 60_000 // Base gas for CompleteSwapOut
-	CompleteSwapOutPerGvgIdGas = 20_000 // Additional gas per GVG ID
-	MaxCompleteSwapOutGvgIds   = 50     // Maximum number of GVG IDs for CompleteSwapOut
 
 	CreateGlobalVirtualGroupMethodName = "createGlobalVirtualGroup"
 	DeleteGlobalVirtualGroupMethodName = "deleteGlobalVirtualGroup"
@@ -169,14 +165,6 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 		return nil, err
 	}
 
-	// Validate GVG IDs length
-	if len(args.GvgIds) == 0 {
-		return nil, errors.New("GVG IDs cannot be empty")
-	}
-	if len(args.GvgIds) > MaxSwapOutGvgIds {
-		return nil, fmt.Errorf("too many GVG IDs: got %d, max allowed %d", len(args.GvgIds), MaxSwapOutGvgIds)
-	}
-
 	msg := &virtualgrouptypes.MsgSwapOut{
 		StorageProvider:            contract.Caller().String(),
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
@@ -229,14 +217,6 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 		return nil, err
 	}
 
-	// Validate GVG IDs length
-	if len(args.GvgIds) == 0 {
-		return nil, errors.New("GVG IDs cannot be empty")
-	}
-	if len(args.GvgIds) > MaxCompleteSwapOutGvgIds {
-		return nil, fmt.Errorf("too many GVG IDs: got %d, max allowed %d", len(args.GvgIds), MaxCompleteSwapOutGvgIds)
-	}
-
 	msg := &virtualgrouptypes.MsgCompleteSwapOut{
 		StorageProvider:            contract.Caller().String(),
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
@@ -256,7 +236,7 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 	// add log
 	if err := c.AddLog(
 		evm,
-		MustEvent(SwapOutEventName),
+		MustEvent(CompleteSwapOutEventName),
 		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
 		big.NewInt(int64(args.GvgFamilyId)),
 	); err != nil {
@@ -346,7 +326,7 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 		evm,
 		MustEvent(CompleteSPExitEventName),
 		[]common.Hash{
-			common.BytesToHash(common.HexToAddress(contract.Caller().String()).Bytes()),
+			common.BytesToHash(contract.Caller().Bytes()),
 			common.BytesToHash(common.HexToAddress(args.Operator).Bytes()),
 		},
 	); err != nil {
