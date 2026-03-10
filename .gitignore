@@ -33,7 +33,6 @@ docs/modules
 docs/cosmos-sdk
 docs/ethermint
 docs/ibc-go
-dist
 tools-stamp
 docs-tools-stamp
 proto-tools-stamp
@@ -52,7 +51,6 @@ localnet-setup
 
 # Testing
 coverage.txt
-*.out
 sim_log_file
 tests/**/tmp/*
 yarn.lock
@@ -105,9 +103,6 @@ deployment/dockerup/tx.json
 init_done
 
 
-dist
-
-
 scripts/tx.json
 scripts/proposal.json
 scripts/proposal_status.json
@@ -120,3 +115,7 @@ deployment/dockerup/.env
 deployment/testnet/keys.json
 
 CLAUDE.md
+e2e/local/ERC20/out/
+e2e/local/ERC20/cache/
+e2e/local/ERC20/lib/
+.env

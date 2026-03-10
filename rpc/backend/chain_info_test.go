@@ -1,10 +1,9 @@
 package backend
 
 import (
+	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"math/big"
-
-	sdkmath "cosmossdk.io/math"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
@@ -156,7 +155,7 @@ func (suite *BackendTestSuite) TestBaseFee() {
 }
 
 func (suite *BackendTestSuite) TestChainId() {
-	expChainID := (*hexutil.Big)(big.NewInt(222888))
+	expChainID := (*hexutil.Big)(big.NewInt(1000000))
 	testCases := []struct {
 		name         string
 		registerMock func()

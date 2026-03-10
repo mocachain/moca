@@ -3,7 +3,6 @@ package authz
 import (
 	"bytes"
 
-	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -203,7 +202,7 @@ func OutputsAuthorization(authorization authztypes.Authorization) string {
 	types.RegisterInterfaces(interfaceRegistry)
 	feemarkettypes.RegisterInterfaces(interfaceRegistry)
 	erc20types.RegisterInterfaces(interfaceRegistry)
-	upgradetypes.RegisterInterfaces(interfaceRegistry)
+	// Note: upgradetypes.RegisterInterfaces is not available in v0.50, interfaces are registered via module manager
 	proposaltypes.RegisterInterfaces(interfaceRegistry)
 	sptypes.RegisterInterfaces(interfaceRegistry)
 

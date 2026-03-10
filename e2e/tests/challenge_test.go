@@ -665,7 +665,8 @@ func (s *ChallengeTestSuite) updateParams(params challengetypes.Params) {
 		[]sdk.Msg{msgUpdateParams},
 		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, types.NewIntFromInt64WithDecimal(100, types.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test", false,
+		"test", "test", "test",
+		false,
 	)
 	s.Require().NoError(err)
 

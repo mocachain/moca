@@ -99,7 +99,6 @@ interface IPayment {
         uint256 amount
     ) external returns (bool success);
 
-
     /**
      * @dev paymentAccountsByOwner defines a method for queries all payment accounts by a owner.
      */
@@ -235,5 +234,4 @@ interface IPayment {
      * @dev Withdraw defines an Event emitted when a user withdraw
      */
     event Withdraw(address indexed creator);
-
 }

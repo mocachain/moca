@@ -3,6 +3,7 @@ package cosmos_test
 import (
 	sdkmath "cosmossdk.io/math"
 	"fmt"
+	"time"
 
 	"cosmossdk.io/math"
 	"cosmossdk.io/x/feegrant"
@@ -265,6 +266,8 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 			var err error
 			suite.ctx, err = testutil.PrepareAccountsForDelegationRewards(suite.T(), suite.ctx, suite.app, addr, tc.balance, tc.rewards)
 			suite.Require().NoError(err, "failed to prepare accounts for delegation rewards")
+			suite.ctx, err = testutil.Commit(suite.ctx, suite.app, time.Second*0, nil)
+			suite.Require().NoError(err)
 
 			// Create an arbitrary message for testing purposes
 			msg := sdktestutil.NewTestMsg(addr)
@@ -273,7 +276,6 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 			args := testutiltx.CosmosTxArgs{
 				TxCfg:      suite.clientCtx.TxConfig,
 				Priv:       priv,
-				ChainID:    suite.ctx.ChainID(),
 				Gas:        tc.gas,
 				GasPrice:   tc.gasPrice,
 				FeeGranter: tc.feeGranter,

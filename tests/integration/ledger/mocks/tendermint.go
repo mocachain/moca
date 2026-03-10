@@ -24,26 +24,26 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	rpcclientmock "github.com/cometbft/cometbft/rpc/client/mock"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
-	cmttypes "github.com/cometbft/cometbft/types"
+	tmtypes "github.com/cometbft/cometbft/types"
 )
 
-type MockCometRPC struct {
+type MockTendermintRPC struct {
 	rpcclientmock.Client
 
 	responseQuery abci.ResponseQuery
 }
 
-// NewMockCometRPC returns a mock CometRPC implementation.
+// NewMockTendermintRPC returns a mock TendermintRPC implementation.
 // It is used for CLI testing.
-func NewMockCometRPC(respQuery abci.ResponseQuery) MockCometRPC {
-	return MockCometRPC{responseQuery: respQuery}
+func NewMockTendermintRPC(respQuery abci.ResponseQuery) MockTendermintRPC {
+	return MockTendermintRPC{responseQuery: respQuery}
 }
 
-func (MockCometRPC) BroadcastTxSync(context.Context, cmttypes.Tx) (*coretypes.ResultBroadcastTx, error) {
+func (MockTendermintRPC) BroadcastTxSync(context.Context, tmtypes.Tx) (*coretypes.ResultBroadcastTx, error) {
 	return &coretypes.ResultBroadcastTx{Code: 0}, nil
 }
 
-func (m MockCometRPC) ABCIQueryWithOptions(
+func (m MockTendermintRPC) ABCIQueryWithOptions(
 	_ context.Context,
 	_ string,
 	_ tmbytes.HexBytes,

@@ -94,7 +94,6 @@ func (args *PaymentAccountArgs) Validate() error {
 	return nil
 }
 
-
 type ParamsByTimestampArgs struct {
 	Timestamp int64 `abi:"timestamp"`
 }

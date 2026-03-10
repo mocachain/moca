@@ -11,13 +11,10 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	evmenc "github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/indexer"
-	rpctypes "github.com/evmos/evmos/v12/rpc/types"
 	utiltx "github.com/evmos/evmos/v12/testutil/tx"
 	"github.com/evmos/evmos/v12/utils"
 	"github.com/evmos/evmos/v12/x/evm/types"
@@ -171,50 +168,20 @@ func TestKVIndexer(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, int64(-1), last)
 			} else {
-				// For success cases, we need to check if there are any valid eth txs
-				hasValidEthTx := false
-				for i, tx := range tc.block.Txs {
-					result := tc.blockResult[i]
-					if !rpctypes.TxSuccessOrExceedsBlockGasLimit(result) {
-						continue
-					}
-
-					tx, err := clientCtx.TxConfig.TxDecoder()(tx)
-					require.NoError(t, err)
-
-					if !isEthTx(tx) {
-						continue
-					}
-
-					hasValidEthTx = true
-					break
-				}
-
 				first, err := idxer.FirstIndexedBlock()
 				require.NoError(t, err)
-				if hasValidEthTx {
-					require.Equal(t, tc.block.Header.Height, first)
-				} else {
-					require.Equal(t, int64(-1), first)
-				}
+				require.Equal(t, tc.block.Header.Height, first)
 
 				last, err := idxer.LastIndexedBlock()
 				require.NoError(t, err)
-				if hasValidEthTx {
-					require.Equal(t, tc.block.Header.Height, last)
-				} else {
-					require.Equal(t, int64(-1), last)
-				}
+				require.Equal(t, tc.block.Header.Height, last)
 
-				// Only check tx hash and index if we have valid eth txs
-				if hasValidEthTx {
-					res1, err := idxer.GetByTxHash(txHash)
-					require.NoError(t, err)
-					require.NotNil(t, res1)
-					res2, err := idxer.GetByBlockAndIndex(1, 0)
-					require.NoError(t, err)
-					require.Equal(t, res1, res2)
-				}
+				res1, err := idxer.GetByTxHash(txHash)
+				require.NoError(t, err)
+				require.NotNil(t, res1)
+				res2, err := idxer.GetByBlockAndIndex(1, 0)
+				require.NoError(t, err)
+				require.Equal(t, res1, res2)
 			}
 		})
 	}
@@ -223,24 +190,10 @@ func TestKVIndexer(t *testing.T) {
 // MakeEncodingConfig creates the EncodingConfig
 func MakeEncodingConfig() params.EncodingConfig {
 	cfg := evmenc.MakeConfig()
-	types.RegisterInterfaces(cfg.InterfaceRegistry)
 	return params.EncodingConfig{
 		InterfaceRegistry: cfg.InterfaceRegistry,
 		Codec:             cfg.Codec,
 		TxConfig:          cfg.TxConfig,
 		Amino:             cfg.Amino,
 	}
-}
-
-// isEthTx check if the tx is an eth tx
-func isEthTx(tx sdk.Tx) bool {
-	extTx, ok := tx.(authante.HasExtensionOptionsTx)
-	if !ok {
-		return false
-	}
-	opts := extTx.GetExtensionOptions()
-	if len(opts) != 1 || opts[0].GetTypeUrl() != "/ethermint.evm.v1.ExtensionOptionsEthereumTx" {
-		return false
-	}
-	return true
 }

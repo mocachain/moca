@@ -22,11 +22,12 @@ const (
 	PermissionChannel = "permission"
 	ExecutorChannel   = "executor"
 
-	BucketChannelId     sdk.ChannelID = 4
-	ObjectChannelId     sdk.ChannelID = 5
-	GroupChannelId      sdk.ChannelID = 6
-	PermissionChannelId sdk.ChannelID = 7
-	ExecutorChannelId   sdk.ChannelID = 9
+	BucketChannelID     sdk.ChannelID = 4
+	ObjectChannelID     sdk.ChannelID = 5
+	GroupChannelID      sdk.ChannelID = 6
+	PermissionChannelID sdk.ChannelID = 7
+	ExecutorChannelID   sdk.ChannelID = 9
+
 	MocaSBTChannelId    sdk.ChannelID = 10
 	MocaVCChannelId     sdk.ChannelID = 11
 
@@ -34,24 +35,13 @@ const (
 
 	// OperationMirrorMocaSBT uint8 = 5
 
-	// Bucket operation types
-	// Cross-chain packages use OperationType to determine deserialization path.
-	// V2 operations use high-bit flag (0x80) for explicit version identification.
-	// This prevents dangerous fallback where V1 payloads could be misinterpreted as V2.
-	//
-	// Operation codes:
-	// - 0x01: MirrorBucket (V1)
-	// - 0x02: CreateBucket (V1, legacy format without GlobalVirtualGroupFamilyId)
-	// - 0x03: DeleteBucket (V1)
-	// - 0x82: CreateBucket (V2, includes GlobalVirtualGroupFamilyId, high-bit: 0x80 | 0x02)
-	//
-	// Future versions should follow the pattern: V3 = 0x83, V4 = 0x84, etc.
-	// Receivers MUST explicitly branch on OperationType; fallback is prohibited.
+	// bucket operation types
 
-	OperationMirrorBucket   uint8 = 0x01
-	OperationCreateBucket   uint8 = 0x02
-	OperationDeleteBucket   uint8 = 0x03
-	OperationCreateBucketV2 uint8 = 0x82
+	OperationMirrorBucket    uint8 = 1
+	OperationCreateBucket    uint8 = 2
+	OperationDeleteBucket    uint8 = 3
+	OperationCreateBucketV2  uint8 = 0x82 // V2 format with GlobalVirtualGroupFamilyId (high-bit flag 0x80 + 0x02)
+
 
 	// object operation types
 
@@ -78,28 +68,17 @@ func SafeBigInt(input *big.Int) *big.Int {
 	return input
 }
 
-// CrossChainPackage is the outer wrapper for all cross-chain messages.
-// Format: [1 byte OperationType | payload bytes]
-//
-// OperationType serves as the version identifier using high-bit flag strategy:
-// - V1 operations: 0x01-0x7F (e.g., CreateBucket = 0x02)
-// - V2 operations: 0x80-0xFF (e.g., CreateBucketV2 = 0x82)
-//
-// This design avoids adding a separate Version field while maintaining
-// explicit protocol-level distinction between package versions.
 type CrossChainPackage struct {
-	OperationType uint8  // Operation type with embedded version information
-	Package       []byte // Serialized package payload
+	OperationType uint8
+	Package       []byte
 }
 
-// MustSerialize encodes the cross-chain package as [OperationType | Package].
+
 func (p CrossChainPackage) MustSerialize() []byte {
 	return append([]byte{p.OperationType}, p.Package...)
 }
 
-// DeserializeRawCrossChainPackage extracts OperationType and payload from raw bytes.
-// This is the first step in deserialization; callers must then branch on OperationType
-// to select the appropriate typed deserializer (V1 or V2).
+
 func DeserializeRawCrossChainPackage(serializedPackage []byte) (*CrossChainPackage, error) {
 	tp := CrossChainPackage{
 		OperationType: serializedPackage[0],
@@ -111,21 +90,16 @@ func DeserializeRawCrossChainPackage(serializedPackage []byte) (*CrossChainPacka
 type DeserializeFunc func(serializedPackage []byte) (interface{}, error)
 
 var (
-	// DeserializeFuncMap handles V1 cross-chain package deserialization.
-	// For CreateBucket operations, uses OperationCreateBucket (0x02) as key,
-	// which deserializes the legacy format without GlobalVirtualGroupFamilyId.
-	//
-	// Note: Current keeper implementation uses explicit switch-case branching
-	// instead of relying on this map, but the map is maintained for consistency
-	// and potential use by other callers.
 	DeserializeFuncMap = map[sdk.ChannelID]map[uint8][4]DeserializeFunc{
-		BucketChannelId: {
+		BucketChannelID: {
+
 			OperationMirrorBucket: {
 				DeserializeMirrorBucketSynPackage,
 				DeserializeMirrorBucketAckPackage,
 				DeserializeMirrorBucketSynPackage,
 			},
-			OperationCreateBucket: { // V1: 0x02
+			OperationCreateBucket: {
+
 				DeserializeCreateBucketSynPackage,
 				DeserializeCreateBucketAckPackage,
 				DeserializeCreateBucketSynPackage,
@@ -136,7 +110,8 @@ var (
 				DeserializeDeleteBucketSynPackage,
 			},
 		},
-		ObjectChannelId: {
+		ObjectChannelID: {
+
 			OperationMirrorObject: {
 				DeserializeMirrorObjectSynPackage,
 				DeserializeMirrorObjectAckPackage,
@@ -148,7 +123,8 @@ var (
 				DeserializeDeleteObjectSynPackage,
 			},
 		},
-		GroupChannelId: {
+		GroupChannelID: {
+
 			OperationMirrorGroup: {
 				DeserializeMirrorGroupSynPackage,
 				DeserializeMirrorGroupAckPackage,
@@ -170,7 +146,8 @@ var (
 				DeserializeUpdateGroupMemberSynPackage,
 			},
 		},
-		PermissionChannelId: {
+		PermissionChannelID: {
+
 			OperationCreatePolicy: {
 				DeserializeCreatePolicySynPackage,
 				DeserializeCreatePolicyAckPackage,
@@ -191,24 +168,22 @@ var (
 		// },
 	}
 
-	// DeserializeFuncMapV2 handles V2 cross-chain package deserialization (used after Pampas upgrade).
-	// For CreateBucket operations, uses OperationCreateBucketV2 (0x82) as key,
-	// which deserializes the V2 format including GlobalVirtualGroupFamilyId.
-	//
-	// IMPORTANT: The key difference (0x02 vs 0x82) ensures V1/V2 packages cannot be confused.
-	// This explicit distinction at the protocol level prevents dangerous deserialization
-	// where V1 payloads could be misinterpreted as V2 format.
-	//
-	// Note: Current keeper implementation uses explicit switch-case branching on OperationType
-	// instead of relying on this map, but the map is maintained for consistency.
+	// DeserializeFuncMapV2 used after Pampas upgrade
 	DeserializeFuncMapV2 = map[sdk.ChannelID]map[uint8][4]DeserializeFunc{
-		BucketChannelId: {
+		BucketChannelID: {
+
 			OperationMirrorBucket: {
 				DeserializeMirrorBucketSynPackage,
 				DeserializeMirrorBucketAckPackage,
 				DeserializeMirrorBucketSynPackage,
 			},
-			OperationCreateBucketV2: { // V2: 0x82
+			OperationCreateBucket: {
+
+				DeserializeCreateBucketSynPackageV2,
+				DeserializeCreateBucketAckPackage,
+				DeserializeCreateBucketSynPackageV2,
+			},
+			OperationCreateBucketV2: {
 				DeserializeCreateBucketSynPackageV2,
 				DeserializeCreateBucketAckPackage,
 				DeserializeCreateBucketSynPackageV2,
@@ -219,7 +194,8 @@ var (
 				DeserializeDeleteBucketSynPackage,
 			},
 		},
-		ObjectChannelId: {
+		ObjectChannelID: {
+
 			OperationMirrorObject: {
 				DeserializeMirrorObjectSynPackage,
 				DeserializeMirrorObjectAckPackage,
@@ -231,7 +207,8 @@ var (
 				DeserializeDeleteObjectSynPackage,
 			},
 		},
-		GroupChannelId: {
+		GroupChannelID: {
+
 			OperationMirrorGroup: {
 				DeserializeMirrorGroupSynPackage,
 				DeserializeMirrorGroupAckPackage,
@@ -253,7 +230,8 @@ var (
 				DeserializeUpdateGroupMemberSynPackage,
 			},
 		},
-		PermissionChannelId: {
+		PermissionChannelID: {
+
 			OperationCreatePolicy: {
 				DeserializeCreatePolicySynPackage,
 				DeserializeCreatePolicyAckPackage,
@@ -281,12 +259,8 @@ var (
 // 	return &tp, nil
 // }
 
-// DeserializeCrossChainPackage deserializes V1 format cross-chain packages.
-// Uses DeserializeFuncMap which handles OperationCreateBucket (0x02) for CreateBucket.
-//
-// Note: This function is retained for compatibility but current keeper implementation
-// uses explicit switch-case on OperationType instead of relying on this function.
-func DeserializeCrossChainPackage(rawPack []byte, channelId sdk.ChannelID, packageType sdk.CrossChainPackageType) (interface{}, error) {
+func DeserializeCrossChainPackage(rawPack []byte, channelID sdk.ChannelID, packageType sdk.CrossChainPackageType) (interface{}, error) {
+
 	if packageType >= 3 {
 		return nil, ErrInvalidCrossChainPackage
 	}
@@ -296,7 +270,8 @@ func DeserializeCrossChainPackage(rawPack []byte, channelId sdk.ChannelID, packa
 		return nil, err
 	}
 
-	operationMap, ok := DeserializeFuncMap[channelId][pack.OperationType]
+	operationMap, ok := DeserializeFuncMap[channelID][pack.OperationType]
+
 	if !ok {
 		return nil, ErrInvalidCrossChainPackage
 	}
@@ -304,16 +279,8 @@ func DeserializeCrossChainPackage(rawPack []byte, channelId sdk.ChannelID, packa
 	return operationMap[packageType](pack.Package)
 }
 
-// DeserializeCrossChainPackageV2 deserializes V2 format cross-chain packages.
-// Uses DeserializeFuncMapV2 which handles OperationCreateBucketV2 (0x82) for CreateBucket.
-//
-// IMPORTANT: V2 packages include additional fields like GlobalVirtualGroupFamilyId.
-// The OperationType high-bit flag (0x80) ensures V1 packages cannot accidentally
-// be deserialized as V2, preventing data corruption.
-//
-// Note: This function is retained for compatibility but current keeper implementation
-// uses explicit switch-case on OperationType instead of relying on this function.
-func DeserializeCrossChainPackageV2(rawPack []byte, channelId sdk.ChannelID, packageType sdk.CrossChainPackageType) (interface{}, error) {
+func DeserializeCrossChainPackageV2(rawPack []byte, channelID sdk.ChannelID, packageType sdk.CrossChainPackageType) (interface{}, error) {
+
 	if packageType >= 3 {
 		return nil, ErrInvalidCrossChainPackage
 	}
@@ -323,7 +290,8 @@ func DeserializeCrossChainPackageV2(rawPack []byte, channelId sdk.ChannelID, pac
 		return nil, err
 	}
 
-	operationMap, ok := DeserializeFuncMapV2[channelId][pack.OperationType]
+	operationMap, ok := DeserializeFuncMapV2[channelID][pack.OperationType]
+
 	if !ok {
 		return nil, ErrInvalidCrossChainPackage
 	}
@@ -337,18 +305,21 @@ const (
 )
 
 type MirrorBucketSynPackage struct {
-	Id    *big.Int
+	Id    *big.Int //nolint
+
 	Owner sdk.AccAddress
 }
 
 type GeneralMirrorSynPackageStruct struct {
-	Id    *big.Int
+	Id    *big.Int //nolint
+
 	Owner common.Address
 }
 
 type MirrorBucketAckPackage struct {
 	Status uint8
-	Id     *big.Int
+	Id     *big.Int //nolint
+
 }
 
 var (
@@ -428,7 +399,8 @@ func DeserializeMirrorBucketAckPackage(serializedPackage []byte) (interface{}, e
 }
 
 type MirrorObjectSynPackage struct {
-	Id    *big.Int
+	ID    *big.Int
+
 	Owner sdk.AccAddress
 }
 
@@ -439,7 +411,8 @@ type MirrorObjectAckPackage struct {
 
 func (pkg *MirrorObjectSynPackage) Serialize() ([]byte, error) {
 	return generalMirrorSynPackageArgs.Pack(&GeneralMirrorSynPackageStruct{
-		SafeBigInt(pkg.Id),
+		SafeBigInt(pkg.ID),
+
 		common.BytesToAddress(pkg.Owner),
 	})
 }
@@ -480,7 +453,8 @@ func DeserializeMirrorObjectAckPackage(serializedPackage []byte) (interface{}, e
 }
 
 type MirrorGroupSynPackage struct {
-	Id    *big.Int
+	ID    *big.Int
+
 	Owner sdk.AccAddress
 }
 
@@ -491,7 +465,8 @@ type MirrorGroupAckPackage struct {
 
 func (pkg *MirrorGroupSynPackage) Serialize() ([]byte, error) {
 	return generalMirrorSynPackageArgs.Pack(&GeneralMirrorSynPackageStruct{
-		SafeBigInt(pkg.Id),
+		SafeBigInt(pkg.ID),
+
 		common.BytesToAddress(pkg.Owner),
 	})
 }
@@ -531,9 +506,7 @@ func DeserializeMirrorGroupAckPackage(serializedPackage []byte) (interface{}, er
 	return &tp, nil
 }
 
-// CreateBucketSynPackage is the V1 cross-chain package for bucket creation.
-// This is the legacy format used with OperationCreateBucket (0x02).
-// It contains 9 fields without GlobalVirtualGroupFamilyId.
+
 type CreateBucketSynPackage struct {
 	Creator                        sdk.AccAddress
 	BucketName                     string
@@ -546,16 +519,7 @@ type CreateBucketSynPackage struct {
 	ExtraData                      []byte
 }
 
-// CreateBucketSynPackageV2 is the V2 cross-chain package for bucket creation.
-// This format is used with OperationCreateBucketV2 (0x82) and includes
-// GlobalVirtualGroupFamilyId field (at position 7) required for bucket
-// migration and cross-chain mirroring operations.
-//
-// V2 adds 1 additional field compared to V1 (total 10 fields):
-// - GlobalVirtualGroupFamilyId: inserted after PrimarySpApprovalExpiredHeight
-//
-// IMPORTANT: When constructing approval signatures, senders MUST include
-// GlobalVirtualGroupFamilyId in the approval message bytes.
+
 type CreateBucketSynPackageV2 struct {
 	Creator                        sdk.AccAddress
 	BucketName                     string
@@ -563,7 +527,8 @@ type CreateBucketSynPackageV2 struct {
 	PaymentAddress                 sdk.AccAddress
 	PrimarySpAddress               sdk.AccAddress
 	PrimarySpApprovalExpiredHeight uint64
-	GlobalVirtualGroupFamilyId     uint32 // V2 addition: required for cross-chain operations
+	GlobalVirtualGroupFamilyID     uint32
+
 	PrimarySpApprovalSignature     []byte
 	ChargedReadQuota               uint64
 	ExtraData                      []byte
@@ -588,16 +553,15 @@ type CreateBucketSynPackageV2Struct struct {
 	PaymentAddress                 common.Address
 	PrimarySpAddress               common.Address
 	PrimarySpApprovalExpiredHeight uint64
-	GlobalVirtualGroupFamilyId     uint32
+	GlobalVirtualGroupFamilyID     uint32
+
 	PrimarySpApprovalSignature     []byte
 	ChargedReadQuota               uint64
 	ExtraData                      []byte
 }
 
 var (
-	// V1 ABI definition for CreateBucketSynPackage (9 fields)
-	// Used for OperationCreateBucket (0x02) serialization/deserialization.
-	// This is the legacy format without GlobalVirtualGroupFamilyId.
+
 	createBucketSynPackageStructType, _ = abi.NewType("tuple", "", []abi.ArgumentMarshaling{
 		{Name: "Creator", Type: "address"},
 		{Name: "BucketName", Type: "string"},
@@ -614,15 +578,7 @@ var (
 		{Type: createBucketSynPackageStructType},
 	}
 
-	// V2 ABI definition for CreateBucketSynPackageV2 (10 fields)
-	// Used for OperationCreateBucketV2 (0x82) serialization/deserialization.
-	//
-	// CRITICAL DIFFERENCE: GlobalVirtualGroupFamilyId is inserted at position 7
-	// (after PrimarySpApprovalExpiredHeight, before PrimarySpApprovalSignature).
-	// This field order MUST match exactly during Pack/Unpack operations.
-	//
-	// Using incorrect ABI args (e.g., V1 args for V2 package) will cause
-	// silent field misalignment and data corruption.
+
 	createBucketSynPackageV2StructType, _ = abi.NewType("tuple", "", []abi.ArgumentMarshaling{
 		{Name: "Creator", Type: "address"},
 		{Name: "BucketName", Type: "string"},
@@ -630,7 +586,8 @@ var (
 		{Name: "PaymentAddress", Type: "address"},
 		{Name: "PrimarySpAddress", Type: "address"},
 		{Name: "PrimarySpApprovalExpiredHeight", Type: "uint64"},
-		{Name: "GlobalVirtualGroupFamilyId", Type: "uint32"}, // V2 addition at position 7
+		{Name: "GlobalVirtualGroupFamilyId", Type: "uint32"},
+
 		{Name: "PrimarySpApprovalSignature", Type: "bytes"},
 		{Name: "ChargedReadQuota", Type: "uint64"},
 		{Name: "ExtraData", Type: "bytes"},
@@ -641,9 +598,7 @@ var (
 	}
 )
 
-// MustSerialize encodes V1 CreateBucketSynPackage using V1 ABI structure (9 fields).
-// IMPORTANT: Must use createBucketSynPackageStructArgs (not V2 args).
-// This method is for OperationCreateBucket (0x02) packages only.
+
 func (p CreateBucketSynPackage) MustSerialize() []byte {
 	encodedBytes, err := createBucketSynPackageStructArgs.Pack(&CreateBucketSynPackageStruct{
 		Creator:                        common.BytesToAddress(p.Creator),
@@ -721,19 +676,17 @@ func DeserializeCreateBucketSynPackage(serializedPackage []byte) (interface{}, e
 	return &tp, nil
 }
 
-// MustSerialize encodes V2 CreateBucketSynPackageV2 using V2 ABI structure (10 fields).
-// CRITICAL: Must use createBucketSynPackageV2StructArgs (includes GlobalVirtualGroupFamilyId).
-// Using V1 args here would cause silent field misalignment and data corruption.
-// This method is for OperationCreateBucketV2 (0x82) packages only.
 func (p CreateBucketSynPackageV2) MustSerialize() []byte {
 	encodedBytes, err := createBucketSynPackageV2StructArgs.Pack(&CreateBucketSynPackageV2Struct{
+
 		Creator:                        common.BytesToAddress(p.Creator),
 		BucketName:                     p.BucketName,
 		Visibility:                     p.Visibility,
 		PaymentAddress:                 common.BytesToAddress(p.PaymentAddress),
 		PrimarySpAddress:               common.BytesToAddress(p.PrimarySpAddress),
 		PrimarySpApprovalExpiredHeight: p.PrimarySpApprovalExpiredHeight,
-		GlobalVirtualGroupFamilyId:     p.GlobalVirtualGroupFamilyId,
+		GlobalVirtualGroupFamilyID:     p.GlobalVirtualGroupFamilyID,
+
 		PrimarySpApprovalSignature:     p.PrimarySpApprovalSignature,
 		ChargedReadQuota:               p.ChargedReadQuota,
 		ExtraData:                      p.ExtraData,
@@ -753,7 +706,8 @@ func (p CreateBucketSynPackageV2) ValidateBasic() error {
 		PrimarySpAddress: p.PrimarySpAddress.String(),
 		PrimarySpApproval: &gnfdcommon.Approval{
 			ExpiredHeight:              p.PrimarySpApprovalExpiredHeight,
-			GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyId,
+			GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyID,
+
 			Sig:                        p.PrimarySpApprovalSignature,
 		},
 		ChargedReadQuota: p.ChargedReadQuota,
@@ -771,7 +725,8 @@ func (p CreateBucketSynPackageV2) GetApprovalBytes() []byte {
 		PrimarySpAddress: p.PrimarySpAddress.String(),
 		PrimarySpApproval: &gnfdcommon.Approval{
 			ExpiredHeight:              p.PrimarySpApprovalExpiredHeight,
-			GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyId,
+			GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyID,
+
 			Sig:                        p.PrimarySpApprovalSignature,
 		},
 		ChargedReadQuota: p.ChargedReadQuota,
@@ -798,7 +753,8 @@ func DeserializeCreateBucketSynPackageV2(serializedPackage []byte) (interface{},
 		pkgStruct.PaymentAddress.Bytes(),
 		pkgStruct.PrimarySpAddress.Bytes(),
 		pkgStruct.PrimarySpApprovalExpiredHeight,
-		pkgStruct.GlobalVirtualGroupFamilyId,
+		pkgStruct.GlobalVirtualGroupFamilyID,
+
 		pkgStruct.PrimarySpApprovalSignature,
 		pkgStruct.ChargedReadQuota,
 		pkgStruct.ExtraData,
@@ -808,14 +764,16 @@ func DeserializeCreateBucketSynPackageV2(serializedPackage []byte) (interface{},
 
 type CreateBucketAckPackage struct {
 	Status    uint8
-	Id        *big.Int
+	ID        *big.Int
+
 	Creator   sdk.AccAddress
 	ExtraData []byte
 }
 
 type GeneralCreateAckPackageStruct struct {
 	Status    uint8
-	Id        *big.Int
+	ID        *big.Int
+
 	Creator   common.Address
 	ExtraData []byte
 }
@@ -836,7 +794,8 @@ var (
 func (p CreateBucketAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalCreateAckPackageArgs.Pack(&GeneralCreateAckPackageStruct{
 		Status:    p.Status,
-		Id:        SafeBigInt(p.Id),
+		ID:        SafeBigInt(p.ID),
+
 		Creator:   common.BytesToAddress(p.Creator),
 		ExtraData: p.ExtraData,
 	})
@@ -860,7 +819,8 @@ func DeserializeCreateBucketAckPackage(serializedPackage []byte) (interface{}, e
 
 	tp := CreateBucketAckPackage{
 		Status:    pkgStruct.Status,
-		Id:        pkgStruct.Id,
+		ID:        pkgStruct.ID,
+
 		Creator:   pkgStruct.Creator.Bytes(),
 		ExtraData: pkgStruct.ExtraData,
 	}
@@ -869,13 +829,15 @@ func DeserializeCreateBucketAckPackage(serializedPackage []byte) (interface{}, e
 
 type DeleteBucketSynPackage struct {
 	Operator  sdk.AccAddress
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
 type GeneralDeleteSynPackageStruct struct {
 	Operator  common.Address
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
@@ -894,7 +856,8 @@ var (
 func (p DeleteBucketSynPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteSynPackageArgs.Pack(&GeneralDeleteSynPackageStruct{
 		Operator:  common.BytesToAddress(p.Operator),
-		Id:        SafeBigInt(p.Id),
+		ID:        SafeBigInt(p.ID),
+
 		ExtraData: p.ExtraData,
 	})
 	if err != nil {
@@ -907,8 +870,9 @@ func (p DeleteBucketSynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.Id == nil || p.Id.Cmp(big.NewInt(0)) < 0 {
-		return ErrInvalidId
+	if p.ID == nil || p.ID.Cmp(big.NewInt(0)) < 0 {
+		return ErrInvalidID
+
 	}
 	return nil
 }
@@ -927,7 +891,8 @@ func DeserializeDeleteBucketSynPackage(serializedPackage []byte) (interface{}, e
 
 	tp := DeleteBucketSynPackage{
 		Operator:  pkgStruct.Operator.Bytes(),
-		Id:        pkgStruct.Id,
+		ID:        pkgStruct.ID,
+
 		ExtraData: pkgStruct.ExtraData,
 	}
 	return &tp, nil
@@ -935,7 +900,8 @@ func DeserializeDeleteBucketSynPackage(serializedPackage []byte) (interface{}, e
 
 type DeleteBucketAckPackage struct {
 	Status    uint8
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
@@ -954,7 +920,8 @@ var (
 func (p DeleteBucketAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteAckPackageArgs.Pack(&DeleteBucketAckPackage{
 		p.Status,
-		SafeBigInt(p.Id),
+		SafeBigInt(p.ID),
+
 		p.ExtraData,
 	})
 	if err != nil {
@@ -1043,7 +1010,8 @@ func DeserializeCreateGroupSynPackage(serializedPackage []byte) (interface{}, er
 
 type CreateGroupAckPackage struct {
 	Status    uint8
-	Id        *big.Int
+	ID        *big.Int
+
 	Creator   sdk.AccAddress
 	ExtraData []byte
 }
@@ -1051,7 +1019,8 @@ type CreateGroupAckPackage struct {
 func (p CreateGroupAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalCreateAckPackageArgs.Pack(&GeneralCreateAckPackageStruct{
 		Status:    p.Status,
-		Id:        SafeBigInt(p.Id),
+		ID:        SafeBigInt(p.ID),
+
 		Creator:   common.BytesToAddress(p.Creator),
 		ExtraData: p.ExtraData,
 	})
@@ -1075,7 +1044,8 @@ func DeserializeCreateGroupAckPackage(serializedPackage []byte) (interface{}, er
 
 	tp := CreateGroupAckPackage{
 		Status:    pkgStruct.Status,
-		Id:        pkgStruct.Id,
+		ID:        pkgStruct.ID,
+
 		Creator:   pkgStruct.Creator.Bytes(),
 		ExtraData: pkgStruct.ExtraData,
 	}
@@ -1084,7 +1054,8 @@ func DeserializeCreateGroupAckPackage(serializedPackage []byte) (interface{}, er
 
 type DeleteObjectSynPackage struct {
 	Operator  sdk.AccAddress
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
@@ -1092,8 +1063,9 @@ func (p DeleteObjectSynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.Id == nil || p.Id.Cmp(big.NewInt(0)) < 0 {
-		return ErrInvalidId
+	if p.ID == nil || p.ID.Cmp(big.NewInt(0)) < 0 {
+		return ErrInvalidID
+
 	}
 	return nil
 }
@@ -1112,7 +1084,8 @@ func DeserializeDeleteObjectSynPackage(serializedPackage []byte) (interface{}, e
 
 	tp := DeleteObjectSynPackage{
 		Operator:  pkgStruct.Operator.Bytes(),
-		Id:        pkgStruct.Id,
+		ID:        pkgStruct.ID,
+
 		ExtraData: pkgStruct.ExtraData,
 	}
 	return &tp, nil
@@ -1120,14 +1093,16 @@ func DeserializeDeleteObjectSynPackage(serializedPackage []byte) (interface{}, e
 
 type DeleteObjectAckPackage struct {
 	Status    uint8
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
 func (p DeleteObjectAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteAckPackageArgs.Pack(&DeleteObjectAckPackage{
 		p.Status,
-		SafeBigInt(p.Id),
+		SafeBigInt(p.ID),
+
 		p.ExtraData,
 	})
 	if err != nil {
@@ -1152,7 +1127,8 @@ func DeserializeDeleteObjectAckPackage(serializedPackage []byte) (interface{}, e
 
 type DeleteGroupSynPackage struct {
 	Operator  sdk.AccAddress
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
@@ -1160,8 +1136,9 @@ func (p DeleteGroupSynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.Id == nil || p.Id.Cmp(big.NewInt(0)) < 0 {
-		return ErrInvalidId
+	if p.ID == nil || p.ID.Cmp(big.NewInt(0)) < 0 {
+		return ErrInvalidID
+
 	}
 	return nil
 }
@@ -1180,7 +1157,8 @@ func DeserializeDeleteGroupSynPackage(serializedPackage []byte) (interface{}, er
 
 	tp := DeleteGroupSynPackage{
 		Operator:  pkgStruct.Operator.Bytes(),
-		Id:        pkgStruct.Id,
+		ID:        pkgStruct.ID,
+
 		ExtraData: pkgStruct.ExtraData,
 	}
 	return &tp, nil
@@ -1188,7 +1166,8 @@ func DeserializeDeleteGroupSynPackage(serializedPackage []byte) (interface{}, er
 
 type DeleteGroupAckPackage struct {
 	Status    uint8
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
@@ -1209,7 +1188,8 @@ func DeserializeDeleteGroupAckPackage(serializedPackage []byte) (interface{}, er
 func (p DeleteGroupAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteAckPackageArgs.Pack(&DeleteGroupAckPackage{
 		p.Status,
-		SafeBigInt(p.Id),
+		SafeBigInt(p.ID),
+
 		p.ExtraData,
 	})
 	if err != nil {
@@ -1220,7 +1200,8 @@ func (p DeleteGroupAckPackage) MustSerialize() []byte {
 
 type DeletePolicySynPackage struct {
 	Operator  sdk.AccAddress
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
@@ -1228,8 +1209,9 @@ func (p DeletePolicySynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.Id == nil || p.Id.Cmp(big.NewInt(0)) < 0 {
-		return ErrInvalidId
+	if p.ID == nil || p.ID.Cmp(big.NewInt(0)) < 0 {
+		return ErrInvalidID
+
 	}
 	return nil
 }
@@ -1248,7 +1230,8 @@ func DeserializeDeletePolicySynPackage(serializedPackage []byte) (interface{}, e
 
 	tp := DeletePolicySynPackage{
 		Operator:  pkgStruct.Operator.Bytes(),
-		Id:        pkgStruct.Id,
+		ID:        pkgStruct.ID,
+
 		ExtraData: pkgStruct.ExtraData,
 	}
 	return &tp, nil
@@ -1256,7 +1239,8 @@ func DeserializeDeletePolicySynPackage(serializedPackage []byte) (interface{}, e
 
 type DeletePolicyAckPackage struct {
 	Status    uint8
-	Id        *big.Int
+	ID        *big.Int
+
 	ExtraData []byte
 }
 
@@ -1277,7 +1261,8 @@ func DeserializeDeletePolicyAckPackage(serializedPackage []byte) (interface{}, e
 func (p DeletePolicyAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteAckPackageArgs.Pack(&DeletePolicyAckPackage{
 		p.Status,
-		SafeBigInt(p.Id),
+		SafeBigInt(p.ID),
+
 		p.ExtraData,
 	})
 	if err != nil {
@@ -1294,7 +1279,8 @@ const (
 
 type UpdateGroupMemberSynPackage struct {
 	Operator         sdk.AccAddress
-	GroupId          *big.Int
+	GroupID          *big.Int
+
 	OperationType    uint8
 	Members          []sdk.AccAddress
 	ExtraData        []byte
@@ -1303,7 +1289,8 @@ type UpdateGroupMemberSynPackage struct {
 
 type UpdateGroupMemberSynPackageStruct struct {
 	Operator         common.Address
-	GroupId          *big.Int
+	GroupID          *big.Int
+
 	OperationType    uint8
 	Members          []common.Address
 	ExtraData        []byte
@@ -1355,7 +1342,8 @@ func (p UpdateGroupMemberSynPackage) MustSerialize() []byte {
 
 	encodedBytes, err := updateGroupMemberSynPackageArgs.Pack(&UpdateGroupMemberSynPackageStruct{
 		common.BytesToAddress(p.Operator),
-		SafeBigInt(p.GroupId),
+		SafeBigInt(p.GroupID),
+
 		p.OperationType,
 		members,
 		p.ExtraData,
@@ -1375,8 +1363,9 @@ func (p UpdateGroupMemberSynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.GroupId == nil || p.GroupId.Cmp(big.NewInt(0)) < 0 {
-		return ErrInvalidId
+	if p.GroupID == nil || p.GroupID.Cmp(big.NewInt(0)) < 0 {
+		return ErrInvalidID
+
 	}
 
 	for _, member := range p.Members {
@@ -1412,7 +1401,8 @@ func DeserializeUpdateGroupMemberSynPackage(serializedPackage []byte) (interface
 	}
 	tp := UpdateGroupMemberSynPackage{
 		pkgStruct.Operator.Bytes(),
-		pkgStruct.GroupId,
+		pkgStruct.GroupID,
+
 		pkgStruct.OperationType,
 		members,
 		pkgStruct.ExtraData,
@@ -1423,7 +1413,8 @@ func DeserializeUpdateGroupMemberSynPackage(serializedPackage []byte) (interface
 
 type UpdateGroupMemberAckPackage struct {
 	Status        uint8
-	Id            *big.Int
+	ID            *big.Int
+
 	Operator      sdk.AccAddress
 	OperationType uint8
 	Members       []sdk.AccAddress
@@ -1432,7 +1423,8 @@ type UpdateGroupMemberAckPackage struct {
 
 type UpdateGroupMemberAckPackageStruct struct {
 	Status        uint8
-	Id            *big.Int
+	ID            *big.Int
+
 	Operator      common.Address
 	OperationType uint8
 	Members       []common.Address
@@ -1473,7 +1465,8 @@ func DeserializeUpdateGroupMemberAckPackage(serializedPackage []byte) (interface
 	}
 	tp := UpdateGroupMemberAckPackage{
 		pkgStruct.Status,
-		pkgStruct.Id,
+		pkgStruct.ID,
+
 		pkgStruct.Operator.Bytes(),
 		pkgStruct.OperationType,
 		members,
@@ -1491,7 +1484,8 @@ func (p UpdateGroupMemberAckPackage) MustSerialize() []byte {
 
 	encodedBytes, err := updateGroupMemberAckPackageArgs.Pack(&UpdateGroupMemberAckPackageStruct{
 		p.Status,
-		SafeBigInt(p.Id),
+		SafeBigInt(p.ID),
+
 		common.BytesToAddress(p.Operator),
 		p.OperationType,
 		members,
@@ -1569,7 +1563,8 @@ func DeserializeCreatePolicySynPackage(serializedPackage []byte) (interface{}, e
 
 type CreatePolicyAckPackage struct {
 	Status    uint8
-	Id        *big.Int
+	ID        *big.Int
+
 	Creator   sdk.AccAddress
 	ExtraData []byte
 }
@@ -1577,7 +1572,8 @@ type CreatePolicyAckPackage struct {
 func (p CreatePolicyAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalCreateAckPackageArgs.Pack(&GeneralCreateAckPackageStruct{
 		Status:    p.Status,
-		Id:        SafeBigInt(p.Id),
+		ID:        SafeBigInt(p.ID),
+
 		Creator:   common.BytesToAddress(p.Creator),
 		ExtraData: p.ExtraData,
 	})
@@ -1601,7 +1597,8 @@ func DeserializeCreatePolicyAckPackage(serializedPackage []byte) (interface{}, e
 
 	tp := CreatePolicyAckPackage{
 		Status:    pkgStruct.Status,
-		Id:        pkgStruct.Id,
+		ID:        pkgStruct.ID,
+
 		Creator:   pkgStruct.Creator.Bytes(),
 		ExtraData: pkgStruct.ExtraData,
 	}

@@ -77,6 +77,18 @@ http-timeout = "{{ .JSONRPC.HTTPTimeout }}"
 # HTTPIdleTimeout is the idle timeout of http json-rpc server.
 http-idle-timeout = "{{ .JSONRPC.HTTPIdleTimeout }}"
 
+# QueryTimeout is the timeout for eth_getLogs and similar query operations.
+# This helps prevent long-running queries from blocking resources.
+query-timeout = "{{ .JSONRPC.QueryTimeout }}"
+
+# GetLogsRateLimit is the rate limit for eth_getLogs queries (requests per second).
+# Adjust based on your service load. Default: 50 req/s
+getlogs-rate-limit = {{ .JSONRPC.GetLogsRateLimit }}
+
+# GetLogsBurstLimit is the burst limit for eth_getLogs queries.
+# Allows short bursts above the rate limit. Default: 100
+getlogs-burst-limit = {{ .JSONRPC.GetLogsBurstLimit }}
+
 # AllowUnprotectedTxs restricts unprotected (non EIP155 signed) transactions to be submitted via
 # the node's RPC when the global parameter is disabled.
 allow-unprotected-txs = {{ .JSONRPC.AllowUnprotectedTxs }}
@@ -142,34 +154,6 @@ dest-base-chain-id = {{ .CrossChain.DestBaseChainId }}
 enabled = {{ .PaymentCheck.Enabled }}
 # interval - the block interval run check payment
 interval = {{ .PaymentCheck.Interval }}
-
-###############################################################################
-###                         Transaction Cache Queue                         ###
-###############################################################################
-[tx-cache-queue]
-# Enable or disable the transaction cache queue for nonce ordering
-enable = {{ .TxCacheQueue.Enable }}
-
-# Maximum number of transactions per account that can be cached
-max-tx-per-account = {{ .TxCacheQueue.MaxTxPerAccount }}
-
-# Timeout for cached transactions before they are considered expired
-tx-timeout = "{{ .TxCacheQueue.TxTimeout }}"
-
-# Interval for cleaning up expired transactions
-cleanup-interval = "{{ .TxCacheQueue.CleanupInterval }}"
-
-# Interval for nonce-based polling cleanup
-nonce-polling-interval = "{{ .TxCacheQueue.NoncePollingInterval }}"
-
-# Global maximum number of cached transactions across all accounts
-global-max-tx = {{ .TxCacheQueue.GlobalMaxTx }}
-
-# Retry interval for failed transaction broadcasts
-retry-interval = "{{ .TxCacheQueue.RetryInterval }}"
-
-# Maximum number of retry attempts for broadcasting transactions
-max-retries = {{ .TxCacheQueue.MaxRetries }}
 
 ###############################################################################
 ###                                Hardforks                                ###

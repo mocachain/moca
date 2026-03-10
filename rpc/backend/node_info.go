@@ -102,7 +102,7 @@ func (b *Backend) SetEtherbase(etherbase common.Address) bool {
 	// Assemble transaction from fields
 	builder, ok := b.clientCtx.TxConfig.NewTxBuilder().(authtx.ExtensionOptionsTxBuilder)
 	if !ok {
-		b.logger.Debug("clientCtx.TxConfig.NewTxBuilder returns unsupported builder")
+		b.logger.Debug("clientCtx.TxConfig.NewTxBuilder returns unsupported builder", "error", err.Error())
 		return false
 	}
 
@@ -112,10 +112,10 @@ func (b *Backend) SetEtherbase(etherbase common.Address) bool {
 		return false
 	}
 
-	// Fetch minimum gas price to calculate fees using the configuration.
+	// Fetch minimun gas price to calculate fees using the configuration.
 	minGasPrices := b.cfg.GetMinGasPrices()
 	if len(minGasPrices) == 0 || minGasPrices.Empty() {
-		b.logger.Debug("the minimum fee is not set")
+		b.logger.Debug("the minimun fee is not set")
 		return false
 	}
 	minGasPriceValue := minGasPrices[0].Amount
@@ -328,6 +328,21 @@ func (b *Backend) RPCLogsCap() int32 {
 // RPCBlockRangeCap defines the max block range allowed for `eth_getLogs` query.
 func (b *Backend) RPCBlockRangeCap() int32 {
 	return b.cfg.JSONRPC.BlockRangeCap
+}
+
+// RPCQueryTimeout defines the timeout for `eth_getLogs` and similar query operations.
+func (b *Backend) RPCQueryTimeout() time.Duration {
+	return b.cfg.JSONRPC.QueryTimeout
+}
+
+// RPCGetLogsRateLimit returns the rate limit for eth_getLogs queries (requests per second).
+func (b *Backend) RPCGetLogsRateLimit() int {
+	return b.cfg.JSONRPC.GetLogsRateLimit
+}
+
+// RPCGetLogsBurstLimit returns the burst limit for eth_getLogs queries.
+func (b *Backend) RPCGetLogsBurstLimit() int {
+	return b.cfg.JSONRPC.GetLogsBurstLimit
 }
 
 // RPCMinGasPrice returns the minimum gas price for a transaction obtained from

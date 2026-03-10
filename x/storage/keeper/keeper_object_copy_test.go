@@ -18,21 +18,8 @@ import (
 )
 
 // LOW-017: CopyObject MUST validate PrimarySpApproval (nil/expired/invalid signature should fail)
-//
-// NOTE: These tests were passing before merge but now fail due to stricter validation in CreateBucket.
-// After the audit fix merge, CreateBucket now requires valid ApprovalMsgBytes and signature verification
-// (see keeper.go lines 163-168). The test setup uses nil Sig and nil ApprovalMsgBytes which now fails
-// at the CreateBucket stage before even reaching the CopyObject logic being tested.
-//
-// The LOW-017 fix in CopyObject (keeper.go lines 1291-1298) is still correct and in place.
-// These tests need to be refactored to provide valid signatures for CreateBucket setup,
-// or VerifySPAndSignature needs to be abstracted to a mockable interface.
 
 func (s *TestSuite) TestLOW017_CopyObject_NilApproval_MustFail() {
-	s.T().Skip("SKIPPED: Test setup fails after merge - CreateBucket now requires valid signature. " +
-		"The LOW-017 fix is still in place (keeper.go:1291-1298). " +
-		"Refactor needed: provide real signatures or make VerifySPAndSignature mockable.")
-
 	owner := sample.RandAccAddress()
 	sp := &sptypes.StorageProvider{
 		Id:              1,
@@ -123,10 +110,6 @@ func (s *TestSuite) TestLOW017_CopyObject_NilApproval_MustFail() {
 }
 
 func (s *TestSuite) TestLOW017_CopyObject_ExpiredApproval_MustFail() {
-	s.T().Skip("SKIPPED: Test setup fails after merge - CreateBucket now requires valid signature. " +
-		"The LOW-017 fix is still in place (keeper.go:1291-1298). " +
-		"Refactor needed: provide real signatures or make VerifySPAndSignature mockable.")
-
 	owner := sample.RandAccAddress()
 	sp := &sptypes.StorageProvider{
 		Id:              1,
@@ -216,10 +199,6 @@ func (s *TestSuite) TestLOW017_CopyObject_ExpiredApproval_MustFail() {
 }
 
 func (s *TestSuite) TestLOW017_CopyObject_InvalidSignature_MustFail() {
-	s.T().Skip("SKIPPED: Test setup fails after merge - CreateBucket now requires valid signature. " +
-		"The LOW-017 fix is still in place (keeper.go:1291-1298). " +
-		"Refactor needed: provide real signatures or make VerifySPAndSignature mockable.")
-
 	owner := sample.RandAccAddress()
 	sp := &sptypes.StorageProvider{
 		Id:              1,

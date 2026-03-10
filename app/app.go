@@ -61,6 +61,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
+	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server/api"
@@ -182,6 +183,8 @@ import (
 	"github.com/evmos/evmos/v12/x/erc20"
 	erc20keeper "github.com/evmos/evmos/v12/x/erc20/keeper"
 	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
+	inflationkeeper "github.com/evmos/evmos/v12/x/inflation/keeper"
+	inflationtypes "github.com/evmos/evmos/v12/x/inflation/types"
 
 	// NOTE: override ICS20 keeper to support IBC transfers of ERC20 tokens
 	"github.com/evmos/evmos/v12/x/ibc/transfer"
@@ -328,8 +331,9 @@ type Evmos struct {
 	FeeMarketKeeper feemarketkeeper.Keeper
 
 	// Evmos keepers
-	Erc20Keeper  erc20keeper.Keeper
-	EpochsKeeper epochskeeper.Keeper
+	Erc20Keeper     erc20keeper.Keeper
+	EpochsKeeper    epochskeeper.Keeper
+	InflationKeeper inflationkeeper.Keeper
 
 	// the module manager
 	mm                 *module.Manager
@@ -418,6 +422,7 @@ func NewEvmos(
 		// evmos keys
 		erc20types.StoreKey,
 		epochstypes.StoreKey,
+		inflationtypes.StoreKey,
 	)
 
 	// Add the EVM transient store key
@@ -465,6 +470,7 @@ func NewEvmos(
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
 		appCodec, runtime.NewKVStoreService(keys[authtypes.StoreKey]),
 		evmostypes.ProtoAccount, maccPerms,
+		cmdcfg.NewMultiPrefixBech32AccCodec(),
 		authAddr,
 	)
 	app.AuthzKeeper = authzkeeper.NewKeeper(runtime.NewKVStoreService(keys[authzkeeper.StoreKey]), appCodec, app.MsgServiceRouter(), app.AccountKeeper)
@@ -477,6 +483,7 @@ func NewEvmos(
 		authAddr,
 		logger,
 	)
+	app.AuthzKeeper = app.AuthzKeeper.SetBankKeeper(app.BankKeeper)
 	// optional: enable sign mode textual by overwriting the default tx config (after setting the bank keeper)
 	enabledSignModes := append(authtx.DefaultSignModes, sigtypes.SignMode_SIGN_MODE_TEXTUAL) //nolint:gocritic
 	txConfigOpts := authtx.ConfigOptions{
@@ -498,6 +505,8 @@ func NewEvmos(
 		app.AuthzKeeper,
 		app.BankKeeper,
 		authAddr,
+		cmdcfg.NewMultiPrefixBech32ValCodec(),
+		cmdcfg.NewMultiPrefixBech32ConsCodec(),
 	)
 	app.CrossChainKeeper = crosschainkeeper.NewKeeper(
 		appCodec,
@@ -594,6 +603,17 @@ func NewEvmos(
 		),
 	)
 
+	app.InflationKeeper = inflationkeeper.NewKeeper(
+		keys[inflationtypes.StoreKey],
+		appCodec,
+		authtypes.NewModuleAddress(govtypes.ModuleName),
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.DistrKeeper,
+		app.StakingKeeper,
+		authtypes.FeeCollectorName,
+	)
+
 	app.GovKeeper = *govKeeper.SetHooks(
 		govtypes.NewMultiGovHooks(),
 	)
@@ -653,6 +673,7 @@ func NewEvmos(
 		runtime.NewKVStoreService(keys[evidencetypes.StoreKey]),
 		app.StakingKeeper,
 		app.SlashingKeeper,
+		cmdcfg.NewMultiPrefixBech32AccCodec(),
 		runtime.ProvideCometInfoService(),
 	)
 	// If evidence needs to be handled for the app, set routes in router here and seal
@@ -771,7 +792,7 @@ func NewEvmos(
 		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(stakingtypes.ModuleName)),
 		crosschain.NewAppModule(app.CrossChainKeeper, app.BankKeeper, app.StakingKeeper),
 		oracle.NewAppModule(app.OracleKeeper),
-		upgrade.NewAppModule(app.UpgradeKeeper),
+		upgrade.NewAppModule(app.UpgradeKeeper, cmdcfg.NewMultiPrefixBech32AccCodec()),
 		evidence.NewAppModule(app.EvidenceKeeper),
 		params.NewAppModule(app.ParamsKeeper),
 		consensus.NewAppModule(appCodec, app.ConsensusParamsKeeper),
@@ -1152,13 +1173,11 @@ func (app *Evmos) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.Respo
 	defer func() {
 		// TODO: Record the count along with the code and or reason so as to display
 		// in the transactions per second live dashboards.
-		if res != nil && res.TxResults != nil {
-			for _, txRes := range res.TxResults {
-				if txRes.IsErr() {
-					app.tpsCounter.incrementFailure()
-				} else {
-					app.tpsCounter.incrementSuccess()
-				}
+		for _, txRes := range res.TxResults {
+			if txRes.IsErr() {
+				app.tpsCounter.incrementFailure()
+			} else {
+				app.tpsCounter.incrementSuccess()
 			}
 		}
 	}()
@@ -1192,9 +1211,9 @@ func (app *Evmos) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abc
 		bridgemoduletypes.TransferOutChannelID,
 		bridgemoduletypes.TransferInChannelID,
 		bridgemoduletypes.SyncParamsChannelID,
-		storagemoduletypes.BucketChannelId,
-		storagemoduletypes.ObjectChannelId,
-		storagemoduletypes.GroupChannelId,
+		storagemoduletypes.BucketChannelID,
+		storagemoduletypes.ObjectChannelID,
+		storagemoduletypes.GroupChannelID,
 		storagemoduletypes.MocaSBTChannelId,
 		storagemoduletypes.MocaVCChannelId,
 	}
@@ -1547,6 +1566,11 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	// Upgrade handlers
 	app.UpgradeKeeper.SetUpgradeHandler("v1.1.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		// noop
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
+	app.UpgradeKeeper.SetUpgradeHandler("v1.2.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		// noop
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})

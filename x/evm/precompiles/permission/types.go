@@ -39,7 +39,6 @@ func GetAbiEvent(name string) abi.Event {
 	return permissionABI.Events[name]
 }
 
-
 type ParamsArgs struct {
 	// Operator string `abi:"operator"`
 }

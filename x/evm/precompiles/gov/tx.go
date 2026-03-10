@@ -18,7 +18,6 @@ import (
 	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
 	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
 
-	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -74,15 +73,6 @@ const (
 	VoteWeightedEventName         = "VoteWeighted"
 	DepositEventName              = "Deposit"
 )
-
-// calcPerMsgBytes calculates the total byte length of all messages
-func calcPerMsgBytes(msgs []json.RawMessage) int {
-	total := 0
-	for _, m := range msgs {
-		total += len(m)
-	}
-	return total
-}
 
 func (c *Contract) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
@@ -159,31 +149,6 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 		return nil, err
 	}
 
-	// Validate messages length
-	if len(messages) == 0 {
-		return nil, fmt.Errorf("messages cannot be empty")
-	}
-	if len(messages) > MaxSubmitProposalMsgs {
-		return nil, fmt.Errorf("too many messages: got %d, max allowed %d", len(messages), MaxSubmitProposalMsgs)
-	}
-
-	// Validate payload size
-	payloadSize := calcPerMsgBytes(messages)
-	if payloadSize > MaxSubmitProposalPayloadBytes {
-		return nil, fmt.Errorf("payload too large: %d bytes (max %d)", payloadSize, MaxSubmitProposalPayloadBytes)
-	}
-
-	// Validate field lengths
-	if len(args.Title) > MaxTitleLength {
-		return nil, fmt.Errorf("title too long: %d characters (max %d)", len(args.Title), MaxTitleLength)
-	}
-	if len(args.Summary) > DefaultMaxSummaryLength {
-		return nil, fmt.Errorf("summary too long: %d characters (max %d)", len(args.Summary), DefaultMaxSummaryLength)
-	}
-	if len(args.Metadata) > DefaultMaxMetadataLength {
-		return nil, fmt.Errorf("metadata too long: %d characters (max %d)", len(args.Metadata), DefaultMaxMetadataLength)
-	}
-
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 
 	authtypes.RegisterInterfaces(interfaceRegistry)
@@ -199,7 +164,7 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	govv1.RegisterInterfaces(interfaceRegistry)
 	crisistypes.RegisterInterfaces(interfaceRegistry)
 	ibctransfertypes.RegisterInterfaces(interfaceRegistry)
-	upgradetypes.RegisterInterfaces(interfaceRegistry)
+	// Note: upgradetypes.RegisterInterfaces is not available in v0.50, interfaces are registered via module manager
 	proposaltypes.RegisterInterfaces(interfaceRegistry)
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 

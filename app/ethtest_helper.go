@@ -120,26 +120,15 @@ func NewTestGenesisState(codec codec.Codec) simapp.GenesisState {
 	validator := cmtypes.NewValidator(pubKey, 1)
 	valSet := cmtypes.NewValidatorSet([]*cmtypes.Validator{validator})
 
-	// Use a different private key to avoid conflicts with test setup
-	senderPrivKey := secp256k1.GenPrivKeyFromSecret([]byte("genesis_test_key_seed_12345678901234"))
+	// generate genesis account
+	senderPrivKey := secp256k1.GenPrivKey()
 	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
 	balance := banktypes.Balance{
 		Address: acc.GetAddress().String(),
-		Coins:   sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, math.NewInt(100000000000000))),
+		Coins:   sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(100000000000000))),
 	}
 
-	// Create a temporary app instance to get proper default genesis state
-	tempApp := NewEvmos(log.NewNopLogger(), dbm.NewMemDB(), nil, true, map[int64]bool{},
-		DefaultNodeHome, 0, servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
-		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome))
-	evmosGenesisState := tempApp.DefaultGenesis()
-
-	// Convert evmostypes.GenesisState to simapp.GenesisState
-	genesisState := make(simapp.GenesisState)
-	for k, v := range evmosGenesisState {
-		genesisState[k] = v
-	}
-
+	genesisState := NewDefaultGenesisState()
 	return genesisStateWithValSet(codec, genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
 }
 
@@ -165,18 +154,13 @@ func genesisStateWithValSet(codec codec.Codec, genesisState simapp.GenesisState,
 		if err != nil {
 			panic(err)
 		}
-
-		// Create delegation first
-		delegation := stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), sdk.AccAddress(val.Address).String(), math.LegacyNewDecFromInt(bondAmt))
-		delegations = append(delegations, delegation)
-
 		validator := stakingtypes.Validator{
 			OperatorAddress:   sdk.AccAddress(val.Address).String(),
 			ConsensusPubkey:   pkAny,
 			Jailed:            false,
 			Status:            stakingtypes.Bonded,
 			Tokens:            bondAmt,
-			DelegatorShares:   math.LegacyNewDecFromInt(bondAmt), // Match delegation shares
+			DelegatorShares:   math.LegacyOneDec(),
 			Description:       stakingtypes.Description{},
 			UnbondingHeight:   int64(0),
 			UnbondingTime:     time.Unix(0, 0).UTC(),
@@ -184,11 +168,10 @@ func genesisStateWithValSet(codec codec.Codec, genesisState simapp.GenesisState,
 			MinSelfDelegation: math.ZeroInt(),
 		}
 		validators = append(validators, validator)
+		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), val.Address.String(), math.LegacyOneDec()))
 	}
 	// set validators and delegations
-	stakingParams := stakingtypes.DefaultParams()
-	stakingParams.BondDenom = utils.BaseDenom
-	stakingGenesis := stakingtypes.NewGenesisState(stakingParams, validators, delegations)
+	stakingGenesis := stakingtypes.NewGenesisState(stakingtypes.DefaultParams(), validators, delegations)
 	genesisState[stakingtypes.ModuleName] = codec.MustMarshalJSON(stakingGenesis)
 
 	totalSupply := sdk.NewCoins()
@@ -199,13 +182,13 @@ func genesisStateWithValSet(codec codec.Codec, genesisState simapp.GenesisState,
 
 	for range delegations {
 		// add delegated tokens to total supply
-		totalSupply = totalSupply.Add(sdk.NewCoin(utils.BaseDenom, bondAmt))
+		totalSupply = totalSupply.Add(sdk.NewCoin(sdk.DefaultBondDenom, bondAmt))
 	}
 
 	// add bonded amount to bonded pool module account
 	balances = append(balances, banktypes.Balance{
 		Address: authtypes.NewModuleAddress(stakingtypes.BondedPoolName).String(),
-		Coins:   sdk.Coins{sdk.NewCoin(utils.BaseDenom, bondAmt)},
+		Coins:   sdk.Coins{sdk.NewCoin(sdk.DefaultBondDenom, bondAmt)},
 	})
 
 	// update total supply

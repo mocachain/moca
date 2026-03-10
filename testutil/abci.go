@@ -28,7 +28,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 
-	storetypes "cosmossdk.io/store/types"
 	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/testutil/tx"
 )
@@ -40,9 +39,6 @@ import (
 //  3. EndBlock
 //  4. Commit
 func Commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (sdk.Context, error) {
-	if cms, ok := ctx.MultiStore().(storetypes.CacheMultiStore); ok {
-		cms.Write()
-	}
 	header, err := commit(ctx, app, t, vs)
 	if err != nil {
 		return ctx, err
@@ -75,14 +71,13 @@ func DeliverTx(
 	if err != nil {
 		return abci.ExecTxResult{}, err
 	}
-	return BroadcastTxBytes(ctx, appEvmos, txConfig.TxEncoder(), tx)
+	return BroadcastTxBytes(appEvmos, txConfig.TxEncoder(), tx)
 }
 
 // DeliverEthTx generates and broadcasts a Cosmos Tx populated with MsgEthereumTx messages.
 // If a private key is provided, it will attempt to sign all messages with the given private key,
 // otherwise, it will assume the messages have already been signed.
 func DeliverEthTx(
-	ctx sdk.Context,
 	appEvmos *app.Evmos,
 	priv cryptotypes.PrivKey,
 	msgs ...sdk.Msg,
@@ -93,7 +88,7 @@ func DeliverEthTx(
 	if err != nil {
 		return abci.ExecTxResult{}, err
 	}
-	return BroadcastTxBytes(ctx, appEvmos, txConfig.TxEncoder(), tx)
+	return BroadcastTxBytes(appEvmos, txConfig.TxEncoder(), tx)
 }
 
 // CheckTx checks a cosmos tx for a given set of msgs
@@ -140,14 +135,14 @@ func CheckEthTx(
 }
 
 // BroadcastTxBytes encodes a transaction and calls DeliverTx on the app.
-func BroadcastTxBytes(ctx sdk.Context, app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.ExecTxResult, error) {
+func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.ExecTxResult, error) {
 	// bz are bytes to be broadcasted over the network
 	bz, err := txEncoder(tx)
 	if err != nil {
 		return abci.ExecTxResult{}, err
 	}
 
-	req := abci.RequestFinalizeBlock{Height: ctx.BlockHeader().Height, Txs: [][]byte{bz}, ProposerAddress: ctx.BlockHeader().ProposerAddress}
+	req := abci.RequestFinalizeBlock{Txs: [][]byte{bz}}
 
 	res, err := app.BaseApp.FinalizeBlock(&req)
 	if err != nil {
@@ -168,7 +163,7 @@ func BroadcastTxBytes(ctx sdk.Context, app *app.Evmos, txEncoder sdk.TxEncoder, 
 // updates the header, runs the BeginBlocker function and returns the updated header
 func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (tmproto.Header, error) {
 	header := ctx.BlockHeader()
-	req := abci.RequestFinalizeBlock{Height: header.Height, ProposerAddress: header.ProposerAddress}
+	req := abci.RequestFinalizeBlock{Height: header.Height}
 
 	if vs != nil {
 		res, err := app.FinalizeBlock(&req)

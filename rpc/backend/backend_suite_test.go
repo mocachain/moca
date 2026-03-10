@@ -70,8 +70,6 @@ func (suite *BackendTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	encodingConfig := encoding.MakeConfig()
-	// Register EVM module interfaces to fix MsgEthereumTx parsing
-	evmtypes.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	clientCtx := client.Context{}.WithChainID(ChainID).
 		WithHeight(1).
 		WithTxConfig(encodingConfig.TxConfig).
@@ -88,10 +86,8 @@ func (suite *BackendTestSuite) SetupTest() {
 	suite.backend.queryClient.FeeMarket = mocks.NewFeeMarketQueryClient(suite.T())
 	suite.backend.ctx = rpctypes.ContextWithHeight(1)
 
-	// Add codec with EVM types registered
+	// Add codec
 	encCfg := encoding.MakeConfig()
-	// Register EVM module interfaces to fix MsgEthereumTx parsing
-	evmtypes.RegisterInterfaces(encCfg.InterfaceRegistry)
 	suite.backend.clientCtx.Codec = encCfg.Codec
 }
 

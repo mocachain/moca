@@ -12,7 +12,7 @@ import (
 	"github.com/evmos/evmos/v12/x/storage/types"
 )
 
-func CmdEVMQueryParams() *cobra.Command {
+func CmdQueryParams() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "params",
 		Short: "Query the parameters of the storage module",

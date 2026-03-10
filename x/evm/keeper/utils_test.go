@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"time"
 
-	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,6 +12,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/evmos/evmos/v12/server/config"
+	"github.com/evmos/evmos/v12/testutil"
 	"github.com/evmos/evmos/v12/x/evm/statedb"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 	"github.com/stretchr/testify/require"
@@ -26,19 +26,9 @@ func (suite *KeeperTestSuite) EvmDenom() string {
 
 // Commit and begin new block
 func (suite *KeeperTestSuite) Commit() {
-	// For tracing tests, we need to avoid actual commits that break the state
-	// Just simulate the block progression without actually committing
-	header := suite.ctx.BlockHeader()
-	header.Height++
-	header.Time = header.Time.Add(0 * time.Second)
-	
-	// Create new context with updated header, preserving the store
-	suite.ctx = suite.ctx.WithBlockHeader(header)
-	
-	// Ensure context has gas meter
-	if suite.ctx.BlockGasMeter() == nil {
-		suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewGasMeter(1e18))
-	}
+	var err error
+	suite.ctx, err = testutil.Commit(suite.ctx, suite.app, 0*time.Second, nil)
+	suite.Require().NoError(err)
 
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())
 	evmtypes.RegisterQueryServer(queryHelper, suite.app.EvmKeeper)

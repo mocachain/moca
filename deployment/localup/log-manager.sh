@@ -98,6 +98,8 @@ log_info() {
     local message="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${CYAN}[INFO]${NC} ${message}"
+    mkdir -p "$(dirname "${SUMMARY_LOG}")"
+    touch "${SUMMARY_LOG}"
     echo "[${timestamp}] [INFO] ${message}" >> "${SUMMARY_LOG}"
 }
 
@@ -106,6 +108,8 @@ log_warn() {
     local message="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${YELLOW}[WARN]${NC} ${message}"
+    mkdir -p "$(dirname "${SUMMARY_LOG}")"
+    touch "${SUMMARY_LOG}" "${ERROR_LOG}"
     echo "[${timestamp}] [WARN] ${message}" >> "${SUMMARY_LOG}"
     echo "[${timestamp}] [WARN] ${message}" >> "${ERROR_LOG}"
 }
@@ -115,6 +119,8 @@ log_error() {
     local message="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${RED}[ERROR]${NC} ${message}"
+    mkdir -p "$(dirname "${SUMMARY_LOG}")"
+    touch "${SUMMARY_LOG}" "${ERROR_LOG}"
     echo "[${timestamp}] [ERROR] ${message}" >> "${SUMMARY_LOG}"
     echo "[${timestamp}] [ERROR] ${message}" >> "${ERROR_LOG}"
 }
@@ -125,6 +131,10 @@ log_command() {
     local log_file="$2"
     local description="$3"
     local show_command="${4:-true}"
+    
+    # Ensure log file exists
+    mkdir -p "$(dirname "$log_file")"
+    touch "$log_file"
     
     if [ -n "$description" ]; then
         log_info "$description"
@@ -147,6 +157,10 @@ execute_logged() {
     local log_file="$2"
     local description="$3"
     local show_output="${4:-true}"
+    
+    # Ensure log file exists
+    mkdir -p "$(dirname "$log_file")"
+    touch "$log_file"
     
     # In silent mode, do not show specific execution commands
     log_command "$cmd" "$log_file" "$description" "$show_output"
@@ -183,7 +197,15 @@ execute_quiet() {
 # Generate final report
 generate_final_report() {
     local total_end_time=$(date +%s)
-    local session_start_time=$(stat -f %B "${LOG_SESSION_DIR}" 2>/dev/null || echo $total_end_time)
+    # Get directory creation time (compatible with both Linux and macOS)
+    local session_start_time
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        session_start_time=$(stat -f %B "${LOG_SESSION_DIR}" 2>/dev/null || echo $total_end_time)
+    else
+        # Linux
+        session_start_time=$(stat -c %Y "${LOG_SESSION_DIR}" 2>/dev/null || echo $total_end_time)
+    fi
     local total_duration=$((total_end_time - session_start_time))
     
     echo "" >> "${SUMMARY_LOG}"

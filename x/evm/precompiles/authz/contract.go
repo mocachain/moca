@@ -2,6 +2,7 @@ package authz
 
 import (
 	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -130,7 +131,7 @@ func (c *Contract) calculateExecGas(input []byte) uint64 {
 	}
 
 	// Calculate payload size (capped at max)
-	payloadSize := uint64(calcPerMsgBytes(args.Msgs))
+		payloadSize := uint64(CalcPerMsgBytes(args.Msgs))
 	if payloadSize > MaxExecPayloadBytes {
 		payloadSize = MaxExecPayloadBytes
 	}
