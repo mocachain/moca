@@ -67,7 +67,7 @@ type PageResponse struct {
 
 // IVirtualGroupMetaData contains all meta data concerning the IVirtualGroup contract.
 var IVirtualGroupMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"CancelSwapIn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"}],\"name\":\"CompleteSPExit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"CompleteSwapIn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"familyId\",\"type\":\"uint256\"}],\"name\":\"CreateGlobalVirtualGroup\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"DeleteGlobalVirtualGroup\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"Deposit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"ReserveSwapIn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"SPExit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"familyId\",\"type\":\"uint256\"}],\"name\":\"SwapOut\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"}],\"name\":\"cancelSwapIn\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"operator\",\"type\":\"string\"}],\"name\":\"completeSPExit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"}],\"name\":\"completeSwapIn\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"gvgIds\",\"type\":\"uint32[]\"}],\"name\":\"completeSwapOut\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"familyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"secondarySpIds\",\"type\":\"uint32[]\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structCoin\",\"name\":\"deposit\",\"type\":\"tuple\"}],\"name\":\"createGlobalVirtualGroup\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"}],\"name\":\"deleteGlobalVirtualGroup\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structCoin\",\"name\":\"deposit\",\"type\":\"tuple\"}],\"name\":\"deposit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"globalVirtualGroupFamilies\",\"outputs\":[{\"components\":[{\"internalType\":\"uint32\",\"name\":\"id\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"primarySpId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"globalVirtualGroupIds\",\"type\":\"uint32[]\"},{\"internalType\":\"address\",\"name\":\"virtualPaymentAddress\",\"type\":\"address\"}],\"internalType\":\"structGlobalVirtualGroupFamily[]\",\"name\":\"gvgFamilies\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"familyId\",\"type\":\"uint32\"}],\"name\":\"globalVirtualGroupFamily\",\"outputs\":[{\"components\":[{\"internalType\":\"uint32\",\"name\":\"id\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"primarySpId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"globalVirtualGroupIds\",\"type\":\"uint32[]\"},{\"internalType\":\"address\",\"name\":\"virtualPaymentAddress\",\"type\":\"address\"}],\"internalType\":\"structGlobalVirtualGroupFamily\",\"name\":\"gvgfamily\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"targetSpId\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"}],\"name\":\"reserveSwapIn\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"spExit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"gvgIds\",\"type\":\"uint32[]\"},{\"internalType\":\"uint32\",\"name\":\"successorSpId\",\"type\":\"uint32\"},{\"components\":[{\"internalType\":\"uint64\",\"name\":\"expiredHeight\",\"type\":\"uint64\"},{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"bytes\",\"name\":\"sig\",\"type\":\"bytes\"}],\"internalType\":\"structApproval\",\"name\":\"successorSpApproval\",\"type\":\"tuple\"}],\"name\":\"swapOut\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"CancelSwapIn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"}],\"name\":\"CompleteSPExit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"CompleteSwapIn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"familyId\",\"type\":\"uint256\"}],\"name\":\"CompleteSwapOut\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"familyId\",\"type\":\"uint256\"}],\"name\":\"CreateGlobalVirtualGroup\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"DeleteGlobalVirtualGroup\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"Deposit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"ReserveSwapIn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"}],\"name\":\"SPExit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storageProvider\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"familyId\",\"type\":\"uint256\"}],\"name\":\"SwapOut\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"}],\"name\":\"cancelSwapIn\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"operator\",\"type\":\"string\"}],\"name\":\"completeSPExit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"}],\"name\":\"completeSwapIn\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"gvgIds\",\"type\":\"uint32[]\"}],\"name\":\"completeSwapOut\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"familyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"secondarySpIds\",\"type\":\"uint32[]\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structCoin\",\"name\":\"deposit\",\"type\":\"tuple\"}],\"name\":\"createGlobalVirtualGroup\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"}],\"name\":\"deleteGlobalVirtualGroup\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structCoin\",\"name\":\"deposit\",\"type\":\"tuple\"}],\"name\":\"deposit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"offset\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"limit\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"countTotal\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"reverse\",\"type\":\"bool\"}],\"internalType\":\"structPageRequest\",\"name\":\"pagination\",\"type\":\"tuple\"}],\"name\":\"globalVirtualGroupFamilies\",\"outputs\":[{\"components\":[{\"internalType\":\"uint32\",\"name\":\"id\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"primarySpId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"globalVirtualGroupIds\",\"type\":\"uint32[]\"},{\"internalType\":\"address\",\"name\":\"virtualPaymentAddress\",\"type\":\"address\"}],\"internalType\":\"structGlobalVirtualGroupFamily[]\",\"name\":\"gvgFamilies\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes\",\"name\":\"nextKey\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"total\",\"type\":\"uint64\"}],\"internalType\":\"structPageResponse\",\"name\":\"pageResponse\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"familyId\",\"type\":\"uint32\"}],\"name\":\"globalVirtualGroupFamily\",\"outputs\":[{\"components\":[{\"internalType\":\"uint32\",\"name\":\"id\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"primarySpId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"globalVirtualGroupIds\",\"type\":\"uint32[]\"},{\"internalType\":\"address\",\"name\":\"virtualPaymentAddress\",\"type\":\"address\"}],\"internalType\":\"structGlobalVirtualGroupFamily\",\"name\":\"gvgfamily\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"targetSpId\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupId\",\"type\":\"uint32\"}],\"name\":\"reserveSwapIn\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"spExit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"gvgFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"uint32[]\",\"name\":\"gvgIds\",\"type\":\"uint32[]\"},{\"internalType\":\"uint32\",\"name\":\"successorSpId\",\"type\":\"uint32\"},{\"components\":[{\"internalType\":\"uint64\",\"name\":\"expiredHeight\",\"type\":\"uint64\"},{\"internalType\":\"uint32\",\"name\":\"globalVirtualGroupFamilyId\",\"type\":\"uint32\"},{\"internalType\":\"bytes\",\"name\":\"sig\",\"type\":\"bytes\"}],\"internalType\":\"structApproval\",\"name\":\"successorSpApproval\",\"type\":\"tuple\"}],\"name\":\"swapOut\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // IVirtualGroupABI is the input ABI used to generate the binding from.
@@ -937,6 +937,151 @@ func (_IVirtualGroup *IVirtualGroupFilterer) WatchCompleteSwapIn(opts *bind.Watc
 func (_IVirtualGroup *IVirtualGroupFilterer) ParseCompleteSwapIn(log types.Log) (*IVirtualGroupCompleteSwapIn, error) {
 	event := new(IVirtualGroupCompleteSwapIn)
 	if err := _IVirtualGroup.contract.UnpackLog(event, "CompleteSwapIn", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// IVirtualGroupCompleteSwapOutIterator is returned from FilterCompleteSwapOut and is used to iterate over the raw logs and unpacked data for CompleteSwapOut events raised by the IVirtualGroup contract.
+type IVirtualGroupCompleteSwapOutIterator struct {
+	Event *IVirtualGroupCompleteSwapOut // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *IVirtualGroupCompleteSwapOutIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(IVirtualGroupCompleteSwapOut)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(IVirtualGroupCompleteSwapOut)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *IVirtualGroupCompleteSwapOutIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *IVirtualGroupCompleteSwapOutIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// IVirtualGroupCompleteSwapOut represents a CompleteSwapOut event raised by the IVirtualGroup contract.
+type IVirtualGroupCompleteSwapOut struct {
+	StorageProvider common.Address
+	FamilyId        *big.Int
+	Raw             types.Log // Blockchain specific contextual infos
+}
+
+// FilterCompleteSwapOut is a free log retrieval operation binding the contract event 0x1e23481bd30aa2e07b07b4799ecc298bf8cb8349425648839eb4d3dd043a6a3a.
+//
+// Solidity: event CompleteSwapOut(address indexed storageProvider, uint256 familyId)
+func (_IVirtualGroup *IVirtualGroupFilterer) FilterCompleteSwapOut(opts *bind.FilterOpts, storageProvider []common.Address) (*IVirtualGroupCompleteSwapOutIterator, error) {
+
+	var storageProviderRule []interface{}
+	for _, storageProviderItem := range storageProvider {
+		storageProviderRule = append(storageProviderRule, storageProviderItem)
+	}
+
+	logs, sub, err := _IVirtualGroup.contract.FilterLogs(opts, "CompleteSwapOut", storageProviderRule)
+	if err != nil {
+		return nil, err
+	}
+	return &IVirtualGroupCompleteSwapOutIterator{contract: _IVirtualGroup.contract, event: "CompleteSwapOut", logs: logs, sub: sub}, nil
+}
+
+// WatchCompleteSwapOut is a free log subscription operation binding the contract event 0x1e23481bd30aa2e07b07b4799ecc298bf8cb8349425648839eb4d3dd043a6a3a.
+//
+// Solidity: event CompleteSwapOut(address indexed storageProvider, uint256 familyId)
+func (_IVirtualGroup *IVirtualGroupFilterer) WatchCompleteSwapOut(opts *bind.WatchOpts, sink chan<- *IVirtualGroupCompleteSwapOut, storageProvider []common.Address) (event.Subscription, error) {
+
+	var storageProviderRule []interface{}
+	for _, storageProviderItem := range storageProvider {
+		storageProviderRule = append(storageProviderRule, storageProviderItem)
+	}
+
+	logs, sub, err := _IVirtualGroup.contract.WatchLogs(opts, "CompleteSwapOut", storageProviderRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(IVirtualGroupCompleteSwapOut)
+				if err := _IVirtualGroup.contract.UnpackLog(event, "CompleteSwapOut", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseCompleteSwapOut is a log parse operation binding the contract event 0x1e23481bd30aa2e07b07b4799ecc298bf8cb8349425648839eb4d3dd043a6a3a.
+//
+// Solidity: event CompleteSwapOut(address indexed storageProvider, uint256 familyId)
+func (_IVirtualGroup *IVirtualGroupFilterer) ParseCompleteSwapOut(log types.Log) (*IVirtualGroupCompleteSwapOut, error) {
+	event := new(IVirtualGroupCompleteSwapOut)
+	if err := _IVirtualGroup.contract.UnpackLog(event, "CompleteSwapOut", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

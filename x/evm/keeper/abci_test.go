@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"github.com/cometbft/cometbft/abci/types"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 )
 
@@ -10,6 +11,8 @@ func (suite *KeeperTestSuite) TestEndBlock() {
 
 	err := suite.app.EvmKeeper.EndBlock(suite.ctx)
 	suite.Require().NoError(err)
+	res := []types.ValidatorUpdate{}
+	suite.Require().Equal([]types.ValidatorUpdate{}, res)
 
 	// should emit 1 EventTypeBlockBloom event on EndBlock
 	suite.Require().Equal(1, len(em.Events()))

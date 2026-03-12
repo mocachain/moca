@@ -2,7 +2,7 @@ package keeper_test
 
 import (
 	sdkmath "cosmossdk.io/math"
-	"go.uber.org/mock/gomock"
+	"github.com/golang/mock/gomock"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"

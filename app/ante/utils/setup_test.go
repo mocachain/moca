@@ -16,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/app/ante"
@@ -81,6 +82,10 @@ func (suite *AnteTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 	params.BondDenom = utils.BaseDenom
 	err = suite.app.StakingKeeper.SetParams(suite.ctx, params)
+	suite.Require().NoError(err)
+
+	infCtx := suite.ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	err = suite.app.AccountKeeper.SetParams(infCtx, authtypes.DefaultParams())
 	suite.Require().NoError(err)
 
 	encodingConfig := encoding.MakeConfig()

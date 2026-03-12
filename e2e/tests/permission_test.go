@@ -1783,7 +1783,8 @@ func (s *StorageTestSuite) UpdateParams(newParams *storagetypes.Params) {
 		[]sdk.Msg{msgUpdateParams},
 		sdk.Coins{sdk.NewCoin(s.BaseSuite.Config.Denom, sdktype.NewIntFromInt64WithDecimal(100, sdktype.DecimalMOCA))},
 		validator.String(),
-		"test", "test", "test", false,
+		"test", "test", "test",
+		false,
 	)
 	s.Require().NoError(err)
 

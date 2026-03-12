@@ -14,6 +14,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
+	"github.com/evmos/evmos/v12/x/evm/precompiles/authz"
 	"github.com/evmos/evmos/v12/x/evm/types"
 )
 
@@ -47,7 +48,7 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	case LegacySubmitProposalMethodName:
 		return LegacySubmitProposalGas
 	case SubmitProposalMethodName:
-		return c.calculateSubmitProposalGas(input)
+		return SubmitProposalBaseGas
 	case VoteMethodName:
 		return VoteGas
 	case VoteWeightedMethodName:
@@ -174,7 +175,12 @@ func (c *Contract) calculateSubmitProposalGas(input []byte) uint64 {
 	}
 
 	// Calculate payload size (capped at max)
-	payloadSize := uint64(calcPerMsgBytes(messages))
+	// Convert []json.RawMessage to []string to reuse authz.CalcPerMsgBytes
+	msgStrings := make([]string, len(messages))
+	for i, msg := range messages {
+		msgStrings[i] = string(msg)
+	}
+	payloadSize := uint64(authz.CalcPerMsgBytes(msgStrings))
 	if payloadSize > MaxSubmitProposalPayloadBytes {
 		payloadSize = MaxSubmitProposalPayloadBytes
 	}

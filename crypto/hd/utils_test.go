@@ -13,7 +13,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
-	bip39 "github.com/tyler-smith/go-bip39"
+	bip39 "github.com/cosmos/go-bip39"
 )
 
 const issue179FixEnvar = "GO_ETHEREUM_HDWALLET_FIX_ISSUE_179"

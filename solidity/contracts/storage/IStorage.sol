@@ -220,8 +220,8 @@ struct Params {
     string polygonMirrorBucketRelayerFee;
     // relayer fee for the ACK or FAIL_ACK package of the mirror bucket tx to polygon chain
     string polygonMirrorBucketAckRelayerFee;
-    // Add the rest of the fields similarly
 }
+// Add the rest of the fields similarly
 
 // VersionedParams defines the parameters for the storage module with multi version, each version store with different timestamp.
 struct VersionedParams {
@@ -436,6 +436,14 @@ interface IStorage {
     ) external returns (bool success);
 
     /**
+     * @dev cancelUpdateObjectContent defines a method for cancel to update object content.
+     */
+    function cancelUpdateObjectContent(
+        string memory bucketName,
+        string memory objectName
+    ) external returns (bool success);
+
+    /**
      * @dev copyObject defines a method for copy a object.
      */
     function copyObject(
@@ -592,14 +600,6 @@ interface IStorage {
         uint64 payloadSize,
         string memory contentType,
         string[] memory expectChecksums
-    ) external returns (bool success);
-
-    /**
-     * @dev cancelUpdateObjectContent defines a method for cancel updating a object content.
-     */
-    function cancelUpdateObjectContent(
-        string memory bucketName,
-        string memory objectName
     ) external returns (bool success);
 
     /**
@@ -814,7 +814,7 @@ interface IStorage {
     ) external returns (bool success);
 
     /**
-     * @dev leaveGroup defines a method for leave a group.
+     * @dev leaveGroup defines a method for leave a group. Member is msg.sender.
      */
     function leaveGroup(
         address groupOwner,
@@ -920,7 +920,6 @@ interface IStorage {
         string memory bucketName
     ) external returns (bool success);
 
-
     /**
      * @dev CreateBucket defines an Event emitted when a user create a bucket
      */
@@ -995,6 +994,11 @@ interface IStorage {
     event CancelCreateObject(address indexed creator);
 
     /**
+     * @dev CancelUpdateObjectContent defines an Event emitted when a user cancels updating object content
+     */
+    event CancelUpdateObjectContent(address indexed operator, bytes32 indexed objectName);
+
+    /**
      * @dev CopyObject defines an Event emitted when a user copy a object
      */
     event CopyObject(address indexed creator);
@@ -1063,14 +1067,6 @@ interface IStorage {
     );
 
     /**
-     * @dev CancelUpdateObjectContent defines an Event emitted when a user cancel update a object content
-     */
-    event CancelUpdateObjectContent(
-        address indexed operator,
-        string indexed objectName
-    );
-
-    /**
      * @dev DiscontinueObject defines an Event emitted when a user discontinue a object
      */
     event DiscontinueObject(address indexed creator, string indexed bucketName);
@@ -1129,5 +1125,4 @@ interface IStorage {
      * @dev ToggleSPAsDelegatedAgent defines an Event emitted when a user toggle SP as delegated agent
      */
     event ToggleSPAsDelegatedAgent(address indexed creator);
-
 }

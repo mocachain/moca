@@ -84,11 +84,6 @@ const (
 	TLSKeyPath  = "tls.key-path"
 )
 
-// Transaction Cache Queue flags
-const (
-	TxCacheQueueEnable = "tx-cache-queue.enable"
-)
-
 // AddTxFlags adds common flags for commands to post tx
 func AddTxFlags(cmd *cobra.Command) (*cobra.Command, error) {
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "Specify Chain ID for sending Tx")

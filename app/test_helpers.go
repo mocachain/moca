@@ -161,7 +161,6 @@ func Setup(
 		); err != nil {
 			panic(err)
 		}
-
 	}
 
 	return app
@@ -213,8 +212,7 @@ func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
 			MinSelfDelegation: math.ZeroInt(),
 		}
 		validators = append(validators, validator)
-		// NOTE: Use sdk.AccAddress(val.Address).String() to match the OperatorAddress format
-		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), sdk.AccAddress(val.Address).String(), math.LegacyOneDec()))
+		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), val.Address.String(), math.LegacyOneDec()))
 
 	}
 	// set validators and delegations

@@ -30,11 +30,13 @@ const (
 	GroupResourceType  = 3
 )
 
-type ResourceType int
-type NewStatementOptions struct {
-	StatementExpireTime *time.Time
-	LimitSize           uint64
-}
+type (
+	ResourceType        int
+	NewStatementOptions struct {
+		StatementExpireTime *time.Time
+		LimitSize           uint64
+	}
+)
 
 func GetAddress() common.Address {
 	return storageAddress
@@ -296,6 +298,16 @@ func (args *CancelCreateObjectArgs) Validate() error {
 	return nil
 }
 
+type CancelUpdateObjectContentArgs struct {
+	BucketName string `abi:"bucketName"`
+	ObjectName string `abi:"objectName"`
+}
+
+// Validate CancelUpdateObjectContentArgs args
+func (args *CancelUpdateObjectContentArgs) Validate() error {
+	return nil
+}
+
 type ListObjectsArgs struct {
 	Pagination PageRequestJSON `abi:"pagination"`
 	BucketName string          `abi:"bucketName"`
@@ -403,16 +415,6 @@ type UpdateObjectContentArgs struct {
 
 // Validate UpdateObjectInfoArgs args
 func (args *UpdateObjectContentArgs) Validate() error {
-	return nil
-}
-
-type CancelUpdateObjectContentArgs struct {
-	BucketName string `abi:"bucketName"`
-	ObjectName string `abi:"objectName"`
-}
-
-// Validate CancelUpdateObjectContentArgs args
-func (args *CancelUpdateObjectContentArgs) Validate() error {
 	return nil
 }
 

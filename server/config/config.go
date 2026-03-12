@@ -67,10 +67,12 @@ const (
 	DefaultFeeHistoryCap int32 = 100
 
 	// DefaultLogsCap is the default cap of results returned from single 'eth_getLogs' query
-	DefaultLogsCap int32 = 10000
+	// Reduced from 10000 to 5000 to prevent memory issues
+	DefaultLogsCap int32 = 5000
 
 	// DefaultBlockRangeCap is the default cap of block range allowed for 'eth_getLogs' query
-	DefaultBlockRangeCap int32 = 10000
+	// Reduced from 10000 to 2000 to prevent long-running queries
+	DefaultBlockRangeCap int32 = 2000
 
 	// DefaultEVMTimeout is the default timeout for eth_call
 	DefaultEVMTimeout = 5 * time.Second
@@ -83,6 +85,15 @@ const (
 
 	// DefaultHTTPIdleTimeout is the default idle timeout of the http json-rpc server
 	DefaultHTTPIdleTimeout = 120 * time.Second
+
+	// DefaultQueryTimeout is the default timeout for eth_getLogs queries
+	DefaultQueryTimeout = 30 * time.Second
+
+	// DefaultGetLogsRateLimit is the default rate limit for eth_getLogs (requests per second)
+	DefaultGetLogsRateLimit = 50
+
+	// DefaultGetLogsBurstLimit is the default burst limit for eth_getLogs
+	DefaultGetLogsBurstLimit = 100
 
 	// DefaultAllowUnprotectedTxs value is false
 	DefaultAllowUnprotectedTxs = false
@@ -114,7 +125,7 @@ type AppConfig struct {
 	TLS          TLSConfig          `mapstructure:"tls"`
 	CrossChain   CrossChainConfig   `mapstructure:"cross-chain"`
 	PaymentCheck PaymentCheckConfig `mapstructure:"payment-check"`
-	TxCacheQueue TxCacheQueueConfig `mapstructure:"tx-cache-queue"`
+
 
 	// Hardforks is a mapping from block height -> hardfork entry (name + optional info).
 	// Intended for operator-managed / localnet / emergency upgrades when governance is unavailable.
@@ -163,6 +174,12 @@ type JSONRPCConfig struct {
 	HTTPTimeout time.Duration `mapstructure:"http-timeout"`
 	// HTTPIdleTimeout is the idle timeout of http json-rpc server.
 	HTTPIdleTimeout time.Duration `mapstructure:"http-idle-timeout"`
+	// QueryTimeout is the timeout for eth_getLogs and similar query operations.
+	QueryTimeout time.Duration `mapstructure:"query-timeout"`
+	// GetLogsRateLimit is the rate limit for eth_getLogs queries (requests per second).
+	GetLogsRateLimit int `mapstructure:"getlogs-rate-limit"`
+	// GetLogsBurstLimit is the burst limit for eth_getLogs queries.
+	GetLogsBurstLimit int `mapstructure:"getlogs-burst-limit"`
 	// AllowUnprotectedTxs restricts unprotected (non EIP155 signed) transactions to be submitted via
 	// the node's RPC when global parameter is disabled.
 	AllowUnprotectedTxs bool `mapstructure:"allow-unprotected-txs"`
@@ -203,36 +220,6 @@ type PaymentCheckConfig struct {
 	Interval uint32 `mapstructure:"interval"`
 }
 
-// TxCacheQueueConfig defines configuration for the transaction cache queue
-type TxCacheQueueConfig struct {
-	// Enable enables or disables the transaction cache queue
-	Enable bool `mapstructure:"enable"`
-
-	// MaxTxPerAccount sets the maximum number of transactions per account
-	MaxTxPerAccount int `mapstructure:"max-tx-per-account"`
-
-	// TxTimeout sets the timeout for cached transactions
-	TxTimeout time.Duration `mapstructure:"tx-timeout"`
-
-	// CleanupInterval sets the interval for cleanup operations
-	CleanupInterval time.Duration `mapstructure:"cleanup-interval"`
-
-	// NoncePollingInterval sets the interval for nonce-based polling cleanup
-	NoncePollingInterval time.Duration `mapstructure:"nonce-polling-interval"`
-
-	// GlobalMaxTx sets the global maximum number of cached transactions
-	GlobalMaxTx int `mapstructure:"global-max-tx"`
-
-	// RetryInterval sets the interval between retry attempts
-	RetryInterval time.Duration `mapstructure:"retry-interval"`
-
-	// MaxRetries sets the maximum number of retry attempts
-	MaxRetries int `mapstructure:"max-retries"`
-
-	// ReplacementGasPercent sets the minimum gas price increase for transaction replacement
-	ReplacementGasPercent int `mapstructure:"replacement-gas-percent"`
-}
-
 // HardforkEntry defines a single hardfork configuration with upgrade name and optional info.
 type HardforkEntry struct {
 	// Name is the upgrade plan name (required)
@@ -266,7 +253,6 @@ func NewDefaultAppConfig(denom string) *AppConfig {
 		TLS:          *DefaultTLSConfig(),
 		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
-		TxCacheQueue: *DefaultTxCacheQueueConfig(),
 		Hardforks:    map[string]HardforkEntry{},
 	}
 }
@@ -301,7 +287,6 @@ func NewAppConfig(denom string) (string, interface{}) {
 		TLS:          *DefaultTLSConfig(),
 		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
-		TxCacheQueue: *DefaultTxCacheQueueConfig(),
 		Hardforks:    map[string]HardforkEntry{},
 	}
 
@@ -319,7 +304,6 @@ func DefaultConfig() *AppConfig {
 		TLS:          *DefaultTLSConfig(),
 		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
-		TxCacheQueue: *DefaultTxCacheQueueConfig(),
 		Hardforks:    map[string]HardforkEntry{},
 	}
 }
@@ -331,11 +315,8 @@ func DefaultEVMConfig() *EVMConfig {
 		MaxTxGasWanted: DefaultMaxTxGasWanted,
 	}
 }
-
-// Validate returns an error if the tracer type is invalid.
 func (c EVMConfig) Validate() error {
 	if c.Tracer != "" && !strings.StringInSlice(c.Tracer, evmTracers) {
-		return fmt.Errorf("invalid tracer type %s, available types: %v", c.Tracer, evmTracers)
 	}
 
 	return nil
@@ -367,6 +348,9 @@ func DefaultJSONRPCConfig() *JSONRPCConfig {
 		LogsCap:                  DefaultLogsCap,
 		HTTPTimeout:              DefaultHTTPTimeout,
 		HTTPIdleTimeout:          DefaultHTTPIdleTimeout,
+		QueryTimeout:             DefaultQueryTimeout,
+		GetLogsRateLimit:         DefaultGetLogsRateLimit,
+		GetLogsBurstLimit:        DefaultGetLogsBurstLimit,
 		AllowUnprotectedTxs:      DefaultAllowUnprotectedTxs,
 		MaxOpenConnections:       DefaultMaxOpenConnections,
 		EnableIndexer:            false,
@@ -411,6 +395,18 @@ func (c JSONRPCConfig) Validate() error {
 
 	if c.HTTPIdleTimeout < 0 {
 		return errors.New("JSON-RPC HTTP idle timeout duration cannot be negative")
+	}
+
+	if c.QueryTimeout < 0 {
+		return errors.New("JSON-RPC query timeout duration cannot be negative")
+	}
+
+	if c.GetLogsRateLimit < 0 {
+		return errors.New("JSON-RPC eth_getLogs rate limit cannot be negative")
+	}
+
+	if c.GetLogsBurstLimit < 0 {
+		return errors.New("JSON-RPC eth_getLogs burst limit cannot be negative")
 	}
 
 	// check for duplicates
@@ -483,47 +479,6 @@ func (c PaymentCheckConfig) Validate() error {
 	return nil
 }
 
-// DefaultTxCacheQueueConfig returns the default transaction cache queue configuration
-func DefaultTxCacheQueueConfig() *TxCacheQueueConfig {
-	return &TxCacheQueueConfig{
-		Enable:                false,                  // Disabled by default for safety
-		MaxTxPerAccount:       10000,                  // Increased for tps.js testing (CACHE_TX=5000)
-		TxTimeout:             1 * time.Minute,        // Increased timeout for testing scenarios
-		CleanupInterval:       1 * time.Second,        // Very frequent cleanup for high-frequency testing
-		NoncePollingInterval:  100 * time.Millisecond, // Faster nonce polling for high-frequency testing
-		GlobalMaxTx:           100000,                 // Increased for high-load testing
-		RetryInterval:         500 * time.Millisecond, // Faster retry
-		MaxRetries:            3,
-		ReplacementGasPercent: 10, // 10% minimum gas price increase for replacement
-	}
-}
-
-func (c TxCacheQueueConfig) Validate() error {
-	// Skip validation if cache queue is disabled
-	if !c.Enable {
-		return nil
-	}
-
-	if c.MaxTxPerAccount <= 0 {
-		return fmt.Errorf("max-tx-per-account must be positive")
-	}
-	if c.TxTimeout <= 0 {
-		return fmt.Errorf("tx-timeout must be positive")
-	}
-	if c.CleanupInterval <= 0 {
-		return fmt.Errorf("cleanup-interval must be positive")
-	}
-	if c.GlobalMaxTx <= 0 {
-		return fmt.Errorf("global-max-tx must be positive")
-	}
-	if c.RetryInterval <= 0 {
-		return fmt.Errorf("retry-interval must be positive")
-	}
-	if c.MaxRetries < 0 {
-		return fmt.Errorf("max-retries must be non-negative")
-	}
-	return nil
-}
 
 // GetConfig returns a fully parsed Config object.
 func GetConfig(v *viper.Viper) (AppConfig, error) {
@@ -552,6 +507,9 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			BlockRangeCap:            v.GetInt32("json-rpc.block-range-cap"),
 			HTTPTimeout:              v.GetDuration("json-rpc.http-timeout"),
 			HTTPIdleTimeout:          v.GetDuration("json-rpc.http-idle-timeout"),
+			QueryTimeout:             v.GetDuration("json-rpc.query-timeout"),
+			GetLogsRateLimit:         v.GetInt("json-rpc.getlogs-rate-limit"),
+			GetLogsBurstLimit:        v.GetInt("json-rpc.getlogs-burst-limit"),
 			MaxOpenConnections:       v.GetInt("json-rpc.max-open-connections"),
 			EnableIndexer:            v.GetBool("json-rpc.enable-indexer"),
 			AllowUnprotectedTxs:      v.GetBool("json-rpc.allow-unprotected-txs"),
@@ -578,17 +536,7 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			Enabled:  v.GetBool("payment-check.enabled"),
 			Interval: v.GetUint32("payment-check.interval"),
 		},
-		TxCacheQueue: TxCacheQueueConfig{
-			Enable:               v.GetBool("tx-cache-queue.enable"),
-			MaxTxPerAccount:      v.GetInt("tx-cache-queue.max-tx-per-account"),
-			TxTimeout:            v.GetDuration("tx-cache-queue.tx-timeout"),
-			CleanupInterval:      v.GetDuration("tx-cache-queue.cleanup-interval"),
-			NoncePollingInterval: v.GetDuration("tx-cache-queue.nonce-polling-interval"),
-			GlobalMaxTx:          v.GetInt("tx-cache-queue.global-max-tx"),
-			RetryInterval:        v.GetDuration("tx-cache-queue.retry-interval"),
-			MaxRetries:           v.GetInt("tx-cache-queue.max-retries"),
-			ReplacementGasPercent: v.GetInt("tx-cache-queue.replacement-gas-percent"),
-		},
+
 		Hardforks: parseHardforks(v),
 	}, nil
 }
@@ -634,9 +582,6 @@ func (c AppConfig) ValidateBasic() error {
 		return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid paymentcheck config value: %s", err.Error())
 	}
 
-	if err := c.TxCacheQueue.Validate(); err != nil {
-		return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid tx-cache-queue config value: %s", err.Error())
-	}
 
 	for heightStr, entry := range c.Hardforks {
 		if entry.Name == "" {

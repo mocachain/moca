@@ -19,15 +19,7 @@ func (k Keeper) GetCoinbaseAddress(ctx sdk.Context, proposerAddress sdk.ConsAddr
 		)
 	}
 
-	operatorAddr, err := sdk.AccAddressFromHexUnsafe(validator.GetOperator())
-	if err != nil {
-		return common.Address{}, errorsmod.Wrapf(
-			err,
-			"failed to decode validator operator address %s",
-			validator.GetOperator(),
-		)
-	}
-	coinbase := common.BytesToAddress(operatorAddr.Bytes())
+	coinbase := common.BytesToAddress([]byte(validator.GetOperator()))
 	return coinbase, nil
 }
 

@@ -9,6 +9,7 @@
 // Prerequisites:
 //
 //  1. Start MOCA Chain node with ETH RPC enabled:
+//     cd <moca-repo-root>
 //     make localup
 //     # or
 //     ./deployment/localup/localup.sh
@@ -177,15 +178,10 @@ func (s *MsgPoolTestSuite) TestConsecutiveNonceTransactionsSucceed() {
 }
 
 // TestOutOfOrderTransactionSubmissionFailed tests how the system handles transactions submitted out of order
-// This test demonstrates the problem when RPC cache queue is NOT enabled
+// This test demonstrates the problem when transactions are submitted with nonce gaps
 func (s *MsgPoolTestSuite) TestOutOfOrderTransactionSubmissionFailed() {
-	// Check if RPC cache queue is enabled by testing a gap transaction
-	s.T().Log("=== Checking RPC Cache Queue Status ===")
-	if s.isCacheQueueEnabled() {
-		s.T().Skip("⏭️  Skipping TestOutOfOrderTransactionSubmissionFailed: RPC cache queue is enabled")
-		return
-	}
-	s.T().Log("✅ RPC cache queue is not enabled, proceeding with test")
+	s.T().Log("=== Out-of-Order Transaction Submission Test ===")
+	s.T().Log("This test demonstrates how missing nonce values cause subsequent transactions to be rejected")
 
 	// Setup test account with private key
 	privateKeyHex := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -303,14 +299,10 @@ func (s *MsgPoolTestSuite) TestOutOfOrderTransactionSubmissionFailed() {
 	s.T().Log("\n=== Out-of-Order Transaction Test Complete ===")
 	s.T().Log("This test demonstrates how missing nonce values cause subsequent")
 	s.T().Log("transactions to be rejected, even if they would be valid later.")
-	s.T().Log("")
-	s.T().Log("NOTE: This test shows the ORIGINAL problem before RPC cache queue.")
-	s.T().Log("To see the cache queue solution in action, enable it in backend configuration.")
 }
 
-// TestOutOfOrderTransactionWithCacheQueue verifies RPC cache queue functionality
-// This test demonstrates how cache queue handles out-of-order transactions
-func (s *MsgPoolTestSuite) TestOutOfOrderTransactionWithCacheQueue() {
+// Removed TestOutOfOrderTransactionWithCacheQueue - CacheQueue functionality removed
+func _removed_TestOutOfOrderTransactionWithCacheQueue() {
 	s.T().Log("=== Out-of-Order Transaction Test with Cache Queue ===")
 	s.T().Log("This test verifies that RPC cache queue properly handles nonce gaps")
 
@@ -461,9 +453,6 @@ func (s *MsgPoolTestSuite) TestOutOfOrderTransactionWithCacheQueue() {
 		s.T().Log("This may indicate network issues or other problems")
 	}
 
-	s.T().Log("\n=== Cache Queue Verification Test Complete ===")
-	s.T().Log("This test serves as a comparison to TestOutOfOrderTransactionSubmissionFailed")
-	s.T().Log("to verify whether the RPC cache queue is functioning correctly.")
 }
 
 
@@ -475,70 +464,7 @@ func resultStatus(err error) string {
 	return fmt.Sprintf("❌ Failed: %v", err)
 }
 
-// isCacheQueueEnabled checks if RPC cache queue is enabled by testing gap transaction behavior
-func (s *MsgPoolTestSuite) isCacheQueueEnabled() bool {
-	// Setup test account
-	privateKeyHex := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	privateKey, err := crypto.HexToECDSA(privateKeyHex)
-	if err != nil {
-		return false
-	}
-
-	fromAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
-	currentNonce, err := s.ethClient.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		return false
-	}
-
-	// Create a test transaction with gap nonce (current+10)
-	chainID := big.NewInt(5151)
-	recipientAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
-	gasLimit := uint64(21000)
-	gasPrice := big.NewInt(20000000000)
-	// Use unique amount to avoid conflicts
-	transferAmount := big.NewInt(1000 + int64(currentNonce)*100)
-
-	tx := types.NewTransaction(
-		currentNonce+10, // Gap nonce
-		recipientAddress,
-		transferAmount,
-		gasLimit,
-		gasPrice,
-		nil,
-	)
-
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
-	if err != nil {
-		return false
-	}
-
-	// Try to submit the gap transaction
-	err = s.ethClient.SendTransaction(context.Background(), signedTx)
-
-	// If cache queue is enabled, gap transaction should succeed (return hash)
-	// If cache queue is disabled, gap transaction should fail with nonce error
-	if err == nil {
-		s.T().Log("🔍 Gap transaction succeeded - cache queue appears to be enabled")
-		return true
-	}
-
-	// Check if error is related to nonce (typical when cache queue is disabled)
-	errStr := err.Error()
-	if strings.Contains(errStr, "invalid nonce") || strings.Contains(errStr, "invalid sequence") {
-		s.T().Logf("🔍 Gap transaction failed with nonce sequence error - cache queue appears to be disabled: %v", err)
-		return false
-	}
-
-	// If error contains "already exists" it means cache queue is working but transaction is duplicate
-	if strings.Contains(errStr, "already exists") {
-		s.T().Logf("🔍 Gap transaction failed due to duplicate - cache queue appears to be enabled: %v", err)
-		return true
-	}
-
-	// Other errors (e.g., mempool full, gas issues) - assume cache queue is enabled
-	s.T().Logf("🔍 Gap transaction failed with non-nonce error - assuming cache queue is enabled: %v", err)
-	return true
-}
+// Removed isCacheQueueEnabled - CacheQueue functionality removed
 
 // Helper function to decode raw transaction hex
 func mustDecodeRawTx(rawTxHex string) *types.Transaction {
@@ -603,8 +529,8 @@ func findInString(s, substr string) int {
 	return -1
 }
 
-// TestCacheQueueCapacityManagement verifies cache queue capacity limits
-func (s *MsgPoolTestSuite) TestCacheQueueCapacityManagement() {
+// Removed TestCacheQueueCapacityManagement - CacheQueue functionality removed
+func _removed_TestCacheQueueCapacityManagement() {
 	s.T().Log("=== Cache Queue Capacity Management Test ===")
 	s.T().Log("Verifying cache queue respects capacity limits")
 
@@ -677,12 +603,11 @@ func (s *MsgPoolTestSuite) TestCacheQueueCapacityManagement() {
 	if successCount > 0 {
 		s.T().Log("✅ Cache queue is accepting transactions (capacity management working)")
 	} else {
-		s.T().Log("❌ No transactions accepted (may indicate cache queue disabled or capacity full)")
 	}
 }
 
-// TestCacheQueueTimeoutHandling verifies transaction timeout behavior
-func (s *MsgPoolTestSuite) TestCacheQueueTimeoutHandling() {
+// Removed TestCacheQueueTimeoutHandling - CacheQueue functionality removed
+func _removed_TestCacheQueueTimeoutHandling() {
 	s.T().Log("=== Cache Queue Timeout Handling Test ===")
 	s.T().Log("Verifying cached transactions are cleaned up after timeout")
 
@@ -741,11 +666,10 @@ func (s *MsgPoolTestSuite) TestCacheQueueTimeoutHandling() {
 
 	s.T().Log("\n=== Timeout Test Complete ===")
 	s.T().Log("This test verifies timeout handling concept.")
-	s.T().Log("Actual timeout cleanup would occur based on cache queue configuration.")
 }
 
-// TestCacheQueueMultipleAccounts verifies behavior with multiple accounts
-func (s *MsgPoolTestSuite) TestCacheQueueMultipleAccounts() {
+// Removed TestCacheQueueMultipleAccounts - CacheQueue functionality removed
+func _removed_TestCacheQueueMultipleAccounts() {
 	s.T().Log("=== Cache Queue Multiple Accounts Test ===")
 	s.T().Log("Verifying cache queue handles multiple accounts independently")
 
@@ -838,12 +762,11 @@ func (s *MsgPoolTestSuite) TestCacheQueueMultipleAccounts() {
 	if successCount > 0 {
 		s.T().Log("✅ Cache queue is handling multiple accounts independently")
 	} else {
-		s.T().Log("❌ Cache queue may not be enabled or all transactions rejected")
 	}
 }
 
-// TestCacheQueueStressTest performs stress testing on cache queue
-func (s *MsgPoolTestSuite) TestCacheQueueStressTest() {
+// Removed TestCacheQueueStressTest - CacheQueue functionality removed
+func _removed_TestCacheQueueStressTest() {
 	s.T().Log("=== Cache Queue Stress Test ===")
 	s.T().Log("Performing stress test with rapid transaction submissions")
 
@@ -911,12 +834,11 @@ func (s *MsgPoolTestSuite) TestCacheQueueStressTest() {
 		avgTxPerSecond := float64(stressTestTxs) / duration.Seconds()
 		s.T().Logf("Average throughput: %.2f tx/sec", avgTxPerSecond)
 	} else {
-		s.T().Log("❌ All transactions rejected during stress test")
 	}
 }
 
-// TestCacheQueueRetryMechanism verifies transaction retry behavior
-func (s *MsgPoolTestSuite) TestCacheQueueRetryMechanism() {
+// Removed TestCacheQueueRetryMechanism - CacheQueue functionality removed
+func _removed_TestCacheQueueRetryMechanism() {
 	s.T().Log("=== Cache Queue Retry Mechanism Test ===")
 	s.T().Log("Verifying retry behavior for failed transactions")
 
@@ -967,11 +889,10 @@ func (s *MsgPoolTestSuite) TestCacheQueueRetryMechanism() {
 
 	s.T().Log("\n=== Retry Mechanism Test Complete ===")
 	s.T().Log("This test demonstrates retry concept.")
-	s.T().Log("Actual retry behavior depends on cache queue configuration and network conditions.")
 }
 
-// TestCacheQueueConfigurationValidation tests configuration validation
-func (s *MsgPoolTestSuite) TestCacheQueueConfigurationValidation() {
+// Removed TestCacheQueueConfigurationValidation - CacheQueue functionality removed
+func _removed_TestCacheQueueConfigurationValidation() {
 	s.T().Log("=== Cache Queue Configuration Validation Test ===")
 	s.T().Log("This test validates cache queue configuration concepts")
 
@@ -1008,8 +929,6 @@ func (s *MsgPoolTestSuite) TestCacheQueueConfigurationValidation() {
 		}
 	}
 
-	s.T().Log("\n=== Configuration Test Complete ===")
-	s.T().Log("Configuration validation ensures cache queue is properly set up.")
 }
 
 func TestRpcQueueTestSuite(t *testing.T) {

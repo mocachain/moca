@@ -64,7 +64,6 @@ const (
 	DelegateUpdateObjectContentMethodName = "delegateUpdateObjectContent"
 	UpdateObjectInfoMethodName            = "updateObjectInfo"
 	UpdateObjectContentMethodName         = "updateObjectContent"
-	CancelUpdateObjectContentMethodName   = "cancelUpdateObjectContent"
 	DiscontinueObjectMethodName           = "discontinueObject"
 	MirrorObjectMethodName                = "mirrorObject"
 	CreateGroupMethodName                 = "createGroup"
@@ -78,7 +77,8 @@ const (
 	UpdateBucketInfoMethodName            = "updateBucketInfo"
 	PutPolicyMethodName                   = "putPolicy"
 	DeletePolicyMethodName                = "deletePolicy"
-	ToggleSPAsDelegatedAgentMethodName    = "toggleSPAsDelegatedAgent"
+	ToggleSPAsDelegatedAgentMethodName       = "toggleSPAsDelegatedAgent"
+	CancelUpdateObjectContentMethodName      = "cancelUpdateObjectContent"
 )
 
 func (c *Contract) registerTx() {
@@ -102,7 +102,6 @@ func (c *Contract) registerTx() {
 	c.registerMethod(DelegateUpdateObjectContentMethodName, 100_000, c.DelegateUpdateObjectContent, "DelegateUpdateObjectContent")
 	c.registerMethod(UpdateObjectInfoMethodName, 60_000, c.UpdateObjectInfo, "UpdateObjectInfo")
 	c.registerMethod(UpdateObjectContentMethodName, 60_000, c.UpdateObjectContent, "UpdateObjectContent")
-	c.registerMethod(CancelUpdateObjectContentMethodName, 60_000, c.CancelUpdateObjectContent, "CancelUpdateObjectContent")
 	c.registerMethod(DiscontinueObjectMethodName, 60_000, c.DiscontinueObject, "DiscontinueObject")
 	c.registerMethod(MirrorObjectMethodName, 60_000, c.MirrorObject, "MirrorObject")
 	c.registerMethod(CreateGroupMethodName, 60_000, c.CreateGroup, "CreateGroup")
@@ -117,6 +116,7 @@ func (c *Contract) registerTx() {
 	c.registerMethod(PutPolicyMethodName, 60_000, c.PutPolicy, "PutPolicy")
 	c.registerMethod(DeletePolicyMethodName, 60_000, c.DeletePolicy, "DeletePolicy")
 	c.registerMethod(ToggleSPAsDelegatedAgentMethodName, 60_000, c.ToggleSPAsDelegatedAgent, "ToggleSPAsDelegatedAgent")
+	c.registerMethod(CancelUpdateObjectContentMethodName, 60_000, c.CancelUpdateObjectContent, "CancelUpdateObjectContent")
 }
 
 func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
@@ -198,7 +198,7 @@ func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 		return nil, err
 	}
 	msg := &storagetypes.MsgUpdateBucketInfo{
-		Operator:       contract.Caller().String(),
+		Operator:       contract.CallerAddress.String(),
 		BucketName:     args.BucketName,
 		Visibility:     storagetypes.VisibilityType(args.Visibility),
 		PaymentAddress: args.PaymentAddress.String(),
@@ -1118,40 +1118,6 @@ func (c *Contract) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *v
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, errors.New("cancel update object content method readonly")
-	}
-	method := GetAbiMethod(CancelUpdateObjectContentMethodName)
-	var args CancelUpdateObjectContentArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
-		return nil, err
-	}
-	msg := &storagetypes.MsgCancelUpdateObjectContent{
-		Operator:   contract.Caller().String(),
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
-	}
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.CancelUpdateObjectContent(ctx, msg); err != nil {
-		return nil, err
-	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CancelUpdateObjectContentMethodName]),
-		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
-			crypto.Keccak256Hash([]byte(args.ObjectName)),
-		},
-	); err != nil {
-		return nil, err
-	}
-	return method.Outputs.Pack(true)
-}
-
 func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("discontinue object method readonly")
@@ -1166,14 +1132,6 @@ func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.
 	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
 	if err != nil {
 		return nil, err
-	}
-
-	// Validate object IDs length
-	if len(args.ObjectIds) == 0 {
-		return nil, errors.New("object IDs cannot be empty")
-	}
-	if len(args.ObjectIds) > MaxDiscontinueObjectIds {
-		return nil, fmt.Errorf("too many object IDs: got %d, max allowed %d", len(args.ObjectIds), MaxDiscontinueObjectIds)
 	}
 
 	objectIDs := make([]storagetypes.Uint, 0)
@@ -1326,16 +1284,6 @@ func (c *Contract) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
 		return nil, err
 	}
-
-	// Validate total members count
-	totalMembers := len(args.MembersToAdd) + len(args.MembersToDelete)
-	if totalMembers == 0 {
-		return nil, errors.New("no members to add or delete")
-	}
-	if totalMembers > MaxUpdateGroupMembers {
-		return nil, fmt.Errorf("too many members to update: got %d, max allowed %d", totalMembers, MaxUpdateGroupMembers)
-	}
-
 	membersToAdd := make([]*storagetypes.MsgGroupMember, 0)
 	if args.MembersToAdd != nil {
 		for i, members := range args.MembersToAdd {
@@ -1506,9 +1454,6 @@ func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	}
 	if len(args.Members) == 0 {
 		return nil, errors.New("no renew member")
-	}
-	if len(args.Members) > MaxRenewGroupMembers {
-		return nil, fmt.Errorf("too many members to renew: got %d, max allowed %d", len(args.Members), MaxRenewGroupMembers)
 	}
 	if args.ExpirationTime != nil && len(args.Members) != len(args.ExpirationTime) {
 		return nil, errors.New("please provide expirationTime for every renew member")
@@ -1790,14 +1735,6 @@ func (c *Contract) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 		return nil, err
 	}
 
-	// Validate statements length
-	if len(args.Statements) == 0 {
-		return nil, errors.New("statements cannot be empty")
-	}
-	if len(args.Statements) > MaxPolicyStatements {
-		return nil, fmt.Errorf("too many statements: got %d, max allowed %d", len(args.Statements), MaxPolicyStatements)
-	}
-
 	statements := make([]*permTypes.Statement, 0)
 	if args.Statements != nil {
 		for _, statement := range args.Statements {
@@ -1914,6 +1851,44 @@ func (c *Contract) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contra
 		evm,
 		GetAbiEvent(c.events[ToggleSPAsDelegatedAgentMethodName]),
 		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+	); err != nil {
+		return nil, err
+	}
+	return method.Outputs.Pack(true)
+}
+
+func (c *Contract) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	if readonly {
+		return nil, errors.New("cancel update object content method readonly")
+	}
+	if evm.Origin != contract.Caller() {
+		return nil, errors.New("only allow EOA can call this method")
+	}
+	method := GetAbiMethod(CancelUpdateObjectContentMethodName)
+	var args CancelUpdateObjectContentArgs
+	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+		return nil, err
+	}
+
+	msg := &storagetypes.MsgCancelUpdateObjectContent{
+		Operator:   contract.Caller().String(),
+		BucketName: args.BucketName,
+		ObjectName: args.ObjectName,
+	}
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
+	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
+	if _, err := server.CancelUpdateObjectContent(ctx, msg); err != nil {
+		return nil, err
+	}
+	if err := c.AddLog(
+		evm,
+		GetAbiEvent(c.events[CancelUpdateObjectContentMethodName]),
+		[]common.Hash{
+			common.BytesToHash(contract.Caller().Bytes()),
+			crypto.Keccak256Hash([]byte(args.ObjectName)),
+		},
 	); err != nil {
 		return nil, err
 	}

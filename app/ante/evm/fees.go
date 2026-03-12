@@ -64,12 +64,6 @@ func NewEthMempoolFeeDecorator(ek EVMKeeper) EthMempoolFeeDecorator {
 // AnteHandle ensures that the effective fee from the transaction is greater than the
 // minimum global fee, which is defined by the  MinGasPrice (parameter) * GasLimit (tx argument).
 func (empd EthMinGasPriceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
-	// Check if transaction has valid messages before processing
-	msgs := tx.GetMsgs()
-	if len(msgs) == 0 {
-		return ctx, errorsmod.Wrapf(errortypes.ErrInvalidRequest, "transaction must have at least one message")
-	}
-
 	minGasPrice := empd.feesKeeper.GetParams(ctx).MinGasPrice
 
 	// short-circuit if min gas price is 0
@@ -82,7 +76,7 @@ func (empd EthMinGasPriceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 	ethCfg := chainCfg.EthereumConfig(empd.evmKeeper.ChainID())
 	baseFee := empd.evmKeeper.GetBaseFee(ctx, ethCfg)
 
-	for _, msg := range msgs {
+	for _, msg := range tx.GetMsgs() {
 		ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
 		if !ok {
 			return ctx, errorsmod.Wrapf(

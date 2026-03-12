@@ -2,12 +2,11 @@ package tests
 
 import (
 	"context"
+	sdkmath "cosmossdk.io/math"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
-
-	sdkmath "cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
@@ -46,7 +45,8 @@ func (s *GashubTestSuite) TestUpdateParams() {
 		validator.String(),
 		"test",
 		"update gas params",
-		"pdate gas params", false,
+		"pdate gas params",
+		false,
 	)
 	s.Require().NoError(err)
 

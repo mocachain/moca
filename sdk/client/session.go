@@ -163,7 +163,7 @@ func CreateStakingSession(client *ethclient.Client, txOpts bind.TransactOpts, co
 func GetLatestBlockHeight(ctx context.Context, chainClient *MocaClient) (int64, error) {
 	resp, err := chainClient.GetStatus(ctx)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	return resp.SyncInfo.LatestBlockHeight, nil
 }
@@ -192,7 +192,7 @@ func WaitForNextBlock(ctx context.Context, chainClient *MocaClient) error {
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf(err.Error(), "timeout exceeded waiting for block")
+			return fmt.Errorf("timeout exceeded waiting for block: %w", ctx.Err())
 		case <-ticker.C:
 		}
 	}

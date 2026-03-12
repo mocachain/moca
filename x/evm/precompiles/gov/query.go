@@ -16,7 +16,6 @@ import (
 	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
 	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
 
-	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -370,7 +369,7 @@ func OutputsProposal(proposal govv1.Proposal) Proposal {
 	govv1.RegisterInterfaces(interfaceRegistry)
 	crisistypes.RegisterInterfaces(interfaceRegistry)
 	ibctransfertypes.RegisterInterfaces(interfaceRegistry)
-	upgradetypes.RegisterInterfaces(interfaceRegistry)
+	// Note: upgradetypes.RegisterInterfaces is not available in v0.50, interfaces are registered via module manager
 	proposaltypes.RegisterInterfaces(interfaceRegistry)
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 

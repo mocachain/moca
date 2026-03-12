@@ -17,12 +17,11 @@ package backend
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"time"
 
-	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	"cosmossdk.io/log"
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -155,7 +154,6 @@ type Backend struct {
 	cfg                 config.AppConfig
 	allowUnprotectedTxs bool
 	indexer             evmostypes.EVMTxIndexer
-	txCacheQueue        *TransactionCacheQueue // Transaction cache queue for nonce ordering
 }
 
 // NewBackend creates a new Backend instance for cosmos and ethereum namespaces
@@ -176,7 +174,7 @@ func NewBackend(
 		panic(err)
 	}
 
-	backend := &Backend{
+	return &Backend{
 		ctx:                 context.Background(),
 		clientCtx:           clientCtx,
 		queryClient:         rpctypes.NewQueryClient(clientCtx),
@@ -185,35 +183,5 @@ func NewBackend(
 		cfg:                 appConf,
 		allowUnprotectedTxs: allowUnprotectedTxs,
 		indexer:             indexer,
-	}
-
-	// Initialize transaction cache queue from app configuration
-	cacheQueueConfig := convertAppConfigToCacheQueueConfig(appConf.TxCacheQueue)
-
-	// Only create cache queue if enabled to avoid initialization overhead
-	if cacheQueueConfig.Enable {
-		backend.txCacheQueue = NewTransactionCacheQueue(cacheQueueConfig)
-		backend.txCacheQueue.SetBackend(backend)
-		logger.Info("CACHE QUEUE ENABLED - Starting nonce-based cache cleaner", "config", fmt.Sprintf("%+v", cacheQueueConfig))
-		backend.startNonceBasedCleaner()
-	} else {
-		logger.Info("CACHE QUEUE DISABLED - Using minimal placeholder for optimal performance", "config", fmt.Sprintf("%+v", cacheQueueConfig))
-	}
-	return backend
-}
-
-
-// convertAppConfigToCacheQueueConfig converts server config to backend cache queue config
-func convertAppConfigToCacheQueueConfig(appConfig config.TxCacheQueueConfig) *CacheQueueConfig {
-	return &CacheQueueConfig{
-		Enable:                appConfig.Enable,
-		MaxTxPerAccount:       appConfig.MaxTxPerAccount,
-		TxTimeout:             appConfig.TxTimeout,
-		CleanupInterval:       appConfig.CleanupInterval,
-		NoncePollingInterval:  appConfig.NoncePollingInterval,
-		GlobalMaxTx:           appConfig.GlobalMaxTx,
-		RetryInterval:         appConfig.RetryInterval,
-		MaxRetries:            appConfig.MaxRetries,
-		ReplacementGasPercent: appConfig.ReplacementGasPercent,
 	}
 }

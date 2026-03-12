@@ -3,6 +3,7 @@ package cosmos_test
 import (
 	"math"
 	"testing"
+	"time"
 
 	storetypes "cosmossdk.io/store/types"
 
@@ -91,8 +92,6 @@ func (suite *AnteTestSuite) SetupTest() {
 	})
 
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx)
-	suite.ctx = suite.ctx.WithChainID(chainID)
-	suite.ctx = suite.ctx.WithBlockHeight(1)
 	suite.ctx = suite.ctx.WithMinGasPrices(sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, sdkmath.OneInt())))
 	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewGasMeter(1000000000000000000))
 
@@ -102,17 +101,13 @@ func (suite *AnteTestSuite) SetupTest() {
 	err = suite.app.StakingKeeper.SetParams(suite.ctx, stakingParams)
 	suite.Require().NoError(err)
 
-	suite.ctx = suite.ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	infCtx := suite.ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 
 	encodingConfig := encoding.MakeConfig()
 	// We're using TestMsg amino encoding in some tests, so register it here.
 	encodingConfig.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
 	eip712.AminoCodec = encodingConfig.Amino
 	eip712.ProtoCodec = codec.NewProtoCodec(encodingConfig.InterfaceRegistry)
-
-	// Register legacy amino codecs and interfaces for cosmos-sdk modules
-	suite.app.BasicModuleManager.RegisterLegacyAminoCodec(encodingConfig.Amino)
-	suite.app.BasicModuleManager.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 
 	suite.clientCtx = client.Context{}.WithTxConfig(encodingConfig.TxConfig)
 
@@ -131,9 +126,6 @@ func (suite *AnteTestSuite) SetupTest() {
 	})
 
 	suite.anteHandler = anteHandler
-
-	// Initialize EVM chain ID for tests
-	suite.app.EvmKeeper.WithChainID(suite.ctx)
 	suite.ethSigner = ethtypes.LatestSignerForChainID(suite.app.EvmKeeper.ChainID())
 
 	// fund signer acc to pay for tx fees
@@ -144,6 +136,11 @@ func (suite *AnteTestSuite) SetupTest() {
 		suite.priv.PubKey().Address().Bytes(),
 		sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, amt)),
 	)
+	suite.Require().NoError(err)
+
+	header := suite.ctx.BlockHeader()
+	suite.ctx = suite.ctx.WithBlockHeight(header.Height - 1)
+	suite.ctx, err = testutil.Commit(suite.ctx, suite.app, time.Second*0, nil)
 	suite.Require().NoError(err)
 }
 

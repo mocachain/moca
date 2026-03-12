@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint
 
-	"cosmossdk.io/math"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -52,8 +52,16 @@ func TestKeeperTestSuite(t *testing.T) {
 func (suite *KeeperTestSuite) SetupTest() {
 	checkTx := false
 	chainID := utils.TestnetChainID + "-1"
-	fmGenesis := types.DefaultGenesisState()
-	fmGenesis.Params.BaseFee = math.NewInt(1142857142)
-	suite.app = app.Setup(checkTx, fmGenesis, chainID)
+	suite.app = app.Setup(checkTx, nil, chainID)
 	suite.SetupApp(checkTx, chainID)
+}
+
+// SetupApp setup test environment
+func (suite *KeeperTestSuite) SetupApp(checkTx bool, chainID string) {
+	// This method should be implemented similar to x/evm/keeper/setup_test.go
+	// For now, we'll use a simplified version
+	suite.ctx = suite.app.BaseApp.NewContext(checkTx)
+	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())
+	types.RegisterQueryServer(queryHelper, suite.app.FeeMarketKeeper)
+	suite.queryClient = types.NewQueryClient(queryHelper)
 }

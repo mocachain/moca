@@ -170,25 +170,18 @@ func (suite *KeeperTestSuite) SetupAppWithT(checkTx bool, t require.TestingT, ch
 		1, time.Now().UTC(), chainID, suite.consAddress,
 		tmhash.Sum([]byte("app")), tmhash.Sum([]byte("validators")),
 	)
-	suite.ctx = suite.app.BaseApp.NewContext(checkTx).WithBlockHeader(header).WithChainID(chainID)
+	suite.ctx = suite.app.BaseApp.NewContextLegacy(checkTx, header)
 
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())
 	evmtypes.RegisterQueryServer(queryHelper, suite.app.EvmKeeper)
 	suite.queryClient = evmtypes.NewQueryClient(queryHelper)
 
-	// Add the test account to genesis if it doesn't exist
-	// This avoids account number conflicts by ensuring proper initialization
-	accAddr := sdk.AccAddress(suite.address.Bytes())
-	existingAcc := suite.app.AccountKeeper.GetAccount(suite.ctx, accAddr)
-	if existingAcc == nil {
-		// Create a new test account with a unique account number
-		nextAccNum := suite.app.AccountKeeper.NextAccountNumber(suite.ctx)
-		acc := &evmostypes.EthAccount{
-			BaseAccount: authtypes.NewBaseAccount(accAddr, nil, nextAccNum, 0),
-			CodeHash:    common.BytesToHash(crypto.Keccak256(nil)).String(),
-		}
-		suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
+	acc := &evmostypes.EthAccount{
+		BaseAccount: authtypes.NewBaseAccount(sdk.AccAddress(suite.address.Bytes()), nil, 0, 0),
+		CodeHash:    common.BytesToHash(crypto.Keccak256(nil)).String(),
 	}
+
+	suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 
 	valAddr := sdk.AccAddress(suite.address.Bytes())
 	blsSecretKey, _ := bls.GenerateBlsKey()
