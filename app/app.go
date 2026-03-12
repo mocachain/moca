@@ -183,9 +183,6 @@ import (
 	"github.com/evmos/evmos/v12/x/erc20"
 	erc20keeper "github.com/evmos/evmos/v12/x/erc20/keeper"
 	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
-	inflationkeeper "github.com/evmos/evmos/v12/x/inflation/keeper"
-	inflationtypes "github.com/evmos/evmos/v12/x/inflation/types"
-
 	// NOTE: override ICS20 keeper to support IBC transfers of ERC20 tokens
 	"github.com/evmos/evmos/v12/x/ibc/transfer"
 	transferkeeper "github.com/evmos/evmos/v12/x/ibc/transfer/keeper"
@@ -333,7 +330,6 @@ type Evmos struct {
 	// Evmos keepers
 	Erc20Keeper     erc20keeper.Keeper
 	EpochsKeeper    epochskeeper.Keeper
-	InflationKeeper inflationkeeper.Keeper
 
 	// the module manager
 	mm                 *module.Manager
@@ -422,7 +418,6 @@ func NewEvmos(
 		// evmos keys
 		erc20types.StoreKey,
 		epochstypes.StoreKey,
-		inflationtypes.StoreKey,
 	)
 
 	// Add the EVM transient store key
@@ -601,17 +596,6 @@ func NewEvmos(
 		epochskeeper.NewMultiEpochHooks(
 		// insert epoch hooks receivers here
 		),
-	)
-
-	app.InflationKeeper = inflationkeeper.NewKeeper(
-		keys[inflationtypes.StoreKey],
-		appCodec,
-		authtypes.NewModuleAddress(govtypes.ModuleName),
-		app.AccountKeeper,
-		app.BankKeeper,
-		app.DistrKeeper,
-		app.StakingKeeper,
-		authtypes.FeeCollectorName,
 	)
 
 	app.GovKeeper = *govKeeper.SetHooks(

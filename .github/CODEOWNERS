@@ -12,6 +12,5 @@ x/epochs/ @ramacarlucho
 x/erc20/ @ramacarlucho @hanchon
 x/revenue/ @ramacarlucho
 x/incentives/ @ramacarlucho
-x/inflation/ @ramacarlucho
 x/recovery/ @ramacarlucho
 x/vesting/ @ramacarlucho
