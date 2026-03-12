@@ -148,14 +148,10 @@ docker run -d \
 
 ## **Security Notes**
 
-- ✅ The PAT is stored as an encrypted secret
-- ✅ It's only accessible during workflow runs
-- ✅ It's not exposed in logs or artifacts
-- ✅ Use a token with minimal required scopes (`repo` for private repos)
-- ✅ Docker images are signed with GitHub's OIDC token
-- ⚠️ Never commit tokens to the repository
-- ⚠️ Rotate tokens periodically for security
-- ⚠️ Review PAT access logs regularly
+- ✅ Uses the built-in `GITHUB_TOKEN` — no PAT required
+- ✅ Token is scoped to the workflow run and expires automatically
+- ✅ Not exposed in logs or artifacts
+- ✅ Docker images are pushed to GHCR with `packages:write` permission
 
 ## **Version Tagging Convention**
 
