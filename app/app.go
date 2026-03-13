@@ -1021,17 +1021,15 @@ func NewEvmos(
 	if app.IsIavlStore() {
 		// enable diff for reconciliation
 		bankIavl, ok := ms.GetCommitStore(keys[banktypes.StoreKey]).(*iavl.Store)
-		if !ok || bankIavl == nil {
-			app.Logger().Error("failed to get bank IAVL store for reconciliation diff tracking")
-		} else {
-			bankIavl.EnableDiff()
+		if !ok {
+			os.Exit(1)
 		}
+		bankIavl.EnableDiff()
 		paymentIavl, ok := ms.GetCommitStore(keys[paymentmoduletypes.StoreKey]).(*iavl.Store)
-		if !ok || paymentIavl == nil {
-			app.Logger().Error("failed to get payment IAVL store for reconciliation diff tracking")
-		} else {
-			paymentIavl.EnableDiff()
+		if !ok {
+			os.Exit(1)
 		}
+		paymentIavl.EnableDiff()
 	}
 	app.initModules(ctx)
 	// add eth query router
@@ -1144,17 +1142,12 @@ func (app *Evmos) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		return sdk.EndBlock{}, err
 	}
 	if app.IsIavlStore() {
-		bankIavl, ok1 := app.CommitMultiStore().GetCommitStore(app.GetKey(banktypes.StoreKey)).(*iavl.Store)
-		paymentIavl, ok2 := app.CommitMultiStore().GetCommitStore(app.GetKey(paymentmoduletypes.StoreKey)).(*iavl.Store)
+		bankIavl, _ := app.CommitMultiStore().GetCommitStore(app.GetKey(banktypes.StoreKey)).(*iavl.Store)
+		paymentIavl, _ := app.CommitMultiStore().GetCommitStore(app.GetKey(paymentmoduletypes.StoreKey)).(*iavl.Store)
 
-		if !ok1 || bankIavl == nil || !ok2 || paymentIavl == nil {
-			app.Logger().Error("skipping reconciliation: IAVL store not available",
-				"bank_ok", ok1, "payment_ok", ok2)
-		} else {
-			reconCtx, _ := ctx.CacheContext()
-			reconCtx = reconCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-			app.reconcile(reconCtx, bankIavl, paymentIavl)
-		}
+		reconCtx, _ := ctx.CacheContext()
+		reconCtx = reconCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+		app.reconcile(reconCtx, bankIavl, paymentIavl)
 	}
 	return resp, nil
 }
@@ -1164,13 +1157,11 @@ func (app *Evmos) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.Respo
 	defer func() {
 		// TODO: Record the count along with the code and or reason so as to display
 		// in the transactions per second live dashboards.
-		if res != nil {
-			for _, txRes := range res.TxResults {
-				if txRes.IsErr() {
-					app.tpsCounter.incrementFailure()
-				} else {
-					app.tpsCounter.incrementSuccess()
-				}
+		for _, txRes := range res.TxResults {
+			if txRes.IsErr() {
+				app.tpsCounter.incrementFailure()
+			} else {
+				app.tpsCounter.incrementSuccess()
 			}
 		}
 	}()

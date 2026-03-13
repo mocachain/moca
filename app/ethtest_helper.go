@@ -90,6 +90,7 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		appOpts,
 		baseapp.SetChainID(chainID),
+		baseapp.SetEnablePlainStore(true),
 	)
 	if !isCheckTx {
 		// init chain must be called to stop deliverState from being nil
