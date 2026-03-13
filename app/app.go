@@ -1021,11 +1021,15 @@ func NewEvmos(
 	if app.IsIavlStore() {
 		// enable diff for reconciliation
 		bankIavl, ok := ms.GetCommitStore(keys[banktypes.StoreKey]).(*iavl.Store)
-		if ok && bankIavl != nil {
+		if !ok || bankIavl == nil {
+			app.Logger().Error("failed to get bank IAVL store for reconciliation diff tracking")
+		} else {
 			bankIavl.EnableDiff()
 		}
 		paymentIavl, ok := ms.GetCommitStore(keys[paymentmoduletypes.StoreKey]).(*iavl.Store)
-		if ok && paymentIavl != nil {
+		if !ok || paymentIavl == nil {
+			app.Logger().Error("failed to get payment IAVL store for reconciliation diff tracking")
+		} else {
 			paymentIavl.EnableDiff()
 		}
 	}
@@ -1143,7 +1147,10 @@ func (app *Evmos) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		bankIavl, ok1 := app.CommitMultiStore().GetCommitStore(app.GetKey(banktypes.StoreKey)).(*iavl.Store)
 		paymentIavl, ok2 := app.CommitMultiStore().GetCommitStore(app.GetKey(paymentmoduletypes.StoreKey)).(*iavl.Store)
 
-		if ok1 && ok2 && bankIavl != nil && paymentIavl != nil {
+		if !ok1 || bankIavl == nil || !ok2 || paymentIavl == nil {
+			app.Logger().Error("skipping reconciliation: IAVL store not available",
+				"bank_ok", ok1, "payment_ok", ok2)
+		} else {
 			reconCtx, _ := ctx.CacheContext()
 			reconCtx = reconCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 			app.reconcile(reconCtx, bankIavl, paymentIavl)
