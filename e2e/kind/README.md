@@ -2,6 +2,12 @@
 
 ## Status: Draft / In Development
 
+## Scope
+
+This framework covers **chain-level e2e testing only**: consensus, upgrades, EVM execution, Cosmos module transactions, and state preservation across upgrades. It runs `mocad` validator nodes and nothing else.
+
+Ecosystem-level services (decentralized storage, indexers, explorers, etc.) are **out of scope** and should be tested separately in their own dedicated e2e setup.
+
 ## Context
 
 Moca chain upgrades are currently tested manually or through limited CI checks that don't exercise a real multi-validator chain. This makes it difficult to catch upgrade regressions, state migration bugs, or EVM compatibility issues before they reach testnet or mainnet.
