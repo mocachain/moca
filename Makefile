@@ -386,7 +386,7 @@ protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace --use
 # NOTE: If you are experiencing problems running these commands, try deleting
 #       the docker images and execute the desired command again.
 #
-proto-all: proto-format proto-lint proto-gen
+proto-all: proto-format proto-lint proto-gen proto-pulsar
 
 proto-gen:
 	@echo "Generating Protobuf files"
@@ -397,6 +397,10 @@ proto-swagger-gen:
 	@make proto-download-deps
 	@echo "Generating Protobuf Swagger"
 	$(protoImage) sh ./scripts/protoc-swagger-gen.sh
+
+proto-pulsar:
+	@echo "Generating Pulsar proto code"
+	$(protoImage) sh ./scripts/protocgen-pulsar.sh
 
 proto-format:
 	@echo "Formatting Protobuf files"
@@ -458,7 +462,7 @@ proto-download-deps:
 	curl -sSL https://raw.githubusercontent.com/cosmos/ics23/master/proto/cosmos/ics23/v1/proofs.proto > "$(THIRD_PARTY_DIR)/cosmos/ics23/v1/proofs.proto"
 
 
-.PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking proto-swagger-gen
+.PHONY: proto-all proto-gen proto-pulsar proto-format proto-lint proto-check-breaking proto-swagger-gen
 
 ###############################################################################
 ###                                Localnet                                 ###
