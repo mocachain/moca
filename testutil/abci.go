@@ -199,31 +199,27 @@ func getProposerAddress(app *app.Evmos) ([]byte, error) {
 }
 
 // commit is a private helper function that runs the EndBlocker logic, commits the changes,
-// updates the header, and returns the updated header.
+// updates the header, and runs BeginBlocker for the next block.
 func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (tmproto.Header, error) {
 	header := ctx.BlockHeader()
-
-	// Always use FinalizeBlock to ensure the finalizeBlockState cache is
-	// properly flushed to the root multi-store before Commit. Calling
-	// EndBlocker directly skips the workingHash() step that writes the
-	// cache, causing data from InitGenesis to be lost on Commit.
-	// Additionally, app.Commit() requires finalizeBlockState to be non-nil.
-	req := abci.RequestFinalizeBlock{
-		Height:          header.Height,
-		ProposerAddress: header.ProposerAddress,
-	}
-	res, err := app.FinalizeBlock(&req)
-	if err != nil {
-		return header, err
-	}
+	req := abci.RequestFinalizeBlock{Height: header.Height}
 
 	if vs != nil {
+		res, err := app.FinalizeBlock(&req)
+		if err != nil {
+			return header, err
+		}
+
 		nextVals, err := applyValSetChanges(vs, res.ValidatorUpdates)
 		if err != nil {
 			return header, err
 		}
 		header.ValidatorsHash = vs.Hash()
 		header.NextValidatorsHash = nextVals.Hash()
+	} else {
+		if _, err := app.EndBlocker(ctx); err != nil {
+			return header, err
+		}
 	}
 
 	if _, err := app.Commit(); err != nil {

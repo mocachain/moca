@@ -344,11 +344,6 @@ type Evmos struct {
 	tpsCounter *tpsCounter
 	// app config
 	appConfig *servercfg.AppConfig
-
-	// SkipReconciliation disables bank/payment reconciliation checks.
-	// Set to true in test helpers to avoid false-positive panics from
-	// reconciliation running on intermediate test state.
-	SkipReconciliation bool
 }
 
 // SimulationManager implements runtime.AppI
@@ -1026,15 +1021,13 @@ func NewEvmos(
 	if app.IsIavlStore() {
 		// enable diff for reconciliation
 		bankIavl, ok := ms.GetCommitStore(keys[banktypes.StoreKey]).(*iavl.Store)
-		if !ok {
-			os.Exit(1)
+		if ok && bankIavl != nil {
+			bankIavl.EnableDiff()
 		}
-		bankIavl.EnableDiff()
 		paymentIavl, ok := ms.GetCommitStore(keys[paymentmoduletypes.StoreKey]).(*iavl.Store)
-		if !ok {
-			os.Exit(1)
+		if ok && paymentIavl != nil {
+			paymentIavl.EnableDiff()
 		}
-		paymentIavl.EnableDiff()
 	}
 	app.initModules(ctx)
 	// add eth query router
@@ -1146,13 +1139,15 @@ func (app *Evmos) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	if err != nil {
 		return sdk.EndBlock{}, err
 	}
-	if app.IsIavlStore() && !app.SkipReconciliation {
-		bankIavl, _ := app.CommitMultiStore().GetCommitStore(app.GetKey(banktypes.StoreKey)).(*iavl.Store)
-		paymentIavl, _ := app.CommitMultiStore().GetCommitStore(app.GetKey(paymentmoduletypes.StoreKey)).(*iavl.Store)
+	if app.IsIavlStore() {
+		bankIavl, ok1 := app.CommitMultiStore().GetCommitStore(app.GetKey(banktypes.StoreKey)).(*iavl.Store)
+		paymentIavl, ok2 := app.CommitMultiStore().GetCommitStore(app.GetKey(paymentmoduletypes.StoreKey)).(*iavl.Store)
 
-		reconCtx, _ := ctx.CacheContext()
-		reconCtx = reconCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-		app.reconcile(reconCtx, bankIavl, paymentIavl)
+		if ok1 && ok2 && bankIavl != nil && paymentIavl != nil {
+			reconCtx, _ := ctx.CacheContext()
+			reconCtx = reconCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+			app.reconcile(reconCtx, bankIavl, paymentIavl)
+		}
 	}
 	return resp, nil
 }
@@ -1162,11 +1157,13 @@ func (app *Evmos) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.Respo
 	defer func() {
 		// TODO: Record the count along with the code and or reason so as to display
 		// in the transactions per second live dashboards.
-		for _, txRes := range res.TxResults {
-			if txRes.IsErr() {
-				app.tpsCounter.incrementFailure()
-			} else {
-				app.tpsCounter.incrementSuccess()
+		if res != nil {
+			for _, txRes := range res.TxResults {
+				if txRes.IsErr() {
+					app.tpsCounter.incrementFailure()
+				} else {
+					app.tpsCounter.incrementSuccess()
+				}
 			}
 		}
 	}()

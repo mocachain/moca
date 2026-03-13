@@ -91,7 +91,6 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
-	app.SkipReconciliation = true
 	if !isCheckTx {
 		// init chain must be called to stop deliverState from being nil
 		// Use app.DefaultGenesis() to ensure all modules (including challenge, evm, etc.)
