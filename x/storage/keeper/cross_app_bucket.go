@@ -339,7 +339,7 @@ func (app *BucketApp) handleCreateBucketSynPackage(ctx sdk.Context, appCtx *sdk.
 	return sdk.ExecuteResult{
 		Payload: types.CreateBucketAckPackage{
 			Status:    types.StatusSuccess,
-			ID:        bucketID.BigInt(),
+			Id:        bucketID.BigInt(),
 			Creator:   createBucketPackage.Creator,
 			ExtraData: createBucketPackage.ExtraData,
 		}.MustSerialize(),
@@ -378,7 +378,7 @@ func (app *BucketApp) handleCreateBucketSynPackageV2(ctx sdk.Context, appCtx *sd
 			PaymentAddress:   createBucketPackageV2.PaymentAddress.String(),
 			PrimarySpApproval: &common.Approval{
 				ExpiredHeight:              createBucketPackageV2.PrimarySpApprovalExpiredHeight,
-				GlobalVirtualGroupFamilyId: createBucketPackageV2.GlobalVirtualGroupFamilyID,
+				GlobalVirtualGroupFamilyId: createBucketPackageV2.GlobalVirtualGroupFamilyId,
 				Sig:                        createBucketPackageV2.PrimarySpApprovalSignature,
 			},
 			ApprovalMsgBytes: createBucketPackageV2.GetApprovalBytes(),
@@ -398,7 +398,7 @@ func (app *BucketApp) handleCreateBucketSynPackageV2(ctx sdk.Context, appCtx *sd
 	return sdk.ExecuteResult{
 		Payload: types.CreateBucketAckPackage{
 			Status:    types.StatusSuccess,
-			ID:        bucketID.BigInt(),
+			Id:        bucketID.BigInt(),
 			Creator:   createBucketPackageV2.Creator,
 			ExtraData: createBucketPackageV2.ExtraData,
 		}.MustSerialize(),
@@ -425,22 +425,22 @@ func (app *BucketApp) handleDeleteBucketSynPackage(ctx sdk.Context, appCtx *sdk.
 		return sdk.ExecuteResult{
 			Payload: types.DeleteBucketAckPackage{
 				Status:    types.StatusFail,
-				ID:        deleteBucketPackage.ID,
+				Id:        deleteBucketPackage.Id,
 				ExtraData: deleteBucketPackage.ExtraData,
 			}.MustSerialize(),
 			Err: err,
 		}
 	}
 
-	app.storageKeeper.Logger(ctx).Info("process delete group syn package", "bucket id", deleteBucketPackage.ID.String())
+	app.storageKeeper.Logger(ctx).Info("process delete group syn package", "bucket id", deleteBucketPackage.Id.String())
 
-	bucketInfo, found := app.storageKeeper.GetBucketInfoById(ctx, math.NewUintFromBigInt(deleteBucketPackage.ID))
+	bucketInfo, found := app.storageKeeper.GetBucketInfoById(ctx, math.NewUintFromBigInt(deleteBucketPackage.Id))
 	if !found {
-		app.storageKeeper.Logger(ctx).Error("bucket does not exist", "bucket id", deleteBucketPackage.ID.String())
+		app.storageKeeper.Logger(ctx).Error("bucket does not exist", "bucket id", deleteBucketPackage.Id.String())
 		return sdk.ExecuteResult{
 			Payload: types.DeleteBucketAckPackage{
 				Status:    types.StatusFail,
-				ID:        deleteBucketPackage.ID,
+				Id:        deleteBucketPackage.Id,
 				ExtraData: deleteBucketPackage.ExtraData,
 			}.MustSerialize(),
 			Err: types.ErrNoSuchBucket,
@@ -465,7 +465,7 @@ func (app *BucketApp) handleDeleteBucketSynPackage(ctx sdk.Context, appCtx *sdk.
 		return sdk.ExecuteResult{
 			Payload: types.DeleteBucketAckPackage{
 				Status:    types.StatusFail,
-				ID:        deleteBucketPackage.ID,
+				Id:        deleteBucketPackage.Id,
 				ExtraData: deleteBucketPackage.ExtraData,
 			}.MustSerialize(),
 			Err: err,
@@ -474,7 +474,7 @@ func (app *BucketApp) handleDeleteBucketSynPackage(ctx sdk.Context, appCtx *sdk.
 	return sdk.ExecuteResult{
 		Payload: types.DeleteBucketAckPackage{
 			Status:    types.StatusSuccess,
-			ID:        bucketInfo.Id.BigInt(),
+			Id:        bucketInfo.Id.BigInt(),
 			ExtraData: deleteBucketPackage.ExtraData,
 		}.MustSerialize(),
 	}

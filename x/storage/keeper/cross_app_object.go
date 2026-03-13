@@ -159,9 +159,9 @@ func (app *ObjectApp) handleMirrorObjectAckPackage(ctx sdk.Context, appCtx *sdk.
 func (app *ObjectApp) handleMirrorObjectFailAckPackage(ctx sdk.Context, appCtx *sdk.CrossChainAppContext, mirrorObjectPackage *types.MirrorObjectSynPackage) sdk.ExecuteResult {
 	app.storageKeeper.Logger(ctx).Error("received mirror object fail ack package ")
 
-	objectInfo, found := app.storageKeeper.GetObjectInfoById(ctx, math.NewUintFromBigInt(mirrorObjectPackage.ID))
+	objectInfo, found := app.storageKeeper.GetObjectInfoById(ctx, math.NewUintFromBigInt(mirrorObjectPackage.Id))
 	if !found {
-		app.storageKeeper.Logger(ctx).Error("object does not exist", "object id", mirrorObjectPackage.ID.String())
+		app.storageKeeper.Logger(ctx).Error("object does not exist", "object id", mirrorObjectPackage.Id.String())
 		return sdk.ExecuteResult{
 			Err: types.ErrNoSuchObject,
 		}
@@ -201,9 +201,9 @@ func (app *ObjectApp) handleDeleteObjectSynPackage(ctx sdk.Context, appCtx *sdk.
 		}
 	}
 
-	app.storageKeeper.Logger(ctx).Info("process delete object syn package", "object id", deleteObjectPackage.ID.String())
+	app.storageKeeper.Logger(ctx).Info("process delete object syn package", "object id", deleteObjectPackage.Id.String())
 
-	objectInfo, found := app.storageKeeper.GetObjectInfoById(ctx, math.NewUintFromBigInt(deleteObjectPackage.ID))
+	objectInfo, found := app.storageKeeper.GetObjectInfoById(ctx, math.NewUintFromBigInt(deleteObjectPackage.Id))
 	if !found {
 		return sdk.ExecuteResult{
 			Payload: types.DeleteObjectAckPackage{
@@ -242,7 +242,7 @@ func (app *ObjectApp) handleDeleteObjectSynPackage(ctx sdk.Context, appCtx *sdk.
 	return sdk.ExecuteResult{
 		Payload: types.DeleteObjectAckPackage{
 			Status:    types.StatusSuccess,
-			ID:        objectInfo.Id.BigInt(),
+			Id:        objectInfo.Id.BigInt(),
 			ExtraData: deleteObjectPackage.ExtraData,
 		}.MustSerialize(),
 	}

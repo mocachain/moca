@@ -101,8 +101,6 @@ func (suite *AnteTestSuite) SetupTest() {
 	err = suite.app.StakingKeeper.SetParams(suite.ctx, stakingParams)
 	suite.Require().NoError(err)
 
-	infCtx := suite.ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-
 	encodingConfig := encoding.MakeConfig()
 	// We're using TestMsg amino encoding in some tests, so register it here.
 	encodingConfig.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)

@@ -33,8 +33,7 @@ import (
 
 // NewDefaultGenesisState generates the default state for the application.
 func NewDefaultGenesisState() simapp.GenesisState {
-	var genesisState simapp.GenesisState
-	return genesisState
+	return make(simapp.GenesisState)
 }
 
 // ExportAppStateAndValidators exports the state of the application for a genesis

@@ -85,7 +85,7 @@ func (suite *AnteTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	infCtx := suite.ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-	err = suite.app.AccountKeeper.SetParams(infCtx, authtypes.DefaultParams())
+	err = suite.app.AccountKeeper.Params.Set(infCtx, authtypes.DefaultParams())
 	suite.Require().NoError(err)
 
 	encodingConfig := encoding.MakeConfig()

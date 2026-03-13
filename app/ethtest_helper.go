@@ -30,6 +30,7 @@ import (
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/crisis"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	"cosmossdk.io/log"
@@ -70,6 +71,15 @@ func EthSetup(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisState) sim
 // EthSetupWithDB initializes a new EvmosApp. A Nop logger is set in EvmosApp.
 func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisState) simapp.GenesisState, db dbm.DB) *Evmos {
 	chainID := utils.TestnetChainID + "-1"
+
+	baseOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
+	appOpts := flaggedAppOptions{
+		base: baseOpts,
+		overrides: map[string]interface{}{
+			crisis.FlagSkipGenesisInvariants: true,
+		},
+	}
+
 	app := NewEvmos(log.NewNopLogger(),
 		db,
 		nil,
@@ -78,7 +88,7 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		DefaultNodeHome,
 		5,
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
-		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
+		appOpts,
 		baseapp.SetChainID(chainID),
 	)
 	if !isCheckTx {

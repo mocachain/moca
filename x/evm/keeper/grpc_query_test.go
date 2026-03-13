@@ -133,13 +133,12 @@ func (suite *KeeperTestSuite) TestQueryCosmosAccount() {
 			func() {
 				acc := suite.app.AccountKeeper.GetAccount(suite.ctx, suite.address.Bytes())
 				suite.Require().NoError(acc.SetSequence(10))
-				suite.Require().NoError(acc.SetAccountNumber(1))
 				suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 
 				expAccount = &types.QueryCosmosAccountResponse{
 					CosmosAddress: sdk.AccAddress(suite.address.Bytes()).String(),
 					Sequence:      10,
-					AccountNumber: 1,
+					AccountNumber: acc.GetAccountNumber(),
 				}
 				req = &types.QueryCosmosAccountRequest{
 					Address: suite.address.String(),

@@ -399,7 +399,7 @@ func DeserializeMirrorBucketAckPackage(serializedPackage []byte) (interface{}, e
 }
 
 type MirrorObjectSynPackage struct {
-	ID    *big.Int
+	Id    *big.Int
 
 	Owner sdk.AccAddress
 }
@@ -411,7 +411,7 @@ type MirrorObjectAckPackage struct {
 
 func (pkg *MirrorObjectSynPackage) Serialize() ([]byte, error) {
 	return generalMirrorSynPackageArgs.Pack(&GeneralMirrorSynPackageStruct{
-		SafeBigInt(pkg.ID),
+		SafeBigInt(pkg.Id),
 
 		common.BytesToAddress(pkg.Owner),
 	})
@@ -453,7 +453,7 @@ func DeserializeMirrorObjectAckPackage(serializedPackage []byte) (interface{}, e
 }
 
 type MirrorGroupSynPackage struct {
-	ID    *big.Int
+	Id    *big.Int
 
 	Owner sdk.AccAddress
 }
@@ -465,7 +465,7 @@ type MirrorGroupAckPackage struct {
 
 func (pkg *MirrorGroupSynPackage) Serialize() ([]byte, error) {
 	return generalMirrorSynPackageArgs.Pack(&GeneralMirrorSynPackageStruct{
-		SafeBigInt(pkg.ID),
+		SafeBigInt(pkg.Id),
 
 		common.BytesToAddress(pkg.Owner),
 	})
@@ -527,7 +527,7 @@ type CreateBucketSynPackageV2 struct {
 	PaymentAddress                 sdk.AccAddress
 	PrimarySpAddress               sdk.AccAddress
 	PrimarySpApprovalExpiredHeight uint64
-	GlobalVirtualGroupFamilyID     uint32
+	GlobalVirtualGroupFamilyId     uint32
 
 	PrimarySpApprovalSignature     []byte
 	ChargedReadQuota               uint64
@@ -553,7 +553,7 @@ type CreateBucketSynPackageV2Struct struct {
 	PaymentAddress                 common.Address
 	PrimarySpAddress               common.Address
 	PrimarySpApprovalExpiredHeight uint64
-	GlobalVirtualGroupFamilyID     uint32
+	GlobalVirtualGroupFamilyId     uint32
 
 	PrimarySpApprovalSignature     []byte
 	ChargedReadQuota               uint64
@@ -685,7 +685,7 @@ func (p CreateBucketSynPackageV2) MustSerialize() []byte {
 		PaymentAddress:                 common.BytesToAddress(p.PaymentAddress),
 		PrimarySpAddress:               common.BytesToAddress(p.PrimarySpAddress),
 		PrimarySpApprovalExpiredHeight: p.PrimarySpApprovalExpiredHeight,
-		GlobalVirtualGroupFamilyID:     p.GlobalVirtualGroupFamilyID,
+		GlobalVirtualGroupFamilyId:     p.GlobalVirtualGroupFamilyId,
 
 		PrimarySpApprovalSignature:     p.PrimarySpApprovalSignature,
 		ChargedReadQuota:               p.ChargedReadQuota,
@@ -706,7 +706,7 @@ func (p CreateBucketSynPackageV2) ValidateBasic() error {
 		PrimarySpAddress: p.PrimarySpAddress.String(),
 		PrimarySpApproval: &gnfdcommon.Approval{
 			ExpiredHeight:              p.PrimarySpApprovalExpiredHeight,
-			GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyID,
+			GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyId,
 
 			Sig:                        p.PrimarySpApprovalSignature,
 		},
@@ -725,7 +725,7 @@ func (p CreateBucketSynPackageV2) GetApprovalBytes() []byte {
 		PrimarySpAddress: p.PrimarySpAddress.String(),
 		PrimarySpApproval: &gnfdcommon.Approval{
 			ExpiredHeight:              p.PrimarySpApprovalExpiredHeight,
-			GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyID,
+			GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyId,
 
 			Sig:                        p.PrimarySpApprovalSignature,
 		},
@@ -753,7 +753,7 @@ func DeserializeCreateBucketSynPackageV2(serializedPackage []byte) (interface{},
 		pkgStruct.PaymentAddress.Bytes(),
 		pkgStruct.PrimarySpAddress.Bytes(),
 		pkgStruct.PrimarySpApprovalExpiredHeight,
-		pkgStruct.GlobalVirtualGroupFamilyID,
+		pkgStruct.GlobalVirtualGroupFamilyId,
 
 		pkgStruct.PrimarySpApprovalSignature,
 		pkgStruct.ChargedReadQuota,
@@ -764,7 +764,7 @@ func DeserializeCreateBucketSynPackageV2(serializedPackage []byte) (interface{},
 
 type CreateBucketAckPackage struct {
 	Status    uint8
-	ID        *big.Int
+	Id        *big.Int
 
 	Creator   sdk.AccAddress
 	ExtraData []byte
@@ -772,7 +772,7 @@ type CreateBucketAckPackage struct {
 
 type GeneralCreateAckPackageStruct struct {
 	Status    uint8
-	ID        *big.Int
+	Id        *big.Int
 
 	Creator   common.Address
 	ExtraData []byte
@@ -794,7 +794,7 @@ var (
 func (p CreateBucketAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalCreateAckPackageArgs.Pack(&GeneralCreateAckPackageStruct{
 		Status:    p.Status,
-		ID:        SafeBigInt(p.ID),
+		Id:        SafeBigInt(p.Id),
 
 		Creator:   common.BytesToAddress(p.Creator),
 		ExtraData: p.ExtraData,
@@ -819,7 +819,7 @@ func DeserializeCreateBucketAckPackage(serializedPackage []byte) (interface{}, e
 
 	tp := CreateBucketAckPackage{
 		Status:    pkgStruct.Status,
-		ID:        pkgStruct.ID,
+		Id:        pkgStruct.Id,
 
 		Creator:   pkgStruct.Creator.Bytes(),
 		ExtraData: pkgStruct.ExtraData,
@@ -829,14 +829,14 @@ func DeserializeCreateBucketAckPackage(serializedPackage []byte) (interface{}, e
 
 type DeleteBucketSynPackage struct {
 	Operator  sdk.AccAddress
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
 
 type GeneralDeleteSynPackageStruct struct {
 	Operator  common.Address
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
@@ -856,7 +856,7 @@ var (
 func (p DeleteBucketSynPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteSynPackageArgs.Pack(&GeneralDeleteSynPackageStruct{
 		Operator:  common.BytesToAddress(p.Operator),
-		ID:        SafeBigInt(p.ID),
+		Id:        SafeBigInt(p.Id),
 
 		ExtraData: p.ExtraData,
 	})
@@ -870,7 +870,7 @@ func (p DeleteBucketSynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.ID == nil || p.ID.Cmp(big.NewInt(0)) < 0 {
+	if p.Id == nil || p.Id.Cmp(big.NewInt(0)) < 0 {
 		return ErrInvalidID
 
 	}
@@ -891,7 +891,7 @@ func DeserializeDeleteBucketSynPackage(serializedPackage []byte) (interface{}, e
 
 	tp := DeleteBucketSynPackage{
 		Operator:  pkgStruct.Operator.Bytes(),
-		ID:        pkgStruct.ID,
+		Id:        pkgStruct.Id,
 
 		ExtraData: pkgStruct.ExtraData,
 	}
@@ -900,7 +900,7 @@ func DeserializeDeleteBucketSynPackage(serializedPackage []byte) (interface{}, e
 
 type DeleteBucketAckPackage struct {
 	Status    uint8
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
@@ -920,7 +920,7 @@ var (
 func (p DeleteBucketAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteAckPackageArgs.Pack(&DeleteBucketAckPackage{
 		p.Status,
-		SafeBigInt(p.ID),
+		SafeBigInt(p.Id),
 
 		p.ExtraData,
 	})
@@ -1010,7 +1010,7 @@ func DeserializeCreateGroupSynPackage(serializedPackage []byte) (interface{}, er
 
 type CreateGroupAckPackage struct {
 	Status    uint8
-	ID        *big.Int
+	Id        *big.Int
 
 	Creator   sdk.AccAddress
 	ExtraData []byte
@@ -1019,7 +1019,7 @@ type CreateGroupAckPackage struct {
 func (p CreateGroupAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalCreateAckPackageArgs.Pack(&GeneralCreateAckPackageStruct{
 		Status:    p.Status,
-		ID:        SafeBigInt(p.ID),
+		Id:        SafeBigInt(p.Id),
 
 		Creator:   common.BytesToAddress(p.Creator),
 		ExtraData: p.ExtraData,
@@ -1044,7 +1044,7 @@ func DeserializeCreateGroupAckPackage(serializedPackage []byte) (interface{}, er
 
 	tp := CreateGroupAckPackage{
 		Status:    pkgStruct.Status,
-		ID:        pkgStruct.ID,
+		Id:        pkgStruct.Id,
 
 		Creator:   pkgStruct.Creator.Bytes(),
 		ExtraData: pkgStruct.ExtraData,
@@ -1054,7 +1054,7 @@ func DeserializeCreateGroupAckPackage(serializedPackage []byte) (interface{}, er
 
 type DeleteObjectSynPackage struct {
 	Operator  sdk.AccAddress
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
@@ -1063,7 +1063,7 @@ func (p DeleteObjectSynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.ID == nil || p.ID.Cmp(big.NewInt(0)) < 0 {
+	if p.Id == nil || p.Id.Cmp(big.NewInt(0)) < 0 {
 		return ErrInvalidID
 
 	}
@@ -1084,7 +1084,7 @@ func DeserializeDeleteObjectSynPackage(serializedPackage []byte) (interface{}, e
 
 	tp := DeleteObjectSynPackage{
 		Operator:  pkgStruct.Operator.Bytes(),
-		ID:        pkgStruct.ID,
+		Id:        pkgStruct.Id,
 
 		ExtraData: pkgStruct.ExtraData,
 	}
@@ -1093,7 +1093,7 @@ func DeserializeDeleteObjectSynPackage(serializedPackage []byte) (interface{}, e
 
 type DeleteObjectAckPackage struct {
 	Status    uint8
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
@@ -1101,7 +1101,7 @@ type DeleteObjectAckPackage struct {
 func (p DeleteObjectAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteAckPackageArgs.Pack(&DeleteObjectAckPackage{
 		p.Status,
-		SafeBigInt(p.ID),
+		SafeBigInt(p.Id),
 
 		p.ExtraData,
 	})
@@ -1127,7 +1127,7 @@ func DeserializeDeleteObjectAckPackage(serializedPackage []byte) (interface{}, e
 
 type DeleteGroupSynPackage struct {
 	Operator  sdk.AccAddress
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
@@ -1136,7 +1136,7 @@ func (p DeleteGroupSynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.ID == nil || p.ID.Cmp(big.NewInt(0)) < 0 {
+	if p.Id == nil || p.Id.Cmp(big.NewInt(0)) < 0 {
 		return ErrInvalidID
 
 	}
@@ -1157,7 +1157,7 @@ func DeserializeDeleteGroupSynPackage(serializedPackage []byte) (interface{}, er
 
 	tp := DeleteGroupSynPackage{
 		Operator:  pkgStruct.Operator.Bytes(),
-		ID:        pkgStruct.ID,
+		Id:        pkgStruct.Id,
 
 		ExtraData: pkgStruct.ExtraData,
 	}
@@ -1166,7 +1166,7 @@ func DeserializeDeleteGroupSynPackage(serializedPackage []byte) (interface{}, er
 
 type DeleteGroupAckPackage struct {
 	Status    uint8
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
@@ -1188,7 +1188,7 @@ func DeserializeDeleteGroupAckPackage(serializedPackage []byte) (interface{}, er
 func (p DeleteGroupAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteAckPackageArgs.Pack(&DeleteGroupAckPackage{
 		p.Status,
-		SafeBigInt(p.ID),
+		SafeBigInt(p.Id),
 
 		p.ExtraData,
 	})
@@ -1200,7 +1200,7 @@ func (p DeleteGroupAckPackage) MustSerialize() []byte {
 
 type DeletePolicySynPackage struct {
 	Operator  sdk.AccAddress
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
@@ -1209,7 +1209,7 @@ func (p DeletePolicySynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.ID == nil || p.ID.Cmp(big.NewInt(0)) < 0 {
+	if p.Id == nil || p.Id.Cmp(big.NewInt(0)) < 0 {
 		return ErrInvalidID
 
 	}
@@ -1230,7 +1230,7 @@ func DeserializeDeletePolicySynPackage(serializedPackage []byte) (interface{}, e
 
 	tp := DeletePolicySynPackage{
 		Operator:  pkgStruct.Operator.Bytes(),
-		ID:        pkgStruct.ID,
+		Id:        pkgStruct.Id,
 
 		ExtraData: pkgStruct.ExtraData,
 	}
@@ -1239,7 +1239,7 @@ func DeserializeDeletePolicySynPackage(serializedPackage []byte) (interface{}, e
 
 type DeletePolicyAckPackage struct {
 	Status    uint8
-	ID        *big.Int
+	Id        *big.Int
 
 	ExtraData []byte
 }
@@ -1261,7 +1261,7 @@ func DeserializeDeletePolicyAckPackage(serializedPackage []byte) (interface{}, e
 func (p DeletePolicyAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalDeleteAckPackageArgs.Pack(&DeletePolicyAckPackage{
 		p.Status,
-		SafeBigInt(p.ID),
+		SafeBigInt(p.Id),
 
 		p.ExtraData,
 	})
@@ -1279,7 +1279,7 @@ const (
 
 type UpdateGroupMemberSynPackage struct {
 	Operator         sdk.AccAddress
-	GroupID          *big.Int
+	GroupId          *big.Int
 
 	OperationType    uint8
 	Members          []sdk.AccAddress
@@ -1289,7 +1289,7 @@ type UpdateGroupMemberSynPackage struct {
 
 type UpdateGroupMemberSynPackageStruct struct {
 	Operator         common.Address
-	GroupID          *big.Int
+	GroupId          *big.Int
 
 	OperationType    uint8
 	Members          []common.Address
@@ -1342,7 +1342,7 @@ func (p UpdateGroupMemberSynPackage) MustSerialize() []byte {
 
 	encodedBytes, err := updateGroupMemberSynPackageArgs.Pack(&UpdateGroupMemberSynPackageStruct{
 		common.BytesToAddress(p.Operator),
-		SafeBigInt(p.GroupID),
+		SafeBigInt(p.GroupId),
 
 		p.OperationType,
 		members,
@@ -1363,7 +1363,7 @@ func (p UpdateGroupMemberSynPackage) ValidateBasic() error {
 	if p.Operator.Empty() {
 		return sdkerrors.ErrInvalidAddress
 	}
-	if p.GroupID == nil || p.GroupID.Cmp(big.NewInt(0)) < 0 {
+	if p.GroupId == nil || p.GroupId.Cmp(big.NewInt(0)) < 0 {
 		return ErrInvalidID
 
 	}
@@ -1401,7 +1401,7 @@ func DeserializeUpdateGroupMemberSynPackage(serializedPackage []byte) (interface
 	}
 	tp := UpdateGroupMemberSynPackage{
 		pkgStruct.Operator.Bytes(),
-		pkgStruct.GroupID,
+		pkgStruct.GroupId,
 
 		pkgStruct.OperationType,
 		members,
@@ -1413,7 +1413,7 @@ func DeserializeUpdateGroupMemberSynPackage(serializedPackage []byte) (interface
 
 type UpdateGroupMemberAckPackage struct {
 	Status        uint8
-	ID            *big.Int
+	Id            *big.Int
 
 	Operator      sdk.AccAddress
 	OperationType uint8
@@ -1423,7 +1423,7 @@ type UpdateGroupMemberAckPackage struct {
 
 type UpdateGroupMemberAckPackageStruct struct {
 	Status        uint8
-	ID            *big.Int
+	Id            *big.Int
 
 	Operator      common.Address
 	OperationType uint8
@@ -1465,7 +1465,7 @@ func DeserializeUpdateGroupMemberAckPackage(serializedPackage []byte) (interface
 	}
 	tp := UpdateGroupMemberAckPackage{
 		pkgStruct.Status,
-		pkgStruct.ID,
+		pkgStruct.Id,
 
 		pkgStruct.Operator.Bytes(),
 		pkgStruct.OperationType,
@@ -1484,7 +1484,7 @@ func (p UpdateGroupMemberAckPackage) MustSerialize() []byte {
 
 	encodedBytes, err := updateGroupMemberAckPackageArgs.Pack(&UpdateGroupMemberAckPackageStruct{
 		p.Status,
-		SafeBigInt(p.ID),
+		SafeBigInt(p.Id),
 
 		common.BytesToAddress(p.Operator),
 		p.OperationType,
@@ -1563,7 +1563,7 @@ func DeserializeCreatePolicySynPackage(serializedPackage []byte) (interface{}, e
 
 type CreatePolicyAckPackage struct {
 	Status    uint8
-	ID        *big.Int
+	Id        *big.Int
 
 	Creator   sdk.AccAddress
 	ExtraData []byte
@@ -1572,7 +1572,7 @@ type CreatePolicyAckPackage struct {
 func (p CreatePolicyAckPackage) MustSerialize() []byte {
 	encodedBytes, err := generalCreateAckPackageArgs.Pack(&GeneralCreateAckPackageStruct{
 		Status:    p.Status,
-		ID:        SafeBigInt(p.ID),
+		Id:        SafeBigInt(p.Id),
 
 		Creator:   common.BytesToAddress(p.Creator),
 		ExtraData: p.ExtraData,
@@ -1597,7 +1597,7 @@ func DeserializeCreatePolicyAckPackage(serializedPackage []byte) (interface{}, e
 
 	tp := CreatePolicyAckPackage{
 		Status:    pkgStruct.Status,
-		ID:        pkgStruct.ID,
+		Id:        pkgStruct.Id,
 
 		Creator:   pkgStruct.Creator.Bytes(),
 		ExtraData: pkgStruct.ExtraData,

@@ -15,12 +15,13 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/challenge"
+	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
 	sptypes "github.com/evmos/evmos/v12/x/sp/types"
 	"github.com/evmos/evmos/v12/x/storage/keeper"
 	"github.com/evmos/evmos/v12/x/storage/types"
 	virtualgroupmoduletypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -79,6 +80,10 @@ func (s *TestSuite) SetupTest() {
 		evmKeeper,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
+
+	accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
+	evmKeeper.EXPECT().EstimateGas(gomock.Any(), gomock.Any()).Return(&evmtypes.EstimateGasResponse{Gas: 100000}, nil).AnyTimes()
+	evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
 
 	s.cdc = encCfg.Codec
 	s.accountKeeper = accountKeeper

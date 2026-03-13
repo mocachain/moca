@@ -9,7 +9,7 @@ import (
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/storage/keeper"
 	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 )
 
 func (s *TestSuite) TestSynDeleteBucket() {
@@ -20,7 +20,7 @@ func (s *TestSuite) TestSynDeleteBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	deleteSynPackage := storagetypes.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -60,7 +60,7 @@ func (s *TestSuite) TestSynCreateBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	createSynPackage := storagetypes.CreateBucketSynPackage{
 		Creator:          sample.RandAccAddress(),
-		BucketName:       "bucketName",
+		BucketName:       "bucketname",
 		ExtraData:        []byte("extra data"),
 		PaymentAddress:   sample.RandAccAddress(),
 		PrimarySpAddress: sample.RandAccAddress(),
@@ -154,7 +154,7 @@ func (s *TestSuite) TestAckCreateBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	ackPackage := storagetypes.CreateBucketAckPackage{
 		Status:    storagetypes.StatusSuccess,
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		Creator:   sample.RandAccAddress(),
 		ExtraData: []byte("extra data"),
 	}
@@ -177,7 +177,7 @@ func (s *TestSuite) TestAckDeleteBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	ackPackage := storagetypes.DeleteBucketAckPackage{
 		Status:    storagetypes.StatusSuccess,
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 
@@ -253,7 +253,7 @@ func (s *TestSuite) TestFailAckDeleteBucket() {
 	app := keeper.NewBucketApp(storageKeeper)
 	deleteSynPackage := storagetypes.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 

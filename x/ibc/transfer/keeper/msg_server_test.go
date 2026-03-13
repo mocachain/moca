@@ -5,11 +5,11 @@ import (
 	"math/big"
 
 	"cosmossdk.io/math"
+	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
-	host "github.com/cosmos/ibc-go/v10/modules/core/24-host"
 	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
 	"github.com/evmos/evmos/v12/x/ibc/transfer/keeper"
 	"github.com/stretchr/testify/mock"
@@ -240,18 +240,17 @@ func (suite *KeeperTestSuite) TestTransfer() {
 			suite.mintFeeCollector = true
 			suite.SetupTest()
 
-			_, err := suite.app.ScopedTransferKeeper.NewCapability(suite.ctx, host.ChannelCapabilityPath("transfer", "channel-0"))
-			suite.Require().NoError(err)
 			suite.app.TransferKeeper = keeper.NewKeeper(
-				suite.app.AppCodec(), suite.app.GetKey(types.StoreKey), suite.app.GetSubspace(types.ModuleName),
+				suite.app.AppCodec(), runtime.NewKVStoreService(suite.app.GetKey(types.StoreKey)), suite.app.GetSubspace(types.ModuleName),
 				&MockICS4Wrapper{}, // ICS4 Wrapper: claims IBC middleware
-				mockChannelKeeper, &suite.app.IBCKeeper.PortKeeper,
-				suite.app.AccountKeeper, suite.app.BankKeeper, suite.app.ScopedTransferKeeper,
+				mockChannelKeeper, suite.app.BaseApp.MsgServiceRouter(),
+				suite.app.AccountKeeper, suite.app.BankKeeper,
 				suite.app.Erc20Keeper, // Add ERC20 Keeper for ERC20 transfers
+				"cosmos10d07y265gmmuvt4z0w9aw880jnsr700j6zn9kn", // authority
 			)
 			msg := tc.malleate()
 
-			_, err = suite.app.TransferKeeper.Transfer(sdk.WrapSDKContext(suite.ctx), msg)
+			_, err := suite.app.TransferKeeper.Transfer(sdk.WrapSDKContext(suite.ctx), msg)
 			if tc.expPass {
 				suite.Require().NoError(err)
 			} else {

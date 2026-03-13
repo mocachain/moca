@@ -15,6 +15,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/crisis"
 
 	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -47,12 +48,19 @@ func TestEvmosExport(t *testing.T) {
 
 	db := dbm.NewMemDB()
 	chainID := utils.MainnetChainID + "-1"
+	baseOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
+	appOpts := flaggedAppOptions{
+		base: baseOpts,
+		overrides: map[string]interface{}{
+			crisis.FlagSkipGenesisInvariants: true,
+		},
+	}
 	app := NewEvmos(
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome, 0,
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
-		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
+		appOpts,
 		baseapp.SetChainID(chainID),
 	)
 
