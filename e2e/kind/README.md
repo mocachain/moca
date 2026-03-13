@@ -46,7 +46,6 @@ Use **Kind (Kubernetes in Docker)** to run a local 4-validator Moca chain for e2
 - [x] Comprehensive upgrade test: 50+ EVM txs + 50+ Cosmos txs
 
 ### Phase 3: Extended Coverage (planned)
-- [ ] IBC transfer tests (two Kind clusters)
 - [ ] Slashing / jailing tests
 - [ ] Parameter change proposals
 - [ ] EVM precompile tests
