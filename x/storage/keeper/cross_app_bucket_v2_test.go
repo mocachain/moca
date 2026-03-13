@@ -11,7 +11,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// Verify: V2 package is correctly deserialized and GlobalVirtualGroupFamilyId is propagated to CreateBucketOptions.PrimarySpApproval
+// Verify: V2 package is correctly deserialized and GlobalVirtualGroupFamilyID is propagated to CreateBucketOptions.PrimarySpApproval
 func (s *TestSuite) TestSynCreateBucketV2_PassesGVGFamilyId() {
 	ctrl := gomock.NewController(s.T())
 	storageKeeper := storagetypes.NewMockStorageKeeper(ctrl)
@@ -19,7 +19,7 @@ func (s *TestSuite) TestSynCreateBucketV2_PassesGVGFamilyId() {
 
 	app := keeper.NewBucketApp(storageKeeper)
 
-	// Build a V2 package (with GlobalVirtualGroupFamilyId)
+	// Build a V2 package (with GlobalVirtualGroupFamilyID)
 	v2 := storagetypes.CreateBucketSynPackageV2{
 		Creator:                        sample.RandAccAddress(),
 		BucketName:                     "bucket-v2",
@@ -27,7 +27,7 @@ func (s *TestSuite) TestSynCreateBucketV2_PassesGVGFamilyId() {
 		PaymentAddress:                 sample.RandAccAddress(),
 		PrimarySpAddress:               sample.RandAccAddress(),
 		PrimarySpApprovalExpiredHeight: 1000,
-		GlobalVirtualGroupFamilyId:     7,
+		GlobalVirtualGroupFamilyID:     7,
 		ChargedReadQuota:               1024,
 		ExtraData:                      []byte("v2-extra"),
 	}
@@ -97,7 +97,7 @@ func (s *TestSuite) TestFailAckCreateBucketV2_PassesGVGFamilyId() {
 		PaymentAddress:             sample.RandAccAddress(),
 		PrimarySpAddress:           sample.RandAccAddress(),
 		ExtraData:                  []byte("v2-failack"),
-		GlobalVirtualGroupFamilyId: 9,
+		GlobalVirtualGroupFamilyID: 9,
 	}
 	payload := mustPackCreateBucketSynPackageV2(&v2)
 	payload = append([]byte{storagetypes.OperationCreateBucketV2}, payload...)
@@ -129,9 +129,9 @@ func (s *TestSuite) TestV1PackageNotDeserializedAsV2() {
 	raw = append([]byte{storagetypes.OperationCreateBucket}, raw...)
 
 	// Explicit assertion: V1 payload must fail V2 deserialization; V1 must succeed
-	_, errV2 := storagetypes.DeserializeCrossChainPackageV2(raw, storagetypes.BucketChannelId, sdk.FailAckCrossChainPackageType)
+	_, errV2 := storagetypes.DeserializeCrossChainPackageV2(raw, storagetypes.BucketChannelID, sdk.FailAckCrossChainPackageType)
 	s.Require().Error(errV2)
-	_, errV1 := storagetypes.DeserializeCrossChainPackage(raw, storagetypes.BucketChannelId, sdk.FailAckCrossChainPackageType)
+	_, errV1 := storagetypes.DeserializeCrossChainPackage(raw, storagetypes.BucketChannelID, sdk.FailAckCrossChainPackageType)
 	s.Require().NoError(errV1)
 
 	storageKeeper.EXPECT().GetSourceTypeByChainId(gomock.Any(), gomock.Any()).Return(storagetypes.SOURCE_TYPE_BSC_CROSS_CHAIN, nil).AnyTimes()
@@ -159,7 +159,7 @@ func (s *TestSuite) TestMixedV1AndV2Packages() {
 		Visibility:                 uint32(storagetypes.VISIBILITY_TYPE_PUBLIC_READ),
 		PaymentAddress:             sample.RandAccAddress(),
 		PrimarySpAddress:           sample.RandAccAddress(),
-		GlobalVirtualGroupFamilyId: 5,
+		GlobalVirtualGroupFamilyID: 5,
 	}
 	p2a := mustPackCreateBucketSynPackageV2(&v2a)
 	p2a = append([]byte{storagetypes.OperationCreateBucketV2}, p2a...)
@@ -195,7 +195,7 @@ func (s *TestSuite) TestMixedV1AndV2Packages() {
 		Visibility:                 uint32(storagetypes.VISIBILITY_TYPE_PUBLIC_READ),
 		PaymentAddress:             sample.RandAccAddress(),
 		PrimarySpAddress:           sample.RandAccAddress(),
-		GlobalVirtualGroupFamilyId: 10,
+		GlobalVirtualGroupFamilyID: 10,
 	}
 	p2b := mustPackCreateBucketSynPackageV2(&v2b)
 	p2b = append([]byte{storagetypes.OperationCreateBucketV2}, p2b...)
@@ -244,7 +244,7 @@ func (s *TestSuite) TestV2PackageSerializationUsesCorrectABI() {
 		PaymentAddress:                 sample.RandAccAddress(),
 		PrimarySpAddress:               sample.RandAccAddress(),
 		PrimarySpApprovalExpiredHeight: 123,
-		GlobalVirtualGroupFamilyId:     42,
+		GlobalVirtualGroupFamilyID:     42,
 		PrimarySpApprovalSignature:     []byte{0x01, 0x02},
 		ChargedReadQuota:               7,
 		ExtraData:                      []byte("x"),
@@ -253,7 +253,7 @@ func (s *TestSuite) TestV2PackageSerializationUsesCorrectABI() {
 	decoded, err := storagetypes.DeserializeCreateBucketSynPackageV2(serialized)
 	s.Require().NoError(err)
 	got := decoded.(*storagetypes.CreateBucketSynPackageV2)
-	s.Require().Equal(uint32(42), got.GlobalVirtualGroupFamilyId)
+	s.Require().Equal(uint32(42), got.GlobalVirtualGroupFamilyID)
 	s.Require().Equal(v2.BucketName, got.BucketName)
 }
 
@@ -270,7 +270,7 @@ func (s *TestSuite) TestV2PackageWithWrongOperationType_Fails() {
 		Visibility:                 uint32(storagetypes.VISIBILITY_TYPE_PUBLIC_READ),
 		PaymentAddress:             sample.RandAccAddress(),
 		PrimarySpAddress:           sample.RandAccAddress(),
-		GlobalVirtualGroupFamilyId: 5,
+		GlobalVirtualGroupFamilyID: 5,
 	}
 	v2Payload := mustPackCreateBucketSynPackageV2(&v2)
 	// Wrong op: use V1 op code 0x02
@@ -318,7 +318,7 @@ func mustPackCreateBucketSynPackageV2(p *storagetypes.CreateBucketSynPackageV2) 
 		PaymentAddress                 common.Address
 		PrimarySpAddress               common.Address
 		PrimarySpApprovalExpiredHeight uint64
-		GlobalVirtualGroupFamilyId     uint32
+		GlobalVirtualGroupFamilyID     uint32
 		PrimarySpApprovalSignature     []byte
 		ChargedReadQuota               uint64
 		ExtraData                      []byte
@@ -331,7 +331,7 @@ func mustPackCreateBucketSynPackageV2(p *storagetypes.CreateBucketSynPackageV2) 
 		PaymentAddress:                 common.BytesToAddress(p.PaymentAddress),
 		PrimarySpAddress:               common.BytesToAddress(p.PrimarySpAddress),
 		PrimarySpApprovalExpiredHeight: p.PrimarySpApprovalExpiredHeight,
-		GlobalVirtualGroupFamilyId:     p.GlobalVirtualGroupFamilyId,
+		GlobalVirtualGroupFamilyID:     p.GlobalVirtualGroupFamilyID,
 		PrimarySpApprovalSignature:     p.PrimarySpApprovalSignature,
 		ChargedReadQuota:               p.ChargedReadQuota,
 		ExtraData:                      p.ExtraData,
