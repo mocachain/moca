@@ -27,7 +27,7 @@ func (s *TestSuite) TestSynCreateBucketV2_PassesGVGFamilyId() {
 		PaymentAddress:                 sample.RandAccAddress(),
 		PrimarySpAddress:               sample.RandAccAddress(),
 		PrimarySpApprovalExpiredHeight: 1000,
-		GlobalVirtualGroupFamilyId:     7,
+		GlobalVirtualGroupFamilyID:     7,
 		ChargedReadQuota:               1024,
 		ExtraData:                      []byte("v2-extra"),
 	}

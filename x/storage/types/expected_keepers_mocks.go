@@ -11,7 +11,7 @@ import (
 	time "time"
 
 	math "cosmossdk.io/math"
-	log "github.com/cometbft/cometbft/libs/log"
+	log "cosmossdk.io/log"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/auth/types"
 	common "github.com/ethereum/go-ethereum/common"
@@ -24,7 +24,7 @@ import (
 	types3 "github.com/evmos/evmos/v12/x/permission/types"
 	types4 "github.com/evmos/evmos/v12/x/sp/types"
 	types5 "github.com/evmos/evmos/v12/x/virtualgroup/types"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockAccountKeeper is a mock of AccountKeeper interface.

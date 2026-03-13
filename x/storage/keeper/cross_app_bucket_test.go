@@ -9,7 +9,7 @@ import (
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/storage/keeper"
 	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 )
 
 func (s *TestSuite) TestSynDeleteBucket() {
