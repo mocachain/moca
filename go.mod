@@ -250,7 +250,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	github.com/umbracle/go-eth-bn256 v0.0.0-20230125114011-47cb310d9b0b // indirect
 	github.com/wealdtech/go-bytesutil v1.2.1 // indirect
@@ -307,7 +306,7 @@ replace (
 	github.com/cosmos/iavl => github.com/Mocachain/moca-iavl v1.1.1-0.20260310045324-fcbc580b8ebb
 	github.com/cosmos/ibc-go/v10 => github.com/Mocachain/moca-ibc-go/v10 v10.1.1-0.20260310174912-ea0922b2bd5c
 	// use Evmos geth fork
-	github.com/ethereum/go-ethereum => github.com/Mocachain/go-ethereum v1.10.27-moca.1
+	github.com/ethereum/go-ethereum => github.com/Mocachain/go-ethereum v1.10.27-moca.2
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// use cosmos flavored protobufs
