@@ -2,7 +2,7 @@ package keeper_test
 
 import (
 	"encoding/json"
-	"math"
+	gomath "math"
 	"math/big"
 	"testing"
 	"time"
@@ -10,7 +10,8 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint
 
-	"cosmossdk.io/math"
+	sdkmath "cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -40,7 +41,6 @@ import (
 	"github.com/evmos/evmos/v12/x/erc20/types"
 
 	"github.com/0xPolygon/polygon-edge/bls"
-	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 	transfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
@@ -100,7 +100,9 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 	header := testutil.NewHeader(
 		1, time.Now().UTC(), chainID, suite.consAddress, nil, nil,
 	)
-	suite.ctx = suite.app.BaseApp.NewContext(false, header)
+	suite.ctx = suite.app.BaseApp.NewContext(false)
+	suite.ctx = suite.ctx.WithBlockHeader(header)
+	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewInfiniteGasMeter())
 
 	// query clients
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())
@@ -112,7 +114,8 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 	suite.queryClientEvm = evm.NewQueryClient(queryHelperEvm)
 
 	// bond denom
-	stakingParams := suite.app.StakingKeeper.GetParams(suite.ctx)
+	stakingParams, err := suite.app.StakingKeeper.GetParams(suite.ctx)
+	suite.Require().NoError(err)
 	stakingParams.BondDenom = utils.BaseDenom
 	err = suite.app.StakingKeeper.SetParams(suite.ctx, stakingParams)
 	suite.Require().NoError(err)
@@ -121,16 +124,16 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 	valAddr := sdk.AccAddress(suite.address.Bytes())
 	blsSecretKey, _ := bls.GenerateBlsKey()
 	blsPk := blsSecretKey.PublicKey().Marshal()
-	validator, err := stakingtypes.NewValidator(valAddr, privCons.PubKey(), stakingtypes.Description{}, valAddr, valAddr, valAddr, blsPk)
+	validator, err := stakingtypes.NewValidator(valAddr.String(), privCons.PubKey(), stakingtypes.Description{}, valAddr.String(), valAddr.String(), valAddr.String(), blsPk)
 	require.NoError(t, err)
 	validator = stakingkeeper.TestingUpdateValidator(suite.app.StakingKeeper, suite.ctx, validator, true)
-	err = suite.app.StakingKeeper.Hooks().AfterValidatorCreated(suite.ctx, validator.GetOperator())
+	err = suite.app.StakingKeeper.Hooks().AfterValidatorCreated(suite.ctx, valAddr)
 	require.NoError(t, err)
 	err = suite.app.StakingKeeper.SetValidatorByConsAddr(suite.ctx, validator)
 	require.NoError(t, err)
 
 	// fund signer acc to pay for tx fees
-	amt := math.NewInt(int64(math.Pow10(18) * 2))
+	amt := sdkmath.NewInt(int64(gomath.Pow10(18) * 2))
 	err = testutil.FundAccount(
 		suite.ctx,
 		suite.app.BankKeeper,
@@ -140,7 +143,8 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 	suite.Require().NoError(err)
 
 	// TODO change to setup with 1 validator
-	validators := s.app.StakingKeeper.GetValidators(s.ctx, 2)
+	validators, err := s.app.StakingKeeper.GetValidators(s.ctx, 2)
+	require.NoError(t, err)
 	// set a bonded validator that takes part in consensus
 	if validators[0].Status == stakingtypes.Bonded {
 		suite.validator = validators[0]
@@ -207,13 +211,18 @@ func (b *MockChannelKeeper) GetAllChannelsWithPortPrefix(ctx sdk.Context, portPr
 	return []channeltypes.IdentifiedChannel{}
 }
 
+//nolint:revive // allow unused parameters to indicate expected signature
+func (b *MockChannelKeeper) HasChannel(ctx sdk.Context, portID, channelID string) bool {
+	return true
+}
+
 var _ porttypes.ICS4Wrapper = &MockICS4Wrapper{}
 
 type MockICS4Wrapper struct {
 	mock.Mock
 }
 
-func (b *MockICS4Wrapper) WriteAcknowledgement(_ sdk.Context, _ *capabilitytypes.Capability, _ exported.PacketI, _ exported.Acknowledgement) error {
+func (b *MockICS4Wrapper) WriteAcknowledgement(_ sdk.Context, _ exported.PacketI, _ exported.Acknowledgement) error {
 	return nil
 }
 
@@ -225,7 +234,6 @@ func (b *MockICS4Wrapper) GetAppVersion(ctx sdk.Context, portID string, channelI
 //nolint:revive // allow unused parameters to indicate expected signature
 func (b *MockICS4Wrapper) SendPacket(
 	ctx sdk.Context,
-	channelCap *capabilitytypes.Capability,
 	sourcePort string,
 	sourceChannel string,
 	timeoutHeight clienttypes.Height,
@@ -272,7 +280,7 @@ func (suite *KeeperTestSuite) sendTx(contractAddr, from common.Address, transfer
 	nonce := suite.app.EvmKeeper.GetNonce(suite.ctx, suite.address)
 
 	// Mint the max gas to the FeeCollector to ensure balance in case of refund
-	suite.MintFeeCollector(sdk.NewCoins(sdk.NewCoin(evm.DefaultEVMDenom, math.NewInt(suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx).Int64()*int64(res.Gas)))))
+	suite.MintFeeCollector(sdk.NewCoins(sdk.NewCoin(evm.DefaultEVMDenom, sdkmath.NewInt(suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx).Int64()*int64(res.Gas)))))
 
 	ethTxParams := evm.EvmTxArgs{
 		ChainID:   chainID,

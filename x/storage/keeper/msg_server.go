@@ -457,7 +457,7 @@ func (k msgServer) MirrorObject(goCtx context.Context, msg *types.MsgMirrorObjec
 	owner := sdk.MustAccAddressFromHex(objectInfo.Owner)
 
 	mirrorPackage := types.MirrorObjectSynPackage{
-		ID:    objectInfo.Id.BigInt(),
+		Id:    objectInfo.Id.BigInt(),
 		Owner: owner,
 	}
 
@@ -602,7 +602,7 @@ func (k msgServer) MirrorGroup(goCtx context.Context, msg *types.MsgMirrorGroup)
 	}
 
 	mirrorPackage := types.MirrorGroupSynPackage{
-		ID:    groupInfo.Id.BigInt(),
+		Id:    groupInfo.Id.BigInt(),
 		Owner: operator,
 	}
 

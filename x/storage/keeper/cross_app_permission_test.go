@@ -6,7 +6,7 @@ import (
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/permission/types"
@@ -58,7 +58,7 @@ func (s *TestSuite) TestSynDeletePolicy() {
 	app := keeper.NewPermissionApp(storageKeeper, permissionKeeper)
 	synPackage := storageTypes.DeleteBucketSynPackage{
 		Operator:  sample.RandAccAddress(),
-		ID:        big.NewInt(10),
+		Id:        big.NewInt(10),
 		ExtraData: []byte("extra data"),
 	}
 

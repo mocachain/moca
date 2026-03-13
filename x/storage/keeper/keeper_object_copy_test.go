@@ -7,7 +7,8 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/golang/mock/gomock"
+	gethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"go.uber.org/mock/gomock"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/types/common"
@@ -65,6 +66,11 @@ func (s *TestSuite) TestLOW017_CopyObject_NilApproval_MustFail() {
 	s.paymentKeeper.EXPECT().MergeOutFlows(gomock.Any()).Return([]paymenttypes.OutFlow{}).AnyTimes()
 	// permission check will pass because operator is the bucket/object owner
 
+	// Generate a keypair for the SP approval address so we can sign
+	privKey, errGen := gethcrypto.GenerateKey()
+	s.Require().NoError(errGen)
+	sp.ApprovalAddress = gethcrypto.PubkeyToAddress(privKey.PublicKey).Hex()
+
 	primarySpAddr := sdk.MustAccAddressFromHex(sp.OperatorAddress)
 	s.ctx = s.ctx.WithBlockHeight(100)
 	// ensure versioned storage params exist at timestamp strictly less than the upcoming ts
@@ -76,17 +82,29 @@ func (s *TestSuite) TestLOW017_CopyObject_NilApproval_MustFail() {
 	dstBucket := fmt.Sprintf("dst-%d", time.Now().UnixNano())
 
 	for _, bucket := range []string{srcBucket, dstBucket} {
+		msg := &types.MsgCreateBucket{
+			Creator:          owner.String(),
+			BucketName:       bucket,
+			Visibility:       types.VISIBILITY_TYPE_PRIVATE,
+			PaymentAddress:   owner.String(),
+			PrimarySpAddress: primarySpAddr.String(),
+			PrimarySpApproval: &common.Approval{
+				ExpiredHeight:              uint64(s.ctx.BlockHeight() + 1000),
+				GlobalVirtualGroupFamilyId: gvgFamily.Id,
+			},
+		}
+		approvalBytes := msg.GetApprovalBytes()
+		sig, errSign := gethcrypto.Sign(gethcrypto.Keccak256(approvalBytes), privKey)
+		s.Require().NoError(errSign)
+		msg.PrimarySpApproval.Sig = sig
+
 		_, err := s.storageKeeper.CreateBucket(s.ctx, owner, bucket, primarySpAddr, &types.CreateBucketOptions{
 			Visibility:       types.VISIBILITY_TYPE_PRIVATE,
 			SourceType:       types.SOURCE_TYPE_ORIGIN,
 			ChargedReadQuota: 0,
 			PaymentAddress:   owner.String(),
-			PrimarySpApproval: &common.Approval{
-				ExpiredHeight:              uint64(s.ctx.BlockHeight() + 1000),
-				GlobalVirtualGroupFamilyId: gvgFamily.Id,
-				Sig:                        nil,
-			},
-			ApprovalMsgBytes: nil,
+			PrimarySpApproval: msg.PrimarySpApproval,
+			ApprovalMsgBytes: approvalBytes,
 		})
 		s.Require().NoError(err)
 	}
@@ -154,6 +172,10 @@ func (s *TestSuite) TestLOW017_CopyObject_ExpiredApproval_MustFail() {
 	s.paymentKeeper.EXPECT().MergeOutFlows(gomock.Any()).Return([]paymenttypes.OutFlow{}).AnyTimes()
 	// permission check will pass because operator is the bucket/object owner
 
+	privKey2, errGen2 := gethcrypto.GenerateKey()
+	s.Require().NoError(errGen2)
+	sp.ApprovalAddress = gethcrypto.PubkeyToAddress(privKey2.PublicKey).Hex()
+
 	primarySpAddr := sdk.MustAccAddressFromHex(sp.OperatorAddress)
 	s.ctx = s.ctx.WithBlockHeight(200)
 	oldCtx := s.ctx.WithBlockTime(s.ctx.BlockTime().Add(-1 * time.Second))
@@ -163,17 +185,29 @@ func (s *TestSuite) TestLOW017_CopyObject_ExpiredApproval_MustFail() {
 	dstBucket := fmt.Sprintf("dst-%d", time.Now().UnixNano())
 
 	for _, bucket := range []string{srcBucket, dstBucket} {
+		msg := &types.MsgCreateBucket{
+			Creator:          owner.String(),
+			BucketName:       bucket,
+			Visibility:       types.VISIBILITY_TYPE_PRIVATE,
+			PaymentAddress:   owner.String(),
+			PrimarySpAddress: primarySpAddr.String(),
+			PrimarySpApproval: &common.Approval{
+				ExpiredHeight:              uint64(s.ctx.BlockHeight() + 1000),
+				GlobalVirtualGroupFamilyId: gvgFamily.Id,
+			},
+		}
+		approvalBytes := msg.GetApprovalBytes()
+		sig, errSign := gethcrypto.Sign(gethcrypto.Keccak256(approvalBytes), privKey2)
+		s.Require().NoError(errSign)
+		msg.PrimarySpApproval.Sig = sig
+
 		_, err := s.storageKeeper.CreateBucket(s.ctx, owner, bucket, primarySpAddr, &types.CreateBucketOptions{
 			Visibility:       types.VISIBILITY_TYPE_PRIVATE,
 			SourceType:       types.SOURCE_TYPE_ORIGIN,
 			ChargedReadQuota: 0,
 			PaymentAddress:   owner.String(),
-			PrimarySpApproval: &common.Approval{
-				ExpiredHeight:              uint64(s.ctx.BlockHeight() + 1000),
-				GlobalVirtualGroupFamilyId: gvgFamily.Id,
-				Sig:                        nil,
-			},
-			ApprovalMsgBytes: nil,
+			PrimarySpApproval: msg.PrimarySpApproval,
+			ApprovalMsgBytes: approvalBytes,
 		})
 		s.Require().NoError(err)
 	}
@@ -243,6 +277,10 @@ func (s *TestSuite) TestLOW017_CopyObject_InvalidSignature_MustFail() {
 	s.paymentKeeper.EXPECT().MergeOutFlows(gomock.Any()).Return([]paymenttypes.OutFlow{}).AnyTimes()
 	// permission check will pass because operator is the bucket/object owner
 
+	privKey3, errGen3 := gethcrypto.GenerateKey()
+	s.Require().NoError(errGen3)
+	sp.ApprovalAddress = gethcrypto.PubkeyToAddress(privKey3.PublicKey).Hex()
+
 	primarySpAddr := sdk.MustAccAddressFromHex(sp.OperatorAddress)
 	s.ctx = s.ctx.WithBlockHeight(300)
 	oldCtx := s.ctx.WithBlockTime(s.ctx.BlockTime().Add(-1 * time.Second))
@@ -252,17 +290,29 @@ func (s *TestSuite) TestLOW017_CopyObject_InvalidSignature_MustFail() {
 	dstBucket := fmt.Sprintf("dst-%d", time.Now().UnixNano())
 
 	for _, bucket := range []string{srcBucket, dstBucket} {
-		_, err := s.storageKeeper.CreateBucket(s.ctx, owner, bucket, primarySpAddr, &types.CreateBucketOptions{
+		msg := &types.MsgCreateBucket{
+			Creator:          owner.String(),
+			BucketName:       bucket,
 			Visibility:       types.VISIBILITY_TYPE_PRIVATE,
-			SourceType:       types.SOURCE_TYPE_ORIGIN,
-			ChargedReadQuota: 0,
 			PaymentAddress:   owner.String(),
+			PrimarySpAddress: primarySpAddr.String(),
 			PrimarySpApproval: &common.Approval{
 				ExpiredHeight:              uint64(s.ctx.BlockHeight() + 1000),
 				GlobalVirtualGroupFamilyId: gvgFamily.Id,
-				Sig:                        nil,
 			},
-			ApprovalMsgBytes: nil,
+		}
+		approvalBytes := msg.GetApprovalBytes()
+		sig, errSign := gethcrypto.Sign(gethcrypto.Keccak256(approvalBytes), privKey3)
+		s.Require().NoError(errSign)
+		msg.PrimarySpApproval.Sig = sig
+
+		_, err := s.storageKeeper.CreateBucket(s.ctx, owner, bucket, primarySpAddr, &types.CreateBucketOptions{
+			Visibility:        types.VISIBILITY_TYPE_PRIVATE,
+			SourceType:        types.SOURCE_TYPE_ORIGIN,
+			ChargedReadQuota:  0,
+			PaymentAddress:    owner.String(),
+			PrimarySpApproval: msg.PrimarySpApproval,
+			ApprovalMsgBytes:  approvalBytes,
 		})
 		s.Require().NoError(err)
 	}

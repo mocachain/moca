@@ -4,7 +4,7 @@ import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	types2 "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 
 	"github.com/evmos/evmos/v12/x/virtualgroup"
 	"github.com/evmos/evmos/v12/x/virtualgroup/types"

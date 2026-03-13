@@ -67,7 +67,7 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		{
 			"invalid account type",
 			func() {
-				acc := authtypes.NewBaseAccountWithAddress(address.Bytes())
+				acc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, address.Bytes())
 				suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 			},
 			&types.GenesisState{
@@ -83,7 +83,7 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		{
 			"invalid code hash",
 			func() {
-				acc := authtypes.NewBaseAccountWithAddress(address.Bytes())
+				acc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, address.Bytes())
 				suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 			},
 			&types.GenesisState{
@@ -100,7 +100,7 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		{
 			"ignore empty account code checking",
 			func() {
-				acc := authtypes.NewBaseAccountWithAddress(address.Bytes())
+				acc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, address.Bytes())
 				suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 			},
 			&types.GenesisState{
@@ -117,10 +117,14 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		{
 			"ignore empty account code checking with non-empty codehash",
 			func() {
-				ethAcc := &evmostypes.EthAccount{
-					BaseAccount: authtypes.NewBaseAccount(address.Bytes(), nil, 0, 0),
-					CodeHash:    common.BytesToHash([]byte{1, 2, 3}).Hex(),
+				acc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, address.Bytes())
+				ethAcc, ok := acc.(*evmostypes.EthAccount)
+				if !ok {
+					ethAcc = &evmostypes.EthAccount{
+						BaseAccount: acc.(*authtypes.BaseAccount),
+					}
 				}
+				ethAcc.CodeHash = common.BytesToHash([]byte{1, 2, 3}).Hex()
 
 				suite.app.AccountKeeper.SetAccount(suite.ctx, ethAcc)
 			},

@@ -4,6 +4,8 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	"context"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
@@ -12,7 +14,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/cosmos/cosmos-sdk/x/authz"
-	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/encoding"
 )
 
@@ -78,12 +79,17 @@ func createTx(priv cryptotypes.PrivKey, msgs ...sdk.Msg) (sdk.Tx, error) {
 		return nil, err
 	}
 
+	signMode, err := authsigning.APISignModeToInternal(encodingConfig.TxConfig.SignModeHandler().DefaultMode())
+	if err != nil {
+		return nil, err
+	}
+
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.
 	sigV2 := signing.SignatureV2{
 		PubKey: priv.PubKey(),
 		Data: &signing.SingleSignatureData{
-			SignMode:  encodingConfig.TxConfig.SignModeHandler().DefaultMode(),
+			SignMode:  signMode,
 			Signature: nil,
 		},
 		Sequence: 0,
@@ -100,8 +106,8 @@ func createTx(priv cryptotypes.PrivKey, msgs ...sdk.Msg) (sdk.Tx, error) {
 		AccountNumber: 0,
 		Sequence:      0,
 	}
-	sigV2, err := tx.SignWithPrivKey(
-		encodingConfig.TxConfig.SignModeHandler().DefaultMode(), signerData,
+	sigV2, err = tx.SignWithPrivKey(
+		context.Background(), signMode, signerData,
 		txBuilder, priv, encodingConfig.TxConfig,
 		0,
 	)

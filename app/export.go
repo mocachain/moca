@@ -20,21 +20,29 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/simapp"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 
 	storetypes "cosmossdk.io/store/types"
+	dbm "github.com/cosmos/cosmos-db"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	servercfg "github.com/evmos/evmos/v12/server/config"
+	evmostypes "github.com/evmos/evmos/v12/types"
 )
 
 // NewDefaultGenesisState generates the default state for the application.
 func NewDefaultGenesisState() simapp.GenesisState {
-	var genesisState simapp.GenesisState
-	return genesisState
+	// Create a temporary app instance to get proper default genesis state
+	tempApp := NewEvmos(log.NewNopLogger(), dbm.NewMemDB(), nil, true, map[int64]bool{},
+		DefaultNodeHome, 0, servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome))
+	return simapp.GenesisState(tempApp.DefaultGenesis())
 }
 
 // ExportAppStateAndValidators exports the state of the application for a genesis

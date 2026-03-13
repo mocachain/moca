@@ -129,9 +129,9 @@ func (s *TestSuite) TestV1PackageNotDeserializedAsV2() {
 	raw = append([]byte{storagetypes.OperationCreateBucket}, raw...)
 
 	// Explicit assertion: V1 payload must fail V2 deserialization; V1 must succeed
-	_, errV2 := storagetypes.DeserializeCrossChainPackageV2(raw, storagetypes.BucketChannelId, sdk.FailAckCrossChainPackageType)
+	_, errV2 := storagetypes.DeserializeCrossChainPackageV2(raw, storagetypes.BucketChannelID, sdk.FailAckCrossChainPackageType)
 	s.Require().Error(errV2)
-	_, errV1 := storagetypes.DeserializeCrossChainPackage(raw, storagetypes.BucketChannelId, sdk.FailAckCrossChainPackageType)
+	_, errV1 := storagetypes.DeserializeCrossChainPackage(raw, storagetypes.BucketChannelID, sdk.FailAckCrossChainPackageType)
 	s.Require().NoError(errV1)
 
 	storageKeeper.EXPECT().GetSourceTypeByChainId(gomock.Any(), gomock.Any()).Return(storagetypes.SOURCE_TYPE_BSC_CROSS_CHAIN, nil).AnyTimes()

@@ -10,7 +10,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	"github.com/ethereum/go-ethereum/common"
@@ -221,7 +220,7 @@ func (suite *KeeperTestSuite) TestSetNonce() {
 
 func (suite *KeeperTestSuite) TestGetCodeHash() {
 	addr := utiltx.GenerateAddress()
-	baseAcc := &authtypes.BaseAccount{Address: sdk.AccAddress(addr.Bytes()).String()}
+	baseAcc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, sdk.AccAddress(addr.Bytes()))
 	suite.app.AccountKeeper.SetAccount(suite.ctx, baseAcc)
 
 	testCases := []struct {
@@ -265,7 +264,7 @@ func (suite *KeeperTestSuite) TestGetCodeHash() {
 
 func (suite *KeeperTestSuite) TestSetCode() {
 	addr := utiltx.GenerateAddress()
-	baseAcc := &authtypes.BaseAccount{Address: sdk.AccAddress(addr.Bytes()).String()}
+	baseAcc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, sdk.AccAddress(addr.Bytes()))
 	suite.app.AccountKeeper.SetAccount(suite.ctx, baseAcc)
 
 	testCases := []struct {
@@ -320,7 +319,7 @@ func (suite *KeeperTestSuite) TestSetCode() {
 
 func (suite *KeeperTestSuite) TestKeeperSetCode() {
 	addr := utiltx.GenerateAddress()
-	baseAcc := &authtypes.BaseAccount{Address: sdk.AccAddress(addr.Bytes()).String()}
+	baseAcc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, sdk.AccAddress(addr.Bytes()))
 	suite.app.AccountKeeper.SetAccount(suite.ctx, baseAcc)
 
 	testCases := []struct {

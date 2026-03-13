@@ -5,7 +5,6 @@ import (
 	"github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/types"
 
-	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/app/ante"
 )
 
