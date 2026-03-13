@@ -512,7 +512,7 @@ localnet-show-logstream:
 ###############################################################################
 
 PACKAGE_NAME:=github.com/evmos/evmos
-GOLANG_CROSS_VERSION  = v1.22
+GOLANG_CROSS_VERSION  = v1.23
 GOPATH ?= $(HOME)/go
 REPO_OWNER ?= mocachain
 release-dry-run:
