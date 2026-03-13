@@ -18,7 +18,7 @@ jobs:
       version_info: ${{ steps.meta.outputs.version_info }}
       commit_logs: ${{ steps.meta.outputs.commit_logs }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
