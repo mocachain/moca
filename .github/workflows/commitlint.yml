@@ -10,23 +10,20 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Install required dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y
-          sudo apt install -y git curl
-          curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
-          sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Print versions
         run: |
           git --version
           node --version
           npm --version
-          npx commitlint --version
       - name: Install commitlint
         run: |
           npm install conventional-changelog-conventionalcommits
           npm install commitlint@latest
+      - name: Print commitlint version
+        run: npx commitlint --version
 
       - name: Validate current commit (last commit) with commitlint
         if: github.event_name == 'push'
