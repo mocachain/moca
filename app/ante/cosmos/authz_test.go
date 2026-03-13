@@ -43,6 +43,17 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 		sdk.MsgTypeURL(&stakingtypes.MsgUndelegate{}),
 	)
 
+	// create a valid dummy MsgEthereumTx so that signing doesn't panic on nil Data
+	dummyEthTx := evmtypes.NewTx(&evmtypes.EvmTxArgs{
+		ChainID:   big.NewInt(9000),
+		Nonce:     0,
+		GasLimit:  1000000,
+		GasFeeCap: big.NewInt(1),
+		GasTipCap: big.NewInt(1),
+		Input:     nil,
+		Accesses:  &ethtypes.AccessList{},
+	})
+
 	testCases := []struct {
 		name        string
 		msgs        []sdk.Msg
@@ -64,7 +75,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 		{
 			"enabled msg MsgEthereumTx - blocked msg not wrapped in MsgExec",
 			[]sdk.Msg{
-				&evmtypes.MsgEthereumTx{},
+				dummyEthTx,
 			},
 			false,
 			nil,

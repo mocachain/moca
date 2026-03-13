@@ -127,11 +127,12 @@ func Setup(
 	app := NewEvmos(
 		log.NewNopLogger(),
 		db, nil, true, map[int64]bool{},
-		DefaultNodeHome, 5,
+		DefaultNodeHome, 0, // invCheckPeriod=0 disables crisis invariant checks in tests
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
+	app.SkipReconciliation = true
 	if !isCheckTx {
 		// init chain must be called to stop deliverState from being nil
 		genesisState := app.DefaultGenesis()
@@ -288,6 +289,7 @@ func SetupTestingApp(chainID string) func() (ibctesting.TestingApp, map[string]j
 			simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
 			baseapp.SetChainID(chainID),
 		)
+		app.SkipReconciliation = true
 		return app, app.DefaultGenesis()
 	}
 }

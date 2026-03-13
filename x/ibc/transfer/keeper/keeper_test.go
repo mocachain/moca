@@ -102,6 +102,7 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 	)
 	suite.ctx = suite.app.BaseApp.NewContext(false)
 	suite.ctx = suite.ctx.WithBlockHeader(header)
+	suite.ctx = suite.ctx.WithChainID(chainID)
 	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewInfiniteGasMeter())
 
 	// query clients

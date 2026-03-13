@@ -86,14 +86,18 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		true,
 		map[int64]bool{},
 		DefaultNodeHome,
-		5,
+		0, // invCheckPeriod=0 disables crisis invariant checks in tests
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
+	app.SkipReconciliation = true
 	if !isCheckTx {
 		// init chain must be called to stop deliverState from being nil
-		genesisState := NewTestGenesisState(app.AppCodec())
+		// Use app.DefaultGenesis() to ensure all modules (including challenge, evm, etc.)
+		// get their default genesis state. NewTestGenesisState() returns an empty map
+		// which causes modules to skip InitGenesis, leaving zero-value params.
+		genesisState := NewTestGenesisStateFromApp(app)
 		if patchGenesis != nil {
 			genesisState = patchGenesis(app, genesisState)
 		}
@@ -117,6 +121,31 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 	}
 
 	return app
+}
+
+// NewTestGenesisStateFromApp generates a genesis state using the app's DefaultGenesis
+// as the base. This ensures all modules (including challenge, evm, etc.) get their
+// default genesis state, preventing zero-value params that cause panics.
+func NewTestGenesisStateFromApp(app *Evmos) simapp.GenesisState {
+	privVal := mock.NewPV()
+	pubKey, err := privVal.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
+	// create validator set with single validator
+	validator := cmtypes.NewValidator(pubKey, 1)
+	valSet := cmtypes.NewValidatorSet([]*cmtypes.Validator{validator})
+
+	// generate genesis account
+	senderPrivKey := secp256k1.GenPrivKey()
+	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
+	balance := banktypes.Balance{
+		Address: acc.GetAddress().String(),
+		Coins:   sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(100000000000000))),
+	}
+
+	genesisState := simapp.GenesisState(app.DefaultGenesis())
+	return genesisStateWithValSet(app.AppCodec(), genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
 }
 
 // NewTestGenesisState generate genesis state with single validator

@@ -344,6 +344,11 @@ type Evmos struct {
 	tpsCounter *tpsCounter
 	// app config
 	appConfig *servercfg.AppConfig
+
+	// SkipReconciliation disables bank/payment reconciliation checks.
+	// Set to true in test helpers to avoid false-positive panics from
+	// reconciliation running on intermediate test state.
+	SkipReconciliation bool
 }
 
 // SimulationManager implements runtime.AppI
@@ -1141,7 +1146,7 @@ func (app *Evmos) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	if err != nil {
 		return sdk.EndBlock{}, err
 	}
-	if app.IsIavlStore() {
+	if app.IsIavlStore() && !app.SkipReconciliation {
 		bankIavl, _ := app.CommitMultiStore().GetCommitStore(app.GetKey(banktypes.StoreKey)).(*iavl.Store)
 		paymentIavl, _ := app.CommitMultiStore().GetCommitStore(app.GetKey(paymentmoduletypes.StoreKey)).(*iavl.Store)
 

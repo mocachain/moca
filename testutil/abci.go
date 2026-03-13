@@ -21,12 +21,14 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmttypes "github.com/cometbft/cometbft/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/testutil/tx"
@@ -44,7 +46,8 @@ func Commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.Valid
 		return ctx, err
 	}
 
-	return ctx.WithBlockHeader(header), nil
+	return ctx.WithBlockHeader(header).
+		WithBlockGasMeter(storetypes.NewInfiniteGasMeter()), nil
 }
 
 // DeliverTx delivers a cosmos tx for a given set of msgs
@@ -142,7 +145,22 @@ func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.
 		return abci.ExecTxResult{}, err
 	}
 
-	req := abci.RequestFinalizeBlock{Txs: [][]byte{bz}}
+	// Resolve proposer address from the first bonded validator so that
+	// the EVM module can resolve the coinbase address during FinalizeBlock.
+	// We cannot use app.BaseApp.NewContext(true).BlockHeader().ProposerAddress
+	// because NewContext always creates a context with an empty header
+	// (cmtproto.Header{}), discarding the ProposerAddress stored in the
+	// check state by Commit.
+	proposerAddr, err := getProposerAddress(app)
+	if err != nil {
+		return abci.ExecTxResult{}, fmt.Errorf("failed to get proposer address: %w", err)
+	}
+
+	req := abci.RequestFinalizeBlock{
+		Txs:             [][]byte{bz},
+		Height:          app.LastBlockHeight() + 1,
+		ProposerAddress: proposerAddr,
+	}
 
 	res, err := app.BaseApp.FinalizeBlock(&req)
 	if err != nil {
@@ -159,28 +177,53 @@ func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.
 	return *txRes, nil
 }
 
+// getProposerAddress returns the consensus address of the first bonded
+// validator. This is used in test helpers where the real CometBFT proposer
+// selection is not available.
+func getProposerAddress(app *app.Evmos) ([]byte, error) {
+	ctx := app.BaseApp.NewContext(true)
+	validators, err := app.StakingKeeper.GetAllValidators(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get validators: %w", err)
+	}
+	for _, val := range validators {
+		if val.GetStatus() == stakingtypes.Bonded {
+			consAddr, err := val.GetConsAddr()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get cons addr: %w", err)
+			}
+			return consAddr, nil
+		}
+	}
+	return nil, fmt.Errorf("no bonded validator found")
+}
+
 // commit is a private helper function that runs the EndBlocker logic, commits the changes,
-// updates the header, runs the BeginBlocker function and returns the updated header
+// updates the header, and returns the updated header.
 func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (tmproto.Header, error) {
 	header := ctx.BlockHeader()
-	req := abci.RequestFinalizeBlock{Height: header.Height}
+
+	// Always use FinalizeBlock to ensure the finalizeBlockState cache is
+	// properly flushed to the root multi-store before Commit. Calling
+	// EndBlocker directly skips the workingHash() step that writes the
+	// cache, causing data from InitGenesis to be lost on Commit.
+	// Additionally, app.Commit() requires finalizeBlockState to be non-nil.
+	req := abci.RequestFinalizeBlock{
+		Height:          header.Height,
+		ProposerAddress: header.ProposerAddress,
+	}
+	res, err := app.FinalizeBlock(&req)
+	if err != nil {
+		return header, err
+	}
 
 	if vs != nil {
-		res, err := app.FinalizeBlock(&req)
-		if err != nil {
-			return header, err
-		}
-
 		nextVals, err := applyValSetChanges(vs, res.ValidatorUpdates)
 		if err != nil {
 			return header, err
 		}
 		header.ValidatorsHash = vs.Hash()
 		header.NextValidatorsHash = nextVals.Hash()
-	} else {
-		if _, err := app.EndBlocker(ctx); err != nil {
-			return header, err
-		}
 	}
 
 	if _, err := app.Commit(); err != nil {
@@ -191,6 +234,8 @@ func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.Valid
 	header.Time = header.Time.Add(t)
 	header.AppHash = app.LastCommitID().Hash
 
+	// Begin the next block so that module begin-block hooks (epochs,
+	// distribution, etc.) fire and state is ready for test queries.
 	if _, err := app.BeginBlocker(ctx); err != nil {
 		return header, err
 	}

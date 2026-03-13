@@ -12,7 +12,9 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	simutils "github.com/cosmos/cosmos-sdk/testutil/sims"
+	"github.com/cosmos/cosmos-sdk/x/crisis"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -106,7 +108,7 @@ func (suite *KeeperTestSuite) Commit() {
 	suite.CommitAfter(time.Second * 0)
 }
 
-// Commit commits a block at a given time.
+// CommitAfter commits a block at a given time.
 func (suite *KeeperTestSuite) CommitAfter(t time.Duration) {
 	// finalize current block
 	header := suite.ctx.BlockHeader()
@@ -121,11 +123,14 @@ func (suite *KeeperTestSuite) CommitAfter(t time.Duration) {
 	header.Height++
 	header.Time = header.Time.Add(t)
 	header.AppHash = suite.app.LastCommitID().Hash
-	suite.ctx = suite.ctx.WithBlockHeader(header)
 
-	// begin next block
+	// Begin the next block so module begin-block hooks fire (epochs, etc.)
 	_, err = suite.app.BeginBlocker(suite.ctx)
 	suite.Require().NoError(err)
+
+	// Use a fresh context from the committed store with the updated header.
+	suite.ctx = suite.ctx.WithBlockHeader(header).
+		WithBlockGasMeter(storetypes.NewInfiniteGasMeter())
 
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())
 	types.RegisterQueryServer(queryHelper, suite.app.FeeMarketKeeper)
@@ -179,12 +184,15 @@ func setupChain(localMinGasPricesStr string, chainID string, minGasPrice sdkmath
 		app.DefaultNodeHome,
 		5,
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
-		simutils.NewAppOptionsWithFlagHome(app.DefaultNodeHome),
+		simutils.AppOptionsMap{
+			flags.FlagHome:                    app.DefaultNodeHome,
+			crisis.FlagSkipGenesisInvariants: true,
+		},
 		baseapp.SetChainID(chainID),
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
 	)
 
-	genesisState := app.NewTestGenesisState(newapp.AppCodec())
+	genesisState := app.NewTestGenesisStateFromApp(newapp)
 	fmGenesis := types.DefaultGenesisState()
 	fmGenesis.Params.MinGasPrice = minGasPrice
 	fmGenesis.Params.BaseFee = sdkmath.NewIntFromBigInt(baseFee.BigInt())

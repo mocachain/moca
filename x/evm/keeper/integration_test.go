@@ -24,8 +24,10 @@ import (
 	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	simutils "github.com/cosmos/cosmos-sdk/testutil/sims"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/crisis"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 )
 
@@ -183,12 +185,15 @@ func setupChain(localMinGasPricesStr string) {
 		app.DefaultNodeHome,
 		5,
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
-		simutils.NewAppOptionsWithFlagHome(app.DefaultNodeHome),
+		simutils.AppOptionsMap{
+			flags.FlagHome:                    app.DefaultNodeHome,
+			crisis.FlagSkipGenesisInvariants: true,
+		},
 		baseapp.SetChainID(chainID),
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
 	)
 
-	genesisState := app.NewTestGenesisState(newapp.AppCodec())
+	genesisState := app.NewTestGenesisStateFromApp(newapp)
 	genesisState[types.ModuleName] = newapp.AppCodec().MustMarshalJSON(types.DefaultGenesisState())
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")

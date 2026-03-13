@@ -12,6 +12,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/simapp"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/0xPolygon/polygon-edge/bls"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/tmhash"
@@ -171,6 +172,7 @@ func (suite *KeeperTestSuite) SetupAppWithT(checkTx bool, t require.TestingT, ch
 		tmhash.Sum([]byte("app")), tmhash.Sum([]byte("validators")),
 	)
 	suite.ctx = suite.app.BaseApp.NewContextLegacy(checkTx, header)
+	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewInfiniteGasMeter())
 
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, suite.app.InterfaceRegistry())
 	evmtypes.RegisterQueryServer(queryHelper, suite.app.EvmKeeper)

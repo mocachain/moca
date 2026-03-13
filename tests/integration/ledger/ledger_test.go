@@ -6,10 +6,10 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 
-	"cosmossdk.io/simapp/params"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdkmoduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/evmos/evmos/v12/encoding"
@@ -41,7 +41,7 @@ var (
 var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 	var (
 		receiverAccAddr sdk.AccAddress
-		encCfg          params.EncodingConfig
+		encCfg          sdkmoduletestutil.TestEncodingConfig
 		kr              keyring.Keyring
 		mockedIn        sdktestutil.BufferReader
 		clientCtx       client.Context
