@@ -6,20 +6,17 @@ import (
 	"fmt"
 	"io"
 	"testing"
-	"time"
 
-	"cosmossdk.io/simapp/params"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/server"
+	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
-	"github.com/cometbft/cometbft/crypto/tmhash"
-	"github.com/cometbft/cometbft/version"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/tests/integration/ledger/mocks"
@@ -27,8 +24,6 @@ import (
 	"github.com/evmos/evmos/v12/utils"
 	"github.com/stretchr/testify/suite"
 
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	rpcclientmock "github.com/cometbft/cometbft/rpc/client/mock"
 	cosmosledger "github.com/cosmos/cosmos-sdk/crypto/ledger"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -82,7 +77,7 @@ func (suite *LedgerTestSuite) SetupTest() {
 }
 
 func (suite *LedgerTestSuite) SetupEvmosApp() {
-	consAddress := sdk.ConsAddress(utiltx.GenerateAddress().Bytes())
+	_ = sdk.ConsAddress(utiltx.GenerateAddress().Bytes())
 
 	// init app
 	chainID := utils.MainnetChainID + "-1"
@@ -90,7 +85,7 @@ func (suite *LedgerTestSuite) SetupEvmosApp() {
 	suite.ctx = suite.app.BaseApp.NewContext(false)
 }
 
-func (suite *LedgerTestSuite) NewKeyringAndCtxs(krHome string, input io.Reader, encCfg params.EncodingConfig) (keyring.Keyring, client.Context, context.Context) {
+func (suite *LedgerTestSuite) NewKeyringAndCtxs(krHome string, input io.Reader, encCfg sdktestutil.TestEncodingConfig) (keyring.Keyring, client.Context, context.Context) {
 	kr, err := keyring.New(
 		sdk.KeyringServiceName(),
 		keyring.BackendTest,
@@ -130,7 +125,7 @@ func (suite *LedgerTestSuite) evmosAddKeyCmd() *cobra.Command {
 	err := algoFlag.Value.Set(string(hd.EthSecp256k1Type))
 	suite.Require().NoError(err)
 
-	cmd.Flags().AddFlagSet(keys.Commands("home").PersistentFlags())
+	cmd.Flags().AddFlagSet(keys.Commands().PersistentFlags())
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		clientCtx := client.GetClientContextFromCmd(cmd).WithKeyringOptions(keyring.ETHAlgoOption())

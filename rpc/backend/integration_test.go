@@ -192,7 +192,8 @@ func TestMetricsIntegration(t *testing.T) {
 			queue.AddTransaction(cachedTx, config)
 		}
 
-		// Test metrics
+		// Refresh cached metrics then check
+		tcq.updateMetrics()
 		metrics := tcq.GetMetrics()
 		assert.True(t, metrics.CachedTxCount >= 2, "Should have at least 2 cached transactions")
 		assert.True(t, metrics.AccountsWithCache >= 1, "Should have at least 1 account")

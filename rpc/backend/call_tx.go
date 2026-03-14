@@ -176,6 +176,48 @@ func (b *Backend) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 	return txHash, nil
 }
 
+// broadcastTransaction broadcasts an already-prepared MsgEthereumTx to the network.
+// Used by the transaction cache queue to broadcast cached transactions.
+func (b *Backend) broadcastTransaction(ethereumTx *evmtypes.MsgEthereumTx, rawTx []byte) (common.Hash, error) {
+	if err := ethereumTx.ValidateBasic(); err != nil {
+		b.logger.Debug("cached tx failed basic validation", "error", err.Error())
+		return common.Hash{}, err
+	}
+
+	// Query params to use the EVM denomination
+	res, err := b.queryClient.QueryClient.Params(b.ctx, &evmtypes.QueryParamsRequest{})
+	if err != nil {
+		b.logger.Error("failed to query evm params", "error", err.Error())
+		return common.Hash{}, err
+	}
+
+	cosmosTx, err := ethereumTx.BuildTx(b.clientCtx.TxConfig.NewTxBuilder(), res.Params.EvmDenom)
+	if err != nil {
+		b.logger.Error("failed to build cosmos tx", "error", err.Error())
+		return common.Hash{}, err
+	}
+
+	txBytes, err := b.clientCtx.TxConfig.TxEncoder()(cosmosTx)
+	if err != nil {
+		b.logger.Error("failed to encode eth tx", "error", err.Error())
+		return common.Hash{}, err
+	}
+
+	txHash := ethereumTx.AsTransaction().Hash()
+
+	syncCtx := b.clientCtx.WithBroadcastMode(flags.BroadcastSync)
+	rsp, err := syncCtx.BroadcastTx(txBytes)
+	if rsp != nil && rsp.Code != 0 {
+		err = errorsmod.ABCIError(rsp.Codespace, rsp.Code, rsp.RawLog)
+	}
+	if err != nil {
+		b.logger.Error("failed to broadcast cached tx", "error", err.Error())
+		return txHash, err
+	}
+
+	return txHash, nil
+}
+
 // SetTxDefaults populates tx message with default values in case they are not
 // provided on the args
 func (b *Backend) SetTxDefaults(args evmtypes.TransactionArgs) (evmtypes.TransactionArgs, error) {

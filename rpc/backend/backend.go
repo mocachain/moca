@@ -154,6 +154,7 @@ type Backend struct {
 	cfg                 config.AppConfig
 	allowUnprotectedTxs bool
 	indexer             evmostypes.EVMTxIndexer
+	txCacheQueue        *TransactionCacheQueue
 }
 
 // NewBackend creates a new Backend instance for cosmos and ethereum namespaces
