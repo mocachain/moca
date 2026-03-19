@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1
+# Build mocad from a specific git ref (tag/branch/commit) for upgrade tests.
+ARG GO_VERSION=1.23.6
+FROM golang:${GO_VERSION}-bullseye AS builder
+
+ARG GIT_REF=main
+ARG REPO_URL=github.com/mocachain/moca
+
+ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
+
+WORKDIR /workspace
+
+RUN --mount=type=secret,id=gitconfig,target=/root/.gitconfig \
+    git clone "https://${REPO_URL}.git" . && \
+    git checkout "${GIT_REF}" && \
+    make build
+
+FROM debian:bullseye-slim
+RUN apt-get update && apt-get install -y ca-certificates jq curl && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /workspace/build/mocad /usr/local/bin/mocad
+ENTRYPOINT ["mocad"]
