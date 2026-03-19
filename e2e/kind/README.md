@@ -1,197 +1,271 @@
-# E2E Tests: Kind-based Upgrade & Integration Testing
+# Moca Chain E2E Tests (Kind)
 
-## Status: Draft / In Development
+End-to-end tests for the Moca blockchain using [Kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker). Mirrors the production `moca-chain-infra` patterns with K8s manifests and shell scripts.
 
-## Scope
+## Prerequisites
 
-This framework covers **chain-level e2e testing only**: consensus, upgrades, EVM execution, Cosmos module transactions, and state preservation across upgrades. It runs `mocad` validator nodes and nothing else.
+- [Docker](https://docs.docker.com/get-docker/)
+- [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [jq](https://jqlang.github.io/jq/download/)
 
-Ecosystem-level services (decentralized storage, indexers, explorers, etc.) are **out of scope** and should be tested separately in their own dedicated e2e setup.
+## Quick Start
 
-## Context
+```bash
+# Run smoke tests (setup Kind, build image, deploy, test)
+make e2e-fw-test TEST=smoke
 
-Moca chain upgrades are currently tested manually or through limited CI checks that don't exercise a real multi-validator chain. This makes it difficult to catch upgrade regressions, state migration bugs, or EVM compatibility issues before they reach testnet or mainnet.
-
-We need automated end-to-end tests that:
-- Run a real multi-validator Moca chain locally
-- Execute diverse Cosmos and EVM transactions
-- Perform chain upgrades (governance and hardfork paths)
-- Verify state preservation across upgrades
-- Can run against release images (ghcr.io) and source builds
-
-## Decision
-
-Use **Kind (Kubernetes in Docker)** to run a local 4-validator Moca chain for e2e testing. Kind provides:
-- Realistic multi-node topology (separate pods per validator)
-- Network isolation via Kubernetes networking
-- Easy image swapping for upgrade testing (patch StatefulSet, restart pods)
-- Reproducible environments (no cloud infra needed, runs on developer machines and CI)
-
-### Why Kind over Docker Compose or single-node?
-
-| Approach | Pros | Cons |
-|----------|------|------|
-| Single-node (`mocad start`) | Simplest | No consensus, no real networking, can't test upgrades |
-| Docker Compose | Multi-node, no K8s dependency | Manual orchestration for upgrades, no native rollout |
-| **Kind (chosen)** | Multi-node, K8s-native rollout, image swapping, CI-friendly | Requires Docker + Kind + kubectl |
-
-## Goals
-
-### Phase 1: Core Framework (current)
-- [x] Reusable test framework (`framework/framework.sh`) with lifecycle management
-- [x] One-liner chain setup: `fw_start_chain` / `fw_start_chain_from_version`
-- [x] One-liner upgrades: `fw_upgrade_chain --name X --mode governance|hardfork`
-- [x] Test runner with pass/fail tracking and debug log collection
-- [x] Support for both source builds and release image testing
-
-### Phase 2: Smoke & Upgrade Tests
-- [x] Basic smoke test: block production, bank sends, validator queries
-- [x] Hardfork upgrade test: pre-state -> upgrade -> verify state preserved
-- [x] Governance upgrade test: proposal -> vote -> upgrade -> verify
-- [x] EVM upgrade test with ERC20 contracts (mint/burn/transfer/approve/transferFrom)
-- [x] Comprehensive upgrade test: 50+ EVM txs + 50+ Cosmos txs
-
-### Phase 3: Extended Coverage (planned)
-- [ ] Slashing / jailing tests
-- [ ] Parameter change proposals
-- [ ] EVM precompile tests
-- [ ] Gas estimation and fee market tests
-- [ ] Multi-hop upgrade tests (v1.0 -> v1.1 -> v1.2)
-- [ ] Chaos testing (kill validators mid-upgrade, network partitions)
-
-### Phase 4: CI Integration (planned)
-- [ ] GitHub Actions workflow for PR checks
-- [ ] Nightly runs against latest main
-- [ ] Release gating (run full suite before tagging)
-- [ ] Test result reporting / dashboards
-
-## Architecture
-
-```
-e2e/kind/
-├── e2e.env                    # Chain configuration (chain ID, denom, validators, etc.)
-├── Dockerfile.e2e             # Build from source (current commit)
-├── Dockerfile.e2e-gitref      # Build from git tag (old versions)
-├── Dockerfile.e2e-release     # Build from pre-built release binary
-├── contracts/                 # Solidity contracts for EVM testing
-│   └── TestERC20.sol          # Full ERC20 with mint/burn/transfer/approve/transferFrom
-├── scripts/                   # Low-level plumbing
-│   ├── lib.sh                 # Shared utilities (exec_mocad, assertions, logging)
-│   ├── setup-kind.sh          # Create Kind cluster with port forwarding
-│   ├── build-images.sh        # Build Docker images (source or gitref)
-│   ├── deploy.sh              # Deploy chain (init genesis, create K8s resources)
-│   ├── init-chain.sh          # Genesis initialization (K8s Job)
-│   ├── upgrade-chain.sh       # Upgrade orchestrator (governance + hardfork modes)
-│   ├── cleanup.sh             # Tear down cluster
-│   ├── run-suite.sh           # Legacy suite runner
-│   └── run-tests.sh           # Legacy test runner
-├── framework/                 # High-level test API
-│   ├── framework.sh           # Lifecycle, chain setup, upgrade, test execution
-│   └── runner.sh              # Test discovery and batch execution
-├── tests/                     # Self-contained test files
-│   ├── test_smoke.sh          # Basic chain operations (7 tests)
-│   ├── test_upgrade_hardfork.sh      # Hardfork upgrade path
-│   ├── test_upgrade_governance.sh    # Governance upgrade path
-│   ├── test_upgrade_evm.sh           # ERC20 contract upgrade test (14 tests)
-│   └── test_upgrade_comprehensive.sh # Full 50+50 tx upgrade test (14 tests)
-├── suites/                    # Legacy test suites
-└── manifests/                 # K8s manifests (StatefulSets, Services, ConfigMaps)
+# Run all tests
+make e2e-fw
 ```
 
-## How It Works
+## Framework Tests (Recommended)
 
-### Test Lifecycle
+The `framework/` + `tests/` approach provides self-contained test files with minimal boilerplate. Each test file handles its own setup, tests, and teardown.
 
-Each test file is self-contained:
+```bash
+# Run all framework tests
+make e2e-fw
+
+# Run a single test
+make e2e-fw-test TEST=smoke
+make e2e-fw-test TEST=upgrade_hardfork
+make e2e-fw-test TEST=upgrade_governance
+
+# Run with OLD_VERSION for upgrade tests
+OLD_VERSION=v12.0.1 make e2e-fw-test TEST=upgrade_hardfork
+
+# Dev mode (skip cleanup, leave cluster running for debugging)
+make e2e-fw-dev TEST=smoke
+```
+
+### Writing a Test
 
 ```bash
 #!/usr/bin/env bash
 source "$(dirname "$0")/../framework/framework.sh"
-fw_init                              # 1. Initialize framework (traps, counters)
+fw_init
 
-fw_start_chain                       # 2. Create Kind cluster, build image, deploy chain
-# -- or for upgrade tests --
-fw_start_chain_from_version "v1.1.2" # 2. Deploy old version
+# Optional config overrides (before fw_start_chain)
+fw_config NUM_VALIDATORS 2
+fw_genesis_patch '.app_state.staking.params.max_validators = 10'
 
-# 3. Run pre-upgrade transactions...
+# Setup (1 line)
+fw_start_chain
 
-fw_upgrade_chain --name "v1.2.0" --mode governance  # 4. Upgrade
-
-# 5. Define test functions
+# Test functions
 test_something() {
-    local val; val=$(exec_mocad query ...)
-    assert_eq "$val" "expected" "description"
+    local h1; h1=$(get_block_height "http://localhost:26657")
+    sleep 3
+    local h2; h2=$(get_block_height "http://localhost:26657")
+    assert_gt "$h2" "$h1" "Block height should increase"
 }
 
-fw_run_test "Something works" test_something  # 6. Execute tests
-
-fw_done                                       # 7. Print summary, cleanup
+# Run tests
+fw_run_test "Something works" test_something
+fw_done
 ```
 
-### Upgrade Modes
+### Framework API
 
-**Governance**: Submits `MsgSoftwareUpgrade` proposal, votes YES with all validators, waits for upgrade height, scales down pods, swaps image, scales back up.
+| Function | Purpose |
+|----------|---------|
+| `fw_init` | Initialize framework (first call in every test) |
+| `fw_done` | Print summary, cleanup, exit (last call) |
+| `fw_start_chain [--version V] [--validators N]` | Create cluster, build, deploy, wait for blocks |
+| `fw_start_chain_from_version VERSION` | Deploy old version (for upgrade tests) |
+| `fw_config KEY VALUE` | Override e2e.env variable |
+| `fw_genesis_patch 'JQ_EXPR'` | Register jq patch for genesis.json |
+| `fw_apptoml_patch 'SED_EXPR'` | Register sed patch for app.toml |
+| `fw_upgrade_chain --name N --mode M` | Trigger upgrade (auto-computes height) |
+| `fw_run_test "name" func` | Run test function, track pass/fail |
+| `fw_tx_send FROM TO AMOUNT` | Send bank transfer + wait for inclusion |
+| `fw_wait_blocks N` | Wait for N blocks from current height |
 
-**Hardfork**: Waits for upgrade height (triggered by upgrade handler in binary), scales down, swaps image, scales back up.
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `FW_SKIP_CLEANUP` | `false` | Leave cluster running for debugging |
+| `FW_REUSE_CLUSTER` | `false` | Reuse existing Kind cluster |
 
-### Release Image Testing
+## Suite Tests (Legacy)
 
-Tests can run against published ghcr.io release images:
+Tests are organized into suites under `suites/`. Each suite can override base config via its own `e2e.env`.
+
+### Smoke Tests (default)
+
+Basic chain functionality: blocks, balances, transfers, validators, module params.
+
 ```bash
-RELEASE_TAG=v12.2.0-rc1 bash tests/test_upgrade_comprehensive.sh
+make e2e-kind-smoke          # Full: setup + build + deploy + test
+make e2e-kind-suite SUITE=smoke  # Just run tests (if chain is already deployed)
 ```
 
-The framework handles architecture detection and Docker multi-platform manifest workarounds automatically.
+### Upgrade Tests (hardfork mode)
 
-## Prerequisites
-
-- Docker Desktop (or Docker Engine)
-- [Kind](https://kind.sigs.k8s.io/) (`go install sigs.k8s.io/kind@latest`)
-- kubectl
-- [Foundry](https://getfoundry.sh/) (forge + cast) for EVM tests
-- jq
-- ~8GB free RAM (4 validator pods)
-
-## Running Tests
+Tests a binary upgrade from an old version to the current build using the app.toml `[hardforks]` config.
 
 ```bash
-# Run a single test
-make e2e-fw-test TEST=smoke
-make e2e-fw-test TEST=upgrade_evm
-
-# Run all tests
-make e2e-fw
-
-# Debug mode (leave cluster running after test)
-FW_SKIP_CLEANUP=true make e2e-fw-test TEST=smoke
-
-# Test against a specific release
-OLD_VERSION=v1.1.2 RELEASE_TAG=v12.2.0-rc1 make e2e-fw-test TEST=upgrade_comprehensive
+# Upgrade from a specific release (pulls/builds old version, deploys, upgrades, validates)
+OLD_VERSION=v12.0.1 make e2e-kind-upgrade-hardfork
 ```
 
-## EVM Testing Approach
+### Upgrade Tests (governance mode)
 
-Rather than using raw bytecode toy contracts, we deploy real Solidity contracts (ERC20) and exercise:
-- **Mappings**: `balanceOf`, `allowance` — tests complex storage slot persistence
-- **Multi-account interactions**: approve + transferFrom across different signers
-- **Access control**: only owner can mint/burn
-- **Events**: Transfer, Approval events emitted correctly
-- **Multiple contracts**: deploy 2-3 ERC20s with different configurations (decimals, names)
-- **Cross-upgrade verification**: state from pre-upgrade contracts accessible post-upgrade
+Same as hardfork mode but triggers the upgrade via a governance software-upgrade proposal.
 
-This tests more than just SSTORE/SLOAD — it validates that the EVM's account model, storage trie, and contract execution environment survive upgrades intact.
+```bash
+OLD_VERSION=v12.0.1 make e2e-kind-upgrade-governance
+```
 
-## Cosmos Testing Approach
+## Step by Step
 
-Beyond simple bank sends, the comprehensive test exercises:
-- **Staking**: edit-validator (moniker changes), delegate, unbond
-- **Distribution**: withdraw-rewards
-- **Governance**: text proposals, voting from all validators
-- **State queries**: validator set, balances, module parameters
+```bash
+# 1. Create Kind cluster
+make e2e-kind-setup
 
-## References
+# 2. Build Docker image from source, load into Kind
+make e2e-kind-build
 
-- [Kind documentation](https://kind.sigs.k8s.io/)
-- [Cosmos SDK upgrade module](https://docs.cosmos.network/main/build/modules/upgrade)
-- [Foundry book](https://book.getfoundry.sh/)
-- ghcr.io release images: `ghcr.io/mocachain/mocad:<tag>`
+# 3. Deploy chain (init genesis, create validators, wait for blocks)
+make e2e-kind-deploy
+
+# 4. Run tests
+make e2e-kind-test
+
+# 5. Cleanup
+make e2e-kind-cleanup
+```
+
+## Architecture
+
+```
+                    ┌─────────────────────────────────────────┐
+                    │           Kind Cluster (moca-e2e)       │
+                    │                                         │
+                    │  ┌──────────┐  ┌──────────┐             │
+                    │  │validator-0│  │validator-1│             │
+                    │  │ (mocad)  │  │ (mocad)  │  ...        │
+                    │  └────┬─────┘  └────┬─────┘             │
+                    │       │ P2P (26656) │                   │
+                    │       └──────┬──────┘                   │
+                    │              │                           │
+                    │  ┌───────────┴──────────┐               │
+                    │  │ validator-headless    │               │
+                    │  │ (Headless Service)    │               │
+                    │  └──────────────────────┘               │
+                    │                                         │
+                    │  ┌──────────────────────┐               │
+                    │  │ validator-nodeport    │               │
+                    │  │ (NodePort Service)    │               │
+                    │  └──────────┬───────────┘               │
+                    └─────────────┼───────────────────────────┘
+                                  │
+                    localhost:26657 (RPC)
+                    localhost:9090  (gRPC)
+                    localhost:8545  (EVM)
+```
+
+### Flow
+
+1. **setup-kind.sh** — Creates a Kind cluster with port mappings
+2. **build-images.sh** — Multi-stage Docker build from source, loads into Kind
+3. **init-chain.sh** — Runs as a K8s Job inside the cluster:
+   - Generates validator keys (validator, BLS, relayer, challenger)
+   - Generates SP keys (operator, fund, seal, BLS, approval, gc, maintenance)
+   - Creates genesis accounts, gentx, spgentx
+   - Configures persistent peers using K8s DNS
+   - Applies test timeouts (1s commit, 15s voting period)
+4. **deploy.sh** — Extracts configs from init Job, creates per-validator ConfigMaps/Secrets, deploys StatefulSets with writable config volumes
+5. **run-tests.sh** — Executes test cases via `kubectl exec` and RPC queries
+
+## Test Cases
+
+### Smoke Suite
+
+| Test | Description |
+|------|-------------|
+| Chain producing blocks | Verifies block height increases over time |
+| Genesis account balances | Checks validator0 has non-zero amoca balance |
+| Query validators | Verifies expected number of validators registered |
+| Query module params | Queries EVM, feemarket, staking, gov params |
+| Send tokens | Sends 1 MOCA between accounts, verifies balance |
+| Multi-account transfers | Creates N accounts, chain of transfers, verifies |
+| Query storage providers | Verifies SPs registered in genesis |
+
+### Upgrade Suite
+
+| Test | Description |
+|------|-------------|
+| Chain producing blocks post-upgrade | Chain continues after upgrade |
+| Height past upgrade height | Block height surpassed the upgrade trigger |
+| Balances preserved | Pre-upgrade account balances survived the upgrade |
+| Upgrade handler applied | `mocad query upgrade applied` confirms execution |
+| Token transfers post-upgrade | Bank send works with the new binary |
+
+## Configuration
+
+Edit `e2e.env` to change:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NUM_VALIDATORS` | 4 | Number of validator nodes |
+| `NUM_STORAGE_PROVIDERS` | 1 | Number of storage providers |
+| `CHAIN_ID` | moca_5151-1 | Chain ID |
+| `DEPOSIT_VOTE_PERIOD` | 15s | Governance voting period |
+| `GOV_MIN_DEPOSIT_AMOUNT` | 10000000000000000 | Min governance deposit (0.01 MOCA) |
+| `DOCKER_IMAGE` | mocachain/moca | Docker image name |
+| `DOCKER_TAG` | e2e-local | Docker image tag |
+
+### Chain Defaults
+
+- **Pruning**: `default` (keeps last 362880 states)
+- **Block time**: ~1s (`timeout_commit = 1s`)
+- **Voting period**: 15s
+- **Min gas price**: 5000000000 amoca
+
+## Debugging
+
+```bash
+# Check pod status
+kubectl -n moca-e2e get pods -o wide
+
+# View validator logs
+kubectl -n moca-e2e logs validator-0-0 -c mocad --tail=100
+
+# Describe pod for events
+kubectl -n moca-e2e describe pod validator-0-0
+
+# Exec into validator
+kubectl -n moca-e2e exec -it validator-0-0 -c mocad -- /bin/bash
+
+# Query chain status
+curl http://localhost:26657/status | jq .
+
+# Query latest block
+curl http://localhost:26657/block | jq .result.block.header.height
+
+# Check connected peers
+curl http://localhost:26657/net_info | jq '.result.n_peers'
+```
+
+## CI
+
+The GitHub Actions workflow (`.github/workflows/e2e-kind.yml`) runs automatically on PRs to `main`. It:
+
+1. Installs Kind
+2. Builds Docker image and deploys to Kind
+4. Runs all e2e tests
+5. Collects debug logs on failure
+6. Cleans up the Kind cluster
+
+## Storage Provider (Optional)
+
+SP deployment requires the `moca-sp` Docker image. Set `MOCA_SP_IMAGE` to enable:
+
+```bash
+MOCA_SP_IMAGE=mocafoundation/moca-sp:latest make e2e-kind-build
+```
+
+The SP connects to:
+- MySQL at `mysql.moca-e2e.svc.cluster.local:3306`
+- Validator RPC at `validator-0-0.validator-headless.moca-e2e.svc.cluster.local:26657`

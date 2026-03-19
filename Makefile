@@ -27,6 +27,7 @@ DOCKER_TAG := $(COMMIT_HASH)
 # e2e env
 MOUNT_PATH := $(shell pwd)/build/:/root/
 E2E_SKIP_CLEANUP := false
+E2E_KIND_DIR := e2e/kind
 
 export GO111MODULE = on
 
@@ -309,6 +310,37 @@ $(TEST_TARGETS): run-tests
 
 test-unit-cover: ARGS=-timeout=15m -race -coverprofile=coverage.txt -covermode=atomic
 test-unit-cover: TEST_PACKAGES=$(PACKAGES_UNIT)
+
+###############################################################################
+###                        Kind E2E Tests                                   ###
+###############################################################################
+
+# Run all Kind e2e framework tests
+e2e-fw:
+	@bash $(E2E_KIND_DIR)/framework/runner.sh
+
+# Run a single test: make e2e-fw-test TEST=smoke
+e2e-fw-test:
+	@bash $(E2E_KIND_DIR)/tests/test_$(TEST).sh
+
+# Run without cleanup (for dev): make e2e-fw-dev TEST=smoke
+e2e-fw-dev:
+	@FW_SKIP_CLEANUP=true bash $(E2E_KIND_DIR)/tests/test_$(TEST).sh
+
+# Individual Kind e2e steps
+e2e-kind-setup:
+	@bash $(E2E_KIND_DIR)/scripts/setup-kind.sh
+
+e2e-kind-build:
+	@bash $(E2E_KIND_DIR)/scripts/build-images.sh
+
+e2e-kind-deploy:
+	@bash $(E2E_KIND_DIR)/scripts/deploy.sh
+
+e2e-kind-cleanup:
+	@bash $(E2E_KIND_DIR)/scripts/cleanup.sh
+
+.PHONY: e2e-fw e2e-fw-test e2e-fw-dev e2e-kind-setup e2e-kind-build e2e-kind-deploy e2e-kind-cleanup
 
 test-e2e:
 	@if [ -z "$(TARGET_VERSION)" ]; then \
