@@ -8,19 +8,15 @@ End-to-end tests for the Moca blockchain using [Kind](https://kind.sigs.k8s.io/)
 - [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [jq](https://jqlang.github.io/jq/download/)
-- SSH key with GitHub access (for building Docker image with private deps)
 
 ## Quick Start
 
 ```bash
-# Ensure SSH key is loaded (needed for private repo access during Docker build)
-ssh-add ~/.ssh/id_ed25519
-
 # Run smoke tests (setup Kind, build image, deploy, test)
-make e2e-kind
+make e2e-fw-test TEST=smoke
 
-# Run and cleanup afterward
-make e2e-kind-all
+# Run all tests
+make e2e-fw
 ```
 
 ## Framework Tests (Recommended)
@@ -127,7 +123,7 @@ OLD_VERSION=v12.0.1 make e2e-kind-upgrade-governance
 # 1. Create Kind cluster
 make e2e-kind-setup
 
-# 2. Build Docker image from source (uses SSH agent for private deps), load into Kind
+# 2. Build Docker image from source, load into Kind
 make e2e-kind-build
 
 # 3. Deploy chain (init genesis, create validators, wait for blocks)
@@ -172,7 +168,7 @@ make e2e-kind-cleanup
 ### Flow
 
 1. **setup-kind.sh** — Creates a Kind cluster with port mappings
-2. **build-images.sh** — Multi-stage Docker build from source (SSH agent for private deps), loads into Kind
+2. **build-images.sh** — Multi-stage Docker build from source, loads into Kind
 3. **init-chain.sh** — Runs as a K8s Job inside the cluster:
    - Generates validator keys (validator, BLS, relayer, challenger)
    - Generates SP keys (operator, fund, seal, BLS, approval, gc, maintenance)
@@ -257,8 +253,7 @@ curl http://localhost:26657/net_info | jq '.result.n_peers'
 The GitHub Actions workflow (`.github/workflows/e2e-kind.yml`) runs automatically on PRs to `main`. It:
 
 1. Installs Kind
-2. Configures private repo access via `GH_TOKEN` secret
-3. Builds Docker image and deploys to Kind
+2. Builds Docker image and deploys to Kind
 4. Runs all e2e tests
 5. Collects debug logs on failure
 6. Cleans up the Kind cluster
