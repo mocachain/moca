@@ -3,13 +3,13 @@
 # and validates that state is preserved and the chain continues.
 #
 # Usage:
-#   OLD_VERSION=v12.0.1 bash tests/test_upgrade_hardfork.sh
-#   OLD_VERSION=main    bash tests/test_upgrade_hardfork.sh   # default
+#   OLD_VERSION=v1.1.2 bash tests/test_upgrade_hardfork.sh
+#   OLD_VERSION=main   bash tests/test_upgrade_hardfork.sh
 
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
-OLD_VERSION="${OLD_VERSION:-main}"
+OLD_VERSION="${OLD_VERSION:-v1.1.2}"
 UPGRADE_NAME="${UPGRADE_NAME:-v1.2.0}"
 FEES="200000000000000amoca"
 
@@ -66,11 +66,12 @@ test_balances_preserved() {
 }
 
 test_new_binary_running() {
-    # After hardfork, verify the new binary is running by checking the version
-    local version
-    version=$(exec_mocad version 2>/dev/null || echo "unknown")
-    # The new binary should NOT be the old version
-    assert_not_empty "$version" "New binary version should be reported"
+    # After hardfork, verify the new binary is running by checking node status
+    local status
+    status=$(exec_mocad status --node tcp://localhost:26657 2>/dev/null || echo "")
+    local node_info
+    node_info=$(echo "$status" | jq -r '.node_info.network // empty' 2>/dev/null) || true
+    assert_eq "$node_info" "${CHAIN_ID}" "Node should be running on correct chain"
 }
 
 test_send_tokens_post_upgrade() {

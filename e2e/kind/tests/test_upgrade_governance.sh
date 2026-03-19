@@ -2,14 +2,17 @@
 # Governance upgrade test — deploys an old version, triggers upgrade via
 # governance proposal, and validates that state is preserved.
 #
+# The OLD binary must NOT have the UPGRADE_NAME handler registered. If it does,
+# the Cosmos SDK panics with "BINARY UPDATED BEFORE TRIGGER". Use a real old
+# release tag (e.g., v1.1.2) — not main or the current version.
+#
 # Usage:
-#   OLD_VERSION=v12.0.1 bash tests/test_upgrade_governance.sh
-#   OLD_VERSION=main    bash tests/test_upgrade_governance.sh   # default
+#   OLD_VERSION=v1.1.2 bash tests/test_upgrade_governance.sh
 
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
-OLD_VERSION="${OLD_VERSION:-main}"
+OLD_VERSION="${OLD_VERSION:-v1.1.2}"
 UPGRADE_NAME="${UPGRADE_NAME:-v1.2.0}"
 FEES="200000000000000amoca"
 
