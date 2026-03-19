@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: validator-headless
+  namespace: moca-e2e
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: validator
+  ports:
+    - name: rpc
+      port: 26657
+    - name: p2p
+      port: 26656
+    - name: grpc
+      port: 9090
+    - name: api
+      port: 1317
+    - name: evm-rpc
+      port: 8545
+    - name: evm-ws
+      port: 8546
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: validator-nodeport
+  namespace: moca-e2e
+spec:
+  type: NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: validator-0-0
+  ports:
+    - name: rpc
+      port: 26657
+      targetPort: 26657
+      nodePort: 26657
+    - name: grpc
+      port: 9090
+      targetPort: 9090
+      nodePort: 9090
+    - name: api
+      port: 1317
+      targetPort: 1317
+      nodePort: 1317
+    - name: evm-rpc
+      port: 8545
+      targetPort: 8545
+      nodePort: 8545
+    - name: evm-ws
+      port: 8546
+      targetPort: 8546
+      nodePort: 8546

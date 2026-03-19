@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: genesis-init
+  namespace: moca-e2e
+spec:
+  backoffLimit: 1
+  # Job won't auto-complete because the container sleeps.
+  # deploy.sh deletes the job after extracting configs.
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: init
+          image: mocachain/moca:e2e-local
+          imagePullPolicy: Never
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              /scripts/init-chain.sh && echo "Init done, waiting for config extraction..." && sleep 3600
+          env:
+            - name: NUM_VALIDATORS
+              value: "4"
+            - name: NUM_STORAGE_PROVIDERS
+              value: "1"
+            - name: DATA_DIR
+              value: "/data"
+            - name: CHAIN_ID
+              value: "moca_5151-1"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: scripts
+          configMap:
+            name: init-chain-script
+            defaultMode: 0755
+        - name: data
+          emptyDir: {}
