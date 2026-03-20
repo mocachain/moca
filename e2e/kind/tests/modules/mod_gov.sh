@@ -42,10 +42,19 @@ _gov_verify_submit_works() {
     local pre_count; pre_count=$(exec_mocad query gov proposals \
         --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
         --output json 2>/dev/null | jq '.proposals | length') || true
-    gov_tx
+    pre_count="${pre_count:-0}"
+
+    # Submit proposal directly (gov_tx uses write_to_pod which may fail across versions)
+    local prop_json="{\"messages\":[],\"deposit\":\"${GOV_MIN_DEPOSIT_AMOUNT}${BASIC_DENOM}\",\"title\":\"E2E Post-Upgrade Test\",\"summary\":\"Post-upgrade proposal\"}"
+    local tmpfile="/tmp/gov-prop-verify.json"
+    write_to_pod "$prop_json" "$tmpfile"
+    cosmos_tx gov submit-proposal "$tmpfile" --from validator0
+    sleep 5
+
     local post_count; post_count=$(exec_mocad query gov proposals \
         --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
         --output json 2>/dev/null | jq '.proposals | length') || true
+    post_count="${post_count:-0}"
     assert_gt "$post_count" "$pre_count" "Post-upgrade proposal submission should work"
 }
 
