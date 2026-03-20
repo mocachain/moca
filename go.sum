@@ -875,12 +875,12 @@ github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3N
 github.com/moby/docker-image-spec v1.3.1/go.mod h1:eKmb5VW8vQEh/BAr2yvVNvuiJuY6UIocYsFu/DxxRpo=
 github.com/moby/term v0.5.0 h1:xt8Q1nalod/v7BqbG21f8mQPqH+xAaC9C3N3wfWbVP0=
 github.com/moby/term v0.5.0/go.mod h1:8FzsFHVUBGZdbDsJw/ot+X+d5HLUbvklYLJ9uGfcI3Y=
-github.com/mocachain/go-ethereum v1.10.27-moca.2 h1:6YjTPktB7G4Z/ocXYjdLnMkECKgTYHvW/S30HX63oFE=
-github.com/mocachain/go-ethereum v1.10.27-moca.2/go.mod h1:I5j+rJP+h5ZruTJ+fu1nVWkd4XmuodZ3pzYjAzTreeg=
+github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee h1:UDDD+dP9OYE3pf7H37Mi7h4DcydlbBgVXBQe3ti3u74=
+github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee/go.mod h1:I5j+rJP+h5ZruTJ+fu1nVWkd4XmuodZ3pzYjAzTreeg=
 github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260319071205-279e6465903b h1:cz5THtlVbaud254n8pwD5XaqzKNPzALSdYCn+vgwpr4=
 github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260319071205-279e6465903b/go.mod h1:n+ao+c0edmFG6Bn08JD/FiOL1WCCNZ7GVh572ucj6t8=
-github.com/mocachain/moca-cometbft-db v1.1.0-rc1-22256c4 h1:Q/nKzuF7WvDoPJUznhNXWK5/ZQVuXuSuSw8C1s7OXVI=
-github.com/mocachain/moca-cometbft-db v1.1.0-rc1-22256c4/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
+github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3 h1:Ggx4IAYWhQJlYychgmHvO9QqgITlzjsqeqVH7jhVh1E=
+github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
 github.com/mocachain/moca-cosmos-sdk v1.2.0-rc0.0.20260319071145-b329d8bb9227 h1:zbEjLX2vgQWXnkfq5G9L0ZD+6oUfqEYX2vzvzXWS6t4=
 github.com/mocachain/moca-cosmos-sdk v1.2.0-rc0.0.20260319071145-b329d8bb9227/go.mod h1:cOmTOOcKwYtTMdY71z1tUm4cq2rhKRIwrZKVxPuhM+M=
 github.com/mocachain/moca-cosmos-sdk/api v1.2.0 h1:h250Ef+zETFEbQJXqakqYqCcNeIyr0J/RnvcVjtXUrM=

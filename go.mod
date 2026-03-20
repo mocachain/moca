@@ -300,13 +300,13 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260319071205-279e6465903b
-	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.1.0-rc1-22256c4
+	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3
 	// use Cosmos-SDK fork to enable Ledger functionality
 	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.2.0-rc0.0.20260319071145-b329d8bb9227
 	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v1.2.0-rc0.0.20260318093905-7d754d41e8e9
 	github.com/cosmos/ibc-go/v10 => github.com/mocachain/moca-ibc-go/v10 v10.2.0-rc0.0.20260318062107-6647ca4ddfef
 	// use Evmos geth fork
-	github.com/ethereum/go-ethereum => github.com/mocachain/go-ethereum v1.10.27-moca.2
+	github.com/ethereum/go-ethereum => github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// use cosmos flavored protobufs
