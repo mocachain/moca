@@ -4,18 +4,10 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - "app/**"
-      - "x/**"
-      - "cmd/**"
-      - "go.mod"
-      - "go.sum"
-      - "e2e/kind/**"
-      - ".github/workflows/e2e-kind.yml"
   workflow_dispatch:
     inputs:
       old_version:
-        description: "Old version tag for upgrade tests"
+        description: "Old version tag for upgrade tests (used by hardfork/governance/comprehensive)"
         default: "v1.1.2"
         type: string
 
