@@ -15,7 +15,7 @@ COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=secret,id=gitconfig,target=/root/.gitconfig \
-    GOFLAGS=-buildvcs=false make build
+    make build
 
 FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y ca-certificates jq curl && rm -rf /var/lib/apt/lists/*

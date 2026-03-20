@@ -13,7 +13,7 @@ WORKDIR /workspace
 
 RUN git clone "https://${REPO_URL}.git" . && \
     git checkout "${GIT_REF}" && \
-    GOFLAGS=-buildvcs=false make build
+    make build
 
 FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y ca-certificates jq curl && rm -rf /var/lib/apt/lists/*
