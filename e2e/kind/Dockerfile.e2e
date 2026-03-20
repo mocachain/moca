@@ -8,13 +8,11 @@ ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
 WORKDIR /workspace
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=secret,id=gitconfig,target=/root/.gitconfig \
     go mod download
 
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=secret,id=gitconfig,target=/root/.gitconfig \
     make build
 
 FROM debian:bullseye-slim

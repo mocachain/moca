@@ -30,9 +30,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Create empty gitconfig (public repos, no token needed)
-        run: echo "# empty" > /tmp/gitconfig
-
       - name: Build current version image
         uses: docker/build-push-action@v6
         with:
@@ -40,10 +37,7 @@ jobs:
           file: e2e/kind/Dockerfile.e2e
           tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
           load: true
-          cache-from: type=gha,scope=e2e-local
-          cache-to: type=gha,mode=max,scope=e2e-local
-          secrets: |
-            gitconfig=/tmp/gitconfig
+          no-cache: true
 
       - name: Build old version image
         uses: docker/build-push-action@v6
