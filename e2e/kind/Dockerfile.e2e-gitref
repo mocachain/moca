@@ -14,7 +14,7 @@ WORKDIR /workspace
 RUN --mount=type=secret,id=gitconfig,target=/root/.gitconfig \
     git clone "https://${REPO_URL}.git" . && \
     git checkout "${GIT_REF}" && \
-    make build
+    GOFLAGS=-buildvcs=false make build
 
 FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y ca-certificates jq curl && rm -rf /var/lib/apt/lists/*
