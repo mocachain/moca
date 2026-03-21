@@ -44,8 +44,23 @@ _gov_verify_submit_works() {
         --output json 2>/dev/null | jq '.proposals | length') || true
     pre_count="${pre_count:-0}"
 
-    # Submit proposal directly (gov_tx uses write_to_pod which may fail across versions)
-    local prop_json="{\"messages\":[],\"deposit\":\"${GOV_MIN_DEPOSIT_AMOUNT}${BASIC_DENOM}\",\"title\":\"E2E Post-Upgrade Test\",\"summary\":\"Post-upgrade proposal\"}"
+    # Query the actual min deposit from chain params (may differ across versions)
+    local min_deposit; min_deposit=$(exec_mocad query gov params \
+        --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
+        --output json 2>/dev/null | jq -r '
+            .params.min_deposit[0].amount //
+            .deposit_params.min_deposit[0].amount //
+            empty' 2>/dev/null) || true
+    min_deposit="${min_deposit:-${GOV_MIN_DEPOSIT_AMOUNT}}"
+    local denom; denom=$(exec_mocad query gov params \
+        --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
+        --output json 2>/dev/null | jq -r '
+            .params.min_deposit[0].denom //
+            .deposit_params.min_deposit[0].denom //
+            empty' 2>/dev/null) || true
+    denom="${denom:-${BASIC_DENOM}}"
+
+    local prop_json="{\"messages\":[],\"deposit\":\"${min_deposit}${denom}\",\"title\":\"E2E Post-Upgrade Test\",\"summary\":\"Post-upgrade proposal\"}"
     local tmpfile="/tmp/gov-prop-verify.json"
     write_to_pod "$prop_json" "$tmpfile"
     cosmos_tx gov submit-proposal "$tmpfile" --from validator0
