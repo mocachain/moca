@@ -31,7 +31,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build current version image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: e2e/kind/Dockerfile.e2e
@@ -40,7 +40,7 @@ jobs:
           no-cache: true
 
       - name: Build old version image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: e2e/kind/Dockerfile.e2e-gitref
