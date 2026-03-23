@@ -44,6 +44,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (dockerup) Remove legacy Node.js tooling from `deployment/dockerup` (dev.js, npm manifests,
+  Node-only configs); Docker multi-validator flow uses `localup.sh` via `docker-compose.yml`
 - (localup) [#118](https://github.com/mocachain/moca/pull/118) Remove legacy Node.js tooling from `deployment/localup` (dev.js, join.js, npm manifests, configs, sample JSONs); local chains should use `localup.sh`
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
