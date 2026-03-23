@@ -47,6 +47,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (dockerup) Remove legacy Node.js tooling from `deployment/dockerup` (dev.js, npm manifests,
   Node-only configs); Docker multi-validator flow uses `localup.sh` via `docker-compose.yml`
 - (localup) [#118](https://github.com/mocachain/moca/pull/118) Remove legacy Node.js tooling from `deployment/localup` (dev.js, join.js, npm manifests, configs, sample JSONs); local chains should use `localup.sh`
+- (ci/docs) [#119](https://github.com/mocachain/moca/pull/119) Markdown lint: align README/e2e ERC20 and Kind docs
+  with markdownlint; disable MD060; extend `.markdownlintignore` (CONTRIBUTING, RELEASE_GUIDE); fix
+  `markdown-lint.yml` comments; remove obsolete `deployment/localup/README.md` and
+  `deployment/dockerup/README.md` (legacy Node dev.js docs)
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
 ### Bug Fixes

@@ -1,6 +1,7 @@
 # Moca Chain E2E Tests (Kind)
 
-End-to-end tests for the Moca blockchain using [Kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker). Mirrors the production `moca-chain-infra` patterns with K8s manifests and shell scripts.
+End-to-end tests for the Moca blockchain using [Kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker).
+Mirrors the production `moca-chain-infra` patterns with K8s manifests and shell scripts.
 
 ## Prerequisites
 
@@ -21,7 +22,8 @@ make e2e-fw
 
 ## Framework Tests (Recommended)
 
-The `framework/` + `tests/` approach provides self-contained test files with minimal boilerplate. Each test file handles its own setup, tests, and teardown.
+The `framework/` + `tests/` approach provides self-contained test files with minimal boilerplate.
+Each test file handles its own setup, tests, and teardown.
 
 ```bash
 # Run all framework tests
@@ -175,7 +177,8 @@ make e2e-kind-cleanup
    - Creates genesis accounts, gentx, spgentx
    - Configures persistent peers using K8s DNS
    - Applies test timeouts (1s commit, 15s voting period)
-4. **deploy.sh** — Extracts configs from init Job, creates per-validator ConfigMaps/Secrets, deploys StatefulSets with writable config volumes
+4. **deploy.sh** — Extracts configs from init Job, creates per-validator ConfigMaps/Secrets, deploys StatefulSets
+   with writable config volumes
 5. **run-tests.sh** — Executes test cases via `kubectl exec` and RPC queries
 
 ## Test Cases
@@ -267,5 +270,6 @@ MOCA_SP_IMAGE=mocafoundation/moca-sp:latest make e2e-kind-build
 ```
 
 The SP connects to:
+
 - MySQL at `mysql.moca-e2e.svc.cluster.local:3306`
 - Validator RPC at `validator-0-0.validator-headless.moca-e2e.svc.cluster.local:26657`
