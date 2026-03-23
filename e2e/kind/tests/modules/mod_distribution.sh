@@ -13,10 +13,14 @@ distribution_tx() {
 
 _dist_verify_rewards_available() {
     fw_wait_blocks 3
-    local rewards; rewards=$(exec_mocad query distribution rewards \
+    local raw; raw=$(exec_mocad query distribution rewards \
         "$(exec_mocad keys show validator0 -a --keyring-backend test)" \
         --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
-        --output json 2>/dev/null | jq -r '.total[] | select(.denom=="amoca") | .amount // "0"') || true
+        --output json 2>/dev/null) || true
+    # Handle both object format ({denom, amount}) and string format across SDK versions
+    local rewards; rewards=$(echo "$raw" | jq -r '
+        [.total[] | if type == "object" then select(.denom=="amoca") | .amount else . end] | first // empty
+    ' 2>/dev/null) || true
     assert_not_empty "$rewards" "Validator0 should have pending rewards post-upgrade"
 }
 

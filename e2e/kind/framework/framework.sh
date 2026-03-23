@@ -124,11 +124,16 @@ fw_start_chain() {
     # Setup Kind cluster
     bash "${SCRIPTS_DIR}/setup-kind.sh"
 
-    # Build images
-    if [ -n "$version" ]; then
-        OLD_VERSION="$version" bash "${SCRIPTS_DIR}/build-images.sh"
+    # Build images (skip if pre-built, e.g. CI)
+    if [ "${FW_SKIP_BUILD:-false}" != "true" ]; then
+        if [ -n "$version" ]; then
+            OLD_VERSION="$version" bash "${SCRIPTS_DIR}/build-images.sh"
+        else
+            bash "${SCRIPTS_DIR}/build-images.sh"
+        fi
     else
-        bash "${SCRIPTS_DIR}/build-images.sh"
+        log_info "FW_SKIP_BUILD=true, loading pre-built images into Kind..."
+        kind load docker-image "${DOCKER_IMAGE}:${DOCKER_TAG}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
     fi
 
     # Deploy chain
@@ -149,8 +154,14 @@ fw_start_chain_from_version() {
     # Setup Kind cluster
     bash "${SCRIPTS_DIR}/setup-kind.sh"
 
-    # Build both images
-    OLD_VERSION="${old_version}" bash "${SCRIPTS_DIR}/build-images.sh"
+    # Build both images (skip if pre-built, e.g. CI)
+    if [ "${FW_SKIP_BUILD:-false}" != "true" ]; then
+        OLD_VERSION="${old_version}" bash "${SCRIPTS_DIR}/build-images.sh"
+    else
+        log_info "FW_SKIP_BUILD=true, loading pre-built images into Kind..."
+        kind load docker-image "${DOCKER_IMAGE}:${DOCKER_TAG}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
+        kind load docker-image "${DOCKER_IMAGE}:${old_version}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
+    fi
 
     # Deploy with old version
     DEPLOY_IMAGE="${DOCKER_IMAGE}:${old_version}" bash "${SCRIPTS_DIR}/deploy.sh"

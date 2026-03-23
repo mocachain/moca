@@ -80,7 +80,9 @@ evm_contract_deploy() {
     log_info "  [evm] deploy value-store contract"
     local addr
     addr=$(evm_deploy "$_VALUE_STORE_BC")
-    [ -n "$addr" ] && _EVM_CONTRACTS+=("$addr")
+    if [ -n "$addr" ]; then
+        _EVM_CONTRACTS+=("$addr")
+    fi
 }
 
 # Single ERC20 operation — rotates through mint/transfer/transferFrom/burn

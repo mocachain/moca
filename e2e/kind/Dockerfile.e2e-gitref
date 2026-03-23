@@ -11,8 +11,7 @@ ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
 
 WORKDIR /workspace
 
-RUN --mount=type=secret,id=gitconfig,target=/root/.gitconfig \
-    git clone "https://${REPO_URL}.git" . && \
+RUN git clone "https://${REPO_URL}.git" . && \
     git checkout "${GIT_REF}" && \
     make build
 
