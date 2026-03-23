@@ -57,7 +57,7 @@ jobs:
             | gzip > /tmp/e2e-images.tar.gz
 
       - name: Upload images
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-images
           path: /tmp/e2e-images.tar.gz
@@ -124,7 +124,7 @@ jobs:
 
       - name: Upload debug logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-logs-${{ matrix.name }}
           path: /tmp/e2e-logs
