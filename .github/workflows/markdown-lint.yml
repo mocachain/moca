@@ -1,7 +1,8 @@
 name: markdown lint
-# Lint runs golangci-lint over the entire Evmos repository This workflow is
-# run on every pull request and push to main The `golangci` will pass without
-# running if no *.{go, mod, sum} files have been changed.
+# Runs markdownlint-cli on the repository using .markdownlint.yml and
+# .markdownlintignore. Triggered on every pull request and on pushes to main
+# and develop. The markdown-lint job runs only when the diff includes at least
+# one *.md file (see technote-space/get-diff-action and env.GIT_DIFF below).
 on:
   pull_request:
   push:
@@ -24,5 +25,5 @@ jobs:
           files: .
           config_file: .markdownlint.yml
           ignore_path: .markdownlintignore
-        # Check only if there are differences in the source code
+        # Run only when the change set includes Markdown files
         if: env.GIT_DIFF

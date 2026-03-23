@@ -44,6 +44,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (ci/docs) [#119](https://github.com/mocachain/moca/pull/119) Markdown lint: align README/e2e ERC20 and Kind docs
+  with markdownlint; disable MD060; extend `.markdownlintignore` (CONTRIBUTING, RELEASE_GUIDE); fix
+  `markdown-lint.yml` comments; remove obsolete `deployment/localup/README.md` and
+  `deployment/dockerup/README.md` (legacy Node dev.js docs)
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
 ### Bug Fixes
