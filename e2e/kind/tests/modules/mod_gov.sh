@@ -108,7 +108,7 @@ gov_tx() {
     log_info "  [gov] submit proposal: ${title}"
     local proposal_json
     proposal_json=$(cat <<PEOF
-{"messages":[],"deposit":"${GOV_MIN_DEPOSIT_AMOUNT}${BASIC_DENOM}","title":"${title}","summary":"${summary}"}
+{"messages":[],"metadata":"text","deposit":"${GOV_MIN_DEPOSIT_AMOUNT}${BASIC_DENOM}","title":"${title}","summary":"${summary}"}
 PEOF
     )
 
@@ -157,7 +157,7 @@ _gov_verify_submit_works() {
     denom="${denom:-${BASIC_DENOM}}"
     log_info "  [gov] using deposit=${min_deposit}${denom}"
 
-    local prop_json="{\"messages\":[],\"deposit\":\"${min_deposit}${denom}\",\"title\":\"E2E Post-Upgrade Test\",\"summary\":\"Post-upgrade proposal\"}"
+    local prop_json="{\"messages\":[],\"metadata\":\"text\",\"deposit\":\"${min_deposit}${denom}\",\"title\":\"E2E Post-Upgrade Test\",\"summary\":\"Post-upgrade proposal\"}"
     local tmpfile="/tmp/gov-prop-verify.json"
 
     local new_id
