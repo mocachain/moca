@@ -44,6 +44,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (localup) [#118](https://github.com/mocachain/moca/pull/118) Remove legacy Node.js tooling from `deployment/localup` (dev.js, join.js, npm manifests, configs, sample JSONs); local chains should use `localup.sh`
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
 ### Bug Fixes
