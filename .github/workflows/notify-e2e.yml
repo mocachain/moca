@@ -1,0 +1,25 @@
+name: Notify E2E Hub
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to moca-e2e
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.E2E_HUB_PAT }}
+          repository: mocachain/moca-e2e
+          event-type: repo-updated
+          client-payload: >-
+            {
+              "repo": "${{ github.repository }}",
+              "sha": "${{ github.sha }}",
+              "ref": "${{ github.ref }}",
+              "actor": "${{ github.actor }}"
+            }
