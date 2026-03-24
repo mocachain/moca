@@ -48,7 +48,8 @@ func TestAllStringIndexedFunctions(t *testing.T) {
 		{"DelegateCreateObject", "DelegateCreateObject", true},
 		{"DelegateUpdateObjectContent", "DelegateUpdateObjectContent", true},
 		{"UpdateObjectContent", "UpdateObjectContent", true},
-		{"CancelUpdateObjectContent", "CancelUpdateObjectContent", true},
+		// ABI uses bytes32 indexed objectName (see solidity/contracts/storage/IStorage.sol), not string indexed like other name events.
+		{"CancelUpdateObjectContent", "CancelUpdateObjectContent", false},
 		{"DiscontinueObject", "DiscontinueObject", true},
 		{"LeaveGroup", "LeaveGroup", true},
 		{"UpdateBucketInfo", "UpdateBucketInfo", true}, // fixed: bytes32 -> string indexed
