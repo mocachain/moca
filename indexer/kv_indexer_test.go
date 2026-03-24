@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	tmlog "cosmossdk.io/log"
-	"cosmossdk.io/simapp/params"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	evmenc "github.com/evmos/evmos/v12/encoding"
@@ -187,13 +187,10 @@ func TestKVIndexer(t *testing.T) {
 	}
 }
 
-// MakeEncodingConfig creates the EncodingConfig
-func MakeEncodingConfig() params.EncodingConfig {
+// MakeEncodingConfig returns encoding for this package's tests only: base MakeConfig plus EVM
+// interface registration so TxDecoder can unpack MsgEthereumTx (mirrors app wiring, not global MakeConfig).
+func MakeEncodingConfig() sdktestutil.TestEncodingConfig {
 	cfg := evmenc.MakeConfig()
-	return params.EncodingConfig{
-		InterfaceRegistry: cfg.InterfaceRegistry,
-		Codec:             cfg.Codec,
-		TxConfig:          cfg.TxConfig,
-		Amino:             cfg.Amino,
-	}
+	types.RegisterInterfaces(cfg.InterfaceRegistry)
+	return cfg
 }
