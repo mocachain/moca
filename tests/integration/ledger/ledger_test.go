@@ -6,12 +6,12 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 
-	"cosmossdk.io/simapp/params"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/evmos/evmos/v12/encoding"
 	"github.com/evmos/evmos/v12/tests/integration/ledger/mocks"
 	"github.com/evmos/evmos/v12/testutil"
@@ -19,9 +19,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
+	clitestutil "github.com/cosmos/cosmos-sdk/testutil"
 	sdktestutilcli "github.com/cosmos/cosmos-sdk/testutil/cli"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	bankcli "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 
@@ -29,11 +30,16 @@ import (
 )
 
 var (
-	signOkMock = func(_ []uint32, msg []byte) ([]byte, error) {
+	// Align with eth PubKey.VerifySignature when msg is 32 bytes (PrivKey.Sign would treat it as raw digest).
+	signOkMock = func(_ []uint32, msg []byte, _ byte) ([]byte, error) {
+		if len(msg) == ethcrypto.DigestLength {
+			h := ethcrypto.Keccak256Hash(msg)
+			return s.privKey.Sign(h.Bytes())
+		}
 		return s.privKey.Sign(msg)
 	}
 
-	signErrMock = func(_ []uint32, _ []byte) ([]byte, error) {
+	signErrMock = func(_ []uint32, _ []byte, _ byte) ([]byte, error) {
 		return nil, mocks.ErrMockedSigning
 	}
 )
@@ -41,9 +47,9 @@ var (
 var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 	var (
 		receiverAccAddr sdk.AccAddress
-		encCfg          params.EncodingConfig
+		encCfg          sdktestutil.TestEncodingConfig
 		kr              keyring.Keyring
-		mockedIn        sdktestutil.BufferReader
+		mockedIn        clitestutil.BufferReader
 		clientCtx       client.Context
 		ctx             context.Context
 		cmd             *cobra.Command
@@ -63,7 +69,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 
 			cmd = s.evmosAddKeyCmd()
 
-			mockedIn = sdktestutil.ApplyMockIODiscardOutErr(cmd)
+			mockedIn = clitestutil.ApplyMockIODiscardOutErr(cmd)
 
 			kr, clientCtx, ctx = s.NewKeyringAndCtxs(krHome, mockedIn, encCfg)
 
@@ -111,7 +117,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 			// create add key command
 			cmd = s.evmosAddKeyCmd()
 
-			mockedIn = sdktestutil.ApplyMockIODiscardOutErr(cmd)
+			mockedIn = clitestutil.ApplyMockIODiscardOutErr(cmd)
 			mocks.MGetAddressPubKeySECP256K1(s.ledger, s.accAddr, s.pubKey)
 
 			kr, clientCtx, ctx = s.NewKeyringAndCtxs(krHome, mockedIn, encCfg)
@@ -146,7 +152,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 
 					msg := []byte("test message")
 
-					signed, _, err := kr.SignByAddress(ledgerAddr, msg, signing.SignMode_SIGN_MODE_DIRECT)
+					signed, _, err := kr.SignByAddress(ledgerAddr, msg, signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 					s.Require().NoError(err, "failed to sign messsage")
 
 					valid := s.pubKey.VerifySignature(msg, signed)
@@ -160,7 +166,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 
 					msg := []byte("test message")
 
-					_, _, err = kr.SignByAddress(ledgerAddr, msg, signing.SignMode_SIGN_MODE_DIRECT)
+					_, _, err = kr.SignByAddress(ledgerAddr, msg, signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 
 					s.Require().Error(err, "false positive result, error expected")
 
@@ -184,7 +190,7 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 					receiverAccAddr = sdk.AccAddress(utiltx.GenerateAddress().Bytes())
 
 					cmd = bankcli.NewSendTxCmd()
-					mockedIn = sdktestutil.ApplyMockIODiscardOutErr(cmd)
+					mockedIn = clitestutil.ApplyMockIODiscardOutErr(cmd)
 
 					kr, clientCtx, ctx = s.NewKeyringAndCtxs(krHome, mockedIn, encCfg)
 
@@ -203,6 +209,8 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 						receiverAccAddr.String(),
 						sdk.NewCoin("amoca", sdkmath.NewInt(1000)).String(),
 						s.FormatFlag(flags.FlagUseLedger),
+						s.FormatFlag(flags.FlagSignMode),
+						flags.SignModeLegacyAminoJSON,
 						s.FormatFlag(flags.FlagSkipConfirmation),
 					})
 					out := bytes.NewBufferString("")
@@ -221,6 +229,8 @@ var _ = Describe("Ledger CLI and keyring functionality: ", func() {
 						receiverAccAddr.String(),
 						sdk.NewCoin("amoca", sdkmath.NewInt(1000)).String(),
 						s.FormatFlag(flags.FlagUseLedger),
+						s.FormatFlag(flags.FlagSignMode),
+						flags.SignModeLegacyAminoJSON,
 						s.FormatFlag(flags.FlagSkipConfirmation),
 					})
 					out := bytes.NewBufferString("")
