@@ -41,16 +41,13 @@ func CmdStorageProviders() *cobra.Command {
 		Short: "Query sp info of all storage providers",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
+
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
 
-			evmClient, err := clientCtx.GetEvmNode()
-			if err != nil {
-				return err
-			}
-			queryClient := NewQueryClientEVM(evmClient)
+			queryClient := types.NewQueryClient(clientCtx)
 
 			params := &types.QueryStorageProvidersRequest{}
 
@@ -85,11 +82,7 @@ func CmdStorageProvider() *cobra.Command {
 				return err
 			}
 
-			evmClient, err := clientCtx.GetEvmNode()
-			if err != nil {
-				return err
-			}
-			queryClient := NewQueryClientEVM(evmClient)
+			queryClient := types.NewQueryClient(clientCtx)
 			params := &types.QueryStorageProviderRequest{
 				Id: uint32(spID),
 			}
@@ -121,18 +114,18 @@ func CmdStorageProviderByOperatorAddress() *cobra.Command {
 				return err
 			}
 
-					clientCtx, err := client.GetClientQueryContext(cmd)
-		if err != nil {
-			return err
-		}
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
 
-		queryClient := types.NewQueryClient(clientCtx)
+			queryClient := types.NewQueryClient(clientCtx)
 
-		params := &types.QueryStorageProviderByOperatorAddressRequest{
-			OperatorAddress: operatorAddr.String(),
-		}
+			params := &types.QueryStorageProviderByOperatorAddressRequest{
+				OperatorAddress: operatorAddr.String(),
+			}
 
-		res, err := queryClient.StorageProviderByOperatorAddress(cmd.Context(), params)
+			res, err := queryClient.StorageProviderByOperatorAddress(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
@@ -195,15 +188,10 @@ func CmdStorageProviderPrice() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			evmClient, err := clientCtx.GetEvmNode()
-			if err != nil {
-				return err
-			}
-			queryClient := NewQueryClientEVM(evmClient)
-
-			res, err := queryClient.QuerySpStoragePrice(cmd.Context(), &types.QuerySpStoragePriceRequest{
-				SpAddr: spAddr.String(),
-			})
+			res, err := types.NewQueryClient(clientCtx).
+				QuerySpStoragePrice(cmd.Context(), &types.QuerySpStoragePriceRequest{
+					SpAddr: spAddr.String(),
+				})
 			if err != nil {
 				return err
 			}
