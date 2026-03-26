@@ -210,6 +210,8 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		},
 	}
 
+	rootCmd.PersistentFlags().String(flags.FlagHome, app.DefaultNodeHome, "The application home directory")
+
 	cfg := sdk.GetConfig()
 	cfg.Seal()
 
