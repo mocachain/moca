@@ -259,7 +259,6 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 	}
 
 	autoCliOpts := tempApp.AutoCliOpts()
-	initClientCtx, _ = clientcfg.ReadFromClientConfig(initClientCtx)
 	autoCliOpts.ClientCtx = initClientCtx
 
 	if err := autoCliOpts.EnhanceRootCommand(rootCmd); err != nil {
