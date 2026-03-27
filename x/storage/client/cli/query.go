@@ -1,223 +1,20 @@
 package cli
 
 import (
-	"encoding/hex"
+	"context"
 	"fmt"
 	"strings"
-	"time"
 
-	cmath "cosmossdk.io/math"
+	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/cosmos/cosmos-sdk/version"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
 	evmostypes "github.com/evmos/evmos/v12/types"
-	mocacommon "github.com/evmos/evmos/v12/types/common"
-	"github.com/evmos/evmos/v12/types/resource"
-	"github.com/evmos/evmos/v12/x/evm/precompiles/storage"
-	pertypes "github.com/evmos/evmos/v12/x/permission/types"
 	"github.com/evmos/evmos/v12/x/storage/types"
-	vgtypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
 )
-
-func ToStoragePageReq(in *query.PageRequest) *storage.PageRequest {
-	if in == nil {
-		return nil
-	}
-	return &storage.PageRequest{
-		Key:        in.Key,
-		Offset:     in.Offset,
-		Limit:      in.Limit,
-		CountTotal: in.CountTotal,
-		Reverse:    in.Reverse,
-	}
-}
-
-func ToPageResp(p *storage.PageResponse) *query.PageResponse {
-	if p == nil {
-		return nil
-	}
-	return &query.PageResponse{
-		NextKey: p.NextKey,
-		Total:   p.Total,
-	}
-}
-
-func ToResourceTags(tags []storage.Tag) *types.ResourceTags {
-	t := make([]types.ResourceTags_Tag, 0)
-	if tags == nil {
-		return &types.ResourceTags{Tags: t}
-	}
-	for _, tag := range tags {
-		t = append(t, types.ResourceTags_Tag{
-			Key:   tag.Key,
-			Value: tag.Value,
-		})
-	}
-	return &types.ResourceTags{Tags: t}
-}
-
-func ToChecksums(checksumsStr []string) [][]byte {
-	var t [][]byte
-	for _, checksum := range checksumsStr {
-		tmp, _ := hex.DecodeString(checksum)
-		t = append(t, tmp)
-	}
-
-	return t
-}
-
-func ToBucketInfo(p *storage.BucketInfo) *types.BucketInfo {
-	if p == nil {
-		return nil
-	}
-	s := &types.BucketInfo{
-		Owner:                      p.Owner.String(),
-		BucketName:                 p.BucketName,
-		Visibility:                 types.VisibilityType(p.Visibility),
-		Id:                         cmath.NewUintFromBigInt(p.Id),
-		SourceType:                 types.SourceType(p.SourceType),
-		CreateAt:                   p.CreateAt,
-		PaymentAddress:             p.PaymentAddress.String(),
-		GlobalVirtualGroupFamilyId: p.GlobalVirtualGroupFamilyId,
-		ChargedReadQuota:           p.ChargedReadQuota,
-		BucketStatus:               types.BucketStatus(p.BucketStatus),
-		Tags:                       ToResourceTags(p.Tags),
-		SpAsDelegatedAgentDisabled: p.SpAsDelegatedAgentDisabled,
-	}
-	return s
-}
-
-func ToBucketExtraInfo(p *storage.BucketExtraInfo) *types.BucketExtraInfo {
-	if p == nil {
-		return nil
-	}
-	s := &types.BucketExtraInfo{
-		IsRateLimited:   p.IsRateLimited,
-		FlowRateLimit:   cmath.NewIntFromBigInt(p.FlowRateLimit),
-		CurrentFlowRate: cmath.NewIntFromBigInt(p.CurrentFlowRate),
-	}
-	return s
-}
-
-func ToObjectInfo(p *storage.ObjectInfo) *types.ObjectInfo {
-	if p == nil {
-		return nil
-	}
-	s := &types.ObjectInfo{
-		Owner:               p.Owner.String(),
-		Creator:             p.Creator.String(),
-		BucketName:          p.BucketName,
-		ObjectName:          p.ObjectName,
-		Id:                  cmath.NewUintFromBigInt(p.Id),
-		LocalVirtualGroupId: p.LocalVirtualGroupId,
-		PayloadSize:         p.PayloadSize,
-		Visibility:          types.VisibilityType(p.Visibility),
-		ContentType:         p.ContentType,
-		CreateAt:            p.CreateAt,
-		ObjectStatus:        types.ObjectStatus(p.ObjectStatus),
-		RedundancyType:      types.RedundancyType(p.RedundancyType),
-		SourceType:          types.SourceType(p.SourceType),
-		Checksums:           ToChecksums(p.Checksums),
-		Tags:                ToResourceTags(p.Tags),
-		IsUpdating:          p.IsUpdating,
-		UpdatedAt:           p.UpdatedAt,
-		UpdatedBy:           p.UpdatedBy.String(),
-		Version:             p.Version,
-	}
-	return s
-}
-
-func ToGroupInfo(p *storage.GroupInfo) *types.GroupInfo {
-	if p == nil {
-		return nil
-	}
-	s := &types.GroupInfo{
-		Owner:      p.Owner.String(),
-		GroupName:  p.GroupName,
-		SourceType: types.SourceType(p.SourceType),
-		Id:         cmath.NewUintFromBigInt(p.Id),
-		Extra:      p.Extra,
-		Tags:       ToResourceTags(p.Tags),
-	}
-	return s
-}
-
-func ToGroupMember(p *storage.GroupMember) *pertypes.GroupMember {
-	if p == nil {
-		return nil
-	}
-	expirationTime := time.Unix(p.ExpirationTime, 0)
-	s := &pertypes.GroupMember{
-		Id:             cmath.NewUintFromBigInt(p.Id),
-		GroupId:        cmath.NewUintFromBigInt(p.GroupId),
-		Member:         p.Member.String(),
-		ExpirationTime: &expirationTime,
-	}
-	return s
-}
-
-func ToGlobalVirtualGroup(p *storage.GlobalVirtualGroup) *vgtypes.GlobalVirtualGroup {
-	if p == nil {
-		return nil
-	}
-	totalDeposit, _ := cmath.NewIntFromString(p.TotalDeposit)
-	s := &vgtypes.GlobalVirtualGroup{
-		Id:                    p.Id,
-		FamilyId:              p.FamilyId,
-		PrimarySpId:           p.PrimarySpId,
-		SecondarySpIds:        p.SecondarySpIds,
-		StoredSize:            p.StoredSize,
-		VirtualPaymentAddress: p.VirtualPaymentAddress.String(),
-		TotalDeposit:          totalDeposit,
-	}
-	return s
-}
-
-func ToStatements(p []storage.Statement) []*pertypes.Statement {
-	statements := make([]*pertypes.Statement, 0)
-	if p == nil {
-		return statements
-	}
-
-	for _, statement := range p {
-		actions := make([]pertypes.ActionType, 0)
-		for _, action := range statement.Actions {
-			actions = append(actions, pertypes.ActionType(action))
-		}
-		expirationTime := time.Unix(statement.ExpirationTime, 0)
-		statements = append(statements, &pertypes.Statement{
-			Effect:         pertypes.Effect(statement.Effect),
-			Actions:        actions,
-			Resources:      statement.Resources,
-			ExpirationTime: &expirationTime,
-			LimitSize:      &mocacommon.UInt64Value{Value: statement.LimitSize},
-		})
-	}
-
-	return statements
-}
-
-func ToPolicy(p *storage.Policy) *pertypes.Policy {
-	if p == nil {
-		return nil
-	}
-	expirationTime := time.Unix(p.ExpirationTime, 0)
-	s := &pertypes.Policy{
-		Id:             cmath.NewUintFromBigInt(p.Id),
-		Principal:      &pertypes.Principal{Type: pertypes.PrincipalType(p.Principal.PrincipalType), Value: p.Principal.Value},
-		ResourceType:   resource.ResourceType(p.ResourceType),
-		ResourceId:     cmath.NewUintFromBigInt(p.ResourceId),
-		Statements:     ToStatements(p.Statements),
-		ExpirationTime: &expirationTime,
-	}
-	return s
-}
 
 // GetQueryCmd returns the cli query commands for this module
 func GetQueryCmd() *cobra.Command {
@@ -259,18 +56,16 @@ func CmdHeadBucket() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
-			if err != nil {
-				return err
-			}
-			result, err := contract.HeadBucket(&bind.CallOpts{}, reqBucketName)
-			if err != nil {
-				return err
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryHeadBucketRequest{
+				BucketName: reqBucketName,
 			}
 
-			res := &types.QueryHeadBucketResponse{
-				BucketInfo: ToBucketInfo(&result.BucketInfo),
-				ExtraInfo:  ToBucketExtraInfo(&result.BucketExtraInfo),
+			res, err := queryClient.HeadBucket(cmd.Context(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)
@@ -295,18 +90,17 @@ func CmdHeadObject() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
-			if err != nil {
-				return err
-			}
-			result, err := contract.HeadObject(&bind.CallOpts{}, reqBucketName, reqObjectName)
-			if err != nil {
-				return err
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryHeadObjectRequest{
+				BucketName: reqBucketName,
+				ObjectName: reqObjectName,
 			}
 
-			res := &types.QueryHeadObjectResponse{
-				ObjectInfo:         ToObjectInfo(&result.ObjectInfo),
-				GlobalVirtualGroup: ToGlobalVirtualGroup(&result.GlobalVirtualGroup),
+			res, err := queryClient.HeadObject(cmd.Context(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)
@@ -329,22 +123,15 @@ func CmdListBuckets() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
-			if err != nil {
-				return err
-			}
-			result, err := contract.ListBuckets(&bind.CallOpts{}, *ToStoragePageReq(pageReq))
-			if err != nil {
-				return err
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryListBucketsRequest{
+				Pagination: pageReq,
 			}
 
-			bucketInfos := make([]*types.BucketInfo, 0)
-			for _, bucketInfo := range result.BucketInfos {
-				bucketInfos = append(bucketInfos, ToBucketInfo(&bucketInfo))
-			}
-			res := &types.QueryListBucketsResponse{
-				BucketInfos: bucketInfos,
-				Pagination:  ToPageResp(&result.PageResponse),
+			res, err := queryClient.ListBuckets(context.Background(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)
@@ -368,26 +155,16 @@ func CmdListObjects() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			pageReq, err := client.ReadPageRequest(cmd.Flags())
-			if err != nil {
-				return err
-			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
-			if err != nil {
-				return err
-			}
-			result, err := contract.ListObjects(&bind.CallOpts{}, *ToStoragePageReq(pageReq), reqBucketName)
-			if err != nil {
-				return err
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryListObjectsRequest{
+				BucketName: reqBucketName,
 			}
 
-			objectInfos := make([]*types.ObjectInfo, 0)
-			for _, objectInfo := range result.ObjectInfos {
-				objectInfos = append(objectInfos, ToObjectInfo(&objectInfo))
-			}
-			res := &types.QueryListObjectsResponse{
-				ObjectInfos: objectInfos,
-				Pagination:  ToPageResp(&result.PageResponse),
+			res, err := queryClient.ListObjects(cmd.Context(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)
@@ -419,17 +196,19 @@ func CmdVerifyPermission() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
-			if err != nil {
-				return err
-			}
-			result, err := contract.VerifyPermission(&bind.CallOpts{From: common.HexToAddress(reqOperator)}, reqBucketName, reqObjectName, int32(actionType))
-			if err != nil {
-				return err
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryVerifyPermissionRequest{
+				Operator:   reqOperator,
+				BucketName: reqBucketName,
+				ObjectName: reqObjectName,
+				ActionType: actionType,
 			}
 
-			res := &types.QueryVerifyPermissionResponse{
-				Effect: pertypes.Effect(result),
+			res, err := queryClient.VerifyPermission(cmd.Context(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)
@@ -454,17 +233,17 @@ func CmdHeadGroup() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
-			if err != nil {
-				return err
-			}
-			result, err := contract.HeadGroup(&bind.CallOpts{}, common.HexToAddress(reqGroupOwner), reqGroupName)
-			if err != nil {
-				return err
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryHeadGroupRequest{
+				GroupOwner: reqGroupOwner,
+				GroupName:  reqGroupName,
 			}
 
-			res := &types.QueryHeadGroupResponse{
-				GroupInfo: ToGroupInfo(&result),
+			res, err := queryClient.HeadGroup(cmd.Context(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)
@@ -488,26 +267,16 @@ func CmdListGroups() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			pageReq, err := client.ReadPageRequest(cmd.Flags())
-			if err != nil {
-				return err
-			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
-			if err != nil {
-				return err
-			}
-			result, err := contract.ListGroups(&bind.CallOpts{}, *ToStoragePageReq(pageReq), common.HexToAddress(reqGroupOwner))
-			if err != nil {
-				return err
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryListGroupsRequest{
+				GroupOwner: reqGroupOwner,
 			}
 
-			groupInfos := make([]*types.GroupInfo, 0)
-			for _, groupInfo := range result.GroupInfos {
-				groupInfos = append(groupInfos, ToGroupInfo(&groupInfo))
-			}
-			res := &types.QueryListGroupsResponse{
-				GroupInfos: groupInfos,
-				Pagination: ToPageResp(&result.PageResponse),
+			res, err := queryClient.ListGroups(cmd.Context(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)
@@ -533,17 +302,18 @@ func CmdHeadGroupMember() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
-			if err != nil {
-				return err
-			}
-			result, err := contract.HeadGroupMember(&bind.CallOpts{}, common.HexToAddress(reqGroupMember), common.HexToAddress(reqGroupOwner), reqGroupName)
-			if err != nil {
-				return err
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryHeadGroupMemberRequest{
+				GroupOwner: reqGroupOwner,
+				GroupName:  reqGroupName,
+				Member:     reqGroupMember,
 			}
 
-			res := &types.QueryHeadGroupMemberResponse{
-				GroupMember: ToGroupMember(&result),
+			res, err := queryClient.HeadGroupMember(cmd.Context(), params)
+			if err != nil {
+				return err
 			}
 
 			return clientCtx.PrintProto(res)
@@ -583,19 +353,15 @@ Examples:
 			if err != nil {
 				return err
 			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
+			queryClient := types.NewQueryClient(clientCtx)
+			params := &types.QueryPolicyForAccountRequest{
+				Resource:         grn.String(),
+				PrincipalAddress: principalAcc.String(),
+			}
+			res, err := queryClient.QueryPolicyForAccount(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
-			result, err := contract.QueryPolicyForAccount(&bind.CallOpts{}, grn.String(), principalAcc.String())
-			if err != nil {
-				return err
-			}
-
-			res := &types.QueryPolicyForAccountResponse{
-				Policy: ToPolicy(&result),
-			}
-
 			return clientCtx.PrintProto(res)
 		},
 	}
@@ -624,7 +390,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			groupID, ok := cmath.NewIntFromString(args[1])
+			groupID, ok := sdkmath.NewIntFromString(args[1])
 			if !ok {
 				return fmt.Errorf("failed to convert group id")
 			}
@@ -632,19 +398,15 @@ Examples:
 			if err != nil {
 				return err
 			}
-			contract, err := storage.NewIStorage(common.HexToAddress(evmostypes.StorageAddress), clientCtx.EvmClient)
+			queryClient := types.NewQueryClient(clientCtx)
+			params := &types.QueryPolicyForGroupRequest{
+				Resource:         grn.String(),
+				PrincipalGroupId: groupID.String(),
+			}
+			res, err := queryClient.QueryPolicyForGroup(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
-			result, err := contract.QueryPolicyForGroup(&bind.CallOpts{}, grn.String(), groupID.BigInt())
-			if err != nil {
-				return err
-			}
-
-			res := &types.QueryPolicyForGroupResponse{
-				Policy: ToPolicy(&result),
-			}
-
 			return clientCtx.PrintProto(res)
 		},
 	}
