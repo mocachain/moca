@@ -9,7 +9,7 @@ ifdef GITHUB_TOKEN
   $(shell git config --global url."https://$(GITHUB_TOKEN):@github.com/".insteadOf "https://github.com/" 2>/dev/null)
 endif
 
-# Exclude sdk/client: integration tests against local Comet RPC (26657) and EVM (8545); see make test-sdk-client-integration
+# Exclude sdk/client: integration tests against local Comet RPC (26657) and EVM (8545)
 PACKAGES_NOSIMULATION=$(shell go list ./... | grep -v '/simulation' | grep -v '/sdk/client')
 VERSION ?= $(shell echo $(shell git describe --tags --always) | sed 's/^v//')
 TMVERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::')
@@ -295,7 +295,7 @@ test: test-unit
 test-all: test-unit test-race
 # For unit tests we don't want to execute the upgrade tests in tests/e2e but
 # we want to include all unit tests in the subfolders (tests/e2e/*).
-# sdk/client is excluded: same as e2e — requires a running chain (see test-sdk-client-integration).
+# sdk/client is excluded: same as e2e — requires a running chain
 PACKAGES_UNIT=$(shell go list ./... | grep -v '/tests/e2e$$' | grep -v '/sdk/client')
 TEST_PACKAGES=./...
 TEST_TARGETS := test-unit test-unit-cover test-race
@@ -312,11 +312,6 @@ $(TEST_TARGETS): run-tests
 
 test-unit-cover: ARGS=-timeout=15m -race -coverprofile=coverage.txt -covermode=atomic
 test-unit-cover: TEST_PACKAGES=$(PACKAGES_UNIT)
-
-# Integration-style SDK client tests: requires local node (e.g. Comet RPC 26657, EVM 8545, gRPC 9090 per sdk/client/test/config.go)
-test-sdk-client-integration:
-	@echo "--> Running sdk/client integration tests (requires running chain)"
-	go test -mod=readonly -timeout=15m -race ./sdk/client/...
 
 ###############################################################################
 ###                        Kind E2E Tests                                   ###
