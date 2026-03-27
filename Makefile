@@ -9,7 +9,8 @@ ifdef GITHUB_TOKEN
   $(shell git config --global url."https://$(GITHUB_TOKEN):@github.com/".insteadOf "https://github.com/" 2>/dev/null)
 endif
 
-PACKAGES_NOSIMULATION=$(shell go list ./... | grep -v '/simulation')
+# Exclude sdk/client: integration tests against local Comet RPC (26657) and EVM (8545)
+PACKAGES_NOSIMULATION=$(shell go list ./... | grep -v '/simulation' | grep -v '/sdk/client')
 VERSION ?= $(shell echo $(shell git describe --tags --always) | sed 's/^v//')
 TMVERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::')
 COMMIT := $(shell git log -1 --format='%H')
@@ -293,8 +294,9 @@ godocs:
 test: test-unit
 test-all: test-unit test-race
 # For unit tests we don't want to execute the upgrade tests in tests/e2e but
-# we want to include all unit tests in the subfolders (tests/e2e/*)
-PACKAGES_UNIT=$(shell go list ./... | grep -v '/tests/e2e$$')
+# we want to include all unit tests in the subfolders (tests/e2e/*).
+# sdk/client is excluded: same as e2e — requires a running chain
+PACKAGES_UNIT=$(shell go list ./... | grep -v '/tests/e2e$$' | grep -v '/sdk/client')
 TEST_PACKAGES=./...
 TEST_TARGETS := test-unit test-unit-cover test-race
 
