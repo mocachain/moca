@@ -25,7 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	bridgetypes "github.com/evmos/evmos/v12/x/bridge/types"
 	challengetypes "github.com/evmos/evmos/v12/x/challenge/types"
 	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
 	"github.com/evmos/evmos/v12/x/evm/types"
@@ -255,7 +254,6 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 	types.RegisterInterfaces(interfaceRegistry)
 
-	bridgetypes.RegisterInterfaces(interfaceRegistry)
 	challengetypes.RegisterInterfaces(interfaceRegistry)
 	erc20types.RegisterInterfaces(interfaceRegistry)
 	feemarkettypes.RegisterInterfaces(interfaceRegistry)
