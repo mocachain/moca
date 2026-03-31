@@ -7,13 +7,13 @@
 # release tag (e.g., v1.1.2) — not main or the current version.
 #
 # Usage:
-#   OLD_VERSION=v1.1.2 bash tests/test_upgrade_governance.sh
+#   OLD_VERSION=v1.2.0 bash tests/test_upgrade_governance.sh
 
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
-OLD_VERSION="${OLD_VERSION:-v1.1.2}"
-UPGRADE_NAME="${UPGRADE_NAME:-v1.2.0}"
+OLD_VERSION="${OLD_VERSION:-v1.2.0}"
+UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
 FEES="200000000000000amoca"
 
 # ── Setup: deploy old version ────────────────────────────────────────────────

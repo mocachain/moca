@@ -9,7 +9,7 @@
 # then runs all verify functions.
 #
 # Usage:
-#   OLD_VERSION=v1.1.2 bash tests/test_upgrade_comprehensive.sh
+#   OLD_VERSION=v1.2.0 bash tests/test_upgrade_comprehensive.sh
 #   UPGRADE_MODE=hardfork OLD_VERSION=main bash tests/test_upgrade_comprehensive.sh
 #   TX_ROUNDS=5 bash tests/test_upgrade_comprehensive.sh  # 5 rounds of all txs
 #
@@ -20,8 +20,8 @@
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
-OLD_VERSION="${OLD_VERSION:-v1.1.2}"
-UPGRADE_NAME="${UPGRADE_NAME:-v1.2.0}"
+OLD_VERSION="${OLD_VERSION:-v1.2.0}"
+UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
 UPGRADE_MODE="${UPGRADE_MODE:-governance}"
 TX_ROUNDS="${TX_ROUNDS:-3}"
 RELEASE_TAG="${RELEASE_TAG:-}"
