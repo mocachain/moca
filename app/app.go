@@ -124,8 +124,6 @@ import (
 	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 
 	// ibctestingtypes "github.com/cosmos/ibc-go/v10/testing/types"
-	bridgemodule "github.com/evmos/evmos/v12/x/bridge"
-
 	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	ibc "github.com/cosmos/ibc-go/v10/modules/core"
 
@@ -185,8 +183,6 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 
-	bridgemodulekeeper "github.com/evmos/evmos/v12/x/bridge/keeper"
-	bridgemoduletypes "github.com/evmos/evmos/v12/x/bridge/types"
 	challengemodule "github.com/evmos/evmos/v12/x/challenge"
 	challengemodulekeeper "github.com/evmos/evmos/v12/x/challenge/keeper"
 	challengemoduletypes "github.com/evmos/evmos/v12/x/challenge/types"
@@ -236,7 +232,6 @@ var (
 		paymentmoduletypes.ModuleName:      {authtypes.Burner, authtypes.Staking},
 		crosschaintypes.ModuleName:         {authtypes.Minter},
 		permissionmoduletypes.ModuleName:   nil,
-		bridgemoduletypes.ModuleName:       nil,
 		spmoduletypes.ModuleName:           {authtypes.Staking},
 		virtualgroupmoduletypes.ModuleName: nil,
 	}
@@ -305,7 +300,6 @@ type Evmos struct {
 	TransferKeeper        transferkeeper.Keeper
 	ConsensusParamsKeeper consensusparamkeeper.Keeper
 
-	BridgeKeeper       bridgemodulekeeper.Keeper
 	SpKeeper           spmodulekeeper.Keeper
 	PaymentKeeper      paymentmodulekeeper.Keeper
 	ChallengeKeeper    challengemodulekeeper.Keeper
@@ -391,7 +385,6 @@ func NewEvmos(
 		feegrant.StoreKey, crisistypes.StoreKey,
 		group.StoreKey,
 		crosschaintypes.StoreKey,
-		bridgemoduletypes.StoreKey,
 		gashubtypes.StoreKey,
 		spmoduletypes.StoreKey,
 		virtualgroupmoduletypes.StoreKey,
@@ -637,17 +630,6 @@ func NewEvmos(
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
-	// moca keeper
-	app.BridgeKeeper = *bridgemodulekeeper.NewKeeper(
-		appCodec,
-		keys[bridgemoduletypes.StoreKey],
-		app.BankKeeper,
-		app.StakingKeeper,
-		app.CrossChainKeeper,
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-	)
-	bridgeModule := bridgemodule.NewAppModule(appCodec, app.BridgeKeeper, app.AccountKeeper, app.BankKeeper)
-
 	app.GashubKeeper = gashubkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[gashubtypes.StoreKey]),
@@ -753,7 +735,6 @@ func NewEvmos(
 		evidence.NewAppModule(app.EvidenceKeeper),
 		params.NewAppModule(app.ParamsKeeper),
 		consensus.NewAppModule(appCodec, app.ConsensusParamsKeeper),
-		bridgeModule,
 		gashubModule,
 		spModule,
 		virtualgroupModule,
@@ -818,7 +799,6 @@ func NewEvmos(
 		authz.ModuleName,
 		feegrant.ModuleName,
 		crosschaintypes.ModuleName,
-		bridgemoduletypes.ModuleName,
 		gashubtypes.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
@@ -840,7 +820,6 @@ func NewEvmos(
 		feegrant.ModuleName,
 		crosschaintypes.ModuleName,
 		// Evmos modules
-		bridgemoduletypes.ModuleName,
 		gashubtypes.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
@@ -886,7 +865,6 @@ func NewEvmos(
 		erc20types.ModuleName,
 		// NOTE: crisis module must go at the end to check for invariants on each module
 		crisistypes.ModuleName,
-		bridgemoduletypes.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
 		paymentmoduletypes.ModuleName,
@@ -1019,7 +997,6 @@ func NewEvmos(
 
 func (app *Evmos) initModules(_ sdk.Context) {
 	app.initCrossChain()
-	app.initBridge()
 	app.initStorage()
 	app.initGov()
 }
@@ -1034,10 +1011,6 @@ func (app *Evmos) initCrossChain() {
 	app.CrossChainKeeper.SetDestArbitrumChainID(sdk.ChainID(app.appConfig.CrossChain.DestArbitrumChainId))
 	app.CrossChainKeeper.SetDestOptimismChainID(sdk.ChainID(app.appConfig.CrossChain.DestOptimismChainId))
 	app.CrossChainKeeper.SetDestBaseChainID(sdk.ChainID(app.appConfig.CrossChain.DestBaseChainId))
-}
-
-func (app *Evmos) initBridge() {
-	bridgemodulekeeper.RegisterCrossApps(app.BridgeKeeper)
 }
 
 func (app *Evmos) initStorage() {
@@ -1158,9 +1131,6 @@ func (app *Evmos) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abc
 	}
 
 	channels := []sdk.ChannelID{
-		bridgemoduletypes.TransferOutChannelID,
-		bridgemoduletypes.TransferInChannelID,
-		bridgemoduletypes.SyncParamsChannelID,
 		storagemoduletypes.BucketChannelID,
 		storagemoduletypes.ObjectChannelID,
 		storagemoduletypes.GroupChannelID,
@@ -1537,7 +1507,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle"},
+		Deleted: []string{"epochs", "oracle", "bridge"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
