@@ -30,7 +30,6 @@ import (
 	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	oracletypes "github.com/cosmos/cosmos-sdk/x/oracle/types"
 	proposaltypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -361,7 +360,6 @@ func OutputsProposal(proposal govv1.Proposal) Proposal {
 	consensustypes.RegisterInterfaces(interfaceRegistry)
 	crosschaintypes.RegisterInterfaces(interfaceRegistry)
 	gashubtypes.RegisterInterfaces(interfaceRegistry)
-	oracletypes.RegisterInterfaces(interfaceRegistry)
 	stakingtypes.RegisterInterfaces(interfaceRegistry)
 	distrtypes.RegisterInterfaces(interfaceRegistry)
 	slashingtypes.RegisterInterfaces(interfaceRegistry)

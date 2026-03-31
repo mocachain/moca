@@ -72,7 +72,6 @@ And the following modules are in cosmos-sdk:
 
 - `x/crosschain`: manage the cross chain packages, like store/query/update the cross chain package, channels, sequences.
 - `x/gashub`: provide a governable and predictable fee charge mechanism.
-- `x/oracle`: provide a secure runtime for cross chain packages.
 - `x/staking`: based on the Proof-of-Stake logic. The elected validators are responsible for the security of the moca
   blockchain. They get involved in the governance and staking of the blockchain.
 

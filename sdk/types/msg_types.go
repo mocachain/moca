@@ -6,7 +6,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	oracletypes "github.com/cosmos/cosmos-sdk/x/oracle/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
@@ -46,8 +45,6 @@ type (
 
 	MsgGrantAllowance  = feegranttypes.MsgGrantAllowance
 	MsgRevokeAllowance = feegranttypes.MsgRevokeAllowance
-
-	MsgClaim = oracletypes.MsgClaim
 
 	MsgTransferOut = bridgetypes.MsgTransferOut
 
