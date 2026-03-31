@@ -31,7 +31,6 @@ import (
 	"github.com/evmos/evmos/v12/sdk/keys"
 	"github.com/evmos/evmos/v12/sdk/types"
 
-	bridgetypes "github.com/evmos/evmos/v12/x/bridge/types"
 	challengetypes "github.com/evmos/evmos/v12/x/challenge/types"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
 	sptypes "github.com/evmos/evmos/v12/x/sp/types"
@@ -68,9 +67,6 @@ type PaymentQueryClient = paymenttypes.QueryClient
 
 // SpQueryClient is a type to define the sp types Query Client
 type SpQueryClient = sptypes.QueryClient
-
-// BridgeQueryClient is a type to define the bridge types Query Client
-type BridgeQueryClient = bridgetypes.QueryClient
 
 // StorageQueryClient is a type to define the storage types Query Client
 type StorageQueryClient = storagetypes.QueryClient
@@ -121,8 +117,6 @@ type MocaClient struct {
 	PaymentQueryClient
 	// SpQueryClient holds the sp query client.
 	SpQueryClient
-	// BridgeQueryClient holds the bridge query client.
-	BridgeQueryClient
 	// StorageQueryClient holds the storage query client.
 	StorageQueryClient
 	// GovQueryClientV1 holds the gov query client V1.
@@ -231,7 +225,6 @@ func setClientsConn(c *MocaClient, conn grpc1.ClientConn, evmCli *ethclient.Clie
 	c.PaymentQueryClient = paymenttypes.NewQueryClient(conn)
 	// c.SpQueryClient = spcli.NewQueryClientEVM(evmCli)
 	c.SpQueryClient = sptypes.NewQueryClient(conn)
-	c.BridgeQueryClient = bridgetypes.NewQueryClient(conn)
 	c.StorageQueryClient = storagetypes.NewQueryClient(conn)
 	c.GovQueryClientV1 = govv1.NewQueryClient(conn)
 	c.OracleQueryClient = oracletypes.NewQueryClient(conn)
