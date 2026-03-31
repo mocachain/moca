@@ -287,12 +287,12 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/Mocachain/moca-cosmos-sdk/api v0.0.0-20260316054236-66c005431435
-	cosmossdk.io/client/v2 => github.com/Mocachain/moca-cosmos-sdk/client/v2 v2.0.0-20260316054236-66c005431435
-	cosmossdk.io/simapp => github.com/Mocachain/moca-cosmos-sdk/simapp v0.0.0-20260316054236-66c005431435
-	cosmossdk.io/store => github.com/Mocachain/moca-cosmos-sdk/store v0.0.0-20260316054236-66c005431435
-	cosmossdk.io/x/nft => github.com/Mocachain/moca-cosmos-sdk/x/nft v0.0.0-20260316054236-66c005431435
-	cosmossdk.io/x/tx => github.com/Mocachain/moca-cosmos-sdk/x/tx v0.0.0-20260316054236-66c005431435
+	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2
+	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.2.0-rc2
+	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v1.2.0-rc2
+	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2
+	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2
+	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v1.2.0-rc2
 	// Use standard cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade from ecosystem
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/Mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
@@ -302,7 +302,7 @@ replace (
 	github.com/cometbft/cometbft => github.com/Mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4
 	github.com/cometbft/cometbft-db => github.com/Mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3
 	// use Cosmos-SDK fork to enable Ledger functionality
-	github.com/cosmos/cosmos-sdk => github.com/Mocachain/moca-cosmos-sdk v1.2.0-rc0.0.20260316054236-66c005431435
+	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.2.0-rc2
 	github.com/cosmos/iavl => github.com/Mocachain/moca-iavl v1.2.0-rc0
 	github.com/cosmos/ibc-go/v10 => github.com/Mocachain/moca-ibc-go/v10 v10.2.0-rc0
 	// use Evmos geth fork
