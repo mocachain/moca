@@ -1208,6 +1208,7 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 		evmostypes.DistributionAddress,
 		evmostypes.SlashingAddress,
 		evmostypes.EvidenceAddress,
+		evmostypes.DeprecatedEpochsAddress,
 		evmostypes.AuthzAddress,
 		evmostypes.FeemarketAddress,
 		evmostypes.PaymentAddress,
