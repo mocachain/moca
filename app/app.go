@@ -61,7 +61,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
-	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server/api"
@@ -125,6 +124,7 @@ import (
 	"github.com/cosmos/ibc-go/modules/capability"
 	capabilitykeeper "github.com/cosmos/ibc-go/modules/capability/keeper"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 
 	// ibctestingtypes "github.com/cosmos/ibc-go/v10/testing/types"
 	bridgemodule "github.com/evmos/evmos/v12/x/bridge"
@@ -1240,6 +1240,7 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 		evmostypes.DistributionAddress,
 		evmostypes.SlashingAddress,
 		evmostypes.EvidenceAddress,
+		evmostypes.DeprecatedEpochsAddress,
 		evmostypes.AuthzAddress,
 		evmostypes.FeemarketAddress,
 		evmostypes.PaymentAddress,
