@@ -1542,16 +1542,23 @@ func (app *Evmos) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
+	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		// noop
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
 	// testnet only upgrade Handlers
 	app.UpgradeKeeper.SetUpgradeHandler(
 		"testnet-gov-param-fix",
 		upgrades.TestnetGovParamFix(&app.GovKeeper, app.EvmKeeper, app.mm, app.configurator),
 	)
 
-	var storeUpgrades *storetypes.StoreUpgrades
+	storeUpgrades := &storetypes.StoreUpgrades{
+		Added:   []string{},
+		Deleted: []string{},
+	}
 
-	if storeUpgrades != nil {
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
+	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
 		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, storeUpgrades))
 	}
 }
