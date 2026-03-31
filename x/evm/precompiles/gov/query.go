@@ -4,7 +4,6 @@ import (
 	"bytes"
 
 	"github.com/evmos/evmos/v12/utils"
-	bridgetypes "github.com/evmos/evmos/v12/x/bridge/types"
 	challengetypes "github.com/evmos/evmos/v12/x/challenge/types"
 	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
 	"github.com/evmos/evmos/v12/x/evm/types"
@@ -373,7 +372,6 @@ func OutputsProposal(proposal govv1.Proposal) Proposal {
 	proposaltypes.RegisterInterfaces(interfaceRegistry)
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 
-	bridgetypes.RegisterInterfaces(interfaceRegistry)
 	challengetypes.RegisterInterfaces(interfaceRegistry)
 	erc20types.RegisterInterfaces(interfaceRegistry)
 	types.RegisterInterfaces(interfaceRegistry)
