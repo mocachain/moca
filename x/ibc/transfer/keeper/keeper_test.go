@@ -101,6 +101,7 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 		1, time.Now().UTC(), chainID, suite.consAddress, nil, nil,
 	)
 	suite.ctx = suite.app.BaseApp.NewContext(false)
+	suite.ctx = suite.ctx.WithChainID(chainID)
 	suite.ctx = suite.ctx.WithBlockHeader(header)
 	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewInfiniteGasMeter())
 

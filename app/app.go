@@ -177,9 +177,6 @@ import (
 	_ "github.com/evmos/evmos/v12/client/docs/statik"
 
 	"github.com/evmos/evmos/v12/app/ante"
-	"github.com/evmos/evmos/v12/x/epochs"
-	epochskeeper "github.com/evmos/evmos/v12/x/epochs/keeper"
-	epochstypes "github.com/evmos/evmos/v12/x/epochs/types"
 	"github.com/evmos/evmos/v12/x/erc20"
 	erc20keeper "github.com/evmos/evmos/v12/x/erc20/keeper"
 	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
@@ -328,8 +325,7 @@ type Evmos struct {
 	FeeMarketKeeper feemarketkeeper.Keeper
 
 	// Evmos keepers
-	Erc20Keeper     erc20keeper.Keeper
-	EpochsKeeper    epochskeeper.Keeper
+	Erc20Keeper erc20keeper.Keeper
 
 	// the module manager
 	mm                 *module.Manager
@@ -417,7 +413,6 @@ func NewEvmos(
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
 		// evmos keys
 		erc20types.StoreKey,
-		epochstypes.StoreKey,
 	)
 
 	// Add the EVM transient store key
@@ -589,13 +584,6 @@ func NewEvmos(
 	app.Erc20Keeper = erc20keeper.NewKeeper(
 		keys[erc20types.StoreKey], appCodec, authtypes.NewModuleAddress(govtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, app.EvmKeeper, app.StakingKeeper,
-	)
-
-	epochsKeeper := epochskeeper.NewKeeper(appCodec, keys[epochstypes.StoreKey])
-	app.EpochsKeeper = *epochsKeeper.SetHooks(
-		epochskeeper.NewMultiEpochHooks(
-		// insert epoch hooks receivers here
-		),
 	)
 
 	app.GovKeeper = *govKeeper.SetHooks(
@@ -800,7 +788,6 @@ func NewEvmos(
 		// Evmos app modules
 		erc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper,
 			app.GetSubspace(erc20types.ModuleName)),
-		epochs.NewAppModule(appCodec, app.EpochsKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -835,8 +822,6 @@ func NewEvmos(
 	// NOTE: capability module's beginblocker must come before any modules using capabilities (e.g. IBC)
 	app.mm.SetOrderBeginBlockers(
 		capabilitytypes.ModuleName,
-		// Note: epochs' begin should be "real" start of epochs, we keep epochs beginblock at the beginning
-		epochstypes.ModuleName,
 		feemarkettypes.ModuleName,
 		evmtypes.ModuleName,
 		distrtypes.ModuleName,
@@ -917,7 +902,6 @@ func NewEvmos(
 		oracletypes.ModuleName,
 		// Evmos modules
 		erc20types.ModuleName,
-		epochstypes.ModuleName,
 		// NOTE: crisis module must go at the end to check for invariants on each module
 		crisistypes.ModuleName,
 		bridgemoduletypes.ModuleName,
@@ -1256,7 +1240,6 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 		evmostypes.DistributionAddress,
 		evmostypes.SlashingAddress,
 		evmostypes.EvidenceAddress,
-		evmostypes.EpochsAddress,
 		evmostypes.AuthzAddress,
 		evmostypes.FeemarketAddress,
 		evmostypes.PaymentAddress,
