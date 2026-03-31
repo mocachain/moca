@@ -61,7 +61,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
-	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server/api"
@@ -107,7 +106,6 @@ import (
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	"github.com/cosmos/cosmos-sdk/x/group"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/x/oracle"
 	oraclekeeper "github.com/cosmos/cosmos-sdk/x/oracle/keeper"
@@ -125,6 +123,7 @@ import (
 	"github.com/cosmos/ibc-go/modules/capability"
 	capabilitykeeper "github.com/cosmos/ibc-go/modules/capability/keeper"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 
 	// ibctestingtypes "github.com/cosmos/ibc-go/v10/testing/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
@@ -387,7 +386,6 @@ func NewEvmos(
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey, consensusparamtypes.StoreKey,
 		feegrant.StoreKey, crisistypes.StoreKey,
-		group.StoreKey,
 		crosschaintypes.StoreKey,
 		oracletypes.StoreKey,
 		gashubtypes.StoreKey,
@@ -1525,7 +1523,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "bridge"},
+		Deleted: []string{"epochs", "bridge", "group"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
