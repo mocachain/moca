@@ -107,9 +107,6 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-	"github.com/cosmos/cosmos-sdk/x/oracle"
-	oraclekeeper "github.com/cosmos/cosmos-sdk/x/oracle/keeper"
-	oracletypes "github.com/cosmos/cosmos-sdk/x/oracle/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
@@ -295,7 +292,6 @@ type Evmos struct {
 	ParamsKeeper          paramskeeper.Keeper
 	FeeGrantKeeper        feegrantkeeper.Keeper
 	CrossChainKeeper      crosschainkeeper.Keeper
-	OracleKeeper          oraclekeeper.Keeper
 	GashubKeeper          gashubkeeper.Keeper
 	IBCKeeper             *ibckeeper.Keeper // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
 	ICAHostKeeper         icahostkeeper.Keeper
@@ -387,7 +383,6 @@ func NewEvmos(
 		evidencetypes.StoreKey, capabilitytypes.StoreKey, consensusparamtypes.StoreKey,
 		feegrant.StoreKey, crisistypes.StoreKey,
 		crosschaintypes.StoreKey,
-		oracletypes.StoreKey,
 		gashubtypes.StoreKey,
 		spmoduletypes.StoreKey,
 		virtualgroupmoduletypes.StoreKey,
@@ -511,15 +506,6 @@ func NewEvmos(
 		runtime.NewKVStoreService(keys[slashingtypes.StoreKey]),
 		app.StakingKeeper,
 		authAddr,
-	)
-	app.OracleKeeper = oraclekeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[crosschaintypes.StoreKey]),
-		authtypes.FeeCollectorName,
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-		app.CrossChainKeeper,
-		app.BankKeeper,
-		app.StakingKeeper,
 	)
 	app.CrisisKeeper = *crisiskeeper.NewKeeper(
 		appCodec, runtime.NewKVStoreService(keys[crisistypes.StoreKey]), invCheckPeriod, app.BankKeeper, authtypes.FeeCollectorName, authAddr,
@@ -743,7 +729,6 @@ func NewEvmos(
 		distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.GetSubspace(distrtypes.ModuleName)),
 		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(stakingtypes.ModuleName)),
 		crosschain.NewAppModule(app.CrossChainKeeper, app.BankKeeper, app.StakingKeeper),
-		oracle.NewAppModule(app.OracleKeeper),
 		upgrade.NewAppModule(app.UpgradeKeeper, cmdcfg.NewMultiPrefixBech32AccCodec()),
 		evidence.NewAppModule(app.EvidenceKeeper),
 		params.NewAppModule(app.ParamsKeeper),
@@ -812,7 +797,6 @@ func NewEvmos(
 		authz.ModuleName,
 		feegrant.ModuleName,
 		crosschaintypes.ModuleName,
-		oracletypes.ModuleName,
 		gashubtypes.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
@@ -833,7 +817,6 @@ func NewEvmos(
 		authz.ModuleName,
 		feegrant.ModuleName,
 		crosschaintypes.ModuleName,
-		oracletypes.ModuleName,
 		// Evmos modules
 		gashubtypes.ModuleName,
 		spmoduletypes.ModuleName,
@@ -876,7 +859,6 @@ func NewEvmos(
 		feegrant.ModuleName,
 		upgradetypes.ModuleName,
 		crosschaintypes.ModuleName,
-		oracletypes.ModuleName,
 		// Evmos modules
 		erc20types.ModuleName,
 		// NOTE: crisis module must go at the end to check for invariants on each module
@@ -1524,7 +1506,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "bridge", "group"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {

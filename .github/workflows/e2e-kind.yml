@@ -82,6 +82,11 @@ jobs:
           - name: Comprehensive
             script: test_upgrade_comprehensive.sh
             foundry: true
+          - name: Validator devcontainer parity
+            script: test_validator_devcontainer_parity.sh
+          - name: RPC suite
+            script: test_rpc_suite.sh
+            foundry: true
 
     steps:
       - uses: actions/checkout@v6
