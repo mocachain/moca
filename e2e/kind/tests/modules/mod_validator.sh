@@ -17,13 +17,22 @@ _validator_test_rpc_accessible() {
 }
 
 _validator_test_sync_status() {
-    local n i catching_up deadline
+    local n i catching_up deadline stable_false_samples
     n=$(_validator_count)
+    stable_false_samples="${VALIDATOR_SYNC_STABLE_SAMPLES:-3}"
     for ((i = 0; i < n; i++)); do
-        deadline=$(($(date +%s) + 90))
+        local consecutive_false=0
+        deadline=$(($(date +%s) + ${VALIDATOR_SYNC_MAX_WAIT:-180}))
         while true; do
             catching_up=$(kind_fetch_rpc_status "$i" | jq -r '.result.sync_info.catching_up // "true"' 2>/dev/null || echo "true")
-            [ "$catching_up" = "false" ] && break
+            if [ "$catching_up" = "false" ]; then
+                consecutive_false=$((consecutive_false + 1))
+                if [ "$consecutive_false" -ge "$stable_false_samples" ]; then
+                    break
+                fi
+            else
+                consecutive_false=0
+            fi
             if [ "$(date +%s)" -ge "$deadline" ]; then
                 assert_eq "$catching_up" "false" "validator-${i} should not be catching up"
                 return 1
