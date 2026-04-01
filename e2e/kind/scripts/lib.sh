@@ -73,6 +73,171 @@ exec_mocad() {
         mocad "$@" --home /root/.mocad 2>/dev/null
 }
 
+# Base RPC URL for validator index i (parity with moca-devcontainer check-validators.sh).
+# Index 0: NodePort on the host. Index > 0: in-cluster DNS (use with kubectl exec curl from validator-0).
+kind_validator_rpc_base() {
+    local idx="$1"
+    if [ "$idx" -eq 0 ]; then
+        echo "http://localhost:26657"
+    else
+        echo "http://validator-${idx}-0.validator-headless.${K8S_NAMESPACE}.svc.cluster.local:26657"
+    fi
+}
+
+# Fetch /status JSON for validator idx (host curl for 0; kubectl exec for others).
+kind_fetch_rpc_status() {
+    local idx="$1"
+    local base
+    base=$(kind_validator_rpc_base "$idx")
+    if [ "$idx" -eq 0 ]; then
+        curl -sf "${base}/status" 2>/dev/null || return 1
+    else
+        kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+            curl -sf "${base}/status" 2>/dev/null || return 1
+    fi
+}
+
+get_block_height_for_validator_index() {
+    local idx="$1"
+    kind_fetch_rpc_status "$idx" | jq -r '.result.sync_info.latest_block_height // "0"'
+}
+
+kind_validator_pod_is_running() {
+    local idx="$1"
+    local phase
+    phase=$(kubectl get pod -n "${K8S_NAMESPACE}" "validator-${idx}-0" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+    [ "$phase" = "Running" ]
+}
+
+# Same semantics as moca-devcontainer test/validator/check-validators.sh test_validator_production:
+# pod running, RPC up, not catching_up, voting_power != 0, then MIN_BLOCKS new blocks within MAX_WAIT.
+kind_test_validator_block_production() {
+    local index="$1"
+    local check_interval="${CHECK_INTERVAL:-5}"
+    local max_wait="${MAX_WAIT:-60}"
+    local min_blocks="${MIN_BLOCKS:-3}"
+    local name="validator-${index}"
+
+    log_info "===== Testing ${name} block production (devcontainer parity) ====="
+
+    if ! kind_validator_pod_is_running "$index"; then
+        log_error "Pod ${name}-0 is not Running"
+        return 1
+    fi
+    log_info "Pod ${name}-0 is running"
+
+    local status
+    if ! status=$(kind_fetch_rpc_status "$index"); then
+        log_error "Cannot access RPC for ${name}"
+        return 1
+    fi
+    log_info "RPC endpoint reachable for ${name}"
+
+    local catching_up initial_height voting_power chain_id
+    catching_up=$(echo "$status" | jq -r '.result.sync_info.catching_up // false')
+    initial_height=$(echo "$status" | jq -r '.result.sync_info.latest_block_height // "0"')
+    voting_power=$(echo "$status" | jq -r '.result.validator_info.voting_power // "0"')
+    chain_id=$(echo "$status" | jq -r '.result.node_info.network // "unknown"')
+
+    log_info "Chain ID: ${chain_id}"
+    log_info "Initial Height: ${initial_height}"
+    log_info "Voting Power: ${voting_power}"
+    log_info "Catching Up: ${catching_up}"
+
+    if [ "$catching_up" = "true" ]; then
+        log_warn "${name} is still syncing, skipping block production check"
+        return 2
+    fi
+
+    if [ "$voting_power" = "0" ]; then
+        log_warn "${name} has no voting power"
+        return 3
+    fi
+
+    log_info "Monitoring block production (every ${check_interval}s, max ${max_wait}s, need ${min_blocks} blocks)..."
+
+    local elapsed=0
+    local blocks_produced=0
+    local last_height=$initial_height
+
+    while [ "$elapsed" -lt "$max_wait" ]; do
+        sleep "$check_interval"
+        elapsed=$((elapsed + check_interval))
+
+        local current_height
+        current_height=$(get_block_height_for_validator_index "$index")
+        if [ -z "$current_height" ] || [ "$current_height" = "0" ]; then
+            log_warn "Failed to get current height, retrying..."
+            continue
+        fi
+
+        if [ "$current_height" -gt "$last_height" ]; then
+            blocks_produced=$((blocks_produced + current_height - last_height))
+            log_info "Height: ${last_height} -> ${current_height} (blocks +${blocks_produced} total)"
+            last_height=$current_height
+            if [ "$blocks_produced" -ge "$min_blocks" ]; then
+                log_success "${name} producing blocks (${blocks_produced} new in ${elapsed}s)"
+                return 0
+            fi
+        else
+            log_warn "Height unchanged: ${current_height} (elapsed: ${elapsed}s)"
+        fi
+    done
+
+    if [ "$blocks_produced" -lt "$min_blocks" ]; then
+        log_error "${name} only produced ${blocks_produced} new blocks in ${max_wait}s (need ${min_blocks})"
+        return 1
+    fi
+    return 0
+}
+
+# ── EVM / HTTP helpers (parity with moca-devcontainer test/validator/RPC/rpc.sh) ─
+
+# Default CometBFT RPC for curl helpers (override with COMETBFT_RPC_URL).
+COMETBFT_RPC_URL="${COMETBFT_RPC_URL:-http://localhost:26657}"
+
+# Return HTTP status code for a GET request (or 000 on failure).
+check_http_status() {
+    local url="$1"
+    curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 15 "$url" 2>/dev/null || echo "000"
+}
+
+# Convert 0x-prefixed hex string to decimal (uses python3 for large integers).
+hex_to_decimal() {
+    local h="$1"
+    h="${h#0x}"
+    [ -z "$h" ] && echo "0" && return
+    python3 -c "print(int('${h}', 16))" 2>/dev/null || echo "0"
+}
+
+# POST JSON-RPC to EVM HTTP endpoint; prints full response body.
+evm_rpc_call() {
+    local method="$1"
+    local params="${2:-[]}"
+    local base="${EVM_RPC_URL:-${EVM_RPC:-http://localhost:8545}}"
+    curl -sf -X POST "${base}" \
+        -H "Content-Type: application/json" \
+        -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"${method}\",\"params\":${params}}" \
+        --connect-timeout 5 --max-time 30 2>/dev/null
+}
+
+get_evm_block_number() {
+    local resp hex
+    resp=$(evm_rpc_call "eth_blockNumber" "[]") || return 1
+    hex=$(echo "$resp" | jq -r '.result // empty' 2>/dev/null)
+    [ -z "$hex" ] && return 1
+    hex_to_decimal "$hex"
+}
+
+# Latest block timestamp (seconds) from eth_getBlockByNumber("latest", false).
+get_evm_block_timestamp() {
+    local resp ts_hex
+    resp=$(evm_rpc_call "eth_getBlockByNumber" '["latest", false]') || return 1
+    ts_hex=$(echo "$resp" | jq -r '.result.timestamp // empty' 2>/dev/null)
+    [ -z "$ts_hex" ] && return 1
+    hex_to_decimal "$ts_hex"
+}
+
 # ── Assertions ────────────────────────────────────────────────────────────────
 
 assert_eq() {

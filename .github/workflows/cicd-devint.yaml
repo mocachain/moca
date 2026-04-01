@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - develop
-      - feat/**
-      - fea/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,13 +25,12 @@ jobs:
       - name: "Get Github version info"
         id: meta
         run: |
-          commit_id=`echo ${GITHUB_SHA} | cut -c1-8`
-          repository_url=${{ github.event.repository.html_url }}
+          commit_id=$(echo "$GITHUB_SHA" | cut -c1-8)
+          repository_url="${{ github.event.repository.html_url }}"
           version_info="[${{ github.ref_name }}](${repository_url}/tree/${{ github.ref_name }}) (commit=[${commit_id}](${repository_url}/commit/${{ github.sha }}))"
-          echo "version_info=$version_info" >> $GITHUB_OUTPUT
-          
-          commit_logs=$(git log ${{ github.event.before }}..${{ github.sha }} --pretty=format:"%h(%an) - %s")
-          echo "commit_logs=$commit_logs" >> $GITHUB_OUTPUT
+          echo "version_info=$version_info" >> "$GITHUB_OUTPUT"
+          commit_logs=$(git log "${{ github.event.before }}..${{ github.sha }}" --pretty=format:"%h(%an) - %s")
+          echo "commit_logs=$commit_logs" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
       - name: "Notify begin message to Lark"
