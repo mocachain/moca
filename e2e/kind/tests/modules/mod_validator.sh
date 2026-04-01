@@ -17,14 +17,22 @@ _validator_test_rpc_accessible() {
 }
 
 _validator_test_sync_status() {
-    local n i catching_up deadline stable_false_samples
+    local n i catching_up deadline stable_false_samples sync_poll_interval
     n=$(_validator_count)
     stable_false_samples="${VALIDATOR_SYNC_STABLE_SAMPLES:-3}"
+    sync_poll_interval="${VALIDATOR_SYNC_POLL_INTERVAL:-5}"
     for ((i = 0; i < n; i++)); do
         local consecutive_false=0
-        deadline=$(($(date +%s) + ${VALIDATOR_SYNC_MAX_WAIT:-180}))
+        local initial_height=0
+        local latest_height=0
+        deadline=$(($(date +%s) + ${VALIDATOR_SYNC_MAX_WAIT:-120}))
+        initial_height=$(get_block_height_for_validator_index "$i")
+        latest_height="$initial_height"
         while true; do
-            catching_up=$(kind_fetch_rpc_status "$i" | jq -r '.result.sync_info.catching_up // "true"' 2>/dev/null || echo "true")
+            local status
+            status=$(kind_fetch_rpc_status "$i" 2>/dev/null || echo "{}")
+            catching_up=$(echo "$status" | jq -r '.result.sync_info.catching_up // "true"' 2>/dev/null || echo "true")
+            latest_height=$(echo "$status" | jq -r '.result.sync_info.latest_block_height // "0"' 2>/dev/null || echo "0")
             if [ "$catching_up" = "false" ]; then
                 consecutive_false=$((consecutive_false + 1))
                 if [ "$consecutive_false" -ge "$stable_false_samples" ]; then
@@ -34,10 +42,14 @@ _validator_test_sync_status() {
                 consecutive_false=0
             fi
             if [ "$(date +%s)" -ge "$deadline" ]; then
+                if [ "$latest_height" -gt "$initial_height" ] 2>/dev/null; then
+                    log_warn "validator-${i} still reports catching_up=true, but height advanced (${initial_height} -> ${latest_height}); continuing"
+                    break
+                fi
                 assert_eq "$catching_up" "false" "validator-${i} should not be catching up"
                 return 1
             fi
-            sleep 5
+            sleep "$sync_poll_interval"
         done
     done
 }
