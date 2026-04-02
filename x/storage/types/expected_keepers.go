@@ -2,7 +2,6 @@ package types
 
 import (
 	"context"
-	"math/big"
 	time "time"
 
 	"cosmossdk.io/log"
@@ -80,26 +79,6 @@ type PermissionKeeper interface {
 	ExistGroupMemberForGroup(ctx sdktypes.Context, groupID math.Uint) bool
 }
 
-type CrossChainKeeper interface {
-	GetDestBscChainID() sdktypes.ChainID
-	GetDestOpChainID() sdktypes.ChainID
-	GetDestPolygonChainID() sdktypes.ChainID
-	GetDestScrollChainID() sdktypes.ChainID
-	GetDestLineaChainID() sdktypes.ChainID
-	GetDestMantleChainID() sdktypes.ChainID
-	GetDestArbitrumChainID() sdktypes.ChainID
-	GetDestOptimismChainID() sdktypes.ChainID
-	GetDestBaseChainID() sdktypes.ChainID
-
-	CreateRawIBCPackageWithFee(ctx context.Context, chainID sdktypes.ChainID, channelID sdktypes.ChannelID, packageType sdktypes.CrossChainPackageType,
-		packageLoad []byte, relayerFee *big.Int, ackRelayerFee *big.Int,
-	) (uint64, error)
-
-	IsDestChainSupported(chainID sdktypes.ChainID) bool
-
-	RegisterChannel(name string, id sdktypes.ChannelID, app sdktypes.CrossChainApplication) error
-}
-
 type VirtualGroupKeeper interface {
 	SetGVGAndEmitUpdateEvent(ctx sdktypes.Context, gvg *vgtypes.GlobalVirtualGroup) error
 	GetGVGFamily(ctx sdktypes.Context, familyID uint32) (*vgtypes.GlobalVirtualGroupFamily, bool)
@@ -111,7 +90,7 @@ type VirtualGroupKeeper interface {
 	GetSwapInInfo(ctx sdktypes.Context, familyID, gvgID uint32) (*vgtypes.SwapInInfo, bool)
 }
 
-// StorageKeeper used by the cross-chain applications
+// StorageKeeper used by storage integrations
 type StorageKeeper interface {
 	Logger(ctx sdktypes.Context) log.Logger
 	GetBucketInfoById(ctx sdktypes.Context, bucketID math.Uint) (*BucketInfo, bool)
@@ -133,7 +112,6 @@ type StorageKeeper interface {
 	SetObjectInfo(ctx sdktypes.Context, objectInfo *ObjectInfo)
 	DeleteObject(
 		ctx sdktypes.Context, operator sdktypes.AccAddress, bucketName, objectName string, opts DeleteObjectOptions) error
-	GetSourceTypeByChainId(ctx sdktypes.Context, chainID sdktypes.ChainID) (SourceType, error)
 
 	NormalizePrincipal(ctx sdktypes.Context, principal *permtypes.Principal)
 	ValidatePrincipal(ctx sdktypes.Context, resOwner sdktypes.AccAddress, principal *permtypes.Principal) error

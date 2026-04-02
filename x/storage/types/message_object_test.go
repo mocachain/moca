@@ -455,40 +455,6 @@ func TestMsgUpdateObjectInfo_ValidateBasic(t *testing.T) {
 	}
 }
 
-func TestMsgMirrorObject_ValidateBasic(t *testing.T) {
-	tests := []struct {
-		name string
-		msg  MsgMirrorObject
-		err  error
-	}{
-		{
-			name: "normal",
-			msg: MsgMirrorObject{
-				Operator: sample.RandAccAddressHex(),
-				Id:       math.NewUint(1),
-			},
-		},
-		{
-			name: "invalid address",
-			msg: MsgMirrorObject{
-				Operator: "wrong address",
-				Id:       math.NewUint(1),
-			},
-			err: sdkerrors.ErrInvalidAddress,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.msg.ValidateBasic()
-			if tt.err != nil {
-				require.ErrorIs(t, err, tt.err)
-				return
-			}
-			require.NoError(t, err)
-		})
-	}
-}
-
 func TestMsgDiscontinueObject_ValidateBasic(t *testing.T) {
 	invalidObjectIDs := [MaxDiscontinueObjects + 1]Uint{}
 	tests := []struct {

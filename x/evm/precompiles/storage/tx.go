@@ -52,7 +52,6 @@ const (
 	RejectMigrateBucketMethodName         = "rejectMigrateBucket"
 	CancelMigrateBucketMethodName         = "cancelMigrateBucket"
 	SetBucketFlowRateLimitMethodName      = "setBucketFlowRateLimit"
-	MirrorBucketMethodName                = "mirrorBucket"
 	CreateObjectMethodName                = "createObject"
 	CopyObjectMethodName                  = "copyObject"
 	DeleteObjectMethodName                = "deleteObject"
@@ -65,20 +64,18 @@ const (
 	UpdateObjectInfoMethodName            = "updateObjectInfo"
 	UpdateObjectContentMethodName         = "updateObjectContent"
 	DiscontinueObjectMethodName           = "discontinueObject"
-	MirrorObjectMethodName                = "mirrorObject"
 	CreateGroupMethodName                 = "createGroup"
 	UpdateGroupMethodName                 = "updateGroup"
 	UpdateGroupExtraMethodName            = "updateGroupExtra"
 	DeleteGroupMethodName                 = "deleteGroup"
 	LeaveGroupMethodName                  = "leaveGroup"
 	RenewGroupMemberMethodName            = "renewGroupMember"
-	MirrorGroupMethodName                 = "mirrorGroup"
 	SetTagMethodName                      = "setTag"
 	UpdateBucketInfoMethodName            = "updateBucketInfo"
 	PutPolicyMethodName                   = "putPolicy"
 	DeletePolicyMethodName                = "deletePolicy"
-	ToggleSPAsDelegatedAgentMethodName       = "toggleSPAsDelegatedAgent"
-	CancelUpdateObjectContentMethodName      = "cancelUpdateObjectContent"
+	ToggleSPAsDelegatedAgentMethodName    = "toggleSPAsDelegatedAgent"
+	CancelUpdateObjectContentMethodName   = "cancelUpdateObjectContent"
 )
 
 func (c *Contract) registerTx() {
@@ -90,7 +87,6 @@ func (c *Contract) registerTx() {
 	c.registerMethod(RejectMigrateBucketMethodName, 60_000, c.RejectMigrateBucket, "RejectMigrateBucket")
 	c.registerMethod(CancelMigrateBucketMethodName, 60_000, c.CancelMigrateBucket, "CancelMigrateBucket")
 	c.registerMethod(SetBucketFlowRateLimitMethodName, 60_000, c.SetBucketFlowRateLimit, "SetBucketFlowRateLimit")
-	c.registerMethod(MirrorBucketMethodName, 60_000, c.MirrorBucket, "MirrorBucket")
 	c.registerMethod(CreateObjectMethodName, 60_000, c.CreateObject, "CreateObject")
 	c.registerMethod(CopyObjectMethodName, 60_000, c.CopyObject, "CopyObject")
 	c.registerMethod(DeleteObjectMethodName, 60_000, c.DeleteObject, "DeleteObject")
@@ -103,14 +99,12 @@ func (c *Contract) registerTx() {
 	c.registerMethod(UpdateObjectInfoMethodName, 60_000, c.UpdateObjectInfo, "UpdateObjectInfo")
 	c.registerMethod(UpdateObjectContentMethodName, 60_000, c.UpdateObjectContent, "UpdateObjectContent")
 	c.registerMethod(DiscontinueObjectMethodName, 60_000, c.DiscontinueObject, "DiscontinueObject")
-	c.registerMethod(MirrorObjectMethodName, 60_000, c.MirrorObject, "MirrorObject")
 	c.registerMethod(CreateGroupMethodName, 60_000, c.CreateGroup, "CreateGroup")
 	c.registerMethod(UpdateGroupMethodName, 60_000, c.UpdateGroup, "UpdateGroup")
 	c.registerMethod(UpdateGroupExtraMethodName, 60_000, c.UpdateGroupExtra, "UpdateGroupExtra")
 	c.registerMethod(DeleteGroupMethodName, 60_000, c.DeleteGroup, "DeleteGroup")
 	c.registerMethod(LeaveGroupMethodName, 60_000, c.LeaveGroup, "LeaveGroup")
 	c.registerMethod(RenewGroupMemberMethodName, 60_000, c.RenewGroupMember, "RenewGroupMember")
-	c.registerMethod(MirrorGroupMethodName, 60_000, c.MirrorGroup, "MirrorGroup")
 	c.registerMethod(SetTagMethodName, 60_000, c.SetTag, "SetTag")
 	c.registerMethod(UpdateBucketInfoMethodName, 60_000, c.UpdateBucketInfo, "UpdateBucketInfo")
 	c.registerMethod(PutPolicyMethodName, 60_000, c.PutPolicy, "PutPolicy")
@@ -547,50 +541,6 @@ func (c *Contract) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[SetBucketFlowRateLimitMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
-	); err != nil {
-		return nil, err
-	}
-	return method.Outputs.Pack(true)
-}
-
-func (c *Contract) MirrorBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, errors.New("mirror bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
-
-	method := GetAbiMethod(MirrorBucketMethodName)
-
-	var args MirrorBucketArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
-		return nil, err
-	}
-
-	msg := &storagetypes.MsgMirrorBucket{
-		Operator:    contract.Caller().String(),
-		Id:          cmath.NewUintFromBigInt(args.BucketId),
-		BucketName:  args.BucketName,
-		DestChainId: args.DestChainId,
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.MirrorBucket(ctx, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[MirrorBucketMethodName]),
 		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
 	); err != nil {
 		return nil, err
@@ -1173,51 +1123,6 @@ func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) MirrorObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, errors.New("mirror object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
-
-	method := GetAbiMethod(MirrorObjectMethodName)
-
-	var args MirrorObjectArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
-		return nil, err
-	}
-
-	msg := &storagetypes.MsgMirrorObject{
-		Operator:    contract.Caller().String(),
-		Id:          cmath.NewUintFromBigInt(args.ObjectId),
-		BucketName:  args.BucketName,
-		ObjectName:  args.ObjectName,
-		DestChainId: args.DestChainId,
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.MirrorObject(ctx, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[MirrorObjectMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
-	); err != nil {
-		return nil, err
-	}
-	return method.Outputs.Pack(true)
-}
-
 func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("create group method readonly")
@@ -1489,50 +1394,6 @@ func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[RenewGroupMemberMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
-	); err != nil {
-		return nil, err
-	}
-	return method.Outputs.Pack(true)
-}
-
-func (c *Contract) MirrorGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, errors.New("mirror group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
-
-	method := GetAbiMethod(MirrorGroupMethodName)
-
-	var args MirrorGroupArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
-		return nil, err
-	}
-
-	msg := &storagetypes.MsgMirrorGroup{
-		Operator:    contract.Caller().String(),
-		Id:          cmath.NewUintFromBigInt(args.GroupId),
-		GroupName:   args.GroupName,
-		DestChainId: args.DestChainId,
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		return nil, err
-	}
-
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.MirrorGroup(ctx, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[MirrorGroupMethodName]),
 		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
 	); err != nil {
 		return nil, err

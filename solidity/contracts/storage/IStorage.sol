@@ -363,15 +363,6 @@ interface IStorage {
     ) external returns (bool success);
 
     /**
-     * @dev mirrorBucket defines a method for mirror a bucket.
-     */
-    function mirrorBucket(
-        uint256 bucketId,
-        string memory bucketName,
-        uint32 destChainId
-    ) external returns (bool success);
-
-    /**
      * @dev migrateBucket defines a method for migrate a bucket.
      */
     function migrateBucket(
@@ -460,16 +451,6 @@ interface IStorage {
     function deleteObject(
         string memory bucketName,
         string memory objectName
-    ) external returns (bool success);
-
-    /**
-     * @dev mirrorObject defines a method for mirror a object.
-     */
-    function mirrorObject(
-        uint256 objectId,
-        string memory bucketName,
-        string memory objectName,
-        uint32 destChainId
     ) external returns (bool success);
 
     /**
@@ -822,15 +803,6 @@ interface IStorage {
     ) external returns (bool success);
 
     /**
-     * @dev mirrorGroup defines a method for mirror a group.
-     */
-    function mirrorGroup(
-        uint256 groupId,
-        string memory groupName,
-        uint32 destChainId
-    ) external returns (bool success);
-
-    /**
      * @dev renewGroupMember defines a method for update the expire time of group member.
      */
     function renewGroupMember(
@@ -946,11 +918,6 @@ interface IStorage {
     event DeleteBucket(address indexed creator);
 
     /**
-     * @dev MirrorBucket defines an Event emitted when a user mirror a bucket
-     */
-    event MirrorBucket(address indexed creator);
-
-    /**
      * @dev MigrateBucket defines an Event emitted when a user migrate a bucket
      */
     event MigrateBucket(address indexed creator, string indexed bucketName);
@@ -1007,11 +974,6 @@ interface IStorage {
      * @dev DeleteObject defines an Event emitted when a user delete a object
      */
     event DeleteObject(address indexed creator);
-
-    /**
-     * @dev MirrorObject defines an Event emitted when a user mirror a object
-     */
-    event MirrorObject(address indexed creator);
 
     /**
      * @dev Transfer defines an Event emitted when a transfer a object nft
@@ -1095,11 +1057,6 @@ interface IStorage {
      * @dev LeaveGroup defines an Event emitted when a user leave a group
      */
     event LeaveGroup(address indexed creator, string indexed groupName);
-
-    /**
-     * @dev MirrorGroup defines an Event emitted when a user mirror a group
-     */
-    event MirrorGroup(address indexed creator);
 
     /**
      * @dev RenewGroupMember defines an Event emitted when a user renew group member

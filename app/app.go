@@ -90,9 +90,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	"github.com/cosmos/cosmos-sdk/x/crosschain"
-	crosschainkeeper "github.com/cosmos/cosmos-sdk/x/crosschain/keeper"
-	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
 	distr "github.com/cosmos/cosmos-sdk/x/distribution"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -229,7 +226,6 @@ var (
 		evmtypes.ModuleName:                {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 		erc20types.ModuleName:              {authtypes.Minter, authtypes.Burner},
 		paymentmoduletypes.ModuleName:      {authtypes.Burner, authtypes.Staking},
-		crosschaintypes.ModuleName:         {authtypes.Minter},
 		permissionmoduletypes.ModuleName:   nil,
 		spmoduletypes.ModuleName:           {authtypes.Staking},
 		virtualgroupmoduletypes.ModuleName: nil,
@@ -291,7 +287,6 @@ type Evmos struct {
 	UpgradeKeeper         *upgradekeeper.Keeper
 	ParamsKeeper          paramskeeper.Keeper
 	FeeGrantKeeper        feegrantkeeper.Keeper
-	CrossChainKeeper      crosschainkeeper.Keeper
 	GashubKeeper          gashubkeeper.Keeper
 	IBCKeeper             *ibckeeper.Keeper // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
 	ICAHostKeeper         icahostkeeper.Keeper
@@ -382,7 +377,6 @@ func NewEvmos(
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey, consensusparamtypes.StoreKey,
 		feegrant.StoreKey, crisistypes.StoreKey,
-		crosschaintypes.StoreKey,
 		gashubtypes.StoreKey,
 		spmoduletypes.StoreKey,
 		virtualgroupmoduletypes.StoreKey,
@@ -484,13 +478,6 @@ func NewEvmos(
 		cmdcfg.NewMultiPrefixBech32ValCodec(),
 		cmdcfg.NewMultiPrefixBech32ConsCodec(),
 	)
-	app.CrossChainKeeper = crosschainkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[crosschaintypes.StoreKey]),
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-		app.StakingKeeper,
-		app.BankKeeper,
-	)
 	app.DistrKeeper = distrkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[distrtypes.StoreKey]),
@@ -543,7 +530,7 @@ func NewEvmos(
 	*/
 	govKeeper := govkeeper.NewKeeper(
 		appCodec, runtime.NewKVStoreService(keys[govtypes.StoreKey]), app.AccountKeeper, app.BankKeeper,
-		app.StakingKeeper, app.CrossChainKeeper, app.DistrKeeper, app.MsgServiceRouter(), govConfig, authAddr,
+		app.StakingKeeper, app.DistrKeeper, app.MsgServiceRouter(), govConfig, authAddr,
 	)
 
 	// Evmos Keeper
@@ -681,7 +668,6 @@ func NewEvmos(
 		app.SpKeeper,
 		app.PaymentKeeper,
 		app.PermissionKeeper,
-		app.CrossChainKeeper,
 		app.VirtualgroupKeeper,
 		app.EvmKeeper,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
@@ -728,7 +714,6 @@ func NewEvmos(
 		slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.GetSubspace(slashingtypes.ModuleName), app.interfaceRegistry),
 		distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.GetSubspace(distrtypes.ModuleName)),
 		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(stakingtypes.ModuleName)),
-		crosschain.NewAppModule(app.CrossChainKeeper, app.BankKeeper, app.StakingKeeper),
 		upgrade.NewAppModule(app.UpgradeKeeper, cmdcfg.NewMultiPrefixBech32AccCodec()),
 		evidence.NewAppModule(app.EvidenceKeeper),
 		params.NewAppModule(app.ParamsKeeper),
@@ -796,7 +781,6 @@ func NewEvmos(
 		crisistypes.ModuleName,
 		authz.ModuleName,
 		feegrant.ModuleName,
-		crosschaintypes.ModuleName,
 		gashubtypes.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
@@ -816,7 +800,6 @@ func NewEvmos(
 		feemarkettypes.ModuleName,
 		authz.ModuleName,
 		feegrant.ModuleName,
-		crosschaintypes.ModuleName,
 		// Evmos modules
 		gashubtypes.ModuleName,
 		spmoduletypes.ModuleName,
@@ -858,7 +841,6 @@ func NewEvmos(
 		authz.ModuleName,
 		feegrant.ModuleName,
 		upgradetypes.ModuleName,
-		crosschaintypes.ModuleName,
 		// Evmos modules
 		erc20types.ModuleName,
 		// NOTE: crisis module must go at the end to check for invariants on each module
@@ -994,34 +976,12 @@ func NewEvmos(
 }
 
 func (app *Evmos) initModules(_ sdk.Context) {
-	app.initCrossChain()
 	app.initStorage()
-	app.initGov()
-}
-
-func (app *Evmos) initCrossChain() {
-	app.CrossChainKeeper.SetSrcChainID(sdk.ChainID(app.appConfig.CrossChain.SrcChainId))
-	app.CrossChainKeeper.SetDestBscChainID(sdk.ChainID(app.appConfig.CrossChain.DestBscChainId))
-	app.CrossChainKeeper.SetDestPolygonChainID(sdk.ChainID(app.appConfig.CrossChain.DestPolygonChainId))
-	app.CrossChainKeeper.SetDestScrollChainID(sdk.ChainID(app.appConfig.CrossChain.DestScrollChainId))
-	app.CrossChainKeeper.SetDestLineaChainID(sdk.ChainID(app.appConfig.CrossChain.DestLineaChainId))
-	app.CrossChainKeeper.SetDestMantleChainID(sdk.ChainID(app.appConfig.CrossChain.DestMantleChainId))
-	app.CrossChainKeeper.SetDestArbitrumChainID(sdk.ChainID(app.appConfig.CrossChain.DestArbitrumChainId))
-	app.CrossChainKeeper.SetDestOptimismChainID(sdk.ChainID(app.appConfig.CrossChain.DestOptimismChainId))
-	app.CrossChainKeeper.SetDestBaseChainID(sdk.ChainID(app.appConfig.CrossChain.DestBaseChainId))
 }
 
 func (app *Evmos) initStorage() {
-	storagemodulekeeper.RegisterCrossApps(app.StorageKeeper)
 	storagemodulekeeper.InitPaymentCheck(app.StorageKeeper, app.appConfig.PaymentCheck.Enabled,
 		app.appConfig.PaymentCheck.Interval)
-}
-
-func (app *Evmos) initGov() {
-	err := app.GovKeeper.RegisterCrossChainSyncParamsApp()
-	if err != nil {
-		panic(err)
-	}
 }
 
 // Name returns the name of the App
@@ -1115,37 +1075,6 @@ func (app *Evmos) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abc
 
 	if err := app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap()); err != nil {
 		panic(err)
-	}
-
-	chainIDs := []uint32{
-		app.appConfig.CrossChain.DestBscChainId,
-		app.appConfig.CrossChain.DestPolygonChainId,
-		app.appConfig.CrossChain.DestScrollChainId,
-		app.appConfig.CrossChain.DestLineaChainId,
-		app.appConfig.CrossChain.DestMantleChainId,
-		app.appConfig.CrossChain.DestArbitrumChainId,
-		app.appConfig.CrossChain.DestOptimismChainId,
-		app.appConfig.CrossChain.DestBaseChainId,
-	}
-
-	channels := []sdk.ChannelID{
-		storagemoduletypes.BucketChannelID,
-		storagemoduletypes.ObjectChannelID,
-		storagemoduletypes.GroupChannelID,
-		storagemoduletypes.MocaSBTChannelId,
-		storagemoduletypes.MocaVCChannelId,
-	}
-
-	// init cross chain channel permissions
-	for _, chainID := range chainIDs {
-		for _, ch := range channels {
-			app.CrossChainKeeper.SetChannelSendPermission(
-				ctx,
-				sdk.ChainID(chainID),
-				ch,
-				sdk.ChannelAllow,
-			)
-		}
 	}
 
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
@@ -1506,7 +1435,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle", "bridge", "group"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {

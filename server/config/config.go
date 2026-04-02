@@ -100,17 +100,6 @@ const (
 
 	// DefaultMaxOpenConnections represents the amount of open connections (unlimited = 0)
 	DefaultMaxOpenConnections = 0
-
-	DefaultSrcChainID          = 1
-	DefaultDestBscChainID      = 2
-	DefaultDestOpChainID       = 3
-	DefaultDestPolygonChainID  = 4
-	DefaultDestScrollChainID   = 5
-	DefaultDestLineaChainID    = 6
-	DefaultDestMantleChainID   = 7
-	DefaultDestArbitrumChainID = 8
-	DefaultDestOptimismChainID = 9
-	DefaultDestBaseChainID     = 10
 )
 
 var evmTracers = []string{"json", "markdown", "struct", "access_list"}
@@ -123,9 +112,7 @@ type AppConfig struct {
 	EVM          EVMConfig          `mapstructure:"evm"`
 	JSONRPC      JSONRPCConfig      `mapstructure:"json-rpc"`
 	TLS          TLSConfig          `mapstructure:"tls"`
-	CrossChain   CrossChainConfig   `mapstructure:"cross-chain"`
 	PaymentCheck PaymentCheckConfig `mapstructure:"payment-check"`
-
 
 	// Hardforks is a mapping from block height -> hardfork entry (name + optional info).
 	// Intended for operator-managed / localnet / emergency upgrades when governance is unavailable.
@@ -202,19 +189,6 @@ type TLSConfig struct {
 	KeyPath string `mapstructure:"key-path"`
 }
 
-type CrossChainConfig struct {
-	SrcChainId          uint32 `mapstructure:"src-chain-id"`           //nolint
-	DestBscChainId      uint32 `mapstructure:"dest-bsc-chain-id"`      //nolint
-	DestOpChainId       uint32 `mapstructure:"dest-op-chain-id"`       //nolint
-	DestPolygonChainId  uint32 `mapstructure:"dest-polygon-chain-id"`  //nolint
-	DestScrollChainId   uint32 `mapstructure:"dest-scroll-chain-id"`   //nolint
-	DestLineaChainId    uint32 `mapstructure:"dest-linea-chain-id"`    //nolint
-	DestMantleChainId   uint32 `mapstructure:"dest-mantle-chain-id"`   //nolint
-	DestArbitrumChainId uint32 `mapstructure:"dest-arbitrum-chain-id"` //nolint
-	DestOptimismChainId uint32 `mapstructure:"dest-optimism-chain-id"` //nolint
-	DestBaseChainId     uint32 `mapstructure:"dest-base-chain-id"`     //nolint
-}
-
 type PaymentCheckConfig struct {
 	Enabled  bool   `mapstructure:"enabled"`
 	Interval uint32 `mapstructure:"interval"`
@@ -251,7 +225,6 @@ func NewDefaultAppConfig(denom string) *AppConfig {
 		EVM:          *DefaultEVMConfig(),
 		JSONRPC:      *DefaultJSONRPCConfig(),
 		TLS:          *DefaultTLSConfig(),
-		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
 		Hardforks:    map[string]HardforkEntry{},
 	}
@@ -285,7 +258,6 @@ func NewAppConfig(denom string) (string, interface{}) {
 		EVM:          *DefaultEVMConfig(),
 		JSONRPC:      *DefaultJSONRPCConfig(),
 		TLS:          *DefaultTLSConfig(),
-		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
 		Hardforks:    map[string]HardforkEntry{},
 	}
@@ -302,7 +274,6 @@ func DefaultConfig() *AppConfig {
 		EVM:          *DefaultEVMConfig(),
 		JSONRPC:      *DefaultJSONRPCConfig(),
 		TLS:          *DefaultTLSConfig(),
-		CrossChain:   *DefaultCrossChainConfig(),
 		PaymentCheck: *DefaultPaymentCheckConfig(),
 		Hardforks:    map[string]HardforkEntry{},
 	}
@@ -447,26 +418,6 @@ func (c TLSConfig) Validate() error {
 	return nil
 }
 
-// DefaultCrossChainConfig returns the default CrossChain configuration
-func DefaultCrossChainConfig() *CrossChainConfig {
-	return &CrossChainConfig{
-		SrcChainId:          DefaultSrcChainID,
-		DestBscChainId:      DefaultDestBscChainID,
-		DestOpChainId:       DefaultDestOpChainID,
-		DestPolygonChainId:  DefaultDestPolygonChainID,
-		DestScrollChainId:   DefaultDestScrollChainID,
-		DestLineaChainId:    DefaultDestLineaChainID,
-		DestMantleChainId:   DefaultDestMantleChainID,
-		DestArbitrumChainId: DefaultDestArbitrumChainID,
-		DestOptimismChainId: DefaultDestOptimismChainID,
-		DestBaseChainId:     DefaultDestBaseChainID,
-	}
-}
-
-func (c CrossChainConfig) Validate() error {
-	return nil
-}
-
 // DefaultPaymentCheckConfig returns the default PaymentCheckConfig configuration
 func DefaultPaymentCheckConfig() *PaymentCheckConfig {
 	return &PaymentCheckConfig{
@@ -478,7 +429,6 @@ func DefaultPaymentCheckConfig() *PaymentCheckConfig {
 func (c PaymentCheckConfig) Validate() error {
 	return nil
 }
-
 
 // GetConfig returns a fully parsed Config object.
 func GetConfig(v *viper.Viper) (AppConfig, error) {
@@ -519,18 +469,6 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 		TLS: TLSConfig{
 			CertificatePath: v.GetString("tls.certificate-path"),
 			KeyPath:         v.GetString("tls.key-path"),
-		},
-		CrossChain: CrossChainConfig{
-			SrcChainId:          v.GetUint32("cross-chain.src-chain-id"),
-			DestBscChainId:      v.GetUint32("cross-chain.dest-bsc-chain-id"),
-			DestOpChainId:       v.GetUint32("cross-chain.dest-op-chain-id"),
-			DestPolygonChainId:  v.GetUint32("cross-chain.dest-polygon-chain-id"),
-			DestScrollChainId:   v.GetUint32("cross-chain.dest-scroll-chain-id"),
-			DestLineaChainId:    v.GetUint32("cross-chain.dest-linea-chain-id"),
-			DestMantleChainId:   v.GetUint32("cross-chain.dest-mantle-chain-id"),
-			DestArbitrumChainId: v.GetUint32("cross-chain.dest-arbitrum-chain-id"),
-			DestOptimismChainId: v.GetUint32("cross-chain.dest-optimism-chain-id"),
-			DestBaseChainId:     v.GetUint32("cross-chain.dest-base-chain-id"),
 		},
 		PaymentCheck: PaymentCheckConfig{
 			Enabled:  v.GetBool("payment-check.enabled"),
@@ -574,14 +512,9 @@ func (c AppConfig) ValidateBasic() error {
 		return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid tls config value: %s", err.Error())
 	}
 
-	if err := c.CrossChain.Validate(); err != nil {
-		return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid crosschain config value: %s", err.Error())
-	}
-
 	if err := c.PaymentCheck.Validate(); err != nil {
 		return errorsmod.Wrapf(errortypes.ErrAppConfig, "invalid paymentcheck config value: %s", err.Error())
 	}
-
 
 	for heightStr, entry := range c.Hardforks {
 		if entry.Name == "" {

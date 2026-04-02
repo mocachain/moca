@@ -21,8 +21,8 @@ import (
 	"github.com/evmos/evmos/v12/x/storage/keeper"
 	"github.com/evmos/evmos/v12/x/storage/types"
 	virtualgroupmoduletypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
-	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 )
 
 type TestSuite struct {
@@ -35,7 +35,6 @@ type TestSuite struct {
 	accountKeeper      *types.MockAccountKeeper
 	spKeeper           *types.MockSpKeeper
 	permissionKeeper   *types.MockPermissionKeeper
-	crossChainKeeper   *types.MockCrossChainKeeper
 	paymentKeeper      *types.MockPaymentKeeper
 	virtualGroupKeeper *types.MockVirtualGroupKeeper
 
@@ -63,7 +62,6 @@ func (s *TestSuite) SetupTest() {
 	accountKeeper := types.NewMockAccountKeeper(ctrl)
 	spKeeper := types.NewMockSpKeeper(ctrl)
 	permissionKeeper := types.NewMockPermissionKeeper(ctrl)
-	crossChainKeeper := types.NewMockCrossChainKeeper(ctrl)
 	paymentKeeper := types.NewMockPaymentKeeper(ctrl)
 	virtualGroupKeeper := types.NewMockVirtualGroupKeeper(ctrl)
 	evmKeeper := types.NewMockEVMKeeper(ctrl)
@@ -75,7 +73,6 @@ func (s *TestSuite) SetupTest() {
 		spKeeper,
 		paymentKeeper,
 		permissionKeeper,
-		crossChainKeeper,
 		virtualGroupKeeper,
 		evmKeeper,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
@@ -89,7 +86,6 @@ func (s *TestSuite) SetupTest() {
 	s.accountKeeper = accountKeeper
 	s.spKeeper = spKeeper
 	s.permissionKeeper = permissionKeeper
-	s.crossChainKeeper = crossChainKeeper
 	s.paymentKeeper = paymentKeeper
 	s.virtualGroupKeeper = virtualGroupKeeper
 

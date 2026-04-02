@@ -58,7 +58,7 @@ More advanced script and command line usage, please refer to the [Tutorial](http
 
 ## Key Modules
 
-- `x/evm`: bridges Ethereum's smart contract capabilities with Cosmos' cross-chain functionality and governance systems.
+- `x/evm`: bridges Ethereum's smart contract capabilities with Cosmos' governance systems.
 - `x/challenge`: generate random data challenge events or accept user's data challenge requests.
 - `x/payment`: handle the billing and payment of the storage module. User fees are paid through "Stream" on Moca,
   with a constant rate of payment from users to Storage Providers (SP) with charges applied every second of usage.
@@ -70,7 +70,6 @@ More advanced script and command line usage, please refer to the [Tutorial](http
 
 And the following modules are in cosmos-sdk:
 
-- `x/crosschain`: manage the cross chain packages, like store/query/update the cross chain package, channels, sequences.
 - `x/gashub`: provide a governable and predictable fee charge mechanism.
 - `x/staking`: based on the Proof-of-Stake logic. The elected validators are responsible for the security of the moca
   blockchain. They get involved in the governance and staking of the blockchain.

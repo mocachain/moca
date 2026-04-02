@@ -41,7 +41,6 @@ func GetTxCmd() *cobra.Command {
 		CmdCreateBucket(),
 		CmdDeleteBucket(),
 		CmdUpdateBucketInfo(),
-		CmdMirrorBucket(),
 		CmdDiscontinueBucket(),
 		CmdMigrateBucket(),
 		CmdCancelMigrateBucket(),
@@ -54,7 +53,6 @@ func GetTxCmd() *cobra.Command {
 		CmdDeleteObject(),
 		CmdCancelCreateObject(),
 		CmdCopyObject(),
-		CmdMirrorObject(),
 		CmdDiscontinueObject(),
 		CmdUpdateObjectInfo(),
 	)
@@ -66,7 +64,6 @@ func GetTxCmd() *cobra.Command {
 		CmdUpdateGroupExtra(),
 		CmdRenewGroupMember(),
 		CmdLeaveGroup(),
-		CmdMirrorGroup(),
 	)
 
 	cmd.AddCommand(
@@ -1039,10 +1036,10 @@ func CmdLeaveGroup() *cobra.Command {
 				return err
 			}
 
-		txRsp, err := session.LeaveGroup(
-			ethcmn.Address(groupOwner),
-			argGroupName,
-		)
+			txRsp, err := session.LeaveGroup(
+				ethcmn.Address(groupOwner),
+				argGroupName,
+			)
 			if err != nil {
 				// return fmt.Errorf("failed to leave group")
 				return err
@@ -1478,99 +1475,6 @@ $ %s tx delete-policy 3
 	return cmd
 }
 
-func CmdMirrorBucket() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "mirror-bucket --privatekey xxx",
-		Short: "Mirror an existing bucket to the destination chain",
-		Args:  cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, _ []string) (err error) {
-			argPrivateKey, _ := cmd.Flags().GetString(FlagPrivateKey)
-			argBucketID, _ := cmd.Flags().GetString(FlagBucketID)
-			argBucketName, _ := cmd.Flags().GetString(FlagBucketName)
-			argDestChainID, _ := cmd.Flags().GetString(FlagDestChainID)
-
-			bucketID := big.NewInt(0)
-			switch {
-			case argBucketID == "" && argBucketName == "":
-				return fmt.Errorf("bucket id or bucket name should be provided")
-			case argBucketID != "" && argBucketName != "":
-				return fmt.Errorf("bucket id and bucket name should not be provided together")
-			case argBucketID != "":
-				ok := false
-				bucketID, ok = big.NewInt(0).SetString(argBucketID, 10)
-				if !ok {
-					return fmt.Errorf("invalid bucket id: %s", argBucketID)
-				}
-				if bucketID.Cmp(big.NewInt(0)) <= 0 {
-					return fmt.Errorf("bucket id should be positive")
-				}
-			}
-
-			if argDestChainID == "" {
-				return fmt.Errorf("destination chain id should be provided")
-			}
-			destChainID, err := strconv.ParseUint(argDestChainID, 10, 16)
-			if err != nil {
-				return err
-			}
-
-			clientCtx, err := client.GetClientTxContext(cmd)
-			if err != nil {
-				return err
-			}
-
-			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			if err != nil {
-				return err
-			}
-			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
-			if err != nil {
-				return err
-			}
-			nonce, err := gnfdCli.GetNonce(context.Background())
-			if err != nil {
-				return err
-			}
-			txOpts, err := sdkclient.CreateTxOpts(context.Background(), clientCtx.EvmClient, argPrivateKey, big.NewInt(gnfdSdkTypes.DefaultChainId), gnfdSdkTypes.DefaultGasLimit, nonce)
-			if err != nil {
-				// return fmt.Errorf("failed to create tx opts")
-				return err
-			}
-
-			session, err := sdkclient.CreateStorageSession(clientCtx.EvmClient, *txOpts, types2.StorageAddress)
-			if err != nil {
-				// return fmt.Errorf("failed to create session")
-				return err
-			}
-
-			txRsp, err := session.MirrorBucket(
-				// ethcmn.Address(km.GetAddr()),
-				bucketID,
-				argBucketName,
-				uint32(destChainID),
-			)
-			if err != nil {
-				// return fmt.Errorf("failed to mirror bucket")
-				return err
-			}
-
-			_, err = sdkclient.WaitForEvmTx(context.Background(), clientCtx.EvmClient, gnfdCli, txRsp.Hash())
-			if err != nil {
-				return fmt.Errorf("failed to mirror bucket.%v", err.Error())
-			}
-			return clientCtx.PrintObjectLegacy(txRsp.Hash().String())
-		},
-	}
-
-	cmd.Flags().String(FlagBucketID, "", "Id of the bucket to mirror")
-	cmd.Flags().String(FlagBucketName, "", "Name of the bucket to mirror")
-	cmd.Flags().String(FlagDestChainID, "", "the destination chain id")
-	cmd.Flags().String(FlagPrivateKey, "", "The privatekey of account to mirror bucket")
-	flags.AddTxFlagsToCmd(cmd)
-
-	return cmd
-}
-
 func CmdDiscontinueBucket() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "discontinue-bucket [bucket-name] [reason] --privatekey xxx",
@@ -1702,197 +1606,6 @@ func CmdMigrateBucket() *cobra.Command {
 	cmd.Flags().String(FlagPrivateKey, "", "The privatekey of account to migrate bucket")
 	flags.AddTxFlagsToCmd(cmd)
 	cmd.Flags().AddFlagSet(FlagSetApproval())
-	return cmd
-}
-
-func CmdMirrorObject() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "mirror-object --privatekey xxx",
-		Short: "Mirror the object to the destination chain",
-		Args:  cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, _ []string) (err error) {
-			argPrivateKey, _ := cmd.Flags().GetString(FlagPrivateKey)
-			argObjectID, _ := cmd.Flags().GetString(FlagObjectID)
-			argBucketName, _ := cmd.Flags().GetString(FlagBucketName)
-			argObjectName, _ := cmd.Flags().GetString(FlagObjectName)
-			argDestChainID, _ := cmd.Flags().GetString(FlagDestChainID)
-
-			objectID := big.NewInt(0)
-			switch {
-			case argObjectID == "" && argObjectName == "":
-				return fmt.Errorf("object id or object name should be provided")
-			case argObjectID != "" && argObjectName != "":
-				return fmt.Errorf("object id and object name should not be provided together")
-			case argObjectID != "":
-				ok := false
-				objectID, ok = big.NewInt(0).SetString(argObjectID, 10)
-				if !ok {
-					return fmt.Errorf("invalid object id: %s", argObjectID)
-				}
-				if objectID.Cmp(big.NewInt(0)) <= 0 {
-					return fmt.Errorf("object id should be positive")
-				}
-			case argObjectName != "" && argBucketName == "":
-				return fmt.Errorf("object name and bucket name should not be provided together")
-			}
-
-			if argDestChainID == "" {
-				return fmt.Errorf("destination chain id should be provided")
-			}
-			destChainID, err := strconv.ParseUint(argDestChainID, 10, 16)
-			if err != nil {
-				return err
-			}
-
-			clientCtx, err := client.GetClientTxContext(cmd)
-			if err != nil {
-				return err
-			}
-
-			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			if err != nil {
-				return err
-			}
-			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
-			if err != nil {
-				return err
-			}
-			nonce, err := gnfdCli.GetNonce(context.Background())
-			if err != nil {
-				return err
-			}
-			txOpts, err := sdkclient.CreateTxOpts(context.Background(), clientCtx.EvmClient, argPrivateKey, big.NewInt(gnfdSdkTypes.DefaultChainId), gnfdSdkTypes.DefaultGasLimit, nonce)
-			if err != nil {
-				// return fmt.Errorf("failed to create tx opts")
-				return err
-			}
-
-			session, err := sdkclient.CreateStorageSession(clientCtx.EvmClient, *txOpts, types2.StorageAddress)
-			if err != nil {
-				// return fmt.Errorf("failed to create session")
-				return err
-			}
-
-			txRsp, err := session.MirrorObject(
-				// ethcmn.Address(km.GetAddr()),
-				objectID,
-				argBucketName,
-				argObjectName,
-				uint32(destChainID),
-			)
-			if err != nil {
-				// return fmt.Errorf("failed to mirror object")
-				return err
-			}
-
-			_, err = sdkclient.WaitForEvmTx(context.Background(), clientCtx.EvmClient, gnfdCli, txRsp.Hash())
-			if err != nil {
-				return fmt.Errorf("failed to mirror object.%v", err.Error())
-			}
-			return clientCtx.PrintObjectLegacy(txRsp.Hash().String())
-		},
-	}
-
-	cmd.Flags().String(FlagObjectID, "", "Id of the object to mirror")
-	cmd.Flags().String(FlagObjectName, "", "Name of the object to mirror")
-	cmd.Flags().String(FlagBucketName, "", "Name of the bucket that the object belongs to")
-	cmd.Flags().String(FlagDestChainID, "", "the destination chain id")
-	cmd.Flags().String(FlagPrivateKey, "", "The privatekey of account to mirror object")
-	flags.AddTxFlagsToCmd(cmd)
-
-	return cmd
-}
-
-func CmdMirrorGroup() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "mirror-group --privatekey xxx",
-		Short: "Mirror an existing group to the destination chain",
-		Args:  cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, _ []string) (err error) {
-			argPrivateKey, _ := cmd.Flags().GetString(FlagPrivateKey)
-			argGroupID, _ := cmd.Flags().GetString(FlagGroupID)
-			argGroupName, _ := cmd.Flags().GetString(FlagGroupName)
-			argDestChainID, _ := cmd.Flags().GetString(FlagDestChainID)
-
-			groupID := big.NewInt(0)
-			switch {
-			case argGroupID == "" && argGroupName == "":
-				return fmt.Errorf("group id or group name should be provided")
-			case argGroupID != "" && argGroupName != "":
-				return fmt.Errorf("group id and group name should not be provided together")
-			case argGroupID != "":
-				ok := false
-				groupID, ok = big.NewInt(0).SetString(argGroupID, 10)
-				if !ok {
-					return fmt.Errorf("invalid groupd id: %s", argGroupID)
-				}
-				if groupID.Cmp(big.NewInt(0)) <= 0 {
-					return fmt.Errorf("groupd id should be positive")
-				}
-			}
-
-			if argDestChainID == "" {
-				return fmt.Errorf("destination chain id should be provided")
-			}
-			destChainID, err := strconv.ParseUint(argDestChainID, 10, 16)
-			if err != nil {
-				return err
-			}
-
-			clientCtx, err := client.GetClientTxContext(cmd)
-			if err != nil {
-				return err
-			}
-
-			km, err := keys.NewPrivateKeyManager(argPrivateKey)
-			if err != nil {
-				return err
-			}
-			gnfdCli, err := sdkclient.NewMocaClient(clientCtx.NodeURI, clientCtx.EvmNodeURI, gnfdSdkTypes.ChainID, sdkclient.WithKeyManager(km))
-			if err != nil {
-				return err
-			}
-			nonce, err := gnfdCli.GetNonce(context.Background())
-			if err != nil {
-				return err
-			}
-			txOpts, err := sdkclient.CreateTxOpts(context.Background(), clientCtx.EvmClient, argPrivateKey, big.NewInt(gnfdSdkTypes.DefaultChainId), gnfdSdkTypes.DefaultGasLimit, nonce)
-			if err != nil {
-				// return fmt.Errorf("failed to create tx opts")
-				return err
-			}
-
-			session, err := sdkclient.CreateStorageSession(clientCtx.EvmClient, *txOpts, types2.StorageAddress)
-			if err != nil {
-				// return fmt.Errorf("failed to create session")
-				return err
-			}
-
-			txRsp, err := session.MirrorGroup(
-				// ethcmn.Address(km.GetAddr()),
-				groupID,
-				argGroupName,
-				uint32(destChainID),
-			)
-			if err != nil {
-				// return fmt.Errorf("failed to mirror group")
-				return err
-			}
-
-			_, err = sdkclient.WaitForEvmTx(context.Background(), clientCtx.EvmClient, gnfdCli, txRsp.Hash())
-			if err != nil {
-				return fmt.Errorf("failed to mirror group.%v", err.Error())
-			}
-			return clientCtx.PrintObjectLegacy(txRsp.Hash().String())
-		},
-	}
-
-	cmd.Flags().String(FlagGroupID, "", "Id of the group to mirror")
-	cmd.Flags().String(FlagGroupName, "", "Name of the group to mirror")
-	cmd.Flags().String(FlagDestChainID, "", "the destination chain id")
-	cmd.Flags().String(FlagPrivateKey, "", "The privatekey of account to mirror group")
-	flags.AddTxFlagsToCmd(cmd)
-
 	return cmd
 }
 
