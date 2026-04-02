@@ -511,12 +511,6 @@ func (s *StorageTestSuite) TestDeleteBucket() {
 	s.SendTxBlock(user, msgDeleteBucket1)
 }
 
-//	func (s *StorageTestSuite) TestMirrorBucket() {
-//		var err error
-//		sp := s.BaseSuite.PickStorageProvider()
-//		gvg, found := sp.GetFirstGlobalVirtualGroup()
-//		s.Require().True(found)
-//		user := s.User
 func (s *StorageTestSuite) TestDiscontinueObject_Normal() {
 	sp1, _, bucketName1, _, _, objectID1 := s.createObject()
 	sp2, _, bucketName2, _, _, objectID2 := s.createObject()

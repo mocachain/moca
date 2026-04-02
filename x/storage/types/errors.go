@@ -42,7 +42,6 @@ var (
 	ErrInvalidOperationType     = errors.Register(ModuleName, 3002, "invalid operation type")
 	ErrInvalidID                = errors.Register(ModuleName, 3003, "id is invalid")
 	ErrChainNotSupported        = errors.Register(ModuleName, 3004, "chain is not supported")
-	ErrCrossChainDisabled       = errors.Register(ModuleName, 3005, "mirror feature is disabled")
 
 	ErrInvalidObjectIDs          = errors.Register(ModuleName, 3101, "object ids are invalid")
 	ErrInvalidReason             = errors.Register(ModuleName, 3102, "reason is invalid")
