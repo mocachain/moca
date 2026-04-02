@@ -31,6 +31,7 @@ make e2e-fw
 
 # Run a single test
 make e2e-fw-test TEST=smoke
+make e2e-fw-test TEST=validator_devcontainer_parity
 make e2e-fw-test TEST=upgrade_hardfork
 make e2e-fw-test TEST=upgrade_governance
 
@@ -183,6 +184,40 @@ make e2e-kind-cleanup
 
 ## Test Cases
 
+### Validator parity (moca-devcontainer)
+
+`moca-devcontainer` runs `test/validator/check-validators.sh test`
+(per-validator RPC, sync, voting power, timed block production). The Kind suite mirrors that with:
+
+```bash
+make e2e-fw-test TEST=validator_devcontainer_parity
+```
+
+Optional tuning (same defaults as devcontainer): `CHECK_INTERVAL`, `MAX_WAIT`, `MIN_BLOCKS`.
+
+### RPC + staking parity (`tests/test_rpc_suite.sh`)
+
+Aligns with `moca-devcontainer/test/validator/RPC/rpc.sh` (EVM/CometBFT checks) and
+`check-validators.sh` subcommands `balances` / `validators`.
+
+```bash
+make e2e-fw-test TEST=rpc_suite
+```
+
+| Kind test | devcontainer source |
+|-----------|---------------------|
+| EVM HTTP connectivity | `RPC/rpc.sh` connectivity |
+| CometBFT `/status`, `/health` | `RPC/rpc.sh` status, health |
+| `eth_blockNumber` JSON-RPC 2.0 | `RPC/rpc.sh` jsonrpc |
+| EVM block timestamp + monotonic height | `RPC/rpc.sh` blocks |
+| Forge `TestERC20` deploy + transfer | `RPC/rpc.sh` erc20 |
+| Validator operator `bank` balances | `check-validators.sh` balances |
+| Staking validators count + moniker | `check-validators.sh` validators |
+
+Comprehensive upgrade (`test_upgrade_comprehensive.sh`) also runs **`mod_validator.sh`** checks including
+validator height spread (<= 2) and on-chain staking count vs `NUM_VALIDATORS` (parity with devcontainer
+upgrade validator verification; cosmovisor checks are N/A in Kind).
+
 ### Smoke Suite
 
 | Test | Description |
@@ -204,6 +239,20 @@ make e2e-kind-cleanup
 | Balances preserved | Pre-upgrade account balances survived the upgrade |
 | Upgrade handler applied | `mocad query upgrade applied` confirms execution |
 | Token transfers post-upgrade | Bank send works with the new binary |
+
+### Comprehensive upgrade (`tests/test_upgrade_comprehensive.sh`)
+
+Drop-in modules under `tests/modules/mod_*.sh` are auto-loaded. They register randomized pre/post-upgrade
+transactions and post-upgrade verification hooks.
+
+| Module | Role |
+|--------|------|
+| `mod_bank.sh` | Bank sends and balance checks |
+| `mod_staking.sh` | Staking operations |
+| `mod_gov.sh` | Governance proposals |
+| `mod_distribution.sh` | Distribution queries |
+| `mod_evm.sh` | EVM transfers and ERC20 |
+| `mod_validator.sh` | Same checks on **every** validator pod (RPC, sync, voting power, height growth, height spread, on-chain validator count) |
 
 ## Configuration
 

@@ -322,6 +322,8 @@ e2e-fw:
 	@bash $(E2E_KIND_DIR)/framework/runner.sh
 
 # Run a single test: make e2e-fw-test TEST=smoke
+#   Validator parity (moca-devcontainer check-validators.sh test): TEST=validator_devcontainer_parity
+#   RPC + balances/validators parity (devcontainer RPC/rpc.sh + check-validators): TEST=rpc_suite
 e2e-fw-test:
 	@bash $(E2E_KIND_DIR)/tests/test_$(TEST).sh
 
