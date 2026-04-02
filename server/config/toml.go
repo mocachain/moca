@@ -122,31 +122,6 @@ key-path = "{{ .TLS.KeyPath }}"
 
 var DefaultCustomAppTemplate = `
 ###############################################################################
-###                           CrossChain Config                             ###
-###############################################################################
-[cross-chain]
-# chain-id for current chain
-src-chain-id = {{ .CrossChain.SrcChainId }}
-# chain-id for bsc destination chain
-dest-bsc-chain-id = {{ .CrossChain.DestBscChainId }}
-# chain-id for op bnb destination chain
-dest-op-chain-id = {{ .CrossChain.DestOpChainId }}
-# chain-id for polygon destination chain
-dest-polygon-chain-id = {{ .CrossChain.DestPolygonChainId }}
-# chain-id for scroll destination chain
-dest-scroll-chain-id = {{ .CrossChain.DestScrollChainId }}
-# chain-id for linea destination chain
-dest-linea-chain-id = {{ .CrossChain.DestLineaChainId }}
-# chain-id for mantle destination chain
-dest-mantle-chain-id = {{ .CrossChain.DestMantleChainId }}
-# chain-id for arbitrum destination chain
-dest-arbitrum-chain-id = {{ .CrossChain.DestArbitrumChainId }}
-# chain-id for optimism destination chain
-dest-optimism-chain-id = {{ .CrossChain.DestOptimismChainId }}
-# chain-id for base destination chain
-dest-base-chain-id = {{ .CrossChain.DestBaseChainId }}
-
-###############################################################################
 ###                           PaymentCheck Config                           ###
 ###############################################################################
 [payment-check]

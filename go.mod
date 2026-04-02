@@ -286,12 +286,12 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2
-	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.2.0-rc2
-	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v1.2.0-rc2
-	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2
-	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2
-	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v1.2.0-rc2
+	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2.0.20260401115524-8ee4ee752d32
+	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.2.0-rc2.0.20260401115524-8ee4ee752d32
+	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v1.2.0-rc2.0.20260401115524-8ee4ee752d32
+	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2.0.20260401115524-8ee4ee752d32
+	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2.0.20260401115524-8ee4ee752d32
+	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v1.2.0-rc2.0.20260401115524-8ee4ee752d32
 	// Use standard cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade from ecosystem
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
@@ -301,9 +301,9 @@ replace (
 	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260320015437-83994359d443
 	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3
 	// use Cosmos-SDK fork to enable Ledger functionality
-	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.2.0-rc2
+	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.2.0-rc2.0.20260401115524-8ee4ee752d32
 	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v1.2.0-rc0.0.20260318093905-7d754d41e8e9
-	github.com/cosmos/ibc-go/v10 => github.com/mocachain/moca-ibc-go/v10 v10.2.0-rc0.0.20260320043125-89f62f919f39
+	github.com/cosmos/ibc-go/v10 => github.com/mocachain/moca-ibc-go/v10 v10.2.0-rc0.0.20260402045149-4a8dfe4ac017
 	// use Evmos geth fork
 	github.com/ethereum/go-ethereum => github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq

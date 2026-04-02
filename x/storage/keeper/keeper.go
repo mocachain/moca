@@ -36,7 +36,6 @@ type (
 		paymentKeeper      storagetypes.PaymentKeeper
 		accountKeeper      storagetypes.AccountKeeper
 		permKeeper         storagetypes.PermissionKeeper
-		crossChainKeeper   storagetypes.CrossChainKeeper
 		virtualGroupKeeper storagetypes.VirtualGroupKeeper
 		evmKeeper          storagetypes.EVMKeeper
 		// sequence
@@ -64,7 +63,6 @@ func NewKeeper(
 	spKeeper storagetypes.SpKeeper,
 	paymentKeeper storagetypes.PaymentKeeper,
 	permKeeper storagetypes.PermissionKeeper,
-	crossChainKeeper storagetypes.CrossChainKeeper,
 	virtualGroupKeeper storagetypes.VirtualGroupKeeper,
 	evmKeeper storagetypes.EVMKeeper,
 	authority string,
@@ -77,7 +75,6 @@ func NewKeeper(
 		spKeeper:           spKeeper,
 		paymentKeeper:      paymentKeeper,
 		permKeeper:         permKeeper,
-		crossChainKeeper:   crossChainKeeper,
 		virtualGroupKeeper: virtualGroupKeeper,
 		evmKeeper:          evmKeeper,
 		authority:          authority,
@@ -2517,35 +2514,6 @@ func (k Keeper) hasGroup(ctx sdk.Context, groupID sdkmath.Uint) bool {
 	store := ctx.KVStore(k.storeKey)
 
 	return store.Has(storagetypes.GetGroupByIDKey(groupID))
-}
-
-func (k Keeper) GetSourceTypeByChainId(ctx sdk.Context, chainId sdk.ChainID) (storagetypes.SourceType, error) { //nolint
-	if chainId == 0 {
-		return 0, storagetypes.ErrChainNotSupported
-	}
-
-	switch chainId {
-	case k.crossChainKeeper.GetDestBscChainID():
-		return storagetypes.SOURCE_TYPE_BSC_CROSS_CHAIN, nil
-	case k.crossChainKeeper.GetDestOpChainID():
-		return storagetypes.SOURCE_TYPE_OP_CROSS_CHAIN, nil
-	case k.crossChainKeeper.GetDestPolygonChainID():
-		return storagetypes.SOURCE_TYPE_POLYGON_CROSS_CHAIN, nil
-	case k.crossChainKeeper.GetDestScrollChainID():
-		return storagetypes.SOURCE_TYPE_SCROLL_CROSS_CHAIN, nil
-	case k.crossChainKeeper.GetDestLineaChainID():
-		return storagetypes.SOURCE_TYPE_LINEA_CROSS_CHAIN, nil
-	case k.crossChainKeeper.GetDestMantleChainID():
-		return storagetypes.SOURCE_TYPE_MANTLE_CROSS_CHAIN, nil
-	case k.crossChainKeeper.GetDestArbitrumChainID():
-		return storagetypes.SOURCE_TYPE_ARBITRUM_CROSS_CHAIN, nil
-	case k.crossChainKeeper.GetDestOptimismChainID():
-		return storagetypes.SOURCE_TYPE_OPTIMISM_CROSS_CHAIN, nil
-	case k.crossChainKeeper.GetDestBaseChainID():
-		return storagetypes.SOURCE_TYPE_BASE_CROSS_CHAIN, nil
-	default:
-		return 0, storagetypes.ErrChainNotSupported
-	}
 }
 
 func (k Keeper) SetTag(ctx sdk.Context, operator sdk.AccAddress, grn types.GRN, tags *storagetypes.ResourceTags) error {

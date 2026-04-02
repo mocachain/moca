@@ -17,7 +17,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authztypes "github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -48,9 +47,6 @@ type BankQueryClient = banktypes.QueryClient
 
 // ChallengeQueryClient is a type to define the challenge types Query Client
 type ChallengeQueryClient = challengetypes.QueryClient
-
-// CrosschainQueryClient is a type to define the crosschain types Query Client
-type CrosschainQueryClient = crosschaintypes.QueryClient
 
 // DistrQueryClient is a type to define the distribution types Query Client
 type DistrQueryClient = distrtypes.QueryClient
@@ -101,8 +97,6 @@ type MocaClient struct {
 	BankQueryClient
 	// ChallengeQueryClient holds the bank query client.
 	ChallengeQueryClient
-	// CrosschainQueryClient holds the crosschain query client.
-	CrosschainQueryClient
 	// DistrQueryClient holds the distr query client.
 	DistrQueryClient
 	// FeegrantQueryClient holds the feegrant query client.
@@ -212,7 +206,6 @@ func setClientsConn(c *MocaClient, conn grpc1.ClientConn, evmCli *ethclient.Clie
 	c.AuthzQueryClient = authztypes.NewQueryClient(conn)
 	c.BankQueryClient = banktypes.NewQueryClient(conn)
 	c.ChallengeQueryClient = challengetypes.NewQueryClient(conn)
-	c.CrosschainQueryClient = crosschaintypes.NewQueryClient(conn)
 	c.DistrQueryClient = distrtypes.NewQueryClient(conn)
 	c.FeegrantQueryClient = feegranttypes.NewQueryClient(conn)
 	c.GashubQueryClient = gashubtypes.NewQueryClient(conn)

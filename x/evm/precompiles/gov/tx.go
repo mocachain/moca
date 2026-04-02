@@ -25,7 +25,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
@@ -152,7 +151,6 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	authtypes.RegisterInterfaces(interfaceRegistry)
 	banktypes.RegisterInterfaces(interfaceRegistry)
 	consensustypes.RegisterInterfaces(interfaceRegistry)
-	crosschaintypes.RegisterInterfaces(interfaceRegistry)
 	gashubtypes.RegisterInterfaces(interfaceRegistry)
 	stakingtypes.RegisterInterfaces(interfaceRegistry)
 	distrtypes.RegisterInterfaces(interfaceRegistry)
