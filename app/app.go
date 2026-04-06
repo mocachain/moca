@@ -120,7 +120,6 @@ import (
 	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 
 	// ibctestingtypes "github.com/cosmos/ibc-go/v10/testing/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	ibc "github.com/cosmos/ibc-go/v10/modules/core"
 
 	// ibcclientclient "github.com/cosmos/ibc-go/v10/modules/core/02-client/client"
@@ -137,9 +136,6 @@ import (
 	icahostkeeper "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/host/keeper"
 	icahosttypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/types"
-	ibctransfer "github.com/cosmos/ibc-go/v10/modules/apps/transfer"
-	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
-
 	ethante "github.com/evmos/evmos/v12/app/ante/evm"
 	"github.com/evmos/evmos/v12/app/upgrades"
 	"github.com/evmos/evmos/v12/encoding"
@@ -219,7 +215,6 @@ var (
 		stakingtypes.BondedPoolName:        {authtypes.Burner, authtypes.Staking},
 		stakingtypes.NotBondedPoolName:     {authtypes.Burner, authtypes.Staking},
 		govtypes.ModuleName:                {authtypes.Burner},
-		ibctransfertypes.ModuleName:        {authtypes.Minter, authtypes.Burner},
 		icatypes.ModuleName:                nil,
 		evmtypes.ModuleName:                {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 		erc20types.ModuleName:              {authtypes.Minter, authtypes.Burner},
@@ -289,7 +284,6 @@ type Evmos struct {
 	IBCKeeper             *ibckeeper.Keeper // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
 	ICAHostKeeper         icahostkeeper.Keeper
 	EvidenceKeeper        evidencekeeper.Keeper
-	TransferKeeper        ibctransferkeeper.Keeper
 	ConsensusParamsKeeper consensusparamkeeper.Keeper
 
 	SpKeeper           spmodulekeeper.Keeper
@@ -299,8 +293,7 @@ type Evmos struct {
 	VirtualgroupKeeper virtualgroupmodulekeeper.Keeper
 	StorageKeeper      storagemodulekeeper.Keeper
 	// make scoped keepers public for test purposes
-	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
-	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
+	ScopedIBCKeeper capabilitykeeper.ScopedKeeper
 
 	// Ethermint keepers
 	EvmKeeper       *evmkeeper.Keeper
@@ -384,7 +377,7 @@ func NewEvmos(
 		challengemoduletypes.StoreKey,
 		reconStoreKey,
 		// ibc keys
-		ibcexported.StoreKey, ibctransfertypes.StoreKey,
+		ibcexported.StoreKey,
 		// ica keys
 		icahosttypes.StoreKey,
 		// ethermint keys
@@ -428,7 +421,6 @@ func NewEvmos(
 	app.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
 
 	scopedIBCKeeper := app.CapabilityKeeper.ScopeToModule(ibcexported.ModuleName)
-	scopedTransferKeeper := app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
 
 	// Applications that wish to enforce statically created ScopedKeepers should call `Seal` after creating
 	// their scoped modules in `NewApp` with `ScopeToModule`
@@ -558,16 +550,6 @@ func NewEvmos(
 		),
 	)
 
-	app.TransferKeeper = ibctransferkeeper.NewKeeper(
-		appCodec, runtime.NewKVStoreService(keys[ibctransfertypes.StoreKey]), app.GetSubspace(ibctransfertypes.ModuleName),
-		app.IBCKeeper.ChannelKeeper, // ICS4 Wrapper: claims IBC middleware
-		app.IBCKeeper.ChannelKeeper, bApp.MsgServiceRouter(),
-		app.AccountKeeper, app.BankKeeper,
-		authAddr,
-	)
-
-	transferModule := ibctransfer.NewAppModule(app.TransferKeeper)
-
 	// Create the app.ICAHostKeeper
 	app.ICAHostKeeper = icahostkeeper.NewKeeper(
 		appCodec, runtime.NewKVStoreService(app.keys[icahosttypes.StoreKey]),
@@ -583,17 +565,10 @@ func NewEvmos(
 	// create host IBC module
 	icaHostIBCModule := icahost.NewIBCModule(app.ICAHostKeeper)
 
-	// create IBC module from top to bottom of stack
-	var transferStack porttypes.IBCModule
-
-	transferStack = ibctransfer.NewIBCModule(app.TransferKeeper)
-	transferStack = erc20.NewIBCMiddleware(app.Erc20Keeper, transferStack)
-
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
 	ibcRouter.
-		AddRoute(icahosttypes.SubModuleName, icaHostIBCModule).
-		AddRoute(ibctransfertypes.ModuleName, transferStack)
+		AddRoute(icahosttypes.SubModuleName, icaHostIBCModule)
 
 	app.IBCKeeper.SetRouter(ibcRouter)
 	storeProvider := app.IBCKeeper.ClientKeeper.GetStoreProvider()
@@ -725,7 +700,6 @@ func NewEvmos(
 		// ibc modules
 		ibc.NewAppModule(app.IBCKeeper),
 		ica.NewAppModule(nil, &app.ICAHostKeeper),
-		transferModule,
 		ibctm.NewAppModule(tmLightClientModule),
 		// Ethermint app modules
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, app.GetSubspace(evmtypes.ModuleName)),
@@ -749,7 +723,6 @@ func NewEvmos(
 					paramsclient.ProposalHandler,
 				},
 			),
-			ibctransfertypes.ModuleName: ibctransfer.AppModuleBasic{},
 		},
 	)
 	app.BasicModuleManager.RegisterLegacyAminoCodec(cdc)
@@ -832,7 +805,6 @@ func NewEvmos(
 		feemarkettypes.ModuleName,
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
-		ibctransfertypes.ModuleName,
 		icatypes.ModuleName,
 		authz.ModuleName,
 		feegrant.ModuleName,
@@ -958,7 +930,6 @@ func NewEvmos(
 	ethRouter.RegisterEthQueryBalanceHandler(app.BankKeeper, bankkeeper.EthQueryBalanceHandlerGen)
 
 	app.ScopedIBCKeeper = scopedIBCKeeper
-	app.ScopedTransferKeeper = scopedTransferKeeper
 
 	// Finally start the tpsCounter.
 	app.tpsCounter = newTPSCounter(logger)
@@ -1320,7 +1291,6 @@ func initParamsKeeper(
 	keyTable := ibcclienttypes.ParamKeyTable()
 	keyTable.RegisterParamSet(&ibcconnectiontypes.Params{})
 	paramsKeeper.Subspace(ibcexported.ModuleName).WithKeyTable(keyTable)
-	paramsKeeper.Subspace(ibctransfertypes.ModuleName).WithKeyTable(ibctransfertypes.ParamKeyTable())
 	paramsKeeper.Subspace(icahosttypes.SubModuleName).WithKeyTable(icahosttypes.ParamKeyTable())
 	// ethermint subspaces
 	paramsKeeper.Subspace(evmtypes.ModuleName).WithKeyTable(evmtypes.ParamKeyTable()) //nolint: staticcheck
@@ -1431,7 +1401,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {

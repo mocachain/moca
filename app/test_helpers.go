@@ -45,7 +45,6 @@ import (
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 	icagenesistypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/genesis/types"
 	icatypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	ibctypes "github.com/cosmos/ibc-go/v10/modules/core/types"
 
 	"github.com/cosmos/cosmos-sdk/x/crisis"
@@ -246,10 +245,6 @@ func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
 	distrGenesis := distributiontypes.DefaultGenesisState()
 	distrGenesis.FeePool = distributiontypes.InitialFeePool()
 	genesisState[distributiontypes.ModuleName] = app.AppCodec().MustMarshalJSON(distrGenesis)
-
-	// set transfer genesis
-	transferGenesis := ibctransfertypes.DefaultGenesisState()
-	genesisState[ibctransfertypes.ModuleName] = app.AppCodec().MustMarshalJSON(transferGenesis)
 
 	// set ica genesis
 	icaGenesis := icagenesistypes.DefaultGenesis()
