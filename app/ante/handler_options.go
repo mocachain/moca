@@ -26,8 +26,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	ibcante "github.com/cosmos/ibc-go/v10/modules/core/ante"
-	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
 	cosmosante "github.com/evmos/evmos/v12/app/ante/cosmos"
 	evmante "github.com/evmos/evmos/v12/app/ante/evm"
@@ -44,7 +42,6 @@ type HandlerOptions struct {
 	AccountKeeper          evmtypes.AccountKeeper
 	BankKeeper             evmtypes.BankKeeper
 	DistributionKeeper     anteutils.DistributionKeeper
-	IBCKeeper              *ibckeeper.Keeper
 	FeeMarketKeeper        evmante.FeeMarketKeeper
 	EvmKeeper              evmante.EVMKeeper
 	FeegrantKeeper         ante.FeegrantKeeper
@@ -66,9 +63,6 @@ func (options HandlerOptions) Validate() error {
 	}
 	if options.BankKeeper == nil {
 		return errorsmod.Wrap(errortypes.ErrLogic, "bank keeper is required for AnteHandler")
-	}
-	if options.IBCKeeper == nil {
-		return errorsmod.Wrap(errortypes.ErrLogic, "ibc keeper is required for AnteHandler")
 	}
 	if options.FeeMarketKeeper == nil {
 		return errorsmod.Wrap(errortypes.ErrLogic, "fee market keeper is required for AnteHandler")
@@ -139,7 +133,6 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		ante.NewSigGasConsumeDecorator(options.AccountKeeper, options.SigGasConsumer),
 		ante.NewSigVerificationDecorator(options.AccountKeeper, options.SignModeHandler),
 		ante.NewIncrementSequenceDecorator(options.AccountKeeper),
-		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
 		evmante.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper),
 	)
 }
@@ -167,7 +160,6 @@ func newLegacyCosmosAnteHandlerEip712(options HandlerOptions) sdk.AnteHandler {
 		//nolint: staticcheck
 		cosmosante.NewLegacyEip712SigVerificationDecorator(options.AccountKeeper),
 		ante.NewIncrementSequenceDecorator(options.AccountKeeper),
-		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
 		evmante.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper),
 	)
 }

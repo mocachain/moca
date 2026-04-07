@@ -119,17 +119,6 @@ import (
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 
-	// ibctestingtypes "github.com/cosmos/ibc-go/v10/testing/types"
-	ibc "github.com/cosmos/ibc-go/v10/modules/core"
-
-	// ibcclientclient "github.com/cosmos/ibc-go/v10/modules/core/02-client/client"
-	ibcclienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
-	ibcconnectiontypes "github.com/cosmos/ibc-go/v10/modules/core/03-connection/types"
-	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
-	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
-	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
-	ibctesting "github.com/cosmos/ibc-go/v10/testing"
-
 	ethante "github.com/evmos/evmos/v12/app/ante/evm"
 	"github.com/evmos/evmos/v12/app/upgrades"
 	"github.com/evmos/evmos/v12/encoding"
@@ -220,7 +209,6 @@ var (
 
 var (
 	_ servertypes.Application = (*Evmos)(nil)
-	_ ibctesting.TestingApp   = (*Evmos)(nil)
 	_ runtime.AppI            = (*Evmos)(nil)
 )
 
@@ -274,7 +262,6 @@ type Evmos struct {
 	ParamsKeeper          paramskeeper.Keeper
 	FeeGrantKeeper        feegrantkeeper.Keeper
 	GashubKeeper          gashubkeeper.Keeper
-	IBCKeeper             *ibckeeper.Keeper // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
 	EvidenceKeeper        evidencekeeper.Keeper
 	ConsensusParamsKeeper consensusparamkeeper.Keeper
 
@@ -284,8 +271,6 @@ type Evmos struct {
 	PermissionKeeper   permissionmodulekeeper.Keeper
 	VirtualgroupKeeper virtualgroupmodulekeeper.Keeper
 	StorageKeeper      storagemodulekeeper.Keeper
-	// make scoped keepers public for test purposes
-	ScopedIBCKeeper capabilitykeeper.ScopedKeeper
 
 	// Ethermint keepers
 	EvmKeeper       *evmkeeper.Keeper
@@ -368,8 +353,6 @@ func NewEvmos(
 		storagemoduletypes.StoreKey,
 		challengemoduletypes.StoreKey,
 		reconStoreKey,
-		// ibc keys
-		ibcexported.StoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
 		// evmos keys
@@ -407,10 +390,8 @@ func NewEvmos(
 	)
 	bApp.SetParamStore(app.ConsensusParamsKeeper.ParamsStore)
 
-	// add capability keeper and ScopeToModule for ibc module
+	// add capability keeper
 	app.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
-
-	scopedIBCKeeper := app.CapabilityKeeper.ScopeToModule(ibcexported.ModuleName)
 
 	// Applications that wish to enforce statically created ScopedKeepers should call `Seal` after creating
 	// their scoped modules in `NewApp` with `ScopeToModule`
@@ -498,11 +479,6 @@ func NewEvmos(
 		tracer, app.GetSubspace(evmtypes.ModuleName),
 	)
 
-	// Create IBC Keeper
-	app.IBCKeeper = ibckeeper.NewKeeper(
-		appCodec, runtime.NewKVStoreService(keys[ibcexported.StoreKey]), app.GetSubspace(ibcexported.ModuleName), app.UpgradeKeeper, authAddr,
-	)
-
 	govConfig := govtypes.DefaultConfig()
 	/*
 		Example of setting gov params:
@@ -539,11 +515,6 @@ func NewEvmos(
 			app.Erc20Keeper.Hooks(),
 		),
 	)
-
-	// Create static IBC router, then set and seal it
-	ibcRouter := porttypes.NewRouter()
-
-	app.IBCKeeper.SetRouter(ibcRouter)
 
 	// create evidence keeper with router
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -667,9 +638,6 @@ func NewEvmos(
 		permissionModule,
 		storageModule,
 		challengeModule,
-
-		// ibc modules
-		ibc.NewAppModule(app.IBCKeeper),
 		// Ethermint app modules
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, app.GetSubspace(evmtypes.ModuleName)),
 		feemarket.NewAppModule(app.FeeMarketKeeper, app.GetSubspace(feemarkettypes.ModuleName)),
@@ -706,7 +674,7 @@ func NewEvmos(
 	// there is nothing left over in the validator fee pool, to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0.
-	// NOTE: capability module's beginblocker must come before any modules using capabilities (e.g. IBC)
+	// NOTE: capability module's beginblocker must come before any modules using capabilities.
 	app.mm.SetOrderBeginBlockers(
 		capabilitytypes.ModuleName,
 		feemarkettypes.ModuleName,
@@ -715,7 +683,6 @@ func NewEvmos(
 		slashingtypes.ModuleName,
 		evidencetypes.ModuleName,
 		stakingtypes.ModuleName,
-		ibcexported.ModuleName,
 		crisistypes.ModuleName,
 		authz.ModuleName,
 		feegrant.ModuleName,
@@ -765,7 +732,6 @@ func NewEvmos(
 		slashingtypes.ModuleName,
 		govtypes.ModuleName,
 		gashubtypes.ModuleName,
-		ibcexported.ModuleName,
 		// Ethermint modules
 		// evm module denomination is used by the revenue module, in AnteHandle
 		evmtypes.ModuleName,
@@ -897,8 +863,6 @@ func NewEvmos(
 	ethRouter.RegisterConstHandler()
 	ethRouter.RegisterEthQueryBalanceHandler(app.BankKeeper, bankkeeper.EthQueryBalanceHandlerGen)
 
-	app.ScopedIBCKeeper = scopedIBCKeeper
-
 	// Finally start the tpsCounter.
 	app.tpsCounter = newTPSCounter(logger)
 	go func() {
@@ -932,7 +896,6 @@ func (app *Evmos) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) 
 		FeegrantKeeper:         app.FeeGrantKeeper,
 		GashubKeeper:           app.GashubKeeper,
 		DistributionKeeper:     app.DistrKeeper,
-		IBCKeeper:              app.IBCKeeper,
 		FeeMarketKeeper:        app.FeeMarketKeeper,
 		SignModeHandler:        txConfig.SignModeHandler(),
 		SigGasConsumer:         ante.SigVerificationGasConsumer,
@@ -1188,16 +1151,6 @@ func (app *Evmos) GetStakingKeeperSDK() stakingkeeper.Keeper {
 	return *app.StakingKeeper
 }
 
-// GetIBCKeeper implements the TestingApp interface.
-func (app *Evmos) GetIBCKeeper() *ibckeeper.Keeper {
-	return app.IBCKeeper
-}
-
-// GetScopedIBCKeeper implements the TestingApp interface.
-func (app *Evmos) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
-	return app.ScopedIBCKeeper
-}
-
 // GetTxConfig implements the TestingApp interface.
 func (app *Evmos) GetTxConfig() client.TxConfig {
 	return app.txConfig
@@ -1256,9 +1209,6 @@ func initParamsKeeper(
 	paramsKeeper.Subspace(slashingtypes.ModuleName)
 	paramsKeeper.Subspace(govtypes.ModuleName).WithKeyTable(govv1.ParamKeyTable()) //nolint: staticcheck
 	paramsKeeper.Subspace(crisistypes.ModuleName)
-	keyTable := ibcclienttypes.ParamKeyTable()
-	keyTable.RegisterParamSet(&ibcconnectiontypes.Params{})
-	paramsKeeper.Subspace(ibcexported.ModuleName).WithKeyTable(keyTable)
 	// ethermint subspaces
 	paramsKeeper.Subspace(evmtypes.ModuleName).WithKeyTable(evmtypes.ParamKeyTable()) //nolint: staticcheck
 	paramsKeeper.Subspace(feemarkettypes.ModuleName).WithKeyTable(feemarkettypes.ParamKeyTable())
@@ -1368,7 +1318,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {

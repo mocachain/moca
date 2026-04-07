@@ -32,7 +32,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	ibctesting "github.com/cosmos/ibc-go/v10/testing"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -43,7 +42,6 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
-	ibctypes "github.com/cosmos/ibc-go/v10/modules/core/types"
 
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -59,9 +57,6 @@ func init() {
 	config.SetBech32Prefixes(cfg)
 	config.SetBip44CoinType(cfg)
 }
-
-// DefaultTestingAppInit defines the IBC application used for testing
-var DefaultTestingAppInit func(chainID string) func() (ibctesting.TestingApp, map[string]json.RawMessage) = SetupTestingApp
 
 // DefaultConsensusParams defines the default Tendermint consensus params used in
 // Evmos testing.
@@ -256,27 +251,5 @@ func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
 	govGenesis := govv1.DefaultGenesisState()
 	genesisState[govtypes.ModuleName] = app.AppCodec().MustMarshalJSON(govGenesis)
 
-	// set ibc genesis
-	ibcGenesis := ibctypes.DefaultGenesisState()
-	genesisState["ibc"] = app.AppCodec().MustMarshalJSON(ibcGenesis)
-
 	return genesisState
-}
-
-// SetupTestingApp initializes the IBC-go testing application
-// need to keep this design to comply with the ibctesting SetupTestingApp func
-// and be able to set the chainID for the tests properly
-func SetupTestingApp(chainID string) func() (ibctesting.TestingApp, map[string]json.RawMessage) {
-	return func() (ibctesting.TestingApp, map[string]json.RawMessage) {
-		db := dbm.NewMemDB()
-		app := NewEvmos(
-			log.NewNopLogger(),
-			db, nil, true, map[int64]bool{},
-			DefaultNodeHome, 5,
-			servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
-			simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
-			baseapp.SetChainID(chainID),
-		)
-		return app, app.DefaultGenesis()
-	}
 }
