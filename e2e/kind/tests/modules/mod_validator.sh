@@ -110,6 +110,44 @@ _validator_test_block_production() {
     done
 }
 
+_validator_test_latest_commit_signed_by_all() {
+    local rpc_url block_json commit_height validators_json
+    local expected_count signed_count missing=0
+    rpc_url="${COMETBFT_RPC_URL:-http://localhost:26657}"
+
+    block_json=$(curl -sf "${rpc_url}/block" 2>/dev/null || echo "")
+    assert_not_empty "$block_json" "latest block should be queryable from ${rpc_url}"
+
+    commit_height=$(echo "$block_json" | jq -r '.result.block.last_commit.height // "0"' 2>/dev/null || echo "0")
+    assert_gt "$commit_height" "0" "latest block should include a non-zero last_commit height"
+
+    validators_json=$(curl -sf "${rpc_url}/validators?height=${commit_height}&per_page=100" 2>/dev/null || echo "")
+    assert_not_empty "$validators_json" "validator set should be queryable at height ${commit_height}"
+
+    expected_count=$(echo "$validators_json" | jq -r '.result.validators | length // 0' 2>/dev/null || echo "0")
+    assert_eq "$expected_count" "$(_validator_count)" "validator set size at height ${commit_height} should match NUM_VALIDATORS"
+
+    signed_count=$(echo "$block_json" | jq -r '
+        [.result.block.last_commit.signatures[]?
+         | select(.block_id_flag == 2 and (.validator_address // "") != "")
+         | .validator_address] | unique | length
+    ' 2>/dev/null || echo "0")
+    assert_eq "$signed_count" "$expected_count" "latest last_commit should contain signatures from all validators"
+
+    while IFS= read -r addr; do
+        [ -z "$addr" ] && continue
+        if ! echo "$block_json" | jq -e --arg addr "$addr" '
+            any(.result.block.last_commit.signatures[]?;
+                .block_id_flag == 2 and .validator_address == $addr)
+        ' >/dev/null 2>&1; then
+            log_error "validator address ${addr} is missing from last_commit signatures at height ${commit_height}"
+            missing=1
+        fi
+    done < <(echo "$validators_json" | jq -r '.result.validators[]?.address' 2>/dev/null || true)
+
+    [ "$missing" -eq 0 ]
+}
+
 # Parity with moca-devcontainer upgrade verify-validators: height spread across validators.
 _validator_test_heights_consistent() {
     local n i h min_h max_h diff
@@ -150,5 +188,6 @@ register_verify "Validator RPC accessible (all pods)"      _validator_test_rpc_a
 register_verify "Validator sync status healthy (all pods)" _validator_test_sync_status
 register_verify "Validator voting power healthy (all pods)"  _validator_test_voting_power
 register_verify "Validator block production (all pods)"       _validator_test_block_production
+register_verify "Latest commit signed by all validators"      _validator_test_latest_commit_signed_by_all
 register_verify "Validator heights consistent (spread <= 2)"  _validator_test_heights_consistent
 register_verify "On-chain staking validator count matches cluster" _validator_test_on_chain_validator_count
