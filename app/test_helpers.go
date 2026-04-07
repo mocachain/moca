@@ -41,7 +41,6 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -238,10 +237,6 @@ func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
 	distrGenesis := distributiontypes.DefaultGenesisState()
 	distrGenesis.FeePool = distributiontypes.InitialFeePool()
 	genesisState[distributiontypes.ModuleName] = app.AppCodec().MustMarshalJSON(distrGenesis)
-
-	// set capability genesis
-	capabilityGenesis := capabilitytypes.DefaultGenesis()
-	genesisState[capabilitytypes.ModuleName] = app.AppCodec().MustMarshalJSON(capabilityGenesis)
 
 	// set crisis genesis
 	crisisGenesis := crisistypes.DefaultGenesisState()
