@@ -14,7 +14,6 @@ import (
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	proposaltypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -198,7 +197,6 @@ func OutputsAuthorization(authorization authztypes.Authorization) string {
 	slashingtypes.RegisterInterfaces(interfaceRegistry)
 	govv1beta1.RegisterInterfaces(interfaceRegistry)
 	govv1.RegisterInterfaces(interfaceRegistry)
-	proposaltypes.RegisterInterfaces(interfaceRegistry)
 	crisistypes.RegisterInterfaces(interfaceRegistry)
 	types.RegisterInterfaces(interfaceRegistry)
 	feemarkettypes.RegisterInterfaces(interfaceRegistry)
