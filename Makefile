@@ -4,15 +4,18 @@
 -include .env
 export
 
+GO_TOOLCHAIN ?= go1.23.11
+GO := env GOTOOLCHAIN=$(GO_TOOLCHAIN) go
+
 # Configure git to use HTTPS+Token for private repositories if GITHUB_TOKEN is set
 ifdef GITHUB_TOKEN
   $(shell git config --global url."https://$(GITHUB_TOKEN):@github.com/".insteadOf "https://github.com/" 2>/dev/null)
 endif
 
 # Exclude sdk/client: integration tests against local Comet RPC (26657) and EVM (8545)
-PACKAGES_NOSIMULATION=$(shell go list ./... | grep -v '/simulation' | grep -v '/sdk/client')
+PACKAGES_NOSIMULATION=$(shell $(GO) list ./... | grep -v '/simulation' | grep -v '/sdk/client')
 VERSION ?= $(shell echo $(shell git describe --tags --always) | sed 's/^v//')
-TMVERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::')
+TMVERSION := $(shell $(GO) list -m github.com/cometbft/cometbft | sed 's:.* ::')
 COMMIT := $(shell git log -1 --format='%H')
 LEDGER_ENABLED ?= true
 BINDIR ?= $(GOPATH)/bin
@@ -134,7 +137,7 @@ build-linux:
 	GOOS=linux GOARCH=amd64 LEDGER_ENABLED=false $(MAKE) build
 
 $(BUILD_TARGETS): go.sum $(BUILDDIR)/
-	go $@ $(BUILD_FLAGS) $(BUILD_ARGS) ./...
+	$(GO) $@ $(BUILD_FLAGS) $(BUILD_ARGS) ./...
 
 $(BUILDDIR)/:
 	mkdir -p $(BUILDDIR)/
@@ -197,45 +200,45 @@ RUNSIM         = $(TOOLS_DESTDIR)/runsim
 runsim: $(RUNSIM)
 $(RUNSIM):
 	@echo "Installing runsim..."
-	@(cd /tmp && ${GO_MOD} go install github.com/cosmos/tools/cmd/runsim@master)
+	@(cd /tmp && ${GO_MOD} $(GO) install github.com/cosmos/tools/cmd/runsim@master)
 
 statik: $(STATIK)
 $(STATIK):
 	@echo "Installing statik..."
-	@(cd /tmp && go install github.com/rakyll/statik@v0.1.6)
+	@(cd /tmp && $(GO) install github.com/rakyll/statik@v0.1.6)
 
 contract-tools:
 ifeq (, $(shell which stringer))
 	@echo "Installing stringer..."
-	@go install golang.org/x/tools/cmd/stringer@latest
+	@$(GO) install golang.org/x/tools/cmd/stringer@latest
 else
 	@echo "stringer already installed; skipping..."
 endif
 
 ifeq (, $(shell which go-bindata))
 	@echo "Installing go-bindata..."
-	@go install github.com/kevinburke/go-bindata/go-bindata@latest
+	@$(GO) install github.com/kevinburke/go-bindata/go-bindata@latest
 else
 	@echo "go-bindata already installed; skipping..."
 endif
 
 ifeq (, $(shell which gencodec))
 	@echo "Installing gencodec..."
-	@go install github.com/fjl/gencodec@latest
+	@$(GO) install github.com/fjl/gencodec@latest
 else
 	@echo "gencodec already installed; skipping..."
 endif
 
 ifeq (, $(shell which protoc-gen-go))
 	@echo "Installing protoc-gen-go..."
-	@go install github.com/fjl/gencodec@latest
-	@go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	@$(GO) install github.com/fjl/gencodec@latest
+	@$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 else
 	@echo "protoc-gen-go already installed; skipping..."
 endif
 
 ifeq (, $(shell which protoc-gen-go-grpc))
-	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 else
 	@echo "protoc-gen-go-grpc already installed; skipping..."
 endif
@@ -262,11 +265,11 @@ tools-clean:
 
 go.sum: go.mod
 	echo "Ensure dependencies have not been modified ..." >&2
-	go mod verify
-	go mod tidy
+	$(GO) mod verify
+	$(GO) mod tidy
 
 vulncheck: $(BUILDDIR)/
-	GOBIN=$(BUILDDIR) go install golang.org/x/vuln/cmd/govulncheck@latest
+	GOBIN=$(BUILDDIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@latest
 	$(BUILDDIR)/govulncheck ./...
 
 ###############################################################################
@@ -296,7 +299,7 @@ test-all: test-unit test-race
 # For unit tests we don't want to execute the upgrade tests in tests/e2e but
 # we want to include all unit tests in the subfolders (tests/e2e/*).
 # sdk/client is excluded: same as e2e — requires a running chain
-PACKAGES_UNIT=$(shell go list ./... | grep -v '/tests/e2e$$' | grep -v '/sdk/client')
+PACKAGES_UNIT=$(shell $(GO) list ./... | grep -v '/tests/e2e$$' | grep -v '/sdk/client')
 TEST_PACKAGES=./...
 TEST_TARGETS := test-unit test-unit-cover test-race
 
@@ -355,17 +358,17 @@ test-e2e:
 	@rm -rf build/.mocad
 	@INITIAL_VERSION=$(INITIAL_VERSION) TARGET_VERSION=$(TARGET_VERSION) \
 	E2E_SKIP_CLEANUP=$(E2E_SKIP_CLEANUP) MOUNT_PATH=$(MOUNT_PATH) CHAIN_ID=$(CHAIN_ID) \
-	go test -v ./tests/e2e -run ^TestIntegrationTestSuite$
+	$(GO) test -v ./tests/e2e -run ^TestIntegrationTestSuite$
 
 run-tests:
 ifneq (,$(shell which tparse 2>/dev/null))
-	go test -mod=readonly -json $(ARGS) $(EXTRA_ARGS) $(TEST_PACKAGES) | tparse
+	$(GO) test -mod=readonly -json $(ARGS) $(EXTRA_ARGS) $(TEST_PACKAGES) | tparse
 else
-	go test -mod=readonly $(ARGS)  $(EXTRA_ARGS) $(TEST_PACKAGES)
+	$(GO) test -mod=readonly $(ARGS)  $(EXTRA_ARGS) $(TEST_PACKAGES)
 endif
 
 test-import:
-	@go test ./tests/importer -v --vet=off --run=TestImportBlocks --datadir tmp \
+	@$(GO) test ./tests/importer -v --vet=off --run=TestImportBlocks --datadir tmp \
 	--blockchain blockchain
 	rm -rf tests/importer/tmp
 
@@ -378,7 +381,7 @@ test-rpc-pending:
 .PHONY: run-tests test test-all test-import test-rpc $(TEST_TARGETS)
 
 benchmark:
-	@go test -mod=readonly -bench=. $(PACKAGES_NOSIMULATION)
+	@$(GO) test -mod=readonly -bench=. $(PACKAGES_NOSIMULATION)
 .PHONY: benchmark
 
 ###############################################################################
@@ -632,7 +635,7 @@ create-contracts-json:
 ###############################################################################
 # build-docker-compose-file
 build-dcf:
-	go run cmd/ci/main.go
+	$(GO) run cmd/ci/main.go
 
 start-dc:
 	docker compose up -d
