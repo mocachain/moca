@@ -10,6 +10,7 @@ GO := env GOTOOLCHAIN=$(GO_TOOLCHAIN) go
 # Configure git to use HTTPS+Token for private repositories if GITHUB_TOKEN is set
 ifdef GITHUB_TOKEN
   $(shell git config --global url."https://$(GITHUB_TOKEN):@github.com/".insteadOf "https://github.com/" 2>/dev/null)
+  DOCKER_BUILD_ARGS += --build-arg GITHUB_TOKEN=$(GITHUB_TOKEN)
 endif
 
 # Exclude sdk/client: integration tests against local Comet RPC (26657) and EVM (8545)
@@ -21,8 +22,9 @@ LEDGER_ENABLED ?= true
 BINDIR ?= $(GOPATH)/bin
 EVMOS_BINARY = mocad
 BUILDDIR ?= $(CURDIR)/build
-HTTPS_GIT := https://github.com/evmos/evmos.git
+HTTPS_GIT := https://github.com/mocachain/moca.git
 DOCKER := $(shell which docker)
+DOCKER_COMPOSE := $(DOCKER) compose
 NAMESPACE := mocachain
 PROJECT := moca
 DOCKER_IMAGE := $(NAMESPACE)/$(PROJECT)
@@ -74,7 +76,7 @@ build_tags := $(strip $(build_tags))
 
 # process linker flags
 
-ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=evmos \
+ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=moca \
           -X github.com/cosmos/cosmos-sdk/version.AppName=$(EVMOS_BINARY) \
           -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
           -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
@@ -156,7 +158,7 @@ build-reproducible: go.sum
 
 
 build-docker:
-	$(DOCKER) build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+	$(DOCKER) build $(DOCKER_BUILD_ARGS) -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
 	$(DOCKER) tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
 	$(DOCKER) tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:${COMMIT_HASH}
 
@@ -372,13 +374,7 @@ test-import:
 	--blockchain blockchain
 	rm -rf tests/importer/tmp
 
-test-rpc:
-	./scripts/integration-test-all.sh -t "rpc" -q 1 -z 1 -s 2 -m "rpc" -r "true"
-
-test-rpc-pending:
-	./scripts/integration-test-all.sh -t "pending" -q 1 -z 1 -s 2 -m "pending" -r "true"
-
-.PHONY: run-tests test test-all test-import test-rpc $(TEST_TARGETS)
+.PHONY: run-tests test test-all test-import $(TEST_TARGETS)
 
 benchmark:
 	@$(GO) test -mod=readonly -bench=. $(PACKAGES_NOSIMULATION)
@@ -498,42 +494,29 @@ proto-download-deps:
 
 # Build image for a local testnet
 localnet-build:
-	@$(MAKE) -C networks/local
+	@$(MAKE) build-docker
 
 # Start a 4-node testnet locally
 localnet-start: localnet-stop localnet-build
-	@if ! [ -f build/node0/$(EVMOS_BINARY)/config/genesis.json ]; then docker run --rm -v $(CURDIR)/build:/evmos:Z evmos/node "./mocad testnet init-files --v 4 -o /evmos --keyring-backend=test --starting-ip-address 192.167.10.2"; fi
-	docker-compose up -d
+	@$(DOCKER) network inspect moca-network >/dev/null 2>&1 || $(DOCKER) network create moca-network
+	$(DOCKER_COMPOSE) up -d
 
 # Stop testnet
 localnet-stop:
-	docker-compose down
+	$(DOCKER_COMPOSE) down --remove-orphans
 
 # Clean testnet
 localnet-clean:
-	docker-compose down
-	sudo rm -rf build/*
-
- # Reset testnet
-localnet-unsafe-reset:
-	docker-compose down
-ifeq ($(OS),Windows_NT)
-	@docker run --rm -v $(CURDIR)\build\node0\mocad:/evmos\Z evmos/node "./mocad tendermint unsafe-reset-all --home=/evmos"
-	@docker run --rm -v $(CURDIR)\build\node1\mocad:/evmos\Z evmos/node "./mocad tendermint unsafe-reset-all --home=/evmos"
-	@docker run --rm -v $(CURDIR)\build\node2\mocad:/evmos\Z evmos/node "./mocad tendermint unsafe-reset-all --home=/evmos"
-	@docker run --rm -v $(CURDIR)\build\node3\mocad:/evmos\Z evmos/node "./mocad tendermint unsafe-reset-all --home=/evmos"
-else
-	@docker run --rm -v $(CURDIR)/build/node0/mocad:/evmos:Z evmos/node "./mocad tendermint unsafe-reset-all --home=/evmos"
-	@docker run --rm -v $(CURDIR)/build/node1/mocad:/evmos:Z evmos/node "./mocad tendermint unsafe-reset-all --home=/evmos"
-	@docker run --rm -v $(CURDIR)/build/node2/mocad:/evmos:Z evmos/node "./mocad tendermint unsafe-reset-all --home=/evmos"
-	@docker run --rm -v $(CURDIR)/build/node3/mocad:/evmos:Z evmos/node "./mocad tendermint unsafe-reset-all --home=/evmos"
-endif
+	$(DOCKER_COMPOSE) down -v --remove-orphans
+	rm -rf deployment/dockerup/.local
+	rm -f deployment/dockerup/genesis.json deployment/dockerup/init_done
+	rm -f deployment/dockerup/persistent_peers.txt deployment/dockerup/validator.json
 
 # Clean testnet
 localnet-show-logstream:
-	docker-compose logs --tail=1000 -f
+	$(DOCKER_COMPOSE) logs --tail=1000 -f
 
-.PHONY: localnet-build localnet-start localnet-stop
+.PHONY: localnet-build localnet-start localnet-stop localnet-clean localnet-show-logstream
 
 ###############################################################################
 ###                                Releasing                                ###

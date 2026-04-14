@@ -34,6 +34,8 @@ services:
   init:
     container_name: init-moca
     image: "{{$.Image}}"
+    environment:
+      MOCA_DOCKERUP_DATA_DIR: /app/.local
     networks:
       - moca-network    
     volumes:
@@ -47,8 +49,7 @@ services:
       bash localup.sh generate {{$.NodeSize}} {{$.SPSize}} &&
       bash localup.sh copy_genesis &&
       bash localup.sh persistent_peers &&
-      bash localup.sh export_validator 4 > validator.json &&
-      bash localup.sh export_sps {{$.NodeSize}} {{$.SPSize}} > sp.json &&
+      bash localup.sh export_validator {{$.NodeSize}} > validator.json &&
       touch init_done && 
       sleep infinity
       "
@@ -75,7 +76,7 @@ services:
       - "{{.EVMRPCPort}}:{{$.BasePorts.EVMRPCPort}}"
       - "{{.EVMWSPort}}:{{$.BasePorts.EVMWSPort}}"
     volumes:
-      - "local-env:/app:Z"
+      - "local-env:/app"
     command: >
       bash -c "
       mkdir -p ~/.mocad &&
@@ -89,6 +90,8 @@ services:
       --p2p.external-address 0.0.0.0:{{$.BasePorts.P2PPort}}
       --rpc.laddr tcp://0.0.0.0:{{$.BasePorts.RPCPort}}
       --rpc.unsafe true
+      --json-rpc.address 0.0.0.0:{{$.BasePorts.EVMRPCPort}}
+      --json-rpc.ws-address 0.0.0.0:{{$.BasePorts.EVMWSPort}}
       --log_format json
       "
 {{- end }}
@@ -102,7 +105,7 @@ networks:
 func main() {
 	config := ComposeConfig{
 		NodeSize:       4,
-		SPSize:         3,
+		SPSize:         0,
 		Image:          "mocachain/moca",
 		DeploymentPath: "./deployment/dockerup/",
 		BasePorts: PortConfig{

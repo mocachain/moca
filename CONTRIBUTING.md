@@ -166,7 +166,7 @@ For example, in vscode your `.vscode/settings.json` can look like:
 ## <span id="dev_procedure">Development Procedure</span>
 
 1. The latest state of development is on `main`.
-2. `main` must never fail `make lint`, `make test`, `make test-race`, `make test-rpc`, or `make test-import`.
+2. `main` must never fail `make lint`, `make test`, `make test-race`, or `make test-import`.
 3. Do not force-push to `main`, except when reverting a broken commit under maintainer coordination.
 4. Create your feature branch from `main` or from the relevant active `release/v*` branch when appropriate.
 5. Before submitting a pull request, rebase on top of the target branch.

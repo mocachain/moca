@@ -111,7 +111,6 @@ scripts/all_validators.yaml
 deployment/.local
 sp.json
 deployment/dockerup/send_tokens.sh
-deployment/dockerup/.env
 deployment/testnet/keys.json
 
 CLAUDE.md
@@ -121,3 +120,4 @@ e2e/local/ERC20/lib/
 e2e/kind/contracts/out/
 e2e/kind/contracts/cache/
 .env
+!deployment/dockerup/.env

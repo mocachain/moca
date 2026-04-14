@@ -85,6 +85,8 @@ log_info() {
     local message="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${CYAN}[INFO]${NC} ${message}"
+    mkdir -p "$(dirname "${SUMMARY_LOG}")"
+    touch "${SUMMARY_LOG}"
     echo "[${timestamp}] [INFO] ${message}" >> "${SUMMARY_LOG}"
 }
 
@@ -93,6 +95,8 @@ log_warn() {
     local message="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${YELLOW}[WARN]${NC} ${message}"
+    mkdir -p "$(dirname "${SUMMARY_LOG}")"
+    touch "${SUMMARY_LOG}" "${ERROR_LOG}"
     echo "[${timestamp}] [WARN] ${message}" >> "${SUMMARY_LOG}"
     echo "[${timestamp}] [WARN] ${message}" >> "${ERROR_LOG}"
 }
@@ -102,6 +106,8 @@ log_error() {
     local message="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${RED}[ERROR]${NC} ${message}"
+    mkdir -p "$(dirname "${SUMMARY_LOG}")"
+    touch "${SUMMARY_LOG}" "${ERROR_LOG}"
     echo "[${timestamp}] [ERROR] ${message}" >> "${SUMMARY_LOG}"
     echo "[${timestamp}] [ERROR] ${message}" >> "${ERROR_LOG}"
 }
@@ -112,6 +118,9 @@ log_command() {
     local log_file="$2"
     local description="$3"
     local show_command="${4:-true}"
+
+    mkdir -p "$(dirname "$log_file")"
+    touch "$log_file"
     
     if [ -n "$description" ]; then
         log_info "$description"
@@ -134,6 +143,9 @@ execute_logged() {
     local log_file="$2"
     local description="$3"
     local show_output="${4:-true}"
+
+    mkdir -p "$(dirname "$log_file")"
+    touch "$log_file"
     
     # In silent mode, do not show specific execution commands
     log_command "$cmd" "$log_file" "$description" "$show_output"
@@ -147,7 +159,9 @@ execute_logged() {
         eval "$cmd" >> "$log_file" 2>&1
         local exit_code=$?
     fi
-    
+
+    mkdir -p "$(dirname "$log_file")"
+    touch "$log_file"
     echo "" >> "$log_file"
     
     if [ $exit_code -ne 0 ]; then

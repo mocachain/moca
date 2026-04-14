@@ -5,6 +5,15 @@ PROJECT_ROOT=$(cd "${SCRIPT_DIR}/../.." && pwd)
 local_env=${SCRIPT_DIR}/.local
 
 source ${SCRIPT_DIR}/.env
+# Backward compatible with older .env files that only defined STOREAGE_* (typo).
+STORAGE_PROVIDER_ADDRESS_PORT_START="${STORAGE_PROVIDER_ADDRESS_PORT_START:-${STOREAGE_PROVIDER_ADDRESS_PORT_START:-9033}}"
+STOREAGE_PROVIDER_ADDRESS_PORT_START="${STOREAGE_PROVIDER_ADDRESS_PORT_START:-$STORAGE_PROVIDER_ADDRESS_PORT_START}"
+
+if [ -n "${MOCA_DOCKERUP_DATA_DIR:-}" ]; then
+    local_env="${MOCA_DOCKERUP_DATA_DIR}"
+elif [ "${SCRIPT_DIR}" = "/app/scripts" ] && [ -d "/app/.local" ]; then
+    local_env="/app/.local"
+fi
 
 # Silent mode flag (enabled by default to reduce terminal output noise)
 QUIET_MODE=true
@@ -31,16 +40,24 @@ relayer0_prikey=3c7ea76ddb53539174caae1dd960b308981933bd6e95196556ba29063200df9c
 sp0_prikey=ebbeb28b89bc7ec5da6441ed70452cc413f96ea33a7c790aba06810ae441b776
 
 bin_name=mocad
-bin=${PROJECT_ROOT}/build/${bin_name}
+if [ -f "${PROJECT_ROOT}/build/${bin_name}" ]; then
+    bin=${PROJECT_ROOT}/build/${bin_name}
+elif command -v "${bin_name}" >/dev/null 2>&1; then
+    bin=$(command -v "${bin_name}")
+else
+    echo "Error: ${bin_name} not found in ${PROJECT_ROOT}/build/ or PATH"
+    exit 1
+fi
 
 function init() {
 	size=$1
 	start_step "Environment Initialization"
 
 	log_info "Starting initialization of ${size} validator node environments"
-	execute_with_mode "rm -rf ${local_env}" "${INIT_LOG}" "Clean old environment directory"
+	execute_quiet "mkdir -p ${local_env}" "${INIT_LOG}" "Ensure local environment directory exists"
+	execute_with_mode "find ${local_env} -mindepth 1 -maxdepth 1 -exec rm -rf {} +" "${INIT_LOG}" "Clean old environment directory"
 
-	# Re-initialize logging system (because the entire .local directory was deleted above)
+	# Re-initialize logging system after clearing the working tree under .local.
 	mkdir -p "${LOG_SESSION_DIR}"
 	touch "${INIT_LOG}" "${KEYGEN_LOG}" "${GENESIS_LOG}" "${CONFIG_LOG}" "${START_LOG}" "${STOP_LOG}" "${ERROR_LOG}" "${SUMMARY_LOG}"
 
@@ -84,6 +101,7 @@ function init() {
 	log_info "Starting initialization of ${sp_size} storage providers"
 	for ((i = 0; i < ${sp_size}; i++)); do
 		execute_quiet "mkdir -p ${local_env}/sp${i}" "${INIT_LOG}" "Create SP${i} directory"
+		execute_with_mode "${bin} init sp${i}-local --chain-id \"${CHAIN_ID}\" --default-denom \"${STAKING_BOND_DENOM}\" --home ${local_env}/sp${i}" "${INIT_LOG}" "Initialize SP${i} chain config (required before spgentx)"
 		if [ "$i" -eq 0 ]; then
 			log_info "Importing main SP preset keys"
 			execute_with_mode "${bin} keys import sp0 ${sp0_prikey} --secp256k1-private-key --keyring-backend test --home ${local_env}/sp${i}" "${KEYGEN_LOG}" "Import SP0 operator key"
@@ -192,7 +210,7 @@ function generate_genesis() {
 		blsProof="$(${bin} keys sign "${blsKey}" --from validator_bls${i} --keyring-backend test --home ${local_env}/validator${i})"
 
 		# create bond validator tx
-		${bin} gentx "${STAKING_BOND_AMOUNT}${STAKING_BOND_DENOM}" "$validatorAddr" "$deletgatorAddr" "$relayerAddr" "$challengerAddr" "$blsKey" "$blsProof" \
+		${bin} gentx "validator${i}" "${STAKING_BOND_AMOUNT}${STAKING_BOND_DENOM}" "$validatorAddr" "$deletgatorAddr" "$relayerAddr" "$challengerAddr" "$blsKey" "$blsProof" \
 			--home ${local_env}/validator${i} \
 			--keyring-backend=test \
 			--chain-id="${CHAIN_ID}" \
@@ -268,14 +286,16 @@ function generate_genesis() {
 		# sed -i -e "s/\"voting_period\": \"30s\"/\"voting_period\": \"5s\"/g" ${local_env}/validator${i}/config/genesis.json
 		sed -i -e "s/\"redundant_data_chunk_num\": 4/\"redundant_data_chunk_num\": 1/g" ${local_env}/validator${i}/config/genesis.json
 		sed -i -e "s/\"redundant_parity_chunk_num\": 2/\"redundant_parity_chunk_num\": 1/g" ${local_env}/validator${i}/config/genesis.json
-		sed -i -e "s/log_level = \"info\"/\log_level= \"debug\"/g" ${local_env}/validator${i}/config/config.toml
+		sed -i -e "s/\"signed_blocks_window\": \"100\"/\"signed_blocks_window\": \"10000\"/g" ${local_env}/validator${i}/config/genesis.json
+		sed -i -e "s/log_level = \"info\"/log_level = \"debug\"/g" ${local_env}/validator${i}/config/config.toml
 		#echo -e '[payment-check]\nenabled = true\ninterval = 1' >> ${local_env}/validator${i}/config/app.toml
 		sed -i -e "s/cors_allowed_origins = \[\]/cors_allowed_origins = \[\"*\"\]/g" ${local_env}/validator${i}/config/config.toml
 		sed -i -e "s#node = \"tcp://localhost:26657\"#node = \"tcp://0.0.0.0:$((${VALIDATOR_RPC_PORT_START}))\"#g" ${local_env}/validator${i}/config/client.toml
+		sed -i -e "/Address defines the API server to listen on/{N;s#address = \"tcp://localhost:1317\"#address = \"tcp://0.0.0.0:1317\"#;}" ${local_env}/validator${i}/config/app.toml
 		sed -i -e "/Address defines the gRPC server address to bind to/{N;s/address = \"localhost:9090\"/address = \"0.0.0.0:$((${VALIDATOR_GRPC_PORT_START}))\"/;}" ${local_env}/validator${i}/config/app.toml
 		sed -i -e "/Address defines the gRPC-web server address to bind to/{N;s/address = \"localhost:9091\"/address = \"0.0.0.0:$((${VALIDATOR_GRPC_PORT_START} - 1))\"/;}" ${local_env}/validator${i}/config/app.toml
 		sed -i -e "/Address defines the EVM RPC HTTP server address to bind to/{N;s/address = \"127.0.0.1:8545\"/address = \"0.0.0.0:$((${EVM_SERVER_PORT_START}))\"/;}" ${local_env}/validator${i}/config/app.toml
-		sed -i -e "/Address defines the EVM WebSocket server address to bind to/{N;s/address = \"127.0.0.1:8546\"/address = \"0.0.0.0:$((${EVM_SERVER_PORT_START}))\"/;}" ${local_env}/validator${i}/config/app.toml
+		sed -i -e "/Address defines the EVM WebSocket server address to bind to/{N;s/address = \"127.0.0.1:8546\"/address = \"0.0.0.0:$((${EVM_SERVER_PORT_START} + 1))\"/;}" ${local_env}/validator${i}/config/app.toml
 	done
 
 	# enable swagger API for validator0
@@ -295,6 +315,9 @@ function generate_sp_genesis {
 	sp_size=1
 	if [ $# -eq 2 ]; then
 		sp_size=$2
+	fi
+	if [ "${sp_size}" -le 0 ]; then
+		return 0
 	fi
 	for ((i = 0; i < ${sp_size}; i++)); do
 		#create sp and sp fund account
@@ -325,7 +348,7 @@ function generate_sp_genesis {
 		spgc_addr=("$(${bin} keys show sp${i}_gc -a --keyring-backend test --home ${local_env}/sp${i})")
 		spmaintenance_addr=("$(${bin} keys show sp${i}_maintenance -a --keyring-backend test --home ${local_env}/sp${i})")
 		# create bond storage provider tx
-		${bin} spgentx "${SP_MIN_DEPOSIT_AMOUNT}""${STAKING_BOND_DENOM}" \
+		${bin} spgentx "sp${i}" "${SP_MIN_DEPOSIT_AMOUNT}""${STAKING_BOND_DENOM}" \
 			--home ${local_env}/sp${i} \
 			--creator="${spoperator_addr}" \
 			--operator-address="${spoperator_addr}" \
@@ -474,10 +497,10 @@ CMD=$1
 SIZE=3
 SP_SIZE=3
 PROPOSAL_ID=$3
-if [ -n "$2" ] && [ "$2" -gt 0 ]; then
+if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
 	SIZE=$2
 fi
-if [ -n "$3" ] && [ "$3" -gt 0 ]; then
+if [[ -n "$3" && "$3" =~ ^[0-9]+$ ]]; then
 	SP_SIZE=$3
 fi
 
