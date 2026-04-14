@@ -1,7 +1,7 @@
-# Evmos Contributor Guidelines
+# Moca Contributor Guidelines
 
 <!-- markdown-link-check-disable -->
-- [Evmos Contributor Guidelines](#evmos-contributor-guidelines)
+- [Moca Contributor Guidelines](#moca-contributor-guidelines)
     - [General Procedure](#general-procedure)
     - [Architecture Decision Records (ADR)](#architecture-decision-records-adr)
     - [Forking](#forking)
@@ -21,94 +21,84 @@
 
 ## <span id="general_procedure">General Procedure</span>
 
-Thank you for considering making contributions to Evmos and related repositories!
+Thank you for considering making contributions to Moca and related repositories.
 
-Evmos uses [Tendermint’s coding repo](https://github.com/tendermint/coding)
+Moca follows [Tendermint's coding repo](https://github.com/tendermint/coding)
 for overall information on repository workflow and standards.
 
 Contributing to this repo can mean many things such as participating in discussion or proposing code changes.
 To ensure a smooth workflow for all contributors,
 the following general procedure for contributing has been established:
 
-1. Either [open](https://github.com/evmos/evmos/issues/new/choose)
-   or [find](https://github.com/evmos/evmos/issues) an issue you have identified and would like to contribute to
+1. Either [open](https://github.com/mocachain/moca/issues/new/choose)
+   or [find](https://github.com/mocachain/moca/issues) an issue you have identified and would like to contribute to
    resolving.
 2. Participate in thoughtful discussion on that issue.
 3. If you would like to contribute:
-    1. If the issue is a proposal, ensure that the proposal has been accepted by the Evmos team.
+    1. If the issue is a proposal, ensure that the proposal has been accepted by the Moca maintainers.
     2. Ensure that nobody else has already begun working on the same issue. If someone already has, please make sure to
        contact the individual to collaborate.
     3. If nobody has been assigned the issue and you would like to work on it,
-       make a comment on the issue to inform the
-       community of your intentions to begin work.
+       make a comment on the issue to inform the community of your intention to begin work.
        Ideally, wait for confirmation that no one has started it.
-       However, if you are eager and do not get a prompt response, feel free to dive on in!
-    4. Follow standard Github best practices:
+       However, if you do not get a prompt response, feel free to proceed.
+    4. Follow standard GitHub best practices:
         1. Fork the repo
-        2. Branch from the HEAD of `development`(For core developers working within the evmos repo, to ensure a
-           clear ownership of branches, branches must be named with the convention `{moniker}/{issue#}-branch-name`).
+        2. Branch from the HEAD of `main`
         3. Make commits
-        4. Submit a PR to `development`
-    5. Be sure to submit the PR in `Draft` mode.
-       Submit your PR early, even if it's incomplete as this indicates to the community you're working on something
-       and allows them to provide comments early in the development process.
+        4. Submit a PR to `main`
+    5. Submit the PR in `Draft` mode when the work is still in progress.
+       Submit your PR early, even if it is incomplete, so the community can provide comments early in the development
+       process.
     6. When the code is complete it can be marked `Ready for Review`.
-    7. Be sure to include a relevant change log entry in the `Unreleased` section of `CHANGELOG.md`
-       (see file for log format).
-    8. Please make sure to run `make format` before every commit -
-       the easiest way to do this is having your editor run it for you upon saving a file.
-       Additionally, please ensure that your code is lint compliant by running `make lint`.
-       There are CI tests built into the Evmos repository
-       and all PR’s will require that these tests pass
-       before they can be merged.
+    7. Include a relevant changelog entry in the `Unreleased` section of `CHANGELOG.md`
+       when the change affects users or operators.
+    8. Please run `make format` before every commit.
+       Additionally, ensure that your code is lint compliant by running `make lint`.
+       There are CI tests built into the Moca repository,
+       and all PRs require those checks to pass before they can be merged.
 
-**Note**: for very small or blatantly obvious problems (such as typos),
-it is not required to open an issue to submit a PR.
-For more complex problems/features, if a PR is opened
-before an adequate design discussion has taken place in a GitHub issue,
-that PR runs a high likelihood of being rejected.
+**Note**: for very small or obvious problems, such as typos,
+it is not always necessary to open an issue before submitting a PR.
+For more complex problems or features, a PR opened before design discussion has taken place in GitHub issues
+is more likely to be rejected or sent back for clarification.
 
 Looking for a good place to start contributing?
-Check out our [good first issues](https://github.com/evmos/evmos/issues?q=label%3A%22good+first+issue%22).
+Check out our [good first issues](https://github.com/mocachain/moca/issues?q=label%3A%22good+first+issue%22).
 
 ## <span id="adr">Architecture Decision Records (ADR)</span>
 
-When proposing an architecture decision for Evmos,
-please create an ADR
-so further discussions can be made.
-We are following this process so all involved parties are in agreement
-before any party begins coding the proposed implementation.
-If you would like to see some examples of how these are written
+When proposing an architecture decision for Moca,
+please create an ADR or another written design note
+so further discussions can be made before implementation begins.
+If you would like to see examples of the general format,
 refer to [Tendermint ADRs](https://github.com/tendermint/tendermint/tree/master/docs/architecture).
 
 ## <span id="forking">Forking</span>
 
-Please note that Go requires code to live under absolute paths, which complicates forking.
-While my fork lives at `https://github.com/evmos/evmos`,
-the code should never exist at `$GOPATH/src/github.com/evmos/evmos`.
-Instead, we use `git remote` to add the fork as a new remote for the original repo,`$GOPATH/src/github.com/evmos/evmos`,
-and do all the work there.
+Go modules make local clone paths flexible,
+but it is still useful to keep your remotes organized when working from a fork.
 
 For instance, to create a fork and work on a branch of it, you would:
 
-1. Create the fork on github, using the fork button.
-2. Go to the original repo checked out locally. (i.e. `$GOPATH/src/github.com/evmos/evmos`)
+1. Create the fork on GitHub using the fork button.
+2. Go to the original repo checked out locally.
 3. `git remote rename origin upstream`
-4. `git remote add origin git@github.com:tharsis/evmos.git`
+4. `git remote add origin git@github.com:<your-handle>/moca.git`
 
-Now `origin` refers to my fork and `upstream` refers to the evmos version.
-So I can `git push -u origin master` to update my fork,
-and make pull requests to evmos from there.
-Of course, replace `tharsis` with your git handle.
+Now `origin` refers to your fork and `upstream` refers to the main Moca repository.
+You can `git push -u origin <branch-name>` to update your fork
+and make pull requests to Moca from there.
 
-To pull in updates from the origin repo, run:
+To pull in updates from the upstream repo, run:
 
 1. `git fetch upstream`
-2. `git rebase upstream/master` (or whatever branch you want)
+2. `git rebase upstream/main` (or whichever branch you are targeting)
 
-New branch should be rebased before submitting a PR in case there have been changes to avoid merge commits.
+New branches should be rebased before submitting a PR in case there have been changes
+to avoid merge commits.
 
-i.e. this branch state:
+For example, this branch state:
 
 ```
           A---B---C new-branch
@@ -127,41 +117,40 @@ should become this after rebase:
 ```
 
 More about rebase [here](https://git-scm.com/docs/git-rebase) and
-[here](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase#:~:text=What%20is%20git%20rebase%3F,of%20a%20feature%20branching%20workflow.)
+[here](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase#:~:text=What%20is%20git%20rebase%3F,of%20a%20feature%20branching%20workflow.).
 
-Please **NO DOT** make Pull Requests from `development`.
+Please do not make pull requests directly from `main`.
 
 ## <span id="dependencies">Dependencies</span>
 
 We use [Go Modules](https://github.com/golang/go/wiki/Modules) to manage dependency versions.
 
-The master branch of every Cosmos repository should just build with `go get`, which means they should be kept up-to-date
-with their dependencies, so we can get away with telling people they can just `go get` our software.
-
-Since some dependencies are not under our control, a third party may break our build, in which case we can fall back
-on `go mod tidy -v`.
+Cosmos repositories should stay healthy with normal module resolution,
+but if a third-party dependency breaks the build, we can fall back on `go mod tidy -v`
+to repair the module graph after dependency updates.
 
 ## <span id="protobuf">Protobuf</span>
 
 We use [Protocol Buffers](https://developers.google.com/protocol-buffers) along
-with [gogoproto](https://github.com/cosmos/protobuf) to generate code for use in Evmos.
+with [gogoproto](https://github.com/cosmos/protobuf) to generate code for use in Moca.
 
-For deterministic behavior around Protobuf tooling, everything is containerized using Docker. Make sure to have Docker
-installed on your machine, or head to [Docker's website](https://docs.docker.com/get-docker/) to install it.
+For deterministic behavior around Protobuf tooling, everything is containerized using Docker.
+Make sure Docker is installed on your machine, or head to [Docker's website](https://docs.docker.com/get-docker/)
+to install it.
 
-For formatting code in `.proto` files, you can run `make proto-format` command.
+For formatting code in `.proto` files, you can run `make proto-format`.
 
-For linting and checking breaking changes, we use [buf](https://buf.build/). You can use the commands `make proto-lint`
-and `make proto-check-breaking` to respectively lint your proto files and check for breaking changes.
+For linting and checking breaking changes, we use [buf](https://buf.build/).
+You can use `make proto-lint` and `make proto-check-breaking` respectively to lint your proto files
+and check for breaking changes.
 
-To generate the protobuf stubs, you can run `make proto-gen`.
+To generate the protobuf stubs, run `make proto-gen`.
+You can also run `make proto-all` to execute all protobuf-related steps sequentially.
 
-We also added the `make proto-all` command to run all the above commands sequentially.
+In order for imports to properly compile in your IDE,
+you may need to manually set your protobuf path in your workspace settings.
 
-In order for imports to properly compile in your IDE, you may need to manually set your protobuf path in your IDE's
-workspace `settings/config`.
-
-For example, in vscode your `.vscode/settings.json` should look like:
+For example, in vscode your `.vscode/settings.json` can look like:
 
 ```json
 {
@@ -176,23 +165,22 @@ For example, in vscode your `.vscode/settings.json` should look like:
 
 ## <span id="dev_procedure">Development Procedure</span>
 
-1. The latest state of development is on `development`.
-2. `development` must never
-   fail `make lint, make test, make test-race, make test-rpc, make test-import`
-3. No `--force` onto `development` (except when reverting a broken commit, which should seldom happen).
-4. Create your feature branch from `development` either on `github.com/evmos/evmos`, or your fork (
-   using `git remote add origin`).
-5. Before submitting a pull request, begin `git rebase` on top of `development`.
+1. The latest state of development is on `main`.
+2. `main` must never fail `make lint`, `make test`, `make test-race`, `make test-rpc`, or `make test-import`.
+3. Do not force-push to `main`, except when reverting a broken commit under maintainer coordination.
+4. Create your feature branch from `main` or from the relevant active `release/v*` branch when appropriate.
+5. Before submitting a pull request, rebase on top of the target branch.
 
 ## <span id="testing">Testing</span>
 
-Evmos uses [GitHub Actions](https://github.com/features/actions) for automated testing.
+Moca uses [GitHub Actions](https://github.com/features/actions) for automated testing.
+Run the relevant local test targets before opening or updating a PR whenever possible.
 
 ## <span id="updating_doc">Updating Documentation</span>
 
-If you open a PR on the Evmos repo, it is mandatory to update the relevant documentation in `/docs`. Please refer to
-the docs subdirectory and make changes accordingly. Prior to approval, the Code owners/approvers may request some
-updates to specific docs.
+If you open a PR on the Moca repo, update the relevant documentation in `/docs`
+whenever user-facing behavior, operational workflows, or developer setup changes.
+Prior to approval, maintainers may request updates to specific docs.
 
 ## <span id="braching_model_and_release">Branching Model and Release</span>
 
@@ -200,12 +188,12 @@ User-facing repos should adhere to the [trunk based development branching model]
 
 Libraries need not follow the model strictly, but would be wise to.
 
-Evmos utilizes [semantic versioning](https://semver.org/).
+Moca utilizes [semantic versioning](https://semver.org/).
 
 ### <span id="commit_messages">Commit messages</span>
 
 Commit messages should be written in a short, descriptive manner
-and be prefixed with tags for the change type and scope (if possible)
+and be prefixed with tags for the change type and scope, when possible,
 according to the [semantic commit](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716) scheme.
 
 For example, a new change to the `bank` module might have the following message:
@@ -213,59 +201,45 @@ For example, a new change to the `bank` module might have the following message:
 
 ### <span id="pr_targeting">PR Targeting</span>
 
-Ensure that you base and target your PR on the `development` branch.
+Ensure that you base and target your PR on the correct maintenance branch.
 
-All feature additions should be targeted against `development`.
-Bug fixes for an outstanding release candidate should be
-targeted against the release candidate branch.
+All feature additions should be targeted against `main`.
+Bug fixes for an active release line should be targeted against the corresponding `release/v*` branch when applicable.
 
 ### <span id="pull_requests">Pull Requests</span>
 
-To accommodate the review process, we suggest that PRs are categorically broken up. Ideally each PR addresses only a
-single issue. Additionally, as much as possible code refactoring and cleanup should be submitted as separate PRs from
-bug fixes/feature-additions.
+To accommodate the review process, we suggest that PRs are broken up categorically.
+Ideally each PR addresses only a single issue.
+As much as possible, code refactoring and cleanup should be submitted as separate PRs from bug fixes
+or feature additions.
 
 ### <span id="reviewing_prs">Process for reviewing PRs</span>
 
-All PRs require two Reviews before merge. When reviewing PRs, please use the following review explanations:
+All PRs require maintainer review before merge.
+When reviewing PRs, please use the following review explanations:
 
 1. `LGTM` without an explicit approval means that the changes look good,
-   but you haven't pulled down the code, ran tests locally and thoroughly reviewed it.
-2. `Approval` through the GH UI means that you understand the code,
-   documentation/spec is updated in the right places,
-   you have pulled down and tested the code locally.
+   but you have not pulled down the code, run tests locally, or reviewed it thoroughly.
+2. `Approval` through the GitHub UI means that you understand the code,
+   the documentation or spec is updated in the right places,
+   and you have pulled down and tested the code locally.
    In addition:
-    * You must think through whether any added code could be partially combined (DRYed) with existing code.
-    * You must think through any potential security issues or incentive-compatibility flaws introduced by the changes.
-    * Naming convention must be consistent with the rest of the codebase.
-    * Code must live in a reasonable location, considering dependency structures
-      (e.g. not importing testing modules in production code, or including example code modules in production code).
-    * If you approve of the PR, you are responsible for fixing any of the issues mentioned here.
-3. If you are only making "surface level" reviews, submit any notes as `Comments` without adding a review.
+    * Think through whether any added code could be partially combined with existing code.
+    * Think through any potential security or incentive-compatibility issues introduced by the changes.
+    * Ensure naming conventions are consistent with the rest of the codebase.
+    * Ensure the code lives in a reasonable location, considering dependency structures.
+3. If you are only making surface-level reviews, submit notes as `Comments` without adding a review.
 
 ### <span id="pull_merge_procedure">Pull Merge Procedure</span>
 
-1. Ensure pull branch is rebased on `development`.
+1. Ensure the pull branch is rebased on the target branch.
 2. Run `make test` to ensure that all tests pass.
-3. Squash merge pull request.
+3. Squash merge the pull request.
 
 ### <span id="release_procedure">Release Procedure</span>
 
-1. Start on `development`.
-2. Create the release candidate branch `rc/v*` (going forward known as `RC`)
-   and ensure it's protected against pushing from anyone except the release manager/coordinator.
-   No PRs targeting this branch should be merged unless exceptional circumstances arise.
-3. On the `RC` branch, prepare a new version section in the `CHANGELOG.md`.
-   All links must be link-ified: `$ python ./scripts/linkify_changelog.py CHANGELOG.md`  
-   Copy the entries into a `RELEASE_CHANGELOG.md`.
-   This is needed so the bot knows which entries to add to the release page on GitHub.
-4. Kick off a large round of simulation testing (e.g. 400 seeds for 2k blocks).
-5. If errors are found during the simulation testing, commit the fixes to `development` and create a new `RC` branch (
-   making sure to increment the `rcN`).
-6. After simulation has successfully completed, create the release branch (`release/vX.XX.X`) from the `RC` branch.
-7. Create a PR to `development` to incorporate the `CHANGELOG.md` updates.
-8. Tag the release (use `git tag -a`) and create a release in Github.
-9. Delete the `RC` branches.
-
-**Note**: tharsis’s Evmos team currently cuts releases on a need to have basis.
-We will announce a more standardized release schedule as we near production readiness.
+1. Start from the branch that will serve as the release source, typically `main` or an active `release/v*` branch.
+2. Prepare the release notes and the corresponding `CHANGELOG.md` updates.
+3. Run the required validation and release testing before tagging.
+4. Tag the release and publish the corresponding GitHub release.
+5. Merge or cherry-pick any follow-up fixes according to the active maintenance strategy.

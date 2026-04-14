@@ -125,10 +125,8 @@ included in our repository in the `COPYING` file.
 
 ## Fork Information
 
-This project is fork from:
+This project builds on upstream work from [BNB Greenfield](https://github.com/bnb-chain/greenfield)
+and includes historical code derived from [Evmos v12](https://github.com/evmos/evmos/tree/release/v12.x.x).
 
-+ [greenfield](https://github.com/bnb-chain/greenfield)
-+ [evmos v12](https://github.com/evmos/evmos/tree/release/v12.x.x)
-
-Significant changes have been made to adapt the project for specific use cases, but much of the core functionality
-comes from the original project.
+It has since been adapted and maintained as Moca, with substantial changes to chain configuration,
+tooling, and operational workflows.
