@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+ENV_FILE="${SCRIPT_DIR}/.env"
+ENV_EXAMPLE_FILE="${SCRIPT_DIR}/.env.example"
 
-source $SCRIPT_DIR/.env
+if [ ! -f "${ENV_FILE}" ]; then
+    if [ ! -f "${ENV_EXAMPLE_FILE}" ]; then
+        echo "Error: missing ${ENV_FILE} and ${ENV_EXAMPLE_FILE}" >&2
+        exit 1
+    fi
+
+    cp "${ENV_EXAMPLE_FILE}" "${ENV_FILE}"
+    echo "Created ${ENV_FILE} from ${ENV_EXAMPLE_FILE}" >&2
+fi
+
+# shellcheck disable=SC1090
+source "${ENV_FILE}"
 
 function init() {
     echo "init chain..."
