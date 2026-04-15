@@ -87,6 +87,7 @@ contracts/@openzeppelin/*
 
 # localup
 deployment/localup/.local
+deployment/localup/.env
 
 # devnetup
 deployment/devnetup/.local
@@ -94,7 +95,7 @@ deployment/devnetup/.local
 # dockerup
 deployment/dockerup/.local
 deployment/dockerup/genesis.json
-deployment/dockerup/.env-e
+deployment/dockerup/.env
 deployment/dockerup/persistent_peers.txt
 deployment/dockerup/sp.json
 deployment/dockerup/validator.json
@@ -120,4 +121,3 @@ e2e/local/ERC20/lib/
 e2e/kind/contracts/out/
 e2e/kind/contracts/cache/
 .env
-!deployment/dockerup/.env
