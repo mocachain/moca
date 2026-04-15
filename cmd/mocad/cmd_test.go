@@ -17,8 +17,8 @@ import (
 func TestInitCmd(t *testing.T) {
 	rootCmd, _ := mocad.NewRootCmd()
 	rootCmd.SetArgs([]string{
-		"init",       // Test the init cmd
-		"evmos-test", // Moniker
+		"init",      // Test the init cmd
+		"moca-test", // Moniker
 		fmt.Sprintf("--%s=%s", cli.FlagOverwrite, "true"), // Overwrite genesis.json, in case it already exists
 		fmt.Sprintf("--%s=%s", flags.FlagChainID, utils.TestnetChainID+"-1"),
 	})
@@ -36,6 +36,6 @@ func TestAddKeyLedgerCmd(t *testing.T) {
 		fmt.Sprintf("--%s", flags.FlagUseLedger),
 	})
 
-	err := svrcmd.Execute(rootCmd, "EVMOSD", app.DefaultNodeHome)
+	err := svrcmd.Execute(rootCmd, "mocad", app.DefaultNodeHome)
 	require.Error(t, err)
 }
