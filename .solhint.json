@@ -1,3 +1,9 @@
 {
-  "extends": "solhint:default"
+  "rules": {
+    "no-console": "error",
+    "max-line-length": [
+      "error",
+      120
+    ]
+  }
 }
