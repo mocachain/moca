@@ -32,20 +32,20 @@ import (
 )
 
 const (
-	// MainnetChainID defines the Evmos EIP155 chain ID for mainnet
+	// MainnetChainID defines the Moca EIP155 chain ID for mainnet
 	MainnetChainID = "moca_5252"
-	// TestnetChainID defines the Evmos EIP155 chain ID base for testnet
+	// TestnetChainID defines the Moca EIP155 chain ID base for testnet
 	TestnetChainID = "moca_222888"
-	// BaseDenom defines the Evmos mainnet denomination
+	// BaseDenom defines the Moca base denomination
 	BaseDenom = "amoca"
 )
 
-// IsMainnet returns true if the chain-id has the Evmos mainnet EIP155 chain prefix.
+// IsMainnet returns true if the chain-id has the Moca mainnet EIP155 chain prefix.
 func IsMainnet(chainID string) bool {
 	return strings.HasPrefix(chainID, MainnetChainID)
 }
 
-// IsTestnet returns true if the chain-id has the Evmos testnet EIP155 chain prefix.
+// IsTestnet returns true if the chain-id has the Moca testnet EIP155 chain prefix.
 func IsTestnet(chainID string) bool {
 	return strings.HasPrefix(chainID, TestnetChainID)
 }
