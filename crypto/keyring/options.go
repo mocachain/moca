@@ -26,21 +26,21 @@ import (
 	"github.com/evmos/evmos/v12/wallets/ledger"
 )
 
-// AppName defines the Ledger app used for signing. Evmos uses the Ethereum app
+// AppName defines the Ledger app used for signing. Moca uses the Ethereum app
 const AppName = "Ethereum"
 
 var (
-	// SupportedAlgorithms defines the list of signing algorithms used on Evmos:
+	// SupportedAlgorithms defines the list of signing algorithms used on Moca:
 	//  - eth_secp256k1 (Ethereum)
 	//  - eth_bls (Ethereum)
 	SupportedAlgorithms = keyring.SigningAlgoList{hd.EthSecp256k1, hd.EthBLS}
-	// SupportedAlgorithmsLedger defines the list of signing algorithms used on Evmos for the Ledger device:
+	// SupportedAlgorithmsLedger defines the list of signing algorithms used on Moca for the Ledger device:
 	//  - eth_secp256k1 (Ethereum)
 	//  - eth_bls (Ethereum)
 	// The Ledger derivation function is responsible for all signing and address generation.
 	SupportedAlgorithmsLedger = keyring.SigningAlgoList{hd.EthSecp256k1, hd.EthBLS}
-	// LedgerDerivation defines the Evmos Ledger Go derivation (Ethereum app with EIP-712 signing)
-	LedgerDerivation = ledger.EvmosLedgerDerivation()
+	// LedgerDerivation defines the Moca Ledger Go derivation (Ethereum app with EIP-712 signing)
+	LedgerDerivation = ledger.MocaLedgerDerivation()
 	// CreatePubkey uses the ethsecp256k1 pubkey with Ethereum address generation and keccak hashing
 	CreatePubkey = func(key []byte) types.PubKey { return &ethsecp256k1.PubKey{Key: key} }
 	// SkipDERConversion represents whether the signed Ledger output should skip conversion from DER to BER.

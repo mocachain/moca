@@ -17,7 +17,7 @@ import (
 
 func init() {
 	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount("evmos", "evmospub")
+	cfg.SetBech32PrefixForAccount("mc", "mcpub")
 }
 
 func TestIsSupportedKeys(t *testing.T) {
@@ -73,7 +73,7 @@ func TestIsSupportedKeys(t *testing.T) {
 	}
 }
 
-func TestGetEvmosAddressFromBech32(t *testing.T) {
+func TestGetMocaAddressFromBech32(t *testing.T) {
 	testCases := []struct {
 		name       string
 		address    string
@@ -88,18 +88,18 @@ func TestGetEvmosAddressFromBech32(t *testing.T) {
 		},
 		{
 			"invalid bech32 address",
-			"evmos",
+			"mc",
 			"",
 			true,
 		},
 		{
 			"invalid address bytes",
-			"evmos1123",
+			"mc1123",
 			"",
 			true,
 		},
 		{
-			"evmos address",
+			"moca address",
 			"evmos1qql8ag4cluz6r4dz28p3w00dnc9w8ueuafmxps",
 			"evmos1qql8ag4cluz6r4dz28p3w00dnc9w8ueuafmxps", // "0x003E7EA2B8FF05A1D5a251c3173DEd9E0aE3F33c",
 			false,
@@ -119,14 +119,14 @@ func TestGetEvmosAddressFromBech32(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		addr, err := GetEvmosAddressFromBech32(tc.address)
-		expAddress, experr := GetEvmosAddressFromBech32(tc.expAddress)
+		addr, err := GetMocaAddressFromBech32(tc.address)
+		expAddress, experr := GetMocaAddressFromBech32(tc.expAddress)
 		if tc.expError {
 			require.Error(t, err, tc.name)
 		} else {
 			require.NoError(t, err, tc.name)
 			require.NoError(t, experr, tc.name)
-			require.Equal(t, expAddress.String(), addr.String(), tc.name)
+			require.Equal(t, expAddress.Bytes(), addr.Bytes(), tc.name)
 		}
 	}
 }
