@@ -298,10 +298,8 @@ godocs:
 
 test: test-unit
 test-all: test-unit test-race
-# For unit tests we don't want to execute the upgrade tests in tests/e2e but
-# we want to include all unit tests in the subfolders (tests/e2e/*).
-# sdk/client is excluded: same as e2e — requires a running chain
-PACKAGES_UNIT=$(shell $(GO) list ./... | grep -v '/tests/e2e$$' | grep -v '/sdk/client')
+# sdk/client is excluded because it requires a running chain
+PACKAGES_UNIT=$(shell $(GO) list ./... | grep -v '/sdk/client')
 TEST_PACKAGES=./...
 TEST_TARGETS := test-unit test-unit-cover test-race
 
@@ -350,17 +348,6 @@ e2e-kind-cleanup:
 	@bash $(E2E_KIND_DIR)/scripts/cleanup.sh
 
 .PHONY: e2e-fw e2e-fw-test e2e-fw-dev e2e-kind-setup e2e-kind-build e2e-kind-deploy e2e-kind-cleanup
-
-test-e2e:
-	@if [ -z "$(TARGET_VERSION)" ]; then \
-		echo "Building docker image from local codebase"; \
-		make build-docker; \
-	fi
-	@mkdir -p ./build
-	@rm -rf build/.mocad
-	@INITIAL_VERSION=$(INITIAL_VERSION) TARGET_VERSION=$(TARGET_VERSION) \
-	E2E_SKIP_CLEANUP=$(E2E_SKIP_CLEANUP) MOUNT_PATH=$(MOUNT_PATH) CHAIN_ID=$(CHAIN_ID) \
-	$(GO) test -v ./tests/e2e -run ^TestIntegrationTestSuite$
 
 run-tests:
 ifneq (,$(shell which tparse 2>/dev/null))
