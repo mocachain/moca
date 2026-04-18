@@ -100,20 +100,20 @@ func TestGetMocaAddressFromBech32(t *testing.T) {
 		},
 		{
 			"moca address",
-			"evmos1qql8ag4cluz6r4dz28p3w00dnc9w8ueuafmxps",
-			"evmos1qql8ag4cluz6r4dz28p3w00dnc9w8ueuafmxps", // "0x003E7EA2B8FF05A1D5a251c3173DEd9E0aE3F33c",
+			"mc1qql8ag4cluz6r4dz28p3w00dnc9w8ueuldwj7u",
+			"mc1qql8ag4cluz6r4dz28p3w00dnc9w8ueuldwj7u", // "0x003E7EA2B8FF05A1D5a251c3173DEd9E0aE3F33c",
 			false,
 		},
 		{
 			"cosmos address",
 			"cosmos1qql8ag4cluz6r4dz28p3w00dnc9w8ueulg2gmc",
-			"evmos1qql8ag4cluz6r4dz28p3w00dnc9w8ueuafmxps", // "0x003E7EA2B8FF05A1D5a251c3173DEd9E0aE3F33c",
+			"mc1qql8ag4cluz6r4dz28p3w00dnc9w8ueuldwj7u", // "0x003E7EA2B8FF05A1D5a251c3173DEd9E0aE3F33c",
 			false,
 		},
 		{
 			"osmosis address",
 			"osmo1qql8ag4cluz6r4dz28p3w00dnc9w8ueuhnecd2",
-			"evmos1qql8ag4cluz6r4dz28p3w00dnc9w8ueuafmxps", // "0x003E7EA2B8FF05A1D5a251c3173DEd9E0aE3F33c",
+			"mc1qql8ag4cluz6r4dz28p3w00dnc9w8ueuldwj7u", // "0x003E7EA2B8FF05A1D5a251c3173DEd9E0aE3F33c",
 			false,
 		},
 	}
