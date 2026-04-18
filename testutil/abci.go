@@ -142,7 +142,13 @@ func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.
 		return abci.ExecTxResult{}, err
 	}
 
-	req := abci.RequestFinalizeBlock{Txs: [][]byte{bz}}
+	// Cosmos SDK 0.50 ABCI++ requires FinalizeBlock requests to carry the target
+	// block height (must be >= 1 and match LastBlockHeight+1), otherwise BaseApp
+	// rejects the request with "invalid height: 0".
+	req := abci.RequestFinalizeBlock{
+		Height: app.LastBlockHeight() + 1,
+		Txs:    [][]byte{bz},
+	}
 
 	res, err := app.BaseApp.FinalizeBlock(&req)
 	if err != nil {
@@ -159,28 +165,36 @@ func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.
 	return *txRes, nil
 }
 
-// commit is a private helper function that runs the EndBlocker logic, commits the changes,
-// updates the header, runs the BeginBlocker function and returns the updated header
+// commit is a private helper function that finalizes the current block via
+// FinalizeBlock (which internally runs BeginBlocker, tx execution, and
+// EndBlocker), commits the resulting state, and advances the header for the
+// next block.
+//
+// Under Cosmos SDK 0.50 ABCI++ the call to FinalizeBlock is required for the
+// cache writes produced during InitChain (or previous state mutations) to be
+// flushed into the main CommitMultiStore via workingHash(). Calling
+// EndBlocker + Commit directly skips that flush and causes subsequent reads of
+// genesis-initialised state (e.g. distribution FeePool) to fail with
+// "collections: not found".
 func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (tmproto.Header, error) {
 	header := ctx.BlockHeader()
-	req := abci.RequestFinalizeBlock{Height: header.Height}
+	req := abci.RequestFinalizeBlock{
+		Height:          header.Height,
+		ProposerAddress: header.ProposerAddress,
+	}
+
+	res, err := app.FinalizeBlock(&req)
+	if err != nil {
+		return header, err
+	}
 
 	if vs != nil {
-		res, err := app.FinalizeBlock(&req)
-		if err != nil {
-			return header, err
-		}
-
 		nextVals, err := applyValSetChanges(vs, res.ValidatorUpdates)
 		if err != nil {
 			return header, err
 		}
 		header.ValidatorsHash = vs.Hash()
 		header.NextValidatorsHash = nextVals.Hash()
-	} else {
-		if _, err := app.EndBlocker(ctx); err != nil {
-			return header, err
-		}
 	}
 
 	if _, err := app.Commit(); err != nil {
@@ -190,10 +204,6 @@ func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.Valid
 	header.Height++
 	header.Time = header.Time.Add(t)
 	header.AppHash = app.LastCommitID().Hash
-
-	if _, err := app.BeginBlocker(ctx); err != nil {
-		return header, err
-	}
 
 	return header, nil
 }
