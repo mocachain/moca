@@ -1239,7 +1239,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
