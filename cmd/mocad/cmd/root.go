@@ -55,7 +55,6 @@ import (
 	txmodule "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/crisis"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
@@ -130,7 +129,6 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		dbm.NewMemDB(),
 		nil, true, nil,
 		tempDir(app.DefaultNodeHome),
-		0,
 		AppConfig,
 		emptyAppOptions{},
 	)
@@ -268,8 +266,11 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 	return rootCmd, encodingConfig
 }
 
-func addModuleInitFlags(startCmd *cobra.Command) {
-	crisis.AddModuleInitFlags(startCmd)
+// addModuleInitFlags is intentionally a no-op after the x/crisis module was
+// removed. The hook is still wired through evmosserver.AddCommands because that
+// signature mandates a non-nil types.ModuleInitFlags callback; future modules
+// that need to inject CLI flags into the start command can register them here.
+func addModuleInitFlags(_ *cobra.Command) {
 }
 
 func queryCommand() *cobra.Command {
@@ -398,7 +399,6 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 	evmosApp := app.NewEvmos(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
-		cast.ToUint(appOpts.Get(sdkserver.FlagInvCheckPeriod)),
 		AppConfig,
 		appOpts,
 		baseapp.SetPruning(pruningOpts),
@@ -441,13 +441,13 @@ func (a appCreator) appExport(
 	}
 
 	if height != -1 {
-		evmosApp = app.NewEvmos(logger, db, traceStore, false, map[int64]bool{}, "", uint(1), AppConfig, appOpts)
+		evmosApp = app.NewEvmos(logger, db, traceStore, false, map[int64]bool{}, "", AppConfig, appOpts)
 
 		if err := evmosApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		evmosApp = app.NewEvmos(logger, db, traceStore, true, map[int64]bool{}, "", uint(1), AppConfig, appOpts)
+		evmosApp = app.NewEvmos(logger, db, traceStore, true, map[int64]bool{}, "", AppConfig, appOpts)
 	}
 
 	return evmosApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)

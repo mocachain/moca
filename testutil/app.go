@@ -61,7 +61,6 @@ func NewTestApp(
 		loadLatest,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		0,
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		simtestutil.EmptyAppOptions{},
 		options...,

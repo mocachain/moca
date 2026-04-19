@@ -10,7 +10,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authztypes "github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -197,7 +196,6 @@ func OutputsAuthorization(authorization authztypes.Authorization) string {
 	slashingtypes.RegisterInterfaces(interfaceRegistry)
 	govv1beta1.RegisterInterfaces(interfaceRegistry)
 	govv1.RegisterInterfaces(interfaceRegistry)
-	crisistypes.RegisterInterfaces(interfaceRegistry)
 	types.RegisterInterfaces(interfaceRegistry)
 	feemarkettypes.RegisterInterfaces(interfaceRegistry)
 	erc20types.RegisterInterfaces(interfaceRegistry)

@@ -27,7 +27,6 @@ import (
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/crisis"
 
 	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -68,13 +67,7 @@ func EthSetup(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisState) sim
 func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisState) simapp.GenesisState, db dbm.DB) *Evmos {
 	chainID := utils.TestnetChainID + "-1"
 
-	baseOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
-	appOpts := flaggedAppOptions{
-		base: baseOpts,
-		overrides: map[string]interface{}{
-			crisis.FlagSkipGenesisInvariants: true,
-		},
-	}
+	appOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
 
 	app := NewEvmos(log.NewNopLogger(),
 		db,
@@ -82,7 +75,6 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		true,
 		map[int64]bool{},
 		DefaultNodeHome,
-		5,
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		appOpts,
 		baseapp.SetChainID(chainID),
@@ -117,7 +109,7 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 
 // NewTestGenesisState builds a single-validator genesis suitable for the EVM
 // test harness. It delegates to the standard GenesisStateWithValSet helper in
-// test_helpers.go so that auth/bank/staking/distribution/crisis/gov are all
+// test_helpers.go so that auth/bank/staking/distribution/gov are all
 // seeded consistently with the same denom (utils.BaseDenom) and module
 // defaults that the production-style Setup() helper already uses. In
 // particular this guarantees distribution.InitialFeePool exists, which the

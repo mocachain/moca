@@ -28,7 +28,6 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -42,8 +41,6 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/cosmos/cosmos-sdk/x/crisis"
-	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	"github.com/evmos/evmos/v12/cmd/config"
 	servercfg "github.com/evmos/evmos/v12/server/config"
 	evmostypes "github.com/evmos/evmos/v12/types"
@@ -106,19 +103,12 @@ func Setup(
 
 	db := dbm.NewMemDB()
 
-	// TODO ensure we skip asserting invariants at genesis in tests to avoid panics from zero-state modules.
-	baseOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
-	appOpts := flaggedAppOptions{
-		base: baseOpts,
-		overrides: map[string]interface{}{
-			crisis.FlagSkipGenesisInvariants: true,
-		},
-	}
+	appOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
 
 	app := NewEvmos(
 		log.NewNopLogger(),
 		db, nil, true, map[int64]bool{},
-		DefaultNodeHome, 5,
+		DefaultNodeHome,
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
 		appOpts,
 		baseapp.SetChainID(chainID),
@@ -155,40 +145,6 @@ func Setup(
 	}
 
 	return app
-}
-
-// flaggedAppOptions wraps an AppOptions and allows overriding keys for tests.
-type flaggedAppOptions struct {
-	base      servertypes.AppOptions
-	overrides map[string]interface{}
-}
-
-func (o flaggedAppOptions) Get(k string) interface{} {
-	if v, ok := o.overrides[k]; ok {
-		return v
-	}
-	if o.base != nil {
-		return o.base.Get(k)
-	}
-	return nil
-}
-
-// AppOptionsWithSkipInvariants returns the given AppOptions wrapped so that
-// crisis.FlagSkipGenesisInvariants is forced to true. Test setups that bypass
-// EthSetup/Setup but still call InitChain on a real Evmos app should use this
-// to keep parity with the production-style helpers; otherwise
-// crisis.AssertInvariants fires during InitChain on partially-initialised
-// state (e.g. the staking DelegatorSharesInvariant trips on the bech32 vs hex
-// validator-address mismatch in genesisStateWithValSet's synthesised
-// delegations and panics with a nil-pointer dereference deep inside
-// LegacyDec.Add).
-func AppOptionsWithSkipInvariants(base servertypes.AppOptions) servertypes.AppOptions {
-	return flaggedAppOptions{
-		base: base,
-		overrides: map[string]interface{}{
-			crisis.FlagSkipGenesisInvariants: true,
-		},
-	}
 }
 
 func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
@@ -255,10 +211,6 @@ func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
 	distrGenesis := distributiontypes.DefaultGenesisState()
 	distrGenesis.FeePool = distributiontypes.InitialFeePool()
 	genesisState[distributiontypes.ModuleName] = app.AppCodec().MustMarshalJSON(distrGenesis)
-
-	// set crisis genesis
-	crisisGenesis := crisistypes.DefaultGenesisState()
-	genesisState[crisistypes.ModuleName] = app.AppCodec().MustMarshalJSON(crisisGenesis)
 
 	// set gov genesis
 	govGenesis := govv1.DefaultGenesisState()

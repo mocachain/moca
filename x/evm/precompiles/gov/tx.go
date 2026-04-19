@@ -24,7 +24,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
-	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
@@ -155,7 +154,6 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	slashingtypes.RegisterInterfaces(interfaceRegistry)
 	govv1beta1.RegisterInterfaces(interfaceRegistry)
 	govv1.RegisterInterfaces(interfaceRegistry)
-	crisistypes.RegisterInterfaces(interfaceRegistry)
 	// Note: upgradetypes.RegisterInterfaces is not available in v0.50, interfaces are registered via module manager
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 

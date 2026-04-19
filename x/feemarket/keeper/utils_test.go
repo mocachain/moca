@@ -177,9 +177,8 @@ func setupChain(localMinGasPricesStr string, chainID string, minGasPrice sdkmath
 		true,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		5,
 		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
-		app.AppOptionsWithSkipInvariants(simutils.NewAppOptionsWithFlagHome(app.DefaultNodeHome)),
+		simutils.NewAppOptionsWithFlagHome(app.DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
 	)
