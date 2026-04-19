@@ -267,6 +267,13 @@ type Evmos struct {
 	mm                 *module.Manager
 	BasicModuleManager module.BasicManager
 
+	// invariantChecker collects RegisterInvariants outputs from every module so
+	// that ExportAppStateAndValidators can run a final state self-check before
+	// serializing genesis. It replaces the x/crisis module which was removed
+	// because moca does not use the runtime invariant loop or the
+	// MsgVerifyInvariant governance handler. See app/invariants.go.
+	invariantChecker *exportInvariantRegistry
+
 	// the configurator
 	configurator module.Configurator
 
@@ -701,6 +708,13 @@ func NewEvmos(
 		gensptypes.ModuleName,
 		challengemoduletypes.ModuleName,
 	)
+
+	// Collect every module's invariants into a local registry so that
+	// ExportAppStateAndValidators can run them before genesis is serialized.
+	// This replaces app.mm.RegisterInvariants(&app.CrisisKeeper) without
+	// re-introducing the x/crisis module surface; see app/invariants.go.
+	app.invariantChecker = &exportInvariantRegistry{}
+	app.mm.RegisterInvariants(app.invariantChecker)
 
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	err = app.mm.RegisterServices(app.configurator)
