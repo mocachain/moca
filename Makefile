@@ -298,8 +298,9 @@ godocs:
 
 test: test-unit
 test-all: test-unit test-race
-# sdk/client is excluded because it requires a running chain
-PACKAGES_UNIT=$(shell $(GO) list ./... | grep -v '/sdk/client')
+# sdk/client and e2e/* are excluded because they require a running chain;
+# run e2e suites via `make e2e-fw-test TEST=...` instead.
+PACKAGES_UNIT=$(shell $(GO) list ./... | grep -v -E '/sdk/client|/e2e($$|/)')
 TEST_PACKAGES=./...
 TEST_TARGETS := test-unit test-unit-cover test-race
 
