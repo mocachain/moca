@@ -918,6 +918,12 @@ func (app *Evmos) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.Respo
 	defer func() {
 		// TODO: Record the count along with the code and or reason so as to display
 		// in the transactions per second live dashboards.
+		// BaseApp.FinalizeBlock returns (nil, err) on rejection (e.g. invalid
+		// height); without this guard, dereferencing res would mask the real
+		// error with a nil-pointer panic.
+		if res == nil {
+			return
+		}
 		for _, txRes := range res.TxResults {
 			if txRes.IsErr() {
 				app.tpsCounter.incrementFailure()

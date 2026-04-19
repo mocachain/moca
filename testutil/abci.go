@@ -176,10 +176,17 @@ func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.
 // EndBlocker + Commit directly skips that flush and causes subsequent reads of
 // genesis-initialised state (e.g. distribution FeePool) to fail with
 // "collections: not found".
+//
+// FinalizeBlock also requires Height >= 1 and Height == LastBlockHeight + 1.
+// Several callers (e.g. AnteTestSuite.SetupTest) deliberately rewind the
+// ctx header height before calling Commit, so we derive the target height
+// from app.LastBlockHeight() instead of trusting ctx.BlockHeader().Height.
+// This mirrors what BroadcastTxBytes already does.
 func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (tmproto.Header, error) {
 	header := ctx.BlockHeader()
+	nextHeight := app.LastBlockHeight() + 1
 	req := abci.RequestFinalizeBlock{
-		Height:          header.Height,
+		Height:          nextHeight,
 		ProposerAddress: header.ProposerAddress,
 	}
 
@@ -201,7 +208,7 @@ func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.Valid
 		return header, err
 	}
 
-	header.Height++
+	header.Height = app.LastBlockHeight() + 1
 	header.Time = header.Time.Add(t)
 	header.AppHash = app.LastCommitID().Hash
 
