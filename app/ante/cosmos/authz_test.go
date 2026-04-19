@@ -18,6 +18,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	cosmosante "github.com/evmos/evmos/v12/app/ante/cosmos"
 	testutil "github.com/evmos/evmos/v12/testutil"
@@ -37,6 +38,29 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 
 	stakingAuthUndelegate, err := stakingtypes.NewStakeAuthorization([]sdk.AccAddress{validator}, nil, stakingtypes.AuthorizationType_AUTHORIZATION_TYPE_UNDELEGATE, nil)
 	require.NoError(t, err)
+
+	// Build a properly populated and signed MsgEthereumTx fixture. Cosmos SDK
+	// 0.50 unconditionally invokes the custom GetSigners during SetMsgs/sign
+	// flows, which dereferences msg.Data.TypeUrl and recovers the sender from
+	// the signature. An empty &evmtypes.MsgEthereumTx{} therefore panics on a
+	// nil Data and would fail signer recovery once Data is set. Constructing
+	// and signing the message once here keeps every test case using the same
+	// blocked-msg fixture without changing production behavior.
+	chainID := big.NewInt(9000)
+	msgEthereumTx := evmtypes.NewTx(&evmtypes.EvmTxArgs{
+		ChainID:   chainID,
+		Nonce:     0,
+		GasLimit:  1000000,
+		GasFeeCap: big.NewInt(1),
+		GasTipCap: big.NewInt(1),
+		Input:     nil,
+		Accesses:  &ethtypes.AccessList{},
+	})
+	msgEthereumTx.From = common.BytesToAddress(testAddresses[0].Bytes()).Hex()
+	require.NoError(t, msgEthereumTx.Sign(
+		ethtypes.LatestSignerForChainID(chainID),
+		utiltx.NewSigner(testPrivKeys[0]),
+	))
 
 	decorator := cosmosante.NewAuthzLimiterDecorator(
 		sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
@@ -64,7 +88,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 		{
 			"enabled msg MsgEthereumTx - blocked msg not wrapped in MsgExec",
 			[]sdk.Msg{
-				&evmtypes.MsgEthereumTx{},
+				msgEthereumTx,
 			},
 			false,
 			nil,
@@ -149,7 +173,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 				newMsgExec(
 					testAddresses[1],
 					[]sdk.Msg{
-						&evmtypes.MsgEthereumTx{},
+						msgEthereumTx,
 					},
 				),
 			},
@@ -173,7 +197,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 							testAddresses[3],
 							sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 100e6)),
 						),
-						&evmtypes.MsgEthereumTx{},
+						msgEthereumTx,
 					},
 				),
 			},
@@ -187,7 +211,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 					testAddresses[1],
 					2,
 					[]sdk.Msg{
-						&evmtypes.MsgEthereumTx{},
+						msgEthereumTx,
 					},
 				),
 			},
