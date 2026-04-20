@@ -20,6 +20,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/std"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 
 	cryptocodec "github.com/evmos/evmos/v12/crypto/codec"
 	"github.com/evmos/evmos/v12/types"
@@ -35,6 +36,10 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 // RegisterInterfaces registers Interfaces from types, crypto, and SDK std.
 func RegisterInterfaces(interfaceRegistry codectypes.InterfaceRegistry) {
 	std.RegisterInterfaces(interfaceRegistry)
+	// Keep historical x/crisis proposal messages decodable after removing the
+	// module wiring from the app. Old governance proposals may still carry
+	// MsgVerifyInvariant Any payloads in state.
+	crisistypes.RegisterInterfaces(interfaceRegistry)
 	// cryptocodec.RegisterInterfaces(interfaceRegistry)
 	types.RegisterInterfaces(interfaceRegistry)
 }
