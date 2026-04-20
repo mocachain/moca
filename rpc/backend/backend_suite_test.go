@@ -70,9 +70,15 @@ func (suite *BackendTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	encodingConfig := encoding.MakeConfig()
+	// Register x/evm msg types so TxConfig.TxDecoder can resolve
+	// /ethermint.evm.v1.MsgEthereumTx when decoding block txs in tests.
+	// Outside tests this is done by app.BasicModuleManager.RegisterInterfaces.
+	evmtypes.RegisterInterfaces(encodingConfig.InterfaceRegistry)
+
 	clientCtx := client.Context{}.WithChainID(ChainID).
 		WithHeight(1).
 		WithTxConfig(encodingConfig.TxConfig).
+		WithCodec(encodingConfig.Codec).
 		WithKeyringDir(clientDir).
 		WithKeyring(keyRing).
 		WithAccountRetriever(client.TestAccountRetriever{Accounts: accounts})
@@ -85,10 +91,6 @@ func (suite *BackendTestSuite) SetupTest() {
 	suite.backend.clientCtx.Client = mocks.NewClient(suite.T())
 	suite.backend.queryClient.FeeMarket = mocks.NewFeeMarketQueryClient(suite.T())
 	suite.backend.ctx = rpctypes.ContextWithHeight(1)
-
-	// Add codec
-	encCfg := encoding.MakeConfig()
-	suite.backend.clientCtx.Codec = encCfg.Codec
 }
 
 // buildEthereumTx returns an example legacy Ethereum transaction

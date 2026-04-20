@@ -18,6 +18,7 @@ import (
 	"github.com/evmos/evmos/v12/rpc/backend/mocks"
 	rpc "github.com/evmos/evmos/v12/rpc/types"
 	utiltx "github.com/evmos/evmos/v12/testutil/tx"
+	evmostypes "github.com/evmos/evmos/v12/types"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 	feemarkettypes "github.com/evmos/evmos/v12/x/feemarket/types"
 )
@@ -155,7 +156,9 @@ func (suite *BackendTestSuite) TestBaseFee() {
 }
 
 func (suite *BackendTestSuite) TestChainId() {
-	expChainID := (*hexutil.Big)(big.NewInt(1000000))
+	eip155ChainID, err := evmostypes.ParseChainID(ChainID)
+	suite.Require().NoError(err)
+	expChainID := (*hexutil.Big)(eip155ChainID)
 	testCases := []struct {
 		name         string
 		registerMock func()
