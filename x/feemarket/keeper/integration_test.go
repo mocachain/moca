@@ -228,11 +228,13 @@ var _ = Describe("Feemarket", func() {
 						// Note that max priority fee per gas can't be higher than the max fee per gas (gasFeeCap), i.e. 30_000_000_000)
 						return txParams{nil, big.NewInt(minGasPrices - 10_000_000_000), big.NewInt(30_000_000_000), &ethtypes.AccessList{}}
 					}),
-					Entry("dynamic tx with GasFeeCap > MinGasPrices, EffectivePrice < MinGasPrices", func() txParams {
-						return txParams{nil, big.NewInt(minGasPrices + 10_000_000_000), big.NewInt(0), &ethtypes.AccessList{}}
-					}),
 				)
 
+				// setupTestWithContext commits once before each case, so the current
+				// block BaseFee is clamped up to minGasPrices here. That makes the
+				// old "GasFeeCap > MinGasPrices, EffectivePrice < MinGasPrices"
+				// branch unreachable; the boundary becomes EffectivePrice ==
+				// MinGasPrices and is covered below.
 				DescribeTable("should accept transactions with gasPrice >= MinGasPrices",
 					func(malleate getprices) {
 						p := malleate()
@@ -244,6 +246,9 @@ var _ = Describe("Feemarket", func() {
 					},
 					Entry("legacy tx", func() txParams {
 						return txParams{big.NewInt(minGasPrices), nil, nil, nil}
+					}),
+					Entry("dynamic tx with GasFeeCap > MinGasPrices, EffectivePrice == MinGasPrices", func() txParams {
+						return txParams{nil, big.NewInt(minGasPrices + 10_000_000_000), big.NewInt(0), &ethtypes.AccessList{}}
 					}),
 					// Note that this tx is not rejected on CheckTx, but not on DeliverTx,
 					// as the baseFee is set to minGasPrices during DeliverTx when baseFee
@@ -300,8 +305,12 @@ var _ = Describe("Feemarket", func() {
 
 		Context("with MinGasPrices (feemarket param) < BaseFee (feemarket)", func() {
 			var (
-				baseFee      int64
-				minGasPrices int64
+				baseFee               int64
+				minGasPrices          int64
+				checkTxBaseFee        int64
+				deliverTxBaseFee      int64
+				checkTxBelowBaseFee   int64
+				deliverTxBelowBaseFee int64
 			)
 
 			BeforeEach(func() {
@@ -313,6 +322,20 @@ var _ = Describe("Feemarket", func() {
 				// a `minGasPrices = 5_000_000_000` results in `minGlobalFee =
 				// 500_000_000_000_000`
 				privKey, _ = setupTestWithContext(chainID, "1", sdk.NewDec(minGasPrices), sdkmath.NewInt(baseFee))
+
+				// setupTestWithContext commits once before each case, so BaseFee has
+				// already decayed before assertions run. CheckTx reads BaseApp's
+				// dedicated checkState, while DeliverTx uses the suite context /
+				// FinalizeBlock path, so capture both thresholds explicitly.
+				checkTxCtx := s.app.BaseApp.GetCheckState().Context()
+				checkTxBaseFee = s.app.FeeMarketKeeper.GetBaseFee(checkTxCtx).Int64()
+				deliverTxBaseFee = s.app.FeeMarketKeeper.GetBaseFee(s.ctx).Int64()
+				// s.ctx is one BeginBlocker ahead of checkState, so deliverTxBaseFee
+				// decays another 1/8. Keep enough gap that the /2 below-BaseFee
+				// midpoint still lands strictly above MinGasPrices.
+				Expect(deliverTxBaseFee).To(BeNumerically(">", minGasPrices+1))
+				checkTxBelowBaseFee = minGasPrices + (checkTxBaseFee-minGasPrices)/2
+				deliverTxBelowBaseFee = minGasPrices + (deliverTxBaseFee-minGasPrices)/2
 			})
 
 			Context("during CheckTx", func() {
@@ -352,10 +375,10 @@ var _ = Describe("Feemarket", func() {
 						).To(BeTrue(), err.Error())
 					},
 					Entry("legacy tx", func() txParams {
-						return txParams{big.NewInt(baseFee - 1_000_000_000), nil, nil, nil}
+						return txParams{big.NewInt(checkTxBelowBaseFee), nil, nil, nil}
 					}),
 					Entry("dynamic tx", func() txParams {
-						return txParams{nil, big.NewInt(baseFee - 1_000_000_000), big.NewInt(0), &ethtypes.AccessList{}}
+						return txParams{nil, big.NewInt(checkTxBelowBaseFee), big.NewInt(0), &ethtypes.AccessList{}}
 					}),
 				)
 
@@ -369,10 +392,10 @@ var _ = Describe("Feemarket", func() {
 						Expect(res.IsOK()).To(Equal(true), "transaction should have succeeded", res.GetLog())
 					},
 					Entry("legacy tx", func() txParams {
-						return txParams{big.NewInt(baseFee), nil, nil, nil}
+						return txParams{big.NewInt(checkTxBaseFee), nil, nil, nil}
 					}),
 					Entry("dynamic tx", func() txParams {
-						return txParams{nil, big.NewInt(baseFee), big.NewInt(0), &ethtypes.AccessList{}}
+						return txParams{nil, big.NewInt(checkTxBaseFee), big.NewInt(0), &ethtypes.AccessList{}}
 					}),
 				)
 			})
@@ -410,12 +433,11 @@ var _ = Describe("Feemarket", func() {
 								"insufficient fee"),
 						).To(BeTrue(), err.Error())
 					},
-					// Note that the baseFee is not 10_000_000_000 anymore but updates to 8_750_000_000 because of the s.Commit
 					Entry("legacy tx", func() txParams {
-						return txParams{big.NewInt(baseFee - 2_000_000_000), nil, nil, nil}
+						return txParams{big.NewInt(deliverTxBelowBaseFee), nil, nil, nil}
 					}),
 					Entry("dynamic tx", func() txParams {
-						return txParams{nil, big.NewInt(baseFee - 2_000_000_000), big.NewInt(0), &ethtypes.AccessList{}}
+						return txParams{nil, big.NewInt(deliverTxBelowBaseFee), big.NewInt(0), &ethtypes.AccessList{}}
 					}),
 				)
 
@@ -429,10 +451,10 @@ var _ = Describe("Feemarket", func() {
 						Expect(res.IsOK()).To(Equal(true), "transaction should have succeeded", res.GetLog())
 					},
 					Entry("legacy tx", func() txParams {
-						return txParams{big.NewInt(baseFee), nil, nil, nil}
+						return txParams{big.NewInt(deliverTxBaseFee), nil, nil, nil}
 					}),
 					Entry("dynamic tx", func() txParams {
-						return txParams{nil, big.NewInt(baseFee), big.NewInt(0), &ethtypes.AccessList{}}
+						return txParams{nil, big.NewInt(deliverTxBaseFee), big.NewInt(0), &ethtypes.AccessList{}}
 					}),
 				)
 			})
