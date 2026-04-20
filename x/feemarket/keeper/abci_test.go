@@ -47,17 +47,17 @@ func (suite *KeeperTestSuite) TestEndBlock() {
 	}
 }
 
-// TestEndBlock_NoParamsInStore verifies that GetParams falls back to
-// DefaultParams when the params row is absent (matching cosmos/evm upstream).
-// Without that fallback EndBlock would dereference a nil *big.Int inside
-// MinGasMultiplier.Mul and panic, as observed by ./app/ante/cosmos.
-func (suite *KeeperTestSuite) TestEndBlock_NoParamsInStore() {
+// TestEndBlock_NilMinGasMultiplier exercises the abci.go IsNil guard: when
+// the params row is absent, GetParams returns a zero-value Params whose
+// MinGasMultiplier wraps a nil *big.Int and Mul would panic. EndBlock must
+// treat that as zero and fall back to gasUsed.
+func (suite *KeeperTestSuite) TestEndBlock_NilMinGasMultiplier() {
 	suite.SetupTest()
 
 	storeKey := suite.app.GetKey(types.StoreKey)
 	suite.Require().NotNil(storeKey)
 	suite.ctx.KVStore(storeKey).Delete(types.ParamsKey)
-	suite.Require().False(suite.app.FeeMarketKeeper.GetParams(suite.ctx).MinGasMultiplier.IsNil())
+	suite.Require().True(suite.app.FeeMarketKeeper.GetParams(suite.ctx).MinGasMultiplier.IsNil())
 
 	meter := storetypes.NewGasMeter(uint64(1_000_000_000))
 	suite.ctx = suite.ctx.WithBlockGasMeter(meter)
@@ -66,6 +66,6 @@ func (suite *KeeperTestSuite) TestEndBlock_NoParamsInStore() {
 	suite.Require().NotPanics(func() {
 		suite.Require().NoError(suite.app.FeeMarketKeeper.EndBlock(suite.ctx))
 	})
-	// 5_000_000 * DefaultMinGasMultiplier (0.5) = 2_500_000.
-	suite.Require().Equal(uint64(2_500_000), suite.app.FeeMarketKeeper.GetBlockGasWanted(suite.ctx))
+	// With nil MinGasMultiplier the limit collapses to gasUsed (0 here, no tx).
+	suite.Require().Equal(uint64(0), suite.app.FeeMarketKeeper.GetBlockGasWanted(suite.ctx))
 }

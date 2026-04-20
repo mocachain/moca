@@ -82,6 +82,11 @@ func (k *Keeper) EndBlock(ctx sdk.Context) error {
 	// this will be keep BaseFee protected from un-penalized manipulation
 	// more info here https://github.com/evmos/ethermint/pull/1105#discussion_r888798925
 	minGasMultiplier := k.GetParams(ctx).MinGasMultiplier
+	if minGasMultiplier.IsNil() {
+		// Guard against a missing Params row (store-miss returns a zero-value
+		// Params whose MinGasMultiplier wraps a nil *big.Int and panics in Mul).
+		minGasMultiplier = math.LegacyZeroDec()
+	}
 	limitedGasWanted := math.LegacyNewDec(gasWanted.Int64()).Mul(minGasMultiplier)
 	updatedGasWanted := math.LegacyMaxDec(limitedGasWanted, math.LegacyNewDec(gasUsed.Int64())).TruncateInt().Uint64()
 	k.SetBlockGasWanted(ctx, updatedGasWanted)
