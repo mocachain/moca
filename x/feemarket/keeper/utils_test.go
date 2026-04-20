@@ -12,6 +12,8 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simutils "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -38,6 +40,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/0xPolygon/polygon-edge/bls"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 )
 
 func (suite *KeeperTestSuite) SetupApp(checkTx bool, chainID string) {
@@ -183,7 +186,27 @@ func setupChain(localMinGasPricesStr string, chainID string, minGasPrice sdkmath
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
 	)
 
-	genesisState := app.NewTestGenesisState(newapp)
+	// Start from DefaultGenesis so every module gets its default params; modules
+	// missing from genesisData are skipped by the SDK module manager and their
+	// GetParams would return zero-value structs (panicking the ante chain on
+	// empty EvmDenom etc.). Then layer val-set/account state and patch
+	// feemarket with the test-supplied MinGasPrice / BaseFee.
+	privVal := mock.NewPV()
+	pubKey, err := privVal.GetPubKey()
+	s.Require().NoError(err)
+	validator := cmttypes.NewValidator(pubKey, 1)
+	valSet := cmttypes.NewValidatorSet([]*cmttypes.Validator{validator})
+
+	senderPrivKey := secp256k1.GenPrivKey()
+	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
+	balance := banktypes.Balance{
+		Address: acc.GetAddress().String(),
+		Coins:   sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, sdkmath.NewInt(100000000000000))),
+	}
+
+	genesisState := newapp.DefaultGenesis()
+	genesisState = app.GenesisStateWithValSet(newapp, genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
+
 	fmGenesis := types.DefaultGenesisState()
 	fmGenesis.Params.MinGasPrice = minGasPrice
 	fmGenesis.Params.BaseFee = sdkmath.NewIntFromBigInt(baseFee.BigInt())

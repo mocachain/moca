@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	storetypes "cosmossdk.io/store/types"
+	"github.com/evmos/evmos/v12/x/feemarket/types"
 )
 
 func (suite *KeeperTestSuite) TestEndBlock() {
@@ -44,4 +45,27 @@ func (suite *KeeperTestSuite) TestEndBlock() {
 			suite.Require().Equal(tc.expGasWanted, gasWanted, tc.name)
 		})
 	}
+}
+
+// TestEndBlock_NilMinGasMultiplier exercises the abci.go IsNil guard: when
+// the params row is absent, GetParams returns a zero-value Params whose
+// MinGasMultiplier wraps a nil *big.Int and Mul would panic. EndBlock must
+// treat that as zero and fall back to gasUsed.
+func (suite *KeeperTestSuite) TestEndBlock_NilMinGasMultiplier() {
+	suite.SetupTest()
+
+	storeKey := suite.app.GetKey(types.StoreKey)
+	suite.Require().NotNil(storeKey)
+	suite.ctx.KVStore(storeKey).Delete(types.ParamsKey)
+	suite.Require().True(suite.app.FeeMarketKeeper.GetParams(suite.ctx).MinGasMultiplier.IsNil())
+
+	meter := storetypes.NewGasMeter(uint64(1_000_000_000))
+	suite.ctx = suite.ctx.WithBlockGasMeter(meter)
+	suite.app.FeeMarketKeeper.SetTransientBlockGasWanted(suite.ctx, 5_000_000)
+
+	suite.Require().NotPanics(func() {
+		suite.Require().NoError(suite.app.FeeMarketKeeper.EndBlock(suite.ctx))
+	})
+	// With nil MinGasMultiplier the limit collapses to gasUsed (0 here, no tx).
+	suite.Require().Equal(uint64(0), suite.app.FeeMarketKeeper.GetBlockGasWanted(suite.ctx))
 }
