@@ -271,7 +271,7 @@ go.sum: go.mod
 	$(GO) mod tidy
 
 vulncheck: $(BUILDDIR)/
-	GOBIN=$(BUILDDIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@latest
+	GOBIN=$(BUILDDIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	$(BUILDDIR)/govulncheck ./...
 
 ###############################################################################
