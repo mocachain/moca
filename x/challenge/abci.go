@@ -25,8 +25,9 @@ func BeginBlocker(ctx sdk.Context, keeper k.Keeper) error {
 		keeper.RemoveSlashUntil(ctx, height)
 	}
 
-	// delete storage provider slash amount records
-	if blockHeight > 0 && blockHeight%params.SpSlashCountingWindow == 0 {
+	// delete storage provider slash amount records; guard zero window to
+	// avoid divide-by-zero when challenge params are unset.
+	if params.SpSlashCountingWindow > 0 && blockHeight > 0 && blockHeight%params.SpSlashCountingWindow == 0 {
 		keeper.ClearSpSlashAmount(ctx)
 	}
 	return nil
