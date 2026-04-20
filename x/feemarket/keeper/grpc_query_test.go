@@ -2,7 +2,6 @@ package keeper_test
 
 import (
 	sdkmath "cosmossdk.io/math"
-	ethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/evmos/evmos/v12/x/feemarket/types"
 )
 
@@ -44,8 +43,10 @@ func (suite *KeeperTestSuite) TestQueryBaseFee() {
 		{
 			"pass - default Base Fee",
 			func() {
-				initialBaseFee := sdkmath.NewInt(ethparams.InitialBaseFee)
-				expRes = &types.QueryBaseFeeResponse{BaseFee: &initialBaseFee}
+				// Pin DefaultParams; SetupTest may have decayed BaseFee.
+				suite.Require().NoError(suite.app.FeeMarketKeeper.SetParams(suite.ctx, types.DefaultParams()))
+				baseFee := suite.app.FeeMarketKeeper.GetParams(suite.ctx).BaseFee
+				expRes = &types.QueryBaseFeeResponse{BaseFee: &baseFee}
 			},
 			true,
 		},

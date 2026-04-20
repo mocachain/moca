@@ -71,13 +71,13 @@ func DeliverTx(
 	if err != nil {
 		return abci.ExecTxResult{}, err
 	}
-	return BroadcastTxBytes(appEvmos, txConfig.TxEncoder(), tx)
+	return BroadcastTxBytes(appEvmos, txConfig.TxEncoder(), tx, ctx.BlockHeader().ProposerAddress)
 }
 
 // DeliverEthTx generates and broadcasts a Cosmos Tx populated with MsgEthereumTx messages.
-// If a private key is provided, it will attempt to sign all messages with the given private key,
-// otherwise, it will assume the messages have already been signed.
+// ctx carries the proposer used by FinalizeBlock; EVM coinbase lookup needs it.
 func DeliverEthTx(
+	ctx sdk.Context,
 	appEvmos *app.Evmos,
 	priv cryptotypes.PrivKey,
 	msgs ...sdk.Msg,
@@ -88,7 +88,7 @@ func DeliverEthTx(
 	if err != nil {
 		return abci.ExecTxResult{}, err
 	}
-	return BroadcastTxBytes(appEvmos, txConfig.TxEncoder(), tx)
+	return BroadcastTxBytes(appEvmos, txConfig.TxEncoder(), tx, ctx.BlockHeader().ProposerAddress)
 }
 
 // CheckTx checks a cosmos tx for a given set of msgs
@@ -135,19 +135,17 @@ func CheckEthTx(
 }
 
 // BroadcastTxBytes encodes a transaction and calls DeliverTx on the app.
-func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.ExecTxResult, error) {
-	// bz are bytes to be broadcasted over the network
+// proposerAddr is required by EVM's coinbase lookup (must match a bonded validator in CMS).
+func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx, proposerAddr []byte) (abci.ExecTxResult, error) {
 	bz, err := txEncoder(tx)
 	if err != nil {
 		return abci.ExecTxResult{}, err
 	}
 
-	// Cosmos SDK 0.50 ABCI++ requires FinalizeBlock requests to carry the target
-	// block height (must be >= 1 and match LastBlockHeight+1), otherwise BaseApp
-	// rejects the request with "invalid height: 0".
 	req := abci.RequestFinalizeBlock{
-		Height: app.LastBlockHeight() + 1,
-		Txs:    [][]byte{bz},
+		Height:          app.LastBlockHeight() + 1,
+		ProposerAddress: proposerAddr,
+		Txs:             [][]byte{bz},
 	}
 
 	res, err := app.BaseApp.FinalizeBlock(&req)
@@ -202,6 +200,13 @@ func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.Valid
 		}
 		header.ValidatorsHash = vs.Hash()
 		header.NextValidatorsHash = nextVals.Hash()
+
+		// Rotate proposer like CometBFT does between blocks, so a validator
+		// removed by the just-applied updates can't linger as
+		// ctx.BlockHeader().ProposerAddress and break EVM's coinbase lookup
+		// in subsequent DeliverEthTx calls.
+		nextVals.IncrementProposerPriority(1)
+		header.ProposerAddress = nextVals.Proposer.Address
 	}
 
 	if _, err := app.Commit(); err != nil {

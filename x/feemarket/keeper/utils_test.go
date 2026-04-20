@@ -51,13 +51,20 @@ func (suite *KeeperTestSuite) SetupApp(checkTx bool, chainID string) {
 	suite.address = common.BytesToAddress(priv.PubKey().Address().Bytes())
 	suite.signer = utiltx.NewSigner(priv)
 
-	// consensus key
 	priv, err = ethsecp256k1.GenPrivKey()
 	require.NoError(t, err)
-	suite.consAddress = sdk.ConsAddress(priv.PubKey().Address())
 
-	// create base context first, then set header, gas meter, and chain ID
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx)
+
+	// Proposer must match a validator already persisted in CMS (genesis valSet),
+	// otherwise EVM's coinbase lookup fails in FinalizeBlock.
+	vals, err := suite.app.StakingKeeper.GetBondedValidatorsByPower(suite.ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, vals, "expected genesis valSet")
+	cpk, err := vals[0].ConsPubKey()
+	require.NoError(t, err)
+	suite.consAddress = sdk.ConsAddress(cpk.Address())
+
 	header := testutil.NewHeader(1, time.Now().UTC(), chainID, suite.consAddress, nil, nil)
 	suite.ctx = suite.ctx.WithBlockHeader(header)
 	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewInfiniteGasMeter())

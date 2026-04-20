@@ -7,9 +7,9 @@ import (
 )
 
 func (suite *KeeperTestSuite) TestSetGetParams() {
+	// Pin DefaultParams locally; SetupTest's FinalizeBlock may decay BaseFee.
+	suite.Require().NoError(suite.app.FeeMarketKeeper.SetParams(suite.ctx, types.DefaultParams()))
 	params := suite.app.FeeMarketKeeper.GetParams(suite.ctx)
-	err := suite.app.FeeMarketKeeper.SetParams(suite.ctx, params)
-	suite.Require().NoError(err)
 	testCases := []struct {
 		name      string
 		paramsFun func() interface{}
