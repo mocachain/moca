@@ -29,6 +29,7 @@ type TestSuite struct {
 
 	cdc             codec.Codec
 	challengeKeeper *keeper.Keeper
+	storeKey        storetypes.StoreKey
 
 	bankKeeper    *types.MockBankKeeper
 	storageKeeper *types.MockStorageKeeper
@@ -80,6 +81,7 @@ func (s *TestSuite) SetupTest() {
 	)
 
 	s.cdc = encCfg.Codec
+	s.storeKey = key
 	s.bankKeeper = bankKeeper
 	s.storageKeeper = storageKeeper
 	s.spKeeper = spKeeper
@@ -165,6 +167,17 @@ func (s *TestSuite) TestBeginBlocker_RemoveSpSlashAmount() {
 	challenge.BeginBlocker(s.ctx, *s.challengeKeeper)
 	s.Require().False(s.challengeKeeper.GetSpSlashAmount(s.ctx, 100).Int64() == 100)
 	s.Require().False(s.challengeKeeper.GetSpSlashAmount(s.ctx, 200).Int64() == 200)
+}
+
+// BeginBlocker must not panic when params are unset (zero SpSlashCountingWindow).
+func (s *TestSuite) TestBeginBlocker_ZeroSpSlashCountingWindow_NoPanic() {
+	s.ctx.KVStore(s.storeKey).Delete(types.ParamsKey)
+	s.Require().Equal(uint64(0), s.challengeKeeper.GetParams(s.ctx).SpSlashCountingWindow)
+
+	s.ctx = s.ctx.WithBlockHeight(1)
+	s.Require().NotPanics(func() {
+		s.Require().NoError(challenge.BeginBlocker(s.ctx, *s.challengeKeeper))
+	})
 }
 
 func (s *TestSuite) TestEndBlocker_NoRandomChallenge() {
