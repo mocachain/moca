@@ -9,10 +9,14 @@ import (
 	sdkmath "cosmossdk.io/math"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -23,6 +27,7 @@ import (
 	cosmosante "github.com/evmos/evmos/v12/app/ante/cosmos"
 	testutil "github.com/evmos/evmos/v12/testutil"
 	utiltx "github.com/evmos/evmos/v12/testutil/tx"
+	evmostypes "github.com/evmos/evmos/v12/types"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
 )
 
@@ -333,6 +338,47 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 		return msg
 	}
 
+	createEIP712ShellTx := func(priv cryptotypes.PrivKey, msgs ...sdk.Msg) (sdk.Tx, error) {
+		txBuilder := suite.clientCtx.TxConfig.NewTxBuilder()
+		txBuilder.SetGasLimit(200000)
+		txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewInt(20))))
+		if err := txBuilder.SetMsgs(msgs...); err != nil {
+			return nil, err
+		}
+
+		builder, ok := txBuilder.(authtx.ExtensionOptionsTxBuilder)
+		if !ok {
+			return nil, fmt.Errorf("txBuilder does not support extension options")
+		}
+
+		parsedChainID, err := evmostypes.ParseChainID(suite.ctx.ChainID())
+		if err != nil {
+			return nil, err
+		}
+
+		option, err := codectypes.NewAnyWithValue(&evmostypes.ExtensionOptionsWeb3Tx{
+			FeePayer:         common.BytesToAddress(priv.PubKey().Address()).Hex(),
+			TypedDataChainID: parsedChainID.Uint64(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		builder.SetExtensionOptions(option)
+
+		err = txBuilder.SetSignatures(signing.SignatureV2{
+			PubKey: priv.PubKey(),
+			Data: &signing.SingleSignatureData{
+				SignMode: signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
+			},
+			Sequence: 0,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return txBuilder.GetTx(), nil
+	}
+
 	testcases := []struct {
 		name         string
 		msgs         []sdk.Msg
@@ -441,26 +487,7 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 			)
 
 			if tc.isEIP712 {
-				coinAmount := sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewInt(20))
-				fees := sdk.NewCoins(coinAmount)
-				cosmosTxArgs := utiltx.CosmosTxArgs{
-					TxCfg:   suite.clientCtx.TxConfig,
-					Priv:    suite.priv,
-					ChainID: suite.ctx.ChainID(),
-					Gas:     200000,
-					Fees:    fees,
-					Msgs:    tc.msgs,
-				}
-
-				tx, err = utiltx.CreateEIP712CosmosTx(
-					suite.ctx,
-					suite.app,
-					utiltx.EIP712TxArgs{
-						CosmosTxArgs:       cosmosTxArgs,
-						UseLegacyExtension: true,
-						UseLegacyTypedData: true,
-					},
-				)
+				tx, err = createEIP712ShellTx(suite.priv, tc.msgs...)
 			} else {
 				tx, err = createTx(suite.priv, tc.msgs...)
 			}
@@ -481,7 +508,8 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 
 			resDeliverTx, err := suite.app.FinalizeBlock(
 				&abci.RequestFinalizeBlock{
-					Txs: [][]byte{bz},
+					Height: suite.app.LastBlockHeight() + 1,
+					Txs:    [][]byte{bz},
 				},
 			)
 			suite.Require().NoError(err)

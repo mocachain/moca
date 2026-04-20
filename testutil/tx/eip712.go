@@ -46,6 +46,7 @@ type typedDataArgs struct {
 	data           []byte
 	legacyFeePayer sdk.AccAddress
 	legacyMsg      sdk.Msg
+	unpacker       codectypes.AnyUnpacker
 }
 
 type signatureV2Args struct {
@@ -73,7 +74,11 @@ func CreateEIP712CosmosTx(
 		appEvmos,
 		args,
 	)
-	return builder.GetTx(), err
+	if err != nil {
+		return nil, err
+	}
+
+	return builder.GetTx(), nil
 }
 
 // PrepareEIP712CosmosTx creates a cosmos tx for typed data according to EIP712.
@@ -85,8 +90,12 @@ func PrepareEIP712CosmosTx(
 	args EIP712TxArgs,
 ) (client.TxBuilder, error) {
 	txArgs := args.CosmosTxArgs
+	chainID := txArgs.ChainID
+	if chainID == "" {
+		chainID = ctx.ChainID()
+	}
 
-	pc, err := types.ParseChainID(txArgs.ChainID)
+	pc, err := types.ParseChainID(chainID)
 	if err != nil {
 		return nil, err
 	}
@@ -103,13 +112,14 @@ func PrepareEIP712CosmosTx(
 	fee := legacytx.NewStdFee(txArgs.Gas, txArgs.Fees) //nolint: staticcheck
 
 	msgs := txArgs.Msgs
-	data := legacytx.StdSignBytes(ctx.ChainID(), accNumber, nonce, 0, fee, msgs, "")
+	data := legacytx.StdSignBytes(chainID, accNumber, nonce, 0, fee, msgs, "")
 
 	typedDataArgs := typedDataArgs{
 		chainID:        chainIDNum,
 		data:           data,
 		legacyFeePayer: from,
 		legacyMsg:      msgs[0],
+		unpacker:       appEvmos.AppCodec(),
 	}
 	typedData, err := createTypedData(typedDataArgs, args.UseLegacyTypedData)
 	if err != nil {
@@ -203,17 +213,20 @@ func signCosmosEIP712Tx(
 // the arguments, using the legacy implementation as specified.
 func createTypedData(args typedDataArgs, useLegacy bool) (apitypes.TypedData, error) {
 	if useLegacy {
-		registry := codectypes.NewInterfaceRegistry()
-		types.RegisterInterfaces(registry)
-		cryptocodec.RegisterInterfaces(registry)
-		evmosCodec := codec.NewProtoCodec(registry)
+		unpacker := args.unpacker
+		if unpacker == nil {
+			registry := codectypes.NewInterfaceRegistry()
+			types.RegisterInterfaces(registry)
+			cryptocodec.RegisterInterfaces(registry)
+			unpacker = codec.NewProtoCodec(registry)
+		}
 
 		feeDelegation := &eip712.FeeDelegationOptions{
 			FeePayer: args.legacyFeePayer,
 		}
 
 		return eip712.LegacyWrapTxToTypedData(
-			evmosCodec,
+			unpacker,
 			args.chainID,
 			args.legacyMsg,
 			args.data,

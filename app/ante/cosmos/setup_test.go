@@ -91,7 +91,7 @@ func (suite *AnteTestSuite) SetupTest() {
 		return genesis
 	})
 
-	suite.ctx = suite.app.BaseApp.NewContext(checkTx)
+	suite.ctx = suite.app.BaseApp.NewContext(checkTx).WithChainID(chainID)
 	suite.ctx = suite.ctx.WithMinGasPrices(sdk.NewDecCoins(sdk.NewDecCoin(utils.BaseDenom, sdkmath.OneInt())))
 	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewGasMeter(1000000000000000000))
 
@@ -107,7 +107,9 @@ func (suite *AnteTestSuite) SetupTest() {
 	eip712.AminoCodec = encodingConfig.Amino
 	eip712.ProtoCodec = codec.NewProtoCodec(encodingConfig.InterfaceRegistry)
 
-	suite.clientCtx = client.Context{}.WithTxConfig(encodingConfig.TxConfig)
+	suite.clientCtx = client.Context{}.
+		WithTxConfig(encodingConfig.TxConfig).
+		WithChainID(chainID)
 
 	anteHandler := ante.NewAnteHandler(ante.HandlerOptions{
 		AccountKeeper:          suite.app.AccountKeeper,
@@ -139,6 +141,7 @@ func (suite *AnteTestSuite) SetupTest() {
 	suite.ctx = suite.ctx.WithBlockHeight(header.Height - 1)
 	suite.ctx, err = testutil.Commit(suite.ctx, suite.app, time.Second*0, nil)
 	suite.Require().NoError(err)
+	suite.ctx = suite.ctx.WithChainID(chainID)
 }
 
 func TestAnteTestSuite(t *testing.T) {

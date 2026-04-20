@@ -98,6 +98,11 @@ func signCosmosTx(
 	args CosmosTxArgs,
 	txBuilder client.TxBuilder,
 ) (authsigning.Tx, error) {
+	chainID := args.ChainID
+	if chainID == "" {
+		chainID = ctx.ChainID()
+	}
+
 	addr := sdk.AccAddress(args.Priv.PubKey().Address().Bytes())
 	seq, err := appEvmos.AccountKeeper.GetSequence(ctx, addr)
 	if err != nil {
@@ -129,7 +134,7 @@ func signCosmosTx(
 	// Second round: all signer infos are set, so each signer can sign.
 	accNumber := appEvmos.AccountKeeper.GetAccount(ctx, addr).GetAccountNumber()
 	signerData := authsigning.SignerData{
-		ChainID:       args.ChainID,
+		ChainID:       chainID,
 		AccountNumber: accNumber,
 		Sequence:      seq,
 	}
