@@ -21,6 +21,7 @@ source "${ENV_FILE}"
 # Backward compatible with older .env files that only defined STOREAGE_* (typo).
 STORAGE_PROVIDER_ADDRESS_PORT_START="${STORAGE_PROVIDER_ADDRESS_PORT_START:-${STOREAGE_PROVIDER_ADDRESS_PORT_START:-9033}}"
 STOREAGE_PROVIDER_ADDRESS_PORT_START="${STOREAGE_PROVIDER_ADDRESS_PORT_START:-$STORAGE_PROVIDER_ADDRESS_PORT_START}"
+TIMEOUT_COMMIT="${TIMEOUT_COMMIT:-1s}"
 
 # Silent mode flag (enabled by default to reduce terminal output noise)
 QUIET_MODE=true
@@ -258,10 +259,10 @@ function generate_genesis() {
 		sed -i -e "s/timeout_prevote_delta = \"500ms\"/timeout_prevote_delta = \"200ms\"/g" ${local_env}/validator${i}/config/config.toml
 		sed -i -e "s/timeout_precommit = \"1s\"/timeout_precommit = \"500ms\"/g" ${local_env}/validator${i}/config/config.toml
 		sed -i -e "s/timeout_precommit_delta = \"500ms\"/timeout_precommit_delta = \"200ms\"/g" ${local_env}/validator${i}/config/config.toml
-		sed -i -e "s/timeout_commit = \"3s\"/timeout_commit = \"500ms\"/g" ${local_env}/validator${i}/config/config.toml
+		sed -i -e "s/timeout_commit = \"3s\"/timeout_commit = \"${TIMEOUT_COMMIT}\"/g" ${local_env}/validator${i}/config/config.toml
 		sed -i -e "s/addr_book_strict = true/addr_book_strict = false/g" ${local_env}/validator${i}/config/config.toml
 		sed -i -e "s/allow_duplicate_ip = false/allow_duplicate_ip = true/g" ${local_env}/validator${i}/config/config.toml
-		sed -i -e "s/snapshot-interval = 0/snapshot-interval = ${SNAPSHOT_INTERVAL}/g" ${local_env}/validator${i}/config/app.toml
+		sed -i -e "s/snapshot-interval = [0-9][0-9]*/snapshot-interval = ${SNAPSHOT_INTERVAL}/g" ${local_env}/validator${i}/config/app.toml
 		sed -i -e "s/src-chain-id = 1/src-chain-id = ${SRC_CHAIN_ID}/g" ${local_env}/validator${i}/config/app.toml
 		sed -i -e "s/dest-bsc-chain-id = 2/dest-bsc-chain-id = ${DEST_CHAIN_ID}/g" ${local_env}/validator${i}/config/app.toml
 		sed -i -e "s/dest-op-chain-id = 3/dest-op-chain-id = ${DEST_OP_CHAIN_ID}/g" ${local_env}/validator${i}/config/app.toml
