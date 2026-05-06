@@ -15,6 +15,7 @@ fi
 
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
+TIMEOUT_COMMIT="${TIMEOUT_COMMIT:-1s}"
 
 function init() {
     echo "init chain..."
@@ -27,7 +28,7 @@ function config_toml() {
     home=$1
     sed -i -e "s/seeds = \"[^\"]*\"/seeds = \"\"/g" $home/config/config.toml
     sed -i -e "s/persistent_peers = \".*\"/persistent_peers = \"${PERSISTENT_PEERS}\"/g" $home/config/config.toml
-    sed -i -e "s/timeout_commit = \"3s\"/timeout_commit = \"1s\"/g" $home/config/config.toml
+    sed -i -e "s/timeout_commit = \"3s\"/timeout_commit = \"${TIMEOUT_COMMIT}\"/g" $home/config/config.toml
     sed -i -e "s/addr_book_strict = true/addr_book_strict = false/g" $home/config/config.toml
     sed -i -e "s/allow_duplicate_ip = false/allow_duplicate_ip = true/g" $home/config/config.toml
     sed -i -e "s/log_level = \"info\"/\log_level= \"debug\"/g" $home/config/config.toml
@@ -39,7 +40,7 @@ function app_toml() {
     echo "config app.toml..."
     home=$1
     sed -i -e "s/minimum-gas-prices = \"0amoca\"/minimum-gas-prices = \"5000000000${BASIC_DENOM}\"/g" $home/config/app.toml
-    sed -i -e "s/snapshot-interval = 0/snapshot-interval = ${SNAPSHOT_INTERVAL}/g" $home/config/app.toml
+    sed -i -e "s/snapshot-interval = [0-9][0-9]*/snapshot-interval = ${SNAPSHOT_INTERVAL}/g" $home/config/app.toml
     sed -i -e "s/src-chain-id = 1/src-chain-id = ${SRC_CHAIN_ID}/g" $home/config/app.toml
     sed -i -e "s/dest-bsc-chain-id = 2/dest-bsc-chain-id = ${DEST_CHAIN_ID}/g" $home/config/app.toml
     sed -i -e "s/dest-op-chain-id = 3/dest-op-chain-id = ${DEST_OP_CHAIN_ID}/g" $home/config/app.toml
