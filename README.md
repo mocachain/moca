@@ -70,7 +70,6 @@ More advanced script and command line usage, please refer to the [Tutorial](http
 
 And the following modules are in cosmos-sdk:
 
-- `x/gashub`: provide a governable and predictable fee charge mechanism.
 - `x/staking`: based on the Proof-of-Stake logic. The elected validators are responsible for the security of the moca
   blockchain. They get involved in the governance and staking of the blockchain.
 

@@ -24,7 +24,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -353,7 +352,6 @@ func OutputsProposal(proposal govv1.Proposal) Proposal {
 	authtypes.RegisterInterfaces(interfaceRegistry)
 	banktypes.RegisterInterfaces(interfaceRegistry)
 	consensustypes.RegisterInterfaces(interfaceRegistry)
-	gashubtypes.RegisterInterfaces(interfaceRegistry)
 	stakingtypes.RegisterInterfaces(interfaceRegistry)
 	distrtypes.RegisterInterfaces(interfaceRegistry)
 	slashingtypes.RegisterInterfaces(interfaceRegistry)

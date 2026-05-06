@@ -90,9 +90,6 @@ import (
 	distr "github.com/cosmos/cosmos-sdk/x/distribution"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	"github.com/cosmos/cosmos-sdk/x/gashub"
-	gashubkeeper "github.com/cosmos/cosmos-sdk/x/gashub/keeper"
-	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
@@ -245,7 +242,6 @@ type Evmos struct {
 	GovKeeper             govkeeper.Keeper
 	UpgradeKeeper         *upgradekeeper.Keeper
 	FeeGrantKeeper        feegrantkeeper.Keeper
-	GashubKeeper          gashubkeeper.Keeper
 	EvidenceKeeper        evidencekeeper.Keeper
 	ConsensusParamsKeeper consensusparamkeeper.Keeper
 
@@ -335,7 +331,6 @@ func NewEvmos(
 		govtypes.StoreKey, upgradetypes.StoreKey,
 		evidencetypes.StoreKey, consensusparamtypes.StoreKey,
 		feegrant.StoreKey,
-		gashubtypes.StoreKey,
 		spmoduletypes.StoreKey,
 		virtualgroupmoduletypes.StoreKey,
 		paymentmoduletypes.StoreKey,
@@ -503,13 +498,6 @@ func NewEvmos(
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
-	app.GashubKeeper = gashubkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[gashubtypes.StoreKey]),
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-	)
-	gashubModule := gashub.NewAppModule(app.GashubKeeper)
-
 	app.SpKeeper = *spmodulekeeper.NewKeeper(
 		appCodec,
 		keys[spmoduletypes.StoreKey],
@@ -599,7 +587,6 @@ func NewEvmos(
 		upgrade.NewAppModule(app.UpgradeKeeper, cmdcfg.NewMultiPrefixBech32AccCodec()),
 		evidence.NewAppModule(app.EvidenceKeeper),
 		consensus.NewAppModule(appCodec, app.ConsensusParamsKeeper),
-		gashubModule,
 		spModule,
 		virtualgroupModule,
 		paymentModule,
@@ -646,7 +633,6 @@ func NewEvmos(
 		stakingtypes.ModuleName,
 		authz.ModuleName,
 		feegrant.ModuleName,
-		gashubtypes.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
 		paymentmoduletypes.ModuleName,
@@ -665,7 +651,6 @@ func NewEvmos(
 		authz.ModuleName,
 		feegrant.ModuleName,
 		// Evmos modules
-		gashubtypes.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
 		paymentmoduletypes.ModuleName,
@@ -686,7 +671,6 @@ func NewEvmos(
 		stakingtypes.ModuleName,
 		slashingtypes.ModuleName,
 		govtypes.ModuleName,
-		gashubtypes.ModuleName,
 		// Ethermint modules
 		// evm module denomination is used by the revenue module, in AnteHandle
 		evmtypes.ModuleName,
@@ -853,7 +837,6 @@ func (app *Evmos) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) 
 		ExtensionOptionChecker: evmostypes.HasDynamicFeeExtensionOption,
 		EvmKeeper:              app.EvmKeeper,
 		FeegrantKeeper:         app.FeeGrantKeeper,
-		GashubKeeper:           app.GashubKeeper,
 		DistributionKeeper:     app.DistrKeeper,
 		FeeMarketKeeper:        app.FeeMarketKeeper,
 		SignModeHandler:        txConfig.SignModeHandler(),
@@ -1241,7 +1224,6 @@ func (app *Evmos) setupUpgradeHandlers() {
 	})
 
 	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		// noop
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
@@ -1253,7 +1235,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis", "gashub"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
