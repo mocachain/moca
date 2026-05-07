@@ -248,14 +248,20 @@ fw_tx_send() {
     local from="$1" to="$2" amount="$3"
     local fees="${4:-200000000000000amoca}"
 
-    exec_mocad tx bank send "$from" "$to" "$amount" \
+    local out hash
+    out=$(exec_mocad tx bank send "$from" "$to" "$amount" \
         --from "$from" \
         --keyring-backend test \
         --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 \
         --fees "$fees" \
-        -y > /dev/null 2>&1
-    sleep 5
+        --broadcast-mode sync -y --output json 2>&1) || {
+        log_error "  fw_tx_send broadcast failed: $out"
+        return 1
+    }
+    hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
+    [ -z "$hash" ] && { log_error "  fw_tx_send returned no txhash: $out"; return 1; }
+    fw_wait_cosmos_tx "$hash"
 }
 
 fw_wait_blocks() {
@@ -264,53 +270,4 @@ fw_wait_blocks() {
     current=$(get_block_height "http://localhost:26657")
     local target=$((current + n))
     wait_for_height "$target" "http://localhost:26657"
-}
-
-# Poll a Cosmos tx hash until it's included in a block (or timeout).
-# Returns 0 if the tx was included with code=0, 1 if it failed on chain
-# or wasn't included within the retry budget.
-#
-# Usage: fw_wait_cosmos_tx <txhash> [retries=30]
-fw_wait_cosmos_tx() {
-    local hash="$1"
-    local retries="${2:-30}"
-    local i out code raw
-    for ((i = 0; i < retries; i++)); do
-        out=$(exec_mocad query tx "$hash" \
-            --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
-            --output json 2>/dev/null) || true
-        code=$(echo "$out" | jq -r '.code // empty' 2>/dev/null)
-        if [ -n "$code" ]; then
-            if [ "$code" = "0" ]; then return 0; fi
-            raw=$(echo "$out" | jq -r '.raw_log // empty' 2>/dev/null)
-            log_error "  cosmos tx $hash failed on-chain: code=$code log=$raw"
-            return 1
-        fi
-        sleep 1
-    done
-    log_error "  cosmos tx $hash not included after ${retries}s"
-    return 1
-}
-
-# Poll an EVM tx hash until it's mined (or timeout).
-# Returns 0 if the receipt status == 0x1, 1 if reverted or not mined.
-#
-# Usage: fw_wait_evm_tx <txhash> [retries=30] [rpc=http://localhost:8545]
-fw_wait_evm_tx() {
-    local hash="$1"
-    local retries="${2:-30}"
-    local rpc="${3:-http://localhost:8545}"
-    local i receipt status
-    for ((i = 0; i < retries; i++)); do
-        receipt=$(cast receipt "$hash" --rpc-url "$rpc" --json 2>/dev/null) || true
-        status=$(echo "$receipt" | jq -r '.status // empty' 2>/dev/null)
-        if [ -n "$status" ]; then
-            if [ "$status" = "0x1" ]; then return 0; fi
-            log_error "  evm tx $hash reverted: status=$status"
-            return 1
-        fi
-        sleep 1
-    done
-    log_error "  evm tx $hash not mined after ${retries}s"
-    return 1
 }

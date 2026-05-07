@@ -52,10 +52,13 @@ evm_setup() {
         evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$val0_addr" "1000000000000000000000000"
         evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$_EVM_ALICE_ADDR" "500000000000000000000000"
         evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$_EVM_BOB_ADDR" "250000000000000000000000"
-        # Initial approve
-        cast send "$_EVM_ERC20_ADDR" "approve(address,uint256)" "$_EVM_BOB_ADDR" "50000000000000000000000" \
-            --private-key "$_EVM_ALICE_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1 || true
-        sleep 2
+        # Initial approve (sync wait via fw_wait_evm_tx)
+        local approve_out approve_hash
+        approve_out=$(cast send "$_EVM_ERC20_ADDR" "approve(address,uint256)" "$_EVM_BOB_ADDR" "50000000000000000000000" \
+            --private-key "$_EVM_ALICE_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) \
+            || log_warn "[evm] approve broadcast failed: $approve_out"
+        approve_hash=$(echo "$approve_out" | jq -r '.transactionHash // empty' 2>/dev/null)
+        [ -n "$approve_hash" ] && fw_wait_evm_tx "$approve_hash" 10 "$EVM_RPC"
         # Record state
         _EVM_PRE_TOKEN_NAME=$(evm_call "$_EVM_ERC20_ADDR" "name()(string)")
         _EVM_PRE_TOKEN_SYMBOL=$(evm_call "$_EVM_ERC20_ADDR" "symbol()(string)")

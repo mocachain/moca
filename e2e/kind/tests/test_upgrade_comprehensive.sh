@@ -103,7 +103,7 @@ evm_transfer() {
     }
     hash=$(echo "$out" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  evm_transfer returned no hash: $out"; return 1; }
-    fw_wait_evm_tx "$hash" 30 "$EVM_RPC"
+    fw_wait_evm_tx "$hash" 10 "$EVM_RPC"
 }
 
 evm_send() {
@@ -115,7 +115,7 @@ evm_send() {
     }
     hash=$(echo "$out" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  evm_send returned no hash: $out"; return 1; }
-    fw_wait_evm_tx "$hash" 30 "$EVM_RPC"
+    fw_wait_evm_tx "$hash" 10 "$EVM_RPC"
 }
 
 evm_call() {
@@ -132,7 +132,7 @@ evm_deploy() {
     }
     hash=$(echo "$output" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  evm_deploy returned no hash: $output"; return 1; }
-    fw_wait_evm_tx "$hash" 30 "$EVM_RPC" || return 1
+    fw_wait_evm_tx "$hash" 10 "$EVM_RPC" || return 1
     cast receipt "$hash" --rpc-url "$EVM_RPC" --json 2>/dev/null \
         | jq -r '.contractAddress // empty' 2>/dev/null
 }
