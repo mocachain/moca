@@ -53,33 +53,69 @@ write_to_pod() {
         bash -c "cat > $2" 2>/dev/null
 }
 
+# Broadcast a Cosmos tx via sync mode and wait for inclusion. Returns 0 on
+# successful on-chain execution, 1 on broadcast or execution failure.
 cosmos_tx() {
-    exec_mocad tx "$@" \
+    local out hash
+    out=$(exec_mocad tx "$@" \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 --fees 200000000000000amoca \
-        -y > /dev/null 2>&1 || true
-    sleep 1
+        --broadcast-mode sync -y --output json 2>&1) || {
+        log_error "  cosmos_tx broadcast failed: $out"
+        return 1
+    }
+    hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
+    if [ -z "$hash" ]; then
+        log_error "  cosmos_tx returned no txhash: $out"
+        return 1
+    fi
+    fw_wait_cosmos_tx "$hash"
 }
 
 cosmos_tx_on() {
     local idx="$1"; shift
-    exec_on_validator "$idx" tx "$@" \
+    local out hash
+    out=$(exec_on_validator "$idx" tx "$@" \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 --fees 200000000000000amoca \
-        -y > /dev/null 2>&1 || true
-    sleep 1
+        --broadcast-mode sync -y --output json 2>&1) || {
+        log_error "  cosmos_tx_on broadcast failed: $out"
+        return 1
+    }
+    hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
+    if [ -z "$hash" ]; then
+        log_error "  cosmos_tx_on returned no txhash: $out"
+        return 1
+    fi
+    fw_wait_cosmos_tx "$hash"
 }
 
+# Broadcast an EVM tx and wait for receipt. cast send is synchronous by
+# default; we capture the txhash so failures surface (instead of being
+# swallowed) and so callers can verify status explicitly if needed.
 evm_transfer() {
-    cast send "$1" --value "$2" \
+    local out hash
+    out=$(cast send "$1" --value "$2" \
         --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1 || true
+        --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
+        log_error "  evm_transfer broadcast failed: $out"
+        return 1
+    }
+    hash=$(echo "$out" | jq -r '.transactionHash // empty' 2>/dev/null)
+    [ -z "$hash" ] && { log_error "  evm_transfer returned no hash: $out"; return 1; }
+    fw_wait_evm_tx "$hash" 30 "$EVM_RPC"
 }
 
 evm_send() {
-    cast send "$@" --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1 || true
-    sleep 2
+    local out hash
+    out=$(cast send "$@" --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
+        --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
+        log_error "  evm_send broadcast failed: $out"
+        return 1
+    }
+    hash=$(echo "$out" | jq -r '.transactionHash // empty' 2>/dev/null)
+    [ -z "$hash" ] && { log_error "  evm_send returned no hash: $out"; return 1; }
+    fw_wait_evm_tx "$hash" 30 "$EVM_RPC"
 }
 
 evm_call() {
@@ -88,17 +124,17 @@ evm_call() {
 
 evm_deploy() {
     local bytecode="$1"
-    local output
+    local output hash
     output=$(cast send --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" --json --create "$bytecode" 2>/dev/null) || true
-    local tx_hash
-    tx_hash=$(echo "$output" | jq -r '.transactionHash // empty' 2>/dev/null) || true
-    if [ -n "$tx_hash" ]; then
-        sleep 2
-        local receipt
-        receipt=$(cast receipt "$tx_hash" --rpc-url "$EVM_RPC" --json 2>/dev/null) || true
-        echo "$receipt" | jq -r '.contractAddress // empty' 2>/dev/null || true
-    fi
+        --chain-id "$EVM_CHAIN_ID" --json --create "$bytecode" 2>&1) || {
+        log_error "  evm_deploy broadcast failed: $output"
+        return 1
+    }
+    hash=$(echo "$output" | jq -r '.transactionHash // empty' 2>/dev/null)
+    [ -z "$hash" ] && { log_error "  evm_deploy returned no hash: $output"; return 1; }
+    fw_wait_evm_tx "$hash" 30 "$EVM_RPC" || return 1
+    cast receipt "$hash" --rpc-url "$EVM_RPC" --json 2>/dev/null \
+        | jq -r '.contractAddress // empty' 2>/dev/null
 }
 
 # Shuffle an array (Fisher-Yates). Usage: shuffle_array array_name
