@@ -18,7 +18,6 @@ import (
 	authztypes "github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -53,9 +52,6 @@ type DistrQueryClient = distrtypes.QueryClient
 
 // FeegrantQueryClient is a type to define the feegrant types Query Client
 type FeegrantQueryClient = feegranttypes.QueryClient
-
-// GashubQueryClient is a type to define the gashub types Query Client
-type GashubQueryClient = gashubtypes.QueryClient
 
 // PaymentQueryClient is a type to define the payment types Query Client
 type PaymentQueryClient = paymenttypes.QueryClient
@@ -101,8 +97,6 @@ type MocaClient struct {
 	DistrQueryClient
 	// FeegrantQueryClient holds the feegrant query client.
 	FeegrantQueryClient
-	// GashubQueryClient holds the gashub query client.
-	GashubQueryClient
 	// PaymentQueryClient holds the payment query client.
 	PaymentQueryClient
 	// SpQueryClient holds the sp query client.
@@ -208,7 +202,6 @@ func setClientsConn(c *MocaClient, conn grpc1.ClientConn, evmCli *ethclient.Clie
 	c.ChallengeQueryClient = challengetypes.NewQueryClient(conn)
 	c.DistrQueryClient = distrtypes.NewQueryClient(conn)
 	c.FeegrantQueryClient = feegranttypes.NewQueryClient(conn)
-	c.GashubQueryClient = gashubtypes.NewQueryClient(conn)
 	c.PaymentQueryClient = paymenttypes.NewQueryClient(conn)
 	// c.SpQueryClient = spcli.NewQueryClientEVM(evmCli)
 	c.SpQueryClient = sptypes.NewQueryClient(conn)

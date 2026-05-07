@@ -11,7 +11,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -45,7 +44,6 @@ func Codec() *codec.ProtoCodec {
 	nft.RegisterInterfaces(interfaceRegistry)
 	// evidencetypes.RegisterInterfaces is not available in cosmossdk.io/x/evidence
 	// Evidence interfaces are registered via module manager in app.go
-	gashubtypes.RegisterInterfaces(interfaceRegistry)
 	minttypes.RegisterInterfaces(interfaceRegistry)
 	vgtypes.RegisterInterfaces(interfaceRegistry)
 

@@ -121,7 +121,6 @@ func (suite *AnteTestSuite) SetupTest() {
 		SigGasConsumer:         ante.SigVerificationGasConsumer,
 		ExtensionOptionChecker: types.HasDynamicFeeExtensionOption,
 		TxFeeChecker:           evmante.NewDynamicFeeChecker(suite.app.EvmKeeper),
-		GashubKeeper:           suite.app.GashubKeeper,
 	})
 
 	suite.anteHandler = anteHandler
