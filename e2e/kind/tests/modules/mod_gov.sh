@@ -35,8 +35,8 @@ _gov_submit_proposal() {
         return 1
     fi
 
-    # Submit proposal using direct kubectl exec (matches upgrade-chain.sh pattern)
-    local submit_out
+    # Submit proposal via sync broadcast so we deterministically get a txhash
+    local submit_out broadcast_code txhash
     submit_out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
         mocad tx gov submit-proposal "${tmpfile}" \
         --from validator0 \
@@ -45,32 +45,20 @@ _gov_submit_proposal() {
         --node tcp://localhost:26657 \
         --fees "$fees" \
         --home /root/.mocad \
-        -y 2>&1) || true
-
-    # Extract txhash for later verification
-    local txhash
-    txhash=$(echo "$submit_out" | grep 'txhash:' | awk '{print $2}') || true
-    log_info "  [gov] broadcast response: code=$(echo "$submit_out" | grep 'code:' | head -1 | awk '{print $2}') txhash=${txhash:-none}" >&2
-
-    # Wait for tx to be included in a block
-    sleep 5
-
-    # Check if the tx actually succeeded by querying the result
-    if [ -n "$txhash" ]; then
-        local tx_result
-        tx_result=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
-            mocad query tx "$txhash" \
-            --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
-            --home /root/.mocad --output json 2>/dev/null) || true
-        local result_code
-        result_code=$(echo "$tx_result" | jq -r '.code // empty' 2>/dev/null) || true
-        if [ -n "$result_code" ] && [ "$result_code" != "0" ]; then
-            local raw_log
-            raw_log=$(echo "$tx_result" | jq -r '.raw_log // .logs // empty' 2>/dev/null) || true
-            log_warn "  [gov] tx execution FAILED: code=${result_code} log=${raw_log}" >&2
-            return 1
-        fi
+        --broadcast-mode sync -y --output json 2>&1) || {
+        log_warn "  [gov] broadcast failed: $submit_out" >&2
+        return 1
+    }
+    broadcast_code=$(echo "$submit_out" | jq -r '.code // empty' 2>/dev/null)
+    txhash=$(echo "$submit_out" | jq -r '.txhash // empty' 2>/dev/null)
+    log_info "  [gov] broadcast response: code=${broadcast_code:-?} txhash=${txhash:-none}" >&2
+    if [ -z "$txhash" ]; then
+        log_warn "  [gov] no txhash in broadcast response: $submit_out" >&2
+        return 1
     fi
+
+    # Wait for inclusion + on-chain success
+    fw_wait_cosmos_tx "$txhash" || return 1
 
     # Verify proposal was actually created by checking count increased
     local after_count

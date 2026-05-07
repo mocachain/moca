@@ -3,7 +3,9 @@
 
 _DIST_VAL_IDX=0
 
-# Single distribution tx — withdraw rewards from rotating validator
+# Single distribution tx — withdraw rewards from rotating validator.
+# VAL_OPERS[idx] is now indexed by validator-N pod number (see comment in
+# test_upgrade_comprehensive.sh), so it matches the --from validator${idx}.
 distribution_tx() {
     local idx=$((_DIST_VAL_IDX % NUM_VALIDATORS))
     log_info "  [distribution] withdraw rewards: validator${idx}"

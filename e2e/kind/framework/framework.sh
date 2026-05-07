@@ -248,14 +248,23 @@ fw_tx_send() {
     local from="$1" to="$2" amount="$3"
     local fees="${4:-200000000000000amoca}"
 
-    exec_mocad tx bank send "$from" "$to" "$amount" \
+    local out hash
+    # Direct kubectl exec so mocad's stderr (errors) reaches our 2>&1.
+    out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+        mocad tx bank send "$from" "$to" "$amount" \
+        --home /root/.mocad \
         --from "$from" \
         --keyring-backend test \
         --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 \
         --fees "$fees" \
-        -y > /dev/null 2>&1
-    sleep 5
+        --broadcast-mode sync -y --output json 2>&1) || {
+        log_error "  fw_tx_send broadcast failed: $out"
+        return 1
+    }
+    hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
+    [ -z "$hash" ] && { log_error "  fw_tx_send returned no txhash: $out"; return 1; }
+    fw_wait_cosmos_tx "$hash"
 }
 
 fw_wait_blocks() {

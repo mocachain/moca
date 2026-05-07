@@ -14,6 +14,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib.sh"
 
 : "${UPGRADE_NAME:?UPGRADE_NAME is required}"
@@ -83,8 +84,8 @@ PROPOSAL_EOF
     echo "$proposal_json" | kubectl exec -i -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
         bash -c "cat > /tmp/upgrade-proposal.json" || true
 
-    # Submit proposal
-    local submit_out=""
+    # Submit proposal via sync broadcast + wait for inclusion
+    local submit_out="" submit_hash=""
     submit_out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
         mocad tx gov submit-proposal /tmp/upgrade-proposal.json \
         --from validator0 \
@@ -93,10 +94,17 @@ PROPOSAL_EOF
         --node tcp://localhost:26657 \
         --fees "$fees" \
         --home /root/.mocad \
-        -y 2>&1) || true
+        --broadcast-mode sync -y --output json 2>&1) || {
+        log_error "Upgrade proposal broadcast failed: $submit_out"
+        return 1
+    }
     echo "$submit_out"
-
-    sleep 5
+    submit_hash=$(echo "$submit_out" | jq -r '.txhash // empty' 2>/dev/null)
+    if [ -z "$submit_hash" ]; then
+        log_error "Upgrade proposal returned no txhash: $submit_out"
+        return 1
+    fi
+    fw_wait_cosmos_tx "$submit_hash" || return 1
 
     # Find the proposal ID (latest proposal)
     local proposal_id=""
@@ -118,10 +126,11 @@ PROPOSAL_EOF
 
     log_info "Proposal ID: ${proposal_id}"
 
-    # Vote YES from all validators
+    # Vote YES from all validators (sync broadcast + wait per vote)
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
         log_info "  validator${i} voting YES..."
-        kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
+        local vote_out="" vote_hash=""
+        vote_out=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
             mocad tx gov vote "$proposal_id" yes \
             --from "validator${i}" \
             --keyring-backend test \
@@ -129,8 +138,16 @@ PROPOSAL_EOF
             --node tcp://localhost:26657 \
             --fees "$fees" \
             --home /root/.mocad \
-            -y 2>&1 || true
-        sleep 2
+            --broadcast-mode sync -y --output json 2>&1) || {
+            log_warn "  validator${i} vote broadcast failed: $vote_out"
+            continue
+        }
+        vote_hash=$(echo "$vote_out" | jq -r '.txhash // empty' 2>/dev/null)
+        if [ -n "$vote_hash" ]; then
+            fw_wait_cosmos_tx "$vote_hash" || log_warn "  validator${i} vote not included or failed"
+        else
+            log_warn "  validator${i} vote returned no txhash: $vote_out"
+        fi
     done
 
     log_info "Waiting for voting period to end and upgrade height ${UPGRADE_HEIGHT}..."

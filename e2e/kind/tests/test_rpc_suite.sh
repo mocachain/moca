@@ -130,14 +130,20 @@ test_evm_erc20() {
         return 1
     fi
     full="0x${bytecode#0x}${enc#0x}"
+    local deploy_hash
     deploy_out=$(cast send --json \
         --private-key "$VAL0_PRIVKEY" \
         --rpc-url "$EVM_RPC" \
         --chain-id "$EVM_CHAIN_ID" \
-        --create "$full" 2>&1) || true
+        --create "$full" 2>&1) || {
+        log_error "cast send --create broadcast failed: $(echo "$deploy_out" | head -c 1200)"
+        return 1
+    }
+    deploy_hash=$(echo "$deploy_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
+    if [ -n "$deploy_hash" ]; then fw_wait_evm_tx "$deploy_hash" 10 "$EVM_RPC" || return 1; fi
     addr=$(echo "$deploy_out" | jq -r '.contractAddress // empty' 2>/dev/null) || true
     if [ -z "$addr" ]; then
-        log_error "cast send --create failed; output: $(echo "$deploy_out" | head -c 1200)"
+        log_error "cast send --create returned no contract address; output: $(echo "$deploy_out" | head -c 1200)"
         return 1
     fi
 
@@ -156,18 +162,26 @@ test_evm_erc20() {
     assert_not_empty "$bob_key" "bob key"
     assert_not_empty "$bob_addr" "bob address"
 
-    cast send "$alice_addr" --value 1ether \
+    local fund_out fund_hash
+    fund_out=$(cast send "$alice_addr" --value 1ether \
         --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1 || true
-    sleep 4
+        --chain-id "$EVM_CHAIN_ID" --json 2>&1) || { log_error "fund alice failed: $fund_out"; return 1; }
+    fund_hash=$(echo "$fund_out" | jq -r '.transactionHash // empty' 2>/dev/null)
+    [ -n "$fund_hash" ] && fw_wait_evm_tx "$fund_hash" 10 "$EVM_RPC"
 
-    cast send "$addr" "mint(address,uint256)" "$alice_addr" "1000000000000000000000" \
-        --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1 || true
-    sleep 4
+    local mint_out mint_hash
+    mint_out=$(cast send "$addr" "mint(address,uint256)" "$alice_addr" "1000000000000000000000" \
+        --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) \
+        || { log_error "mint failed: $mint_out"; return 1; }
+    mint_hash=$(echo "$mint_out" | jq -r '.transactionHash // empty' 2>/dev/null)
+    [ -n "$mint_hash" ] && fw_wait_evm_tx "$mint_hash" 10 "$EVM_RPC"
 
-    cast send "$addr" "transfer(address,uint256)" "$bob_addr" "100000000000000000000" \
-        --private-key "$alice_key" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1 || true
-    sleep 4
+    local xfer_out xfer_hash
+    xfer_out=$(cast send "$addr" "transfer(address,uint256)" "$bob_addr" "100000000000000000000" \
+        --private-key "$alice_key" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) \
+        || { log_error "transfer failed: $xfer_out"; return 1; }
+    xfer_hash=$(echo "$xfer_out" | jq -r '.transactionHash // empty' 2>/dev/null)
+    [ -n "$xfer_hash" ] && fw_wait_evm_tx "$xfer_hash" 10 "$EVM_RPC"
 
     b_alice=$(cast call "$addr" "balanceOf(address)(uint256)" "$alice_addr" --rpc-url "$EVM_RPC" 2>/dev/null | awk '{print $1}' || echo "")
     assert_not_empty "$b_alice" "Alice balanceOf after transfer"

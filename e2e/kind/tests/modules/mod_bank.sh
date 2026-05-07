@@ -28,7 +28,7 @@ bank_send() {
 _bank_verify_balances() {
     local bal; bal=$(exec_mocad query bank balances "${_BANK_ADDRS[0]}" \
         --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
-        --output json 2>/dev/null | jq -r '.balances[] | select(.denom=="amoca") | .amount // "0"') || true
+        --output json 2>/dev/null | jq -r '(.balances[]? | select(.denom=="amoca") | .amount) // "0"') || true
     assert_gt "$bal" "0" "Bank test account should have balance"
 }
 
@@ -38,7 +38,7 @@ _bank_verify_send_works() {
     fw_tx_send validator0 "$recv" "1000000000000000000amoca"
     local bal; bal=$(exec_mocad query bank balances "$recv" \
         --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
-        --output json 2>/dev/null | jq -r '.balances[] | select(.denom=="amoca") | .amount // "0"') || true
+        --output json 2>/dev/null | jq -r '(.balances[]? | select(.denom=="amoca") | .amount) // "0"') || true
     assert_eq "$bal" "1000000000000000000" "Fresh bank send should work post-upgrade"
 }
 
