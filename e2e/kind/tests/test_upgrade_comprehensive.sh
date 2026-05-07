@@ -194,11 +194,15 @@ if [ -n "$RELEASE_TAG" ] && [ -z "$RELEASE_IMAGE" ]; then
     kind load docker-image "$RELEASE_IMAGE" --name "${KIND_CLUSTER_NAME}" 2>&1
 fi
 
-# Get validator operator addresses (available to all modules)
-VALIDATORS_JSON=$(exec_mocad query staking validators --node tcp://localhost:26657 --output json)
+# Get validator operator addresses indexed by validator-N pod number.
+# We pull each from its own keyring instead of indexing the staking-validators
+# API response, because the API order is not guaranteed to match the pod
+# naming, and an off-by-one between VAL_OPERS[i] and validator-i pod produces
+# code=19 ("no delegation for (address, validator) tuple") on tx broadcast.
+# In Moca, the validator operator address equals the account address.
 VAL_OPERS=()
 for ((i = 0; i < NUM_VALIDATORS; i++)); do
-    VAL_OPERS+=("$(echo "$VALIDATORS_JSON" | jq -r ".validators[$i].operator_address")")
+    VAL_OPERS+=("$(exec_on_validator "$i" keys show "validator${i}" -a --keyring-backend test)")
 done
 
 # Run module setup functions

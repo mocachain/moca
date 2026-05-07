@@ -12,7 +12,7 @@ staking_tx() {
         0)
             log_info "  [staking] edit-validator ${val_idx}"
             cosmos_tx_on "$val_idx" staking edit-validator \
-                --moniker "Val${val_idx}-R${_STAKING_TX_IDX}" --from "validator${val_idx}"
+                --new-moniker "Val${val_idx}-R${_STAKING_TX_IDX}" --from "validator${val_idx}"
             ;;
         1)
             log_info "  [staking] delegate 0.1 MOCA -> validator${val_idx}"
@@ -20,8 +20,12 @@ staking_tx() {
                 "100000000000000000amoca" --from validator0
             ;;
         2)
-            log_info "  [staking] unbond 0.01 MOCA <- validator${val_idx}"
-            cosmos_tx staking unbond "${VAL_OPERS[$val_idx]}" \
+            # Always unbond from validator0's self-delegation (always exists).
+            # validator0 only has guaranteed delegation to itself; targeting
+            # other validators would only work if a prior delegate ran for
+            # that index in the same round, which the shuffle doesn't guarantee.
+            log_info "  [staking] unbond 0.01 MOCA <- validator0 (self)"
+            cosmos_tx staking unbond "${VAL_OPERS[0]}" \
                 "10000000000000000amoca" --from validator0
             ;;
     esac
