@@ -78,6 +78,7 @@ exec_mocad() {
 # or wasn't included within the retry budget.
 #
 # Usage: fw_wait_cosmos_tx <txhash> [retries=10]
+# shellcheck disable=SC2153  # CHAIN_ID is set by callers (workflow env / sourced constants)
 fw_wait_cosmos_tx() {
     local hash="$1"
     local retries="${2:-10}"

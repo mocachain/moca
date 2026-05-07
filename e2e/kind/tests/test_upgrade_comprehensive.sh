@@ -17,6 +17,7 @@
 #   1. Create tests/modules/mod_<name>.sh
 #   2. Register: register_setup, register_tx, register_verify
 #   3. The orchestrator auto-discovers and calls them
+# shellcheck source=/dev/null
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
@@ -29,6 +30,7 @@ RELEASE_IMAGE="${RELEASE_IMAGE:-}"
 EVM_RPC="http://localhost:8545"
 EVM_CHAIN_ID="${SRC_CHAIN_ID}"
 VAL0_PRIVKEY="0x${VALIDATOR0_PRIKEY}"
+# shellcheck disable=SC2034  # CONTRACTS_DIR is consumed by sourced modules (e.g. mod_evm.sh)
 CONTRACTS_DIR="$(cd "$(dirname "$0")/../contracts" && pwd)"
 
 # ── Module registry ───────────────────────────────────────────────────────────
@@ -155,6 +157,7 @@ if [ -d "$MODULES_DIR" ]; then
     for mod in "${MODULES_DIR}"/mod_*.sh; do
         [ -f "$mod" ] || continue
         log_info "Loading module: $(basename "$mod")"
+        # shellcheck source=/dev/null
         source "$mod"
     done
 fi
