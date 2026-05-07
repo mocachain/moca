@@ -57,9 +57,15 @@ write_to_pod() {
 
 # Broadcast a Cosmos tx via sync mode and wait for inclusion. Returns 0 on
 # successful on-chain execution, 1 on broadcast or execution failure.
+#
+# We invoke kubectl directly (not through exec_mocad) so that mocad's stderr
+# (which carries error messages on broadcast failure) flows through to our
+# 2>&1 capture instead of being silenced inside the helper.
 cosmos_tx() {
     local out hash
-    out=$(exec_mocad tx "$@" \
+    out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+        mocad tx "$@" \
+        --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 --fees 200000000000000amoca \
         --broadcast-mode sync -y --output json 2>&1) || {
@@ -77,7 +83,9 @@ cosmos_tx() {
 cosmos_tx_on() {
     local idx="$1"; shift
     local out hash
-    out=$(exec_on_validator "$idx" tx "$@" \
+    out=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${idx}-0" -c mocad -- \
+        mocad tx "$@" \
+        --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 --fees 200000000000000amoca \
         --broadcast-mode sync -y --output json 2>&1) || {

@@ -249,7 +249,10 @@ fw_tx_send() {
     local fees="${4:-200000000000000amoca}"
 
     local out hash
-    out=$(exec_mocad tx bank send "$from" "$to" "$amount" \
+    # Direct kubectl exec so mocad's stderr (errors) reaches our 2>&1.
+    out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+        mocad tx bank send "$from" "$to" "$amount" \
+        --home /root/.mocad \
         --from "$from" \
         --keyring-backend test \
         --chain-id "${CHAIN_ID}" \
