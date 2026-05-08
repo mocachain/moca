@@ -8,8 +8,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/x/storage/keeper"
-	"github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/x/storage/keeper"
+	"github.com/mocachain/moca/v2/x/storage/types"
 )
 
 func TestGetParams(t *testing.T) {

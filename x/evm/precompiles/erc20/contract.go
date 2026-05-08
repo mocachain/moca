@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	erc20keeper "github.com/evmos/evmos/v12/x/erc20/keeper"
-	"github.com/evmos/evmos/v12/x/evm/types"
+	erc20keeper "github.com/mocachain/moca/v2/x/erc20/keeper"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // Contract is the precompiled contract implementation for erc20 related methods

@@ -8,9 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	mtypes "github.com/evmos/evmos/v12/types"
-	spp "github.com/evmos/evmos/v12/x/evm/precompiles/storageprovider"
-	"github.com/evmos/evmos/v12/x/sp/types"
+	mtypes "github.com/mocachain/moca/v2/types"
+	spp "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
+	"github.com/mocachain/moca/v2/x/sp/types"
 	"google.golang.org/grpc"
 )
 

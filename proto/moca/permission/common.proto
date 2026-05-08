@@ -6,7 +6,7 @@ import "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 import "moca/common/wrapper.proto";
 
-option go_package = "github.com/evmos/evmos/v12/x/permission/types";
+option go_package = "github.com/mocachain/moca/v2/x/permission/types";
 
 // ActionType defines the operations you can execute in moca storage network
 enum ActionType {

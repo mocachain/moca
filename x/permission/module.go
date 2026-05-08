@@ -14,9 +14,9 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
 
-	"github.com/evmos/evmos/v12/x/permission/client/cli"
-	"github.com/evmos/evmos/v12/x/permission/keeper"
-	"github.com/evmos/evmos/v12/x/permission/types"
+	"github.com/mocachain/moca/v2/x/permission/client/cli"
+	"github.com/mocachain/moca/v2/x/permission/keeper"
+	"github.com/mocachain/moca/v2/x/permission/types"
 )
 
 var (

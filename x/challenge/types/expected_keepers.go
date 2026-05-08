@@ -7,9 +7,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	sp "github.com/evmos/evmos/v12/x/sp/types"
-	storage "github.com/evmos/evmos/v12/x/storage/types"
-	"github.com/evmos/evmos/v12/x/virtualgroup/types"
+	sp "github.com/mocachain/moca/v2/x/sp/types"
+	storage "github.com/mocachain/moca/v2/x/storage/types"
+	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 type SpKeeper interface {

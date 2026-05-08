@@ -9,9 +9,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/app"
-	mocad "github.com/evmos/evmos/v12/cmd/mocad/cmd"
-	"github.com/evmos/evmos/v12/utils"
+	"github.com/mocachain/moca/v2/app"
+	mocad "github.com/mocachain/moca/v2/cmd/mocad/cmd"
+	"github.com/mocachain/moca/v2/utils"
 )
 
 func TestInitCmd(t *testing.T) {

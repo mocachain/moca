@@ -42,11 +42,11 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	tmtypes "github.com/cometbft/cometbft/types"
 
-	"github.com/evmos/evmos/v12/rpc/ethereum/pubsub"
-	rpcfilters "github.com/evmos/evmos/v12/rpc/namespaces/ethereum/eth/filters"
-	"github.com/evmos/evmos/v12/rpc/types"
-	"github.com/evmos/evmos/v12/server/config"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/rpc/ethereum/pubsub"
+	rpcfilters "github.com/mocachain/moca/v2/rpc/namespaces/ethereum/eth/filters"
+	"github.com/mocachain/moca/v2/rpc/types"
+	"github.com/mocachain/moca/v2/server/config"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 type WebsocketsServer interface {

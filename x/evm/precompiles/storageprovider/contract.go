@@ -8,9 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	spkeeper "github.com/evmos/evmos/v12/x/sp/keeper"
+	spkeeper "github.com/mocachain/moca/v2/x/sp/keeper"
 
-	"github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 type (

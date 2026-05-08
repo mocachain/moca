@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/evmos/evmos/v12/server/config"
-	"github.com/evmos/evmos/v12/testutil/network"
+	"github.com/mocachain/moca/v2/server/config"
+	"github.com/mocachain/moca/v2/testutil/network"
 )
 
 type IntegrationTestSuite struct {

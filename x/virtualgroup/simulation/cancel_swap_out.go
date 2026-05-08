@@ -7,8 +7,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 
-	"github.com/evmos/evmos/v12/x/virtualgroup/keeper"
-	"github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/x/virtualgroup/keeper"
+	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 func SimulateMsgCancelSwapOut(

@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/evmos/evmos/v12/rpc/types"
+	"github.com/mocachain/moca/v2/rpc/types"
 
 	"cosmossdk.io/log"
 
@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	"golang.org/x/time/rate"
 )
 

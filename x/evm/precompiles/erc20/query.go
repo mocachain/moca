@@ -7,8 +7,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
-	"github.com/evmos/evmos/v12/x/evm/types"
+	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const (

@@ -3,7 +3,7 @@ package client
 import (
 	"google.golang.org/grpc"
 
-	"github.com/evmos/evmos/v12/sdk/keys"
+	"github.com/mocachain/moca/v2/sdk/keys"
 )
 
 // MocaClientOption configures how we set up the moca client.

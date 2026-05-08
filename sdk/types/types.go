@@ -7,7 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 
-	"github.com/evmos/evmos/v12/sdk/keys"
+	"github.com/mocachain/moca/v2/sdk/keys"
 )
 
 const (

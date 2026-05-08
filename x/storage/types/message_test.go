@@ -7,11 +7,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	types2 "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/types/common"
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	"github.com/evmos/evmos/v12/x/permission/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	types2 "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/common"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	"github.com/mocachain/moca/v2/x/permission/types"
 )
 
 var (

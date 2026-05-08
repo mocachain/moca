@@ -12,8 +12,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/spf13/cobra"
 
-	evmostypes "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/x/storage/types"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/x/storage/types"
 )
 
 // GetQueryCmd returns the cli query commands for this module

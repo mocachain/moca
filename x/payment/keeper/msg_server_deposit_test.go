@@ -4,8 +4,8 @@ import (
 	sdkmath "cosmossdk.io/math"
 	"go.uber.org/mock/gomock"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 func (s *TestSuite) TestDeposit_ToBankAccount() {

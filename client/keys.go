@@ -26,7 +26,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	clientkeys "github.com/evmos/evmos/v12/client/keys"
+	clientkeys "github.com/mocachain/moca/v2/client/keys"
 )
 
 // KeyCommands registers a sub-tree of commands to interact with

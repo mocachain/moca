@@ -34,9 +34,9 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	servercfg "github.com/evmos/evmos/v12/server/config"
-	evmostypes "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/utils"
+	servercfg "github.com/mocachain/moca/v2/server/config"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/utils"
 )
 
 // EthDefaultConsensusParams defines the default Tendermint consensus params used in

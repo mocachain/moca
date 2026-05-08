@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
-	"github.com/evmos/evmos/v12/types"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	"github.com/mocachain/moca/v2/types"
 	"github.com/stretchr/testify/require"
 )
 

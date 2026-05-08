@@ -11,8 +11,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
-	"github.com/evmos/evmos/v12/types/s3util"
-	"github.com/evmos/evmos/v12/x/challenge/types"
+	"github.com/mocachain/moca/v2/types/s3util"
+	"github.com/mocachain/moca/v2/x/challenge/types"
 )
 
 var _ = strconv.Itoa(0)

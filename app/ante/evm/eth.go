@@ -26,11 +26,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 
-	anteutils "github.com/evmos/evmos/v12/app/ante/utils"
-	"github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/x/evm/keeper"
-	"github.com/evmos/evmos/v12/x/evm/statedb"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	anteutils "github.com/mocachain/moca/v2/app/ante/utils"
+	"github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/x/evm/keeper"
+	"github.com/mocachain/moca/v2/x/evm/statedb"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"

@@ -9,12 +9,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
-	types2 "github.com/evmos/evmos/v12/types"
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	permtypes "github.com/evmos/evmos/v12/x/permission/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	"github.com/evmos/evmos/v12/x/storage/types"
-	virtualgroupmoduletypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	types2 "github.com/mocachain/moca/v2/types"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	permtypes "github.com/mocachain/moca/v2/x/permission/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	"github.com/mocachain/moca/v2/x/storage/types"
+	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 type msgServer struct {

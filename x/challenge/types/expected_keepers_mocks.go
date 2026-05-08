@@ -15,9 +15,9 @@ import (
 	math "cosmossdk.io/math"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
-	types1 "github.com/evmos/evmos/v12/x/sp/types"
-	types2 "github.com/evmos/evmos/v12/x/storage/types"
-	types3 "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	types1 "github.com/mocachain/moca/v2/x/sp/types"
+	types2 "github.com/mocachain/moca/v2/x/storage/types"
+	types3 "github.com/mocachain/moca/v2/x/virtualgroup/types"
 	gomock "go.uber.org/mock/gomock"
 )
 

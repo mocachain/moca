@@ -7,7 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/evmos/v12/internal/sequence"
+	"github.com/mocachain/moca/v2/internal/sequence"
 )
 
 const (

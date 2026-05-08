@@ -27,15 +27,15 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/evmos/v12/e2e/core"
-	"github.com/evmos/evmos/v12/sdk/keys"
-	"github.com/evmos/evmos/v12/sdk/types"
-	storagetestutils "github.com/evmos/evmos/v12/testutil/storage"
-	"github.com/evmos/evmos/v12/types/common"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/e2e/core"
+	"github.com/mocachain/moca/v2/sdk/keys"
+	"github.com/mocachain/moca/v2/sdk/types"
+	storagetestutils "github.com/mocachain/moca/v2/testutil/storage"
+	"github.com/mocachain/moca/v2/types/common"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 type StreamRecords struct {

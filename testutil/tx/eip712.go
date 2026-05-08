@@ -30,9 +30,9 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/evmos/evmos/v12/app"
-	cryptocodec "github.com/evmos/evmos/v12/crypto/codec"
-	"github.com/evmos/evmos/v12/types"
+	"github.com/mocachain/moca/v2/app"
+	cryptocodec "github.com/mocachain/moca/v2/crypto/codec"
+	"github.com/mocachain/moca/v2/types"
 )
 
 type EIP712TxArgs struct {

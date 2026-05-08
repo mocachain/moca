@@ -7,8 +7,8 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 
-	gnfdclient "github.com/evmos/evmos/v12/sdk/client"
-	"github.com/evmos/evmos/v12/sdk/client/test"
+	gnfdclient "github.com/mocachain/moca/v2/sdk/client"
+	"github.com/mocachain/moca/v2/sdk/client/test"
 )
 
 func TestStakingValidator(t *testing.T) {

@@ -16,10 +16,10 @@ import (
 	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/sdk/types"
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/x/sp/keeper"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/sdk/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/x/sp/keeper"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
 func (s *KeeperTestSuite) TestMsgCreateStorageProvider() {

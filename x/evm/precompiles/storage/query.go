@@ -9,10 +9,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/evmos/v12/x/evm/types"
-	permissiontypes "github.com/evmos/evmos/v12/x/permission/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	vgtypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
+	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 const (

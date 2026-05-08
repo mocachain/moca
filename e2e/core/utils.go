@@ -10,8 +10,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"sigs.k8s.io/yaml"
 
-	"github.com/evmos/evmos/v12/sdk/keys"
-	gnfdtypes "github.com/evmos/evmos/v12/types"
+	"github.com/mocachain/moca/v2/sdk/keys"
+	gnfdtypes "github.com/mocachain/moca/v2/types"
 )
 
 func GenRandomAddr() sdk.AccAddress {

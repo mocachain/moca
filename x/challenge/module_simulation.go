@@ -8,9 +8,9 @@ import (
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	challengesimulation "github.com/evmos/evmos/v12/x/challenge/simulation"
-	"github.com/evmos/evmos/v12/x/challenge/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	challengesimulation "github.com/mocachain/moca/v2/x/challenge/simulation"
+	"github.com/mocachain/moca/v2/x/challenge/types"
 )
 
 // avoid unused import issue

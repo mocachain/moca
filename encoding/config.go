@@ -26,9 +26,9 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	enccodec "github.com/evmos/evmos/v12/encoding/codec"
-	// erc20types "github.com/evmos/evmos/v12/x/erc20/types"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	enccodec "github.com/mocachain/moca/v2/encoding/codec"
+	// erc20types "github.com/mocachain/moca/v2/x/erc20/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // encodingConfig creates a new EncodingConfig and returns it

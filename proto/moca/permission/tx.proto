@@ -9,7 +9,7 @@ import "gogoproto/gogo.proto";
 import "moca/permission/params.proto";
 import "moca/permission/types.proto";
 
-option go_package = "github.com/evmos/evmos/v12/x/permission/types";
+option go_package = "github.com/mocachain/moca/v2/x/permission/types";
 
 // Msg defines the Msg service.
 service Msg {

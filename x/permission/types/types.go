@@ -7,9 +7,9 @@ import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	gnfd "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/types/common"
-	"github.com/evmos/evmos/v12/types/resource"
+	gnfd "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/common"
+	"github.com/mocachain/moca/v2/types/resource"
 )
 
 type (

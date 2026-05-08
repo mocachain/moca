@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package moca.common;
 
-option go_package = "github.com/evmos/evmos/v12/types/common";
+option go_package = "github.com/mocachain/moca/v2/types/common";
 
 // Wrapper message for `double`.
 //

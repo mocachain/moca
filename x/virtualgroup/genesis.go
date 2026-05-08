@@ -3,8 +3,8 @@ package virtualgroup
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/x/virtualgroup/keeper"
-	"github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/x/virtualgroup/keeper"
+	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 // InitGenesis initializes the module's state from a provided genesis state.

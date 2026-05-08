@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/evmos/evmos/v12/e2e/core"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/e2e/core"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
 type GenStorageProviderTestSuite struct {

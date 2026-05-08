@@ -9,11 +9,11 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	gnfdtypes "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/types/errors"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	"github.com/evmos/evmos/v12/x/virtualgroup/types"
+	gnfdtypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/errors"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 type msgServer struct {

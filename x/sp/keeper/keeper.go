@@ -6,8 +6,8 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/internal/sequence"
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/internal/sequence"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 type (

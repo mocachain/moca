@@ -9,7 +9,7 @@ import "moca/permission/common.proto";
 import "moca/permission/types.proto";
 import "moca/resource/types.proto";
 
-option go_package = "github.com/evmos/evmos/v12/x/permission/types";
+option go_package = "github.com/mocachain/moca/v2/x/permission/types";
 
 message EventPutPolicy {
   // policy_id is an unique u256 sequence for each policy. It also be used as NFT tokenID

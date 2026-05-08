@@ -7,9 +7,9 @@ import (
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/cosmos/gogoproto/proto"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/x/payment/client/cli"
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/x/payment/client/cli"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 func (s *CLITestSuite) TestQueryCmd() {

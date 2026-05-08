@@ -17,8 +17,8 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
-	"github.com/evmos/evmos/v12/app/ante"
-	"github.com/evmos/evmos/v12/encoding"
+	"github.com/mocachain/moca/v2/app/ante"
+	"github.com/mocachain/moca/v2/encoding"
 )
 
 func TestConsumeSignatureVerificationGas(t *testing.T) {

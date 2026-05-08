@@ -8,9 +8,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	flag "github.com/spf13/pflag"
 
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	permissiontypes "github.com/evmos/evmos/v12/x/permission/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 const (

@@ -28,8 +28,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 
-	"github.com/evmos/evmos/v12/app"
-	"github.com/evmos/evmos/v12/utils"
+	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/utils"
 )
 
 var (

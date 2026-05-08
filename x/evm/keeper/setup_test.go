@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evmos/evmos/v12/utils"
+	"github.com/mocachain/moca/v2/utils"
 
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint
@@ -29,13 +29,13 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/evmos/evmos/v12/app"
-	"github.com/evmos/evmos/v12/encoding"
-	"github.com/evmos/evmos/v12/testutil"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
-	evmostypes "github.com/evmos/evmos/v12/types"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
-	feemarkettypes "github.com/evmos/evmos/v12/x/feemarket/types"
+	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/encoding"
+	"github.com/mocachain/moca/v2/testutil"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )

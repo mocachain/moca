@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	"github.com/evmos/evmos/v12/x/challenge/types"
+	"github.com/mocachain/moca/v2/x/challenge/types"
 )
 
 type msgServer struct {

@@ -23,7 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
-	"github.com/evmos/evmos/v12/wallets/ledger"
+	"github.com/mocachain/moca/v2/wallets/ledger"
 )
 
 // AppName defines the Ledger app used for signing. Moca uses the Ethereum app

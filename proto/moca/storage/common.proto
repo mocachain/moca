@@ -5,7 +5,7 @@ import "amino/amino.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/evmos/evmos/v12/x/storage/types";
+option go_package = "github.com/mocachain/moca/v2/x/storage/types";
 
 // SourceType represents the source of resource creation, which can
 // from Moca native or from a cross-chain transfer from BSC

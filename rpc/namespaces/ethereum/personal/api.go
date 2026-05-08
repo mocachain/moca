@@ -21,10 +21,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/evmos/evmos/v12/rpc/backend"
+	"github.com/mocachain/moca/v2/rpc/backend"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/evmos/evmos/v12/types"
+	"github.com/mocachain/moca/v2/types"
 
 	"cosmossdk.io/log"
 
@@ -36,7 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // PrivateAccountAPI is the personal_ prefixed set of APIs in the Web3 JSON-RPC spec.

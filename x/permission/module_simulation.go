@@ -6,9 +6,9 @@ import (
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	permissionsimulation "github.com/evmos/evmos/v12/x/permission/simulation"
-	"github.com/evmos/evmos/v12/x/permission/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	permissionsimulation "github.com/mocachain/moca/v2/x/permission/simulation"
+	"github.com/mocachain/moca/v2/x/permission/types"
 )
 
 // avoid unused import issue

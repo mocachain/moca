@@ -9,7 +9,7 @@ import "gogoproto/gogo.proto";
 import "moca/sp/params.proto";
 import "moca/sp/types.proto";
 
-option go_package = "github.com/evmos/evmos/v12/x/sp/types";
+option go_package = "github.com/mocachain/moca/v2/x/sp/types";
 
 // Msg defines the Msg service for creating a new storage provider.
 // TODO: add a transaction that the Storage Provide claim themself enter short time maintenance to avoid slash

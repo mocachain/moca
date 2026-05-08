@@ -8,11 +8,11 @@ import (
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/mock/gomock"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/types/common"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	types "github.com/evmos/evmos/v12/x/storage/types"
-	vgtypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/types/common"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	types "github.com/mocachain/moca/v2/x/storage/types"
+	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 // Compatibility regression tests: only rely on public behavior that existed before the fix

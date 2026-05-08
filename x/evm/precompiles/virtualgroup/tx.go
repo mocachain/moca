@@ -8,11 +8,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	virtualgroupkeeper "github.com/evmos/evmos/v12/x/virtualgroup/keeper"
-	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	virtualgroupkeeper "github.com/mocachain/moca/v2/x/virtualgroup/keeper"
+	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 
-	mocacommon "github.com/evmos/evmos/v12/types/common"
-	"github.com/evmos/evmos/v12/x/evm/types"
+	mocacommon "github.com/mocachain/moca/v2/types/common"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const (

@@ -17,9 +17,9 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
-	"github.com/evmos/evmos/v12/rpc/backend/mocks"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/rpc/backend/mocks"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func (suite *BackendTestSuite) TestSendTransaction() {

@@ -5,9 +5,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	"github.com/evmos/evmos/v12/types/s3util"
-	"github.com/evmos/evmos/v12/x/virtualgroup/types"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	"github.com/mocachain/moca/v2/types/s3util"
+	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 const TypeMsgCompleteMigrateBucket = "complete_migrate_bucket"

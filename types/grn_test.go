@@ -6,11 +6,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	storageutils "github.com/evmos/evmos/v12/testutil/storage"
-	types3 "github.com/evmos/evmos/v12/types"
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	"github.com/evmos/evmos/v12/types/resource"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	storageutils "github.com/mocachain/moca/v2/testutil/storage"
+	types3 "github.com/mocachain/moca/v2/types"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	"github.com/mocachain/moca/v2/types/resource"
 )
 
 func TestGRNBasic(t *testing.T) {

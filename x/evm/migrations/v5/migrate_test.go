@@ -22,10 +22,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/encoding"
-	v5 "github.com/evmos/evmos/v12/x/evm/migrations/v5"
-	v5types "github.com/evmos/evmos/v12/x/evm/migrations/v5/types"
-	"github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/encoding"
+	v5 "github.com/mocachain/moca/v2/x/evm/migrations/v5"
+	v5types "github.com/mocachain/moca/v2/x/evm/migrations/v5/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func TestMigrate(t *testing.T) {

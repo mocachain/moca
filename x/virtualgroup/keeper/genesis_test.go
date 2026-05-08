@@ -6,8 +6,8 @@ import (
 	types2 "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"go.uber.org/mock/gomock"
 
-	"github.com/evmos/evmos/v12/x/virtualgroup"
-	"github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/x/virtualgroup"
+	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 func (s *TestSuite) TestGenesis() {

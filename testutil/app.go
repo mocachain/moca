@@ -19,11 +19,11 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
-	"github.com/evmos/evmos/v12/app"
-	"github.com/evmos/evmos/v12/encoding"
-	"github.com/evmos/evmos/v12/sdk/client/test"
-	servercfg "github.com/evmos/evmos/v12/server/config"
-	evmostypes "github.com/evmos/evmos/v12/types"
+	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/encoding"
+	"github.com/mocachain/moca/v2/sdk/client/test"
+	servercfg "github.com/mocachain/moca/v2/server/config"
+	evmostypes "github.com/mocachain/moca/v2/types"
 )
 
 func NewTestApp(

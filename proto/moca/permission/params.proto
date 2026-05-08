@@ -4,7 +4,7 @@ package moca.permission;
 import "amino/amino.proto";
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/evmos/evmos/v12/x/permission/types";
+option go_package = "github.com/mocachain/moca/v2/x/permission/types";
 
 // Params defines the parameters for the module.
 message Params {

@@ -6,8 +6,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 )
 
 func TestMsgSubmit_ValidateBasic(t *testing.T) {

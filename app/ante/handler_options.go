@@ -27,10 +27,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
-	cosmosante "github.com/evmos/evmos/v12/app/ante/cosmos"
-	evmante "github.com/evmos/evmos/v12/app/ante/evm"
-	anteutils "github.com/evmos/evmos/v12/app/ante/utils"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
+	evmante "github.com/mocachain/moca/v2/app/ante/evm"
+	anteutils "github.com/mocachain/moca/v2/app/ante/utils"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 
 	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 )

@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	ethutils "github.com/evmos/evmos/v12/utils/eth"
+	ethutils "github.com/mocachain/moca/v2/utils/eth"
 )
 
 // GetChainID returns the chain id field from the AccessListTx

@@ -17,10 +17,10 @@ import (
 	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	spmodule "github.com/evmos/evmos/v12/x/sp"
-	"github.com/evmos/evmos/v12/x/sp/keeper"
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	spmodule "github.com/mocachain/moca/v2/x/sp"
+	"github.com/mocachain/moca/v2/x/sp/keeper"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 type TestSuite struct {

@@ -34,9 +34,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 
-	"github.com/evmos/evmos/v12/x/feemarket/client/cli"
-	"github.com/evmos/evmos/v12/x/feemarket/keeper"
-	"github.com/evmos/evmos/v12/x/feemarket/types"
+	"github.com/mocachain/moca/v2/x/feemarket/client/cli"
+	"github.com/mocachain/moca/v2/x/feemarket/keeper"
+	"github.com/mocachain/moca/v2/x/feemarket/types"
 )
 
 // consensusVersion defines the current x/feemarket module consensus version.

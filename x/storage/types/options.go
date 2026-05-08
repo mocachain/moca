@@ -5,7 +5,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/types/common"
+	"github.com/mocachain/moca/v2/types/common"
 )
 
 type CreateBucketOptions struct {
