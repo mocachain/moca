@@ -13,11 +13,11 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/mocachain/moca/v2/x/permission/types"
 	"github.com/golang/protobuf/descriptor"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
+	"github.com/mocachain/moca/v2/x/permission/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
