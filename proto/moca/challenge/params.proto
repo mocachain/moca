@@ -9,7 +9,7 @@ option go_package = "github.com/mocachain/moca/v2/x/challenge/types";
 
 // Params defines the parameters for the module.
 message Params {
-  option (amino.name) = "evmos/x/challenge/Params";
+  option (amino.name) = "moca/x/challenge/Params";
   option (gogoproto.goproto_stringer) = false;
 
   // Challenges which will be emitted in each block, including user submitted or randomly triggered.
