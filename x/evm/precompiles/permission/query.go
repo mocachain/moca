@@ -3,8 +3,8 @@ package permission
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/evmos/v12/x/evm/types"
-	permissiontypes "github.com/evmos/evmos/v12/x/permission/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
+	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"
 )
 
 const (

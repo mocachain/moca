@@ -6,9 +6,9 @@ import (
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	spsimulation "github.com/evmos/evmos/v12/x/sp/simulation"
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	spsimulation "github.com/mocachain/moca/v2/x/sp/simulation"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 // avoid unused import issue

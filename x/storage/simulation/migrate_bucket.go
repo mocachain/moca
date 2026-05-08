@@ -7,8 +7,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 
-	"github.com/evmos/evmos/v12/x/storage/keeper"
-	"github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/x/storage/keeper"
+	"github.com/mocachain/moca/v2/x/storage/types"
 )
 
 func SimulateMsgMigrateBucket(

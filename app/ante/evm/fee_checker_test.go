@@ -13,9 +13,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/evmos/evmos/v12/encoding"
-	"github.com/evmos/evmos/v12/types"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/encoding"
+	"github.com/mocachain/moca/v2/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 var _ DynamicFeeEVMKeeper = MockEVMKeeper{}

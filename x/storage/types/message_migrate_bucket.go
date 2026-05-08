@@ -5,9 +5,9 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/gogoproto/proto"
 
-	"github.com/evmos/evmos/v12/types/common"
-	"github.com/evmos/evmos/v12/types/errors"
-	"github.com/evmos/evmos/v12/types/s3util"
+	"github.com/mocachain/moca/v2/types/common"
+	"github.com/mocachain/moca/v2/types/errors"
+	"github.com/mocachain/moca/v2/types/s3util"
 )
 
 const TypeMsgMigrateBucket = "migrate_bucket"

@@ -15,7 +15,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
 
-	"github.com/evmos/evmos/v12/x/gensp/types"
+	"github.com/mocachain/moca/v2/x/gensp/types"
 )
 
 var (

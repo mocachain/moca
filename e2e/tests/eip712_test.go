@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/evmos/evmos/v12/e2e/core"
-	storageutils "github.com/evmos/evmos/v12/testutil/storage"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/e2e/core"
+	storageutils "github.com/mocachain/moca/v2/testutil/storage"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 type Eip712TestSuite struct {

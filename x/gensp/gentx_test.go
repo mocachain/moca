@@ -23,9 +23,9 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/x/gensp"
-	gensptypes "github.com/evmos/evmos/v12/x/gensp/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/x/gensp"
+	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
 )
 
 var (

@@ -6,7 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/x/gensp/types"
+	"github.com/mocachain/moca/v2/x/gensp/types"
 )
 
 // InitGenesis initializes the module's state from a provided genesis state and deliver genesis transactions.

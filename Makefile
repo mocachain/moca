@@ -289,7 +289,7 @@ update-swagger-docs: statik
 .PHONY: update-swagger-docs
 
 godocs:
-	@echo "--> Wait a few seconds and visit http://localhost:6060/pkg/github.com/evmos/evmos"
+	@echo "--> Wait a few seconds and visit http://localhost:6060/pkg/github.com/mocachain/moca"
 	godoc -http=:6060
 
 ###############################################################################
@@ -510,7 +510,7 @@ localnet-show-logstream:
 ###                                Releasing                                ###
 ###############################################################################
 
-PACKAGE_NAME:=github.com/evmos/evmos
+PACKAGE_NAME:=github.com/mocachain/moca
 GOLANG_CROSS_VERSION  = v1.23
 GOPATH ?= $(HOME)/go
 REPO_OWNER ?= mocachain

@@ -9,7 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/evmos/v12/x/challenge/types"
+	"github.com/mocachain/moca/v2/x/challenge/types"
 )
 
 // SaveSlash set a specific slash in the store

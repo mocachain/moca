@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/x/challenge"
-	"github.com/evmos/evmos/v12/x/payment/keeper"
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/x/challenge"
+	"github.com/mocachain/moca/v2/x/payment/keeper"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 type TestSuite struct {

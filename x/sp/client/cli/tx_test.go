@@ -15,8 +15,8 @@ import (
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/evmos/evmos/v12/encoding"
-	"github.com/evmos/evmos/v12/sdk/client/test"
+	"github.com/mocachain/moca/v2/encoding"
+	"github.com/mocachain/moca/v2/sdk/client/test"
 )
 
 type CLITestSuite struct {

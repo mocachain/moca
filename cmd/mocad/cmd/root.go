@@ -59,16 +59,16 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 
-	evmosclient "github.com/evmos/evmos/v12/client"
-	"github.com/evmos/evmos/v12/client/debug"
-	evmosserver "github.com/evmos/evmos/v12/server"
-	servercfg "github.com/evmos/evmos/v12/server/config"
-	srvflags "github.com/evmos/evmos/v12/server/flags"
+	evmosclient "github.com/mocachain/moca/v2/client"
+	"github.com/mocachain/moca/v2/client/debug"
+	evmosserver "github.com/mocachain/moca/v2/server"
+	servercfg "github.com/mocachain/moca/v2/server/config"
+	srvflags "github.com/mocachain/moca/v2/server/flags"
 
-	"github.com/evmos/evmos/v12/app"
-	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
-	evmoskr "github.com/evmos/evmos/v12/crypto/keyring"
-	gensputilcli "github.com/evmos/evmos/v12/x/gensp/client/cli"
+	"github.com/mocachain/moca/v2/app"
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
+	evmoskr "github.com/mocachain/moca/v2/crypto/keyring"
+	gensputilcli "github.com/mocachain/moca/v2/x/gensp/client/cli"
 )
 
 const EnvPrefix = "EVMOS"

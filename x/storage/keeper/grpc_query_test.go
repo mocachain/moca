@@ -18,9 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/x/storage/keeper"
-	"github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/x/storage/keeper"
+	"github.com/mocachain/moca/v2/x/storage/types"
 )
 
 func makeKeeper(t *testing.T) (*keeper.Keeper, sdk.Context) {

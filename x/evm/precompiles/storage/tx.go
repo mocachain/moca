@@ -14,14 +14,14 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/evmos/v12/contracts"
-	gtypes "github.com/evmos/evmos/v12/types"
-	mocacommon "github.com/evmos/evmos/v12/types/common"
-	permTypes "github.com/evmos/evmos/v12/x/permission/types"
-	storagekeeper "github.com/evmos/evmos/v12/x/storage/keeper"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/contracts"
+	gtypes "github.com/mocachain/moca/v2/types"
+	mocacommon "github.com/mocachain/moca/v2/types/common"
+	permTypes "github.com/mocachain/moca/v2/x/permission/types"
+	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 
-	"github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const (

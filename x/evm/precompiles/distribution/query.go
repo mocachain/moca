@@ -10,8 +10,8 @@ import (
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/evmos/v12/utils"
-	"github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/utils"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const (

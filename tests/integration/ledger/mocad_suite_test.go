@@ -18,18 +18,18 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/evmos/evmos/v12/app"
-	"github.com/evmos/evmos/v12/tests/integration/ledger/mocks"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
-	"github.com/evmos/evmos/v12/utils"
+	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/tests/integration/ledger/mocks"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	"github.com/mocachain/moca/v2/utils"
 	"github.com/stretchr/testify/suite"
 
 	rpcclientmock "github.com/cometbft/cometbft/rpc/client/mock"
 	cosmosledger "github.com/cosmos/cosmos-sdk/crypto/ledger"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	clientkeys "github.com/evmos/evmos/v12/client/keys"
-	evmoskeyring "github.com/evmos/evmos/v12/crypto/keyring"
-	feemarkettypes "github.com/evmos/evmos/v12/x/feemarket/types"
+	clientkeys "github.com/mocachain/moca/v2/client/keys"
+	evmoskeyring "github.com/mocachain/moca/v2/crypto/keyring"
+	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint

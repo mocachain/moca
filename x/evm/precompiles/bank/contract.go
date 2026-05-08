@@ -10,8 +10,8 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/evmos/evmos/v12/x/evm/types"
-	paymentkeeper "github.com/evmos/evmos/v12/x/payment/keeper"
+	"github.com/mocachain/moca/v2/x/evm/types"
+	paymentkeeper "github.com/mocachain/moca/v2/x/payment/keeper"
 )
 
 type Contract struct {

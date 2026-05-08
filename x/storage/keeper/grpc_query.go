@@ -12,13 +12,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/evmos/evmos/v12/internal/sequence"
-	gnfd "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/types/errors"
-	permtypes "github.com/evmos/evmos/v12/x/permission/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	"github.com/evmos/evmos/v12/x/storage/types"
-	vgtypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/internal/sequence"
+	gnfd "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/errors"
+	permtypes "github.com/mocachain/moca/v2/x/permission/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	"github.com/mocachain/moca/v2/x/storage/types"
+	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 var _ types.QueryServer = Keeper{}

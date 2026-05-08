@@ -23,14 +23,14 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/evmos/v12/e2e/core"
-	"github.com/evmos/evmos/v12/sdk/keys"
-	"github.com/evmos/evmos/v12/sdk/types"
-	storageutils "github.com/evmos/evmos/v12/testutil/storage"
-	types2 "github.com/evmos/evmos/v12/types"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/e2e/core"
+	"github.com/mocachain/moca/v2/sdk/keys"
+	"github.com/mocachain/moca/v2/sdk/types"
+	storageutils "github.com/mocachain/moca/v2/testutil/storage"
+	types2 "github.com/mocachain/moca/v2/types"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 type StorageTestSuite struct {

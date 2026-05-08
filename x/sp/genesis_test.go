@@ -14,10 +14,10 @@ import (
 	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/testutil/nullify"
-	"github.com/evmos/evmos/v12/x/sp"
-	"github.com/evmos/evmos/v12/x/sp/keeper"
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/testutil/nullify"
+	"github.com/mocachain/moca/v2/x/sp"
+	"github.com/mocachain/moca/v2/x/sp/keeper"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 func TestGenesis(t *testing.T) {

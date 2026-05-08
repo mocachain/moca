@@ -8,9 +8,9 @@ import (
 	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	types2 "github.com/evmos/evmos/v12/sdk/types"
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/x/sp/types"
+	types2 "github.com/mocachain/moca/v2/sdk/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 func (s *KeeperTestSuite) TestSetGetStorageProvider() {

@@ -9,8 +9,8 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/evmos/evmos/v12/sdk/client/test"
-	"github.com/evmos/evmos/v12/sdk/keys"
+	"github.com/mocachain/moca/v2/sdk/client/test"
+	"github.com/mocachain/moca/v2/sdk/keys"
 )
 
 func TestTmClient(t *testing.T) {

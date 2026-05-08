@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/evmos/evmos/v12/x/gensp"
+	"github.com/mocachain/moca/v2/x/gensp"
 )
 
 const flagGenTxDir = "gentx-dir"

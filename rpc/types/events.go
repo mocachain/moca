@@ -23,8 +23,8 @@ import (
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/evmos/evmos/v12/types"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // EventFormat is the format version of the events.

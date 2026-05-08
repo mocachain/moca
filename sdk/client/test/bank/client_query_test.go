@@ -7,9 +7,9 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 
-	gnfdclient "github.com/evmos/evmos/v12/sdk/client"
-	"github.com/evmos/evmos/v12/sdk/client/test"
-	"github.com/evmos/evmos/v12/sdk/keys"
+	gnfdclient "github.com/mocachain/moca/v2/sdk/client"
+	"github.com/mocachain/moca/v2/sdk/client/test"
+	"github.com/mocachain/moca/v2/sdk/keys"
 )
 
 func TestBankBalance(t *testing.T) {

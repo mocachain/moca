@@ -25,14 +25,14 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"google.golang.org/grpc"
 
-	"github.com/evmos/evmos/v12/sdk/keys"
-	"github.com/evmos/evmos/v12/sdk/types"
+	"github.com/mocachain/moca/v2/sdk/keys"
+	"github.com/mocachain/moca/v2/sdk/types"
 
-	challengetypes "github.com/evmos/evmos/v12/x/challenge/types"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	virtualgroupmoduletypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 // AuthQueryClient is a type to define the auth types Query Client

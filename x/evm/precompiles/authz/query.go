@@ -16,11 +16,11 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/evmos/v12/utils"
-	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
-	"github.com/evmos/evmos/v12/x/evm/types"
-	feemarkettypes "github.com/evmos/evmos/v12/x/feemarket/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/utils"
+	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
+	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
 const (

@@ -8,10 +8,10 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	paymentkeeper "github.com/evmos/evmos/v12/x/payment/keeper"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
+	paymentkeeper "github.com/mocachain/moca/v2/x/payment/keeper"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 
-	"github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const (

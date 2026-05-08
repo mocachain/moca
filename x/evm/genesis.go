@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/evmos/evmos/v12/contracts"
+	"github.com/mocachain/moca/v2/contracts"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -27,9 +27,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	evmostypes "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/x/evm/keeper"
-	"github.com/evmos/evmos/v12/x/evm/types"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/x/evm/keeper"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // InitGenesis initializes genesis state based on exported genesis

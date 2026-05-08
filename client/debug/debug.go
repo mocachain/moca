@@ -30,7 +30,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	"github.com/ethereum/go-ethereum/common"
-	evmos "github.com/evmos/evmos/v12/types"
+	evmos "github.com/mocachain/moca/v2/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )

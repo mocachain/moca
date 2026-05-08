@@ -8,10 +8,10 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	spkeeper "github.com/evmos/evmos/v12/x/sp/keeper"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
+	spkeeper "github.com/mocachain/moca/v2/x/sp/keeper"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 
-	"github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const (

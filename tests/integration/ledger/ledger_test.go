@@ -12,10 +12,10 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/evmos/v12/encoding"
-	"github.com/evmos/evmos/v12/tests/integration/ledger/mocks"
-	"github.com/evmos/evmos/v12/testutil"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
+	"github.com/mocachain/moca/v2/encoding"
+	"github.com/mocachain/moca/v2/tests/integration/ledger/mocks"
+	"github.com/mocachain/moca/v2/testutil"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 
 	"github.com/spf13/cobra"
 

@@ -27,10 +27,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/evmos/evmos/v12/server/config"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/server/config"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 
-	"github.com/evmos/evmos/v12/x/erc20/types"
+	"github.com/mocachain/moca/v2/x/erc20/types"
 )
 
 // CallEVM performs a smart contract method call using given args

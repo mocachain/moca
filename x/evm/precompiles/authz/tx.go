@@ -22,16 +22,16 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	challengetypes "github.com/evmos/evmos/v12/x/challenge/types"
-	erc20types "github.com/evmos/evmos/v12/x/erc20/types"
-	"github.com/evmos/evmos/v12/x/evm/types"
-	feemarkettypes "github.com/evmos/evmos/v12/x/feemarket/types"
-	gensptypes "github.com/evmos/evmos/v12/x/gensp/types"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
-	permissiontypes "github.com/evmos/evmos/v12/x/permission/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
+	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
+	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 const (

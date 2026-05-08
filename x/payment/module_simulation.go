@@ -6,9 +6,9 @@ import (
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	paymentsimulation "github.com/evmos/evmos/v12/x/payment/simulation"
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	paymentsimulation "github.com/mocachain/moca/v2/x/payment/simulation"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 // avoid unused import issue

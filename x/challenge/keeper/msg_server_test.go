@@ -15,9 +15,9 @@ import (
 	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/evmos/evmos/v12/x/challenge"
-	"github.com/evmos/evmos/v12/x/challenge/keeper"
-	"github.com/evmos/evmos/v12/x/challenge/types"
+	"github.com/mocachain/moca/v2/x/challenge"
+	"github.com/mocachain/moca/v2/x/challenge/keeper"
+	"github.com/mocachain/moca/v2/x/challenge/types"
 )
 
 type TestSuite struct {

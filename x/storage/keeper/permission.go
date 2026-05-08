@@ -7,11 +7,11 @@ import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	evmtypes "github.com/evmos/evmos/v12/types"
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	gnfdresource "github.com/evmos/evmos/v12/types/resource"
-	permtypes "github.com/evmos/evmos/v12/x/permission/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	evmtypes "github.com/mocachain/moca/v2/types"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	gnfdresource "github.com/mocachain/moca/v2/types/resource"
+	permtypes "github.com/mocachain/moca/v2/x/permission/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 var (

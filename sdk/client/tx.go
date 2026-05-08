@@ -16,8 +16,8 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"google.golang.org/grpc"
 
-	"github.com/evmos/evmos/v12/sdk/keys"
-	"github.com/evmos/evmos/v12/sdk/types"
+	"github.com/mocachain/moca/v2/sdk/keys"
+	"github.com/mocachain/moca/v2/sdk/types"
 )
 
 type TransactionClient interface {

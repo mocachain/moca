@@ -9,7 +9,7 @@ import "moca/payment/out_flow.proto";
 import "moca/payment/stream_record.proto";
 import "moca/storage/common.proto";
 
-option go_package = "github.com/evmos/evmos/v12/x/storage/types";
+option go_package = "github.com/mocachain/moca/v2/x/storage/types";
 
 message BucketInfo {
   // owner is the account address of bucket creator, it is also the bucket owner.

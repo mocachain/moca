@@ -11,9 +11,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
-	"github.com/evmos/evmos/v12/internal/sequence"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	"github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/internal/sequence"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 type (

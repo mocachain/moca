@@ -12,9 +12,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/evmos/evmos/v12/app"
-	"github.com/evmos/evmos/v12/utils"
-	"github.com/evmos/evmos/v12/x/feemarket/types"
+	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/utils"
+	"github.com/mocachain/moca/v2/x/feemarket/types"
 	"github.com/stretchr/testify/suite"
 )
 

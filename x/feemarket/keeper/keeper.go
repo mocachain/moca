@@ -23,7 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/x/feemarket/types"
+	"github.com/mocachain/moca/v2/x/feemarket/types"
 )
 
 // KeyPrefixBaseFeeV1 TODO: Temporary will be removed with params refactor PR

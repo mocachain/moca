@@ -9,7 +9,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 // SetSpStoragePrice set a specific SpStoragePrice in the store from its index

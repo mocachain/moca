@@ -43,11 +43,11 @@ import (
 	govtypesv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	apitypes "github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"github.com/evmos/evmos/v12/e2e/core"
-	"github.com/evmos/evmos/v12/testutil/sample"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
-	evmostypes "github.com/evmos/evmos/v12/types"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/e2e/core"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func (suite *AnteTestSuite) BuildTestEthTx(

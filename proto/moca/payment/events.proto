@@ -7,7 +7,7 @@ import "gogoproto/gogo.proto";
 import "moca/payment/out_flow.proto";
 import "moca/payment/stream_record.proto";
 
-option go_package = "github.com/evmos/evmos/v12/x/payment/types";
+option go_package = "github.com/mocachain/moca/v2/x/payment/types";
 
 message EventPaymentAccountUpdate {
   // address of the payment account

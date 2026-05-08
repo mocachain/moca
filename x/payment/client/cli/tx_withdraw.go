@@ -11,10 +11,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
 
-	sdkclient "github.com/evmos/evmos/v12/sdk/client"
-	"github.com/evmos/evmos/v12/sdk/keys"
-	gnfdSdkTypes "github.com/evmos/evmos/v12/sdk/types"
-	types2 "github.com/evmos/evmos/v12/types"
+	sdkclient "github.com/mocachain/moca/v2/sdk/client"
+	"github.com/mocachain/moca/v2/sdk/keys"
+	gnfdSdkTypes "github.com/mocachain/moca/v2/sdk/types"
+	types2 "github.com/mocachain/moca/v2/types"
 )
 
 var _ = strconv.Itoa(0)

@@ -18,10 +18,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 
-	"github.com/evmos/evmos/v12/encoding"
-	"github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/encoding"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const invalidAddress = "0x0000"

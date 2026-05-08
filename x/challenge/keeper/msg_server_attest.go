@@ -10,10 +10,10 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 
-	"github.com/evmos/evmos/v12/x/challenge/types"
-	paymentmoduletypes "github.com/evmos/evmos/v12/x/payment/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/x/challenge/types"
+	paymentmoduletypes "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 // oneGBBytes stands for the total bytes in 1gb

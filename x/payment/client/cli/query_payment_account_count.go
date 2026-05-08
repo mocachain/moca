@@ -9,10 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
-	evmostypes "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/x/evm/precompiles/payment"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/payment"
 
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 func CmdEvmListPaymentAccountCount() *cobra.Command {

@@ -24,11 +24,11 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/evmos/v12/e2e/core"
-	"github.com/evmos/evmos/v12/sdk/types"
-	storagetestutil "github.com/evmos/evmos/v12/testutil/storage"
-	challengetypes "github.com/evmos/evmos/v12/x/challenge/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/e2e/core"
+	"github.com/mocachain/moca/v2/sdk/types"
+	storagetestutil "github.com/mocachain/moca/v2/testutil/storage"
+	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 const (

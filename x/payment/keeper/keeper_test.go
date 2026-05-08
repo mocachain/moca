@@ -10,9 +10,9 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"go.uber.org/mock/gomock"
 
-	"github.com/evmos/evmos/v12/x/payment"
-	"github.com/evmos/evmos/v12/x/payment/keeper"
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/x/payment"
+	"github.com/mocachain/moca/v2/x/payment/keeper"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 type DepKeepers struct {

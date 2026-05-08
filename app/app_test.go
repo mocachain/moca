@@ -22,9 +22,9 @@ import (
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 
-	servercfg "github.com/evmos/evmos/v12/server/config"
-	evmostypes "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/utils"
+	servercfg "github.com/mocachain/moca/v2/server/config"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/utils"
 )
 
 func TestEvmosExport(t *testing.T) {

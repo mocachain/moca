@@ -7,7 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
-	"github.com/evmos/evmos/v12/x/permission/types"
+	"github.com/mocachain/moca/v2/x/permission/types"
 )
 
 type msgServer struct {

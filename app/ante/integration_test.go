@@ -5,15 +5,15 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	testutiltx "github.com/evmos/evmos/v12/testutil/tx"
+	testutiltx "github.com/mocachain/moca/v2/testutil/tx"
 
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/evmos/evmos/v12/testutil"
-	"github.com/evmos/evmos/v12/utils"
+	"github.com/mocachain/moca/v2/testutil"
+	"github.com/mocachain/moca/v2/utils"
 )
 
 var _ = Describe("when sending a Cosmos transaction", func() {

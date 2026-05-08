@@ -28,9 +28,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/ethereum/go-ethereum/common"
-	rpctypes "github.com/evmos/evmos/v12/rpc/types"
-	evmostypes "github.com/evmos/evmos/v12/types"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	rpctypes "github.com/mocachain/moca/v2/rpc/types"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const (

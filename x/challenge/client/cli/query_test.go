@@ -7,8 +7,8 @@ import (
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/cosmos/gogoproto/proto"
 
-	"github.com/evmos/evmos/v12/x/challenge/client/cli"
-	"github.com/evmos/evmos/v12/x/challenge/types"
+	"github.com/mocachain/moca/v2/x/challenge/client/cli"
+	"github.com/mocachain/moca/v2/x/challenge/types"
 )
 
 func (s *CLITestSuite) TestQueryCmd() {

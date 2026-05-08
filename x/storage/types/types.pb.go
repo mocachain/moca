@@ -11,7 +11,7 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/types/tx/amino"
 	_ "github.com/cosmos/gogoproto/gogoproto"
 	proto "github.com/cosmos/gogoproto/proto"
-	_ "github.com/evmos/evmos/v12/x/payment/types"
+	_ "github.com/mocachain/moca/v2/x/payment/types"
 	io "io"
 	math "math"
 	math_bits "math/bits"

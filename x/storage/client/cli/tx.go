@@ -18,13 +18,13 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
-	sdkclient "github.com/evmos/evmos/v12/sdk/client"
-	"github.com/evmos/evmos/v12/sdk/keys"
-	gnfdSdkTypes "github.com/evmos/evmos/v12/sdk/types"
-	types2 "github.com/evmos/evmos/v12/types"
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	"github.com/evmos/evmos/v12/x/evm/precompiles/storage"
-	"github.com/evmos/evmos/v12/x/storage/types"
+	sdkclient "github.com/mocachain/moca/v2/sdk/client"
+	"github.com/mocachain/moca/v2/sdk/keys"
+	gnfdSdkTypes "github.com/mocachain/moca/v2/sdk/types"
+	types2 "github.com/mocachain/moca/v2/types"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/storage"
+	"github.com/mocachain/moca/v2/x/storage/types"
 )
 
 // GetTxCmd returns the transaction commands for this module

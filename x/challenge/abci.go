@@ -6,10 +6,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
 
-	k "github.com/evmos/evmos/v12/x/challenge/keeper"
-	"github.com/evmos/evmos/v12/x/challenge/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	k "github.com/mocachain/moca/v2/x/challenge/keeper"
+	"github.com/mocachain/moca/v2/x/challenge/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 func BeginBlocker(ctx sdk.Context, keeper k.Keeper) error {

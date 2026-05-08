@@ -3,13 +3,13 @@ package bank
 import (
 	"bytes"
 
-	"github.com/evmos/evmos/v12/utils"
+	"github.com/mocachain/moca/v2/utils"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 const (

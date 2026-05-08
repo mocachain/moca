@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/common"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // This is an evil token. Whenever an A -> B transfer is called,

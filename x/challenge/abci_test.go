@@ -16,12 +16,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/evmos/v12/x/challenge"
-	"github.com/evmos/evmos/v12/x/challenge/keeper"
-	"github.com/evmos/evmos/v12/x/challenge/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	virtualgrouptypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/x/challenge"
+	"github.com/mocachain/moca/v2/x/challenge/keeper"
+	"github.com/mocachain/moca/v2/x/challenge/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 type TestSuite struct {

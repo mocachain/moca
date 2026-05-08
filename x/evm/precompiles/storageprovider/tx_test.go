@@ -16,14 +16,14 @@ import (
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/evmos/evmos/v12/app"
-	"github.com/evmos/evmos/v12/server/config"
-	"github.com/evmos/evmos/v12/testutil"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
-	"github.com/evmos/evmos/v12/utils"
-	"github.com/evmos/evmos/v12/x/evm/precompiles/storageprovider"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/server/config"
+	"github.com/mocachain/moca/v2/testutil"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	"github.com/mocachain/moca/v2/utils"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
 type PrecompileTestSuite struct {

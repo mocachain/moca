@@ -6,9 +6,9 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	"github.com/evmos/evmos/v12/types/resource"
-	"github.com/evmos/evmos/v12/types/s3util"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	"github.com/mocachain/moca/v2/types/resource"
+	"github.com/mocachain/moca/v2/types/s3util"
 )
 
 const (

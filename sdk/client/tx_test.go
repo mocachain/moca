@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/evmos/evmos/v12/sdk/client/test"
-	"github.com/evmos/evmos/v12/sdk/keys"
-	"github.com/evmos/evmos/v12/sdk/types"
+	"github.com/mocachain/moca/v2/sdk/client/test"
+	"github.com/mocachain/moca/v2/sdk/keys"
+	"github.com/mocachain/moca/v2/sdk/types"
 )
 
 func TestSendTokenSucceedWithSimulatedGas(t *testing.T) {

@@ -10,12 +10,12 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/gogoproto/proto"
 
-	grn2 "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/types/common"
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
-	"github.com/evmos/evmos/v12/types/resource"
-	"github.com/evmos/evmos/v12/types/s3util"
-	permtypes "github.com/evmos/evmos/v12/x/permission/types"
+	grn2 "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/common"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	"github.com/mocachain/moca/v2/types/resource"
+	"github.com/mocachain/moca/v2/types/s3util"
+	permtypes "github.com/mocachain/moca/v2/x/permission/types"
 )
 
 const (

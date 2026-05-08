@@ -10,13 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/evmos/v12/types/resource"
-	"github.com/evmos/evmos/v12/x/evm/statedb"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
-	permtypes "github.com/evmos/evmos/v12/x/permission/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	vgtypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/types/resource"
+	"github.com/mocachain/moca/v2/x/evm/statedb"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	permtypes "github.com/mocachain/moca/v2/x/permission/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 // AccountKeeper defines the expected account keeper used for simulations (noalias)

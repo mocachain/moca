@@ -6,7 +6,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/gogoproto/proto"
 
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 )
 
 const (

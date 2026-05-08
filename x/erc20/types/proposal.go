@@ -24,7 +24,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	v1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	evmostypes "github.com/evmos/evmos/v12/types"
+	evmostypes "github.com/mocachain/moca/v2/types"
 )
 
 // constants

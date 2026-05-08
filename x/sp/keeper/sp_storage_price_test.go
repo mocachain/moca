@@ -7,7 +7,7 @@ import (
 
 	"cosmossdk.io/math"
 
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 func (s *KeeperTestSuite) TestGetSpStoragePriceByTime() {

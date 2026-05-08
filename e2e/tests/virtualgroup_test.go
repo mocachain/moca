@@ -22,13 +22,13 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/evmos/v12/e2e/core"
-	"github.com/evmos/evmos/v12/sdk/types"
-	storagetestutil "github.com/evmos/evmos/v12/testutil/storage"
-	types3 "github.com/evmos/evmos/v12/x/payment/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	virtualgroupmoduletypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	"github.com/mocachain/moca/v2/e2e/core"
+	"github.com/mocachain/moca/v2/sdk/types"
+	storagetestutil "github.com/mocachain/moca/v2/testutil/storage"
+	types3 "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 type VirtualGroupTestSuite struct {

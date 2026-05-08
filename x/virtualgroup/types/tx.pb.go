@@ -13,7 +13,7 @@ import (
 	_ "github.com/cosmos/gogoproto/gogoproto"
 	grpc1 "github.com/cosmos/gogoproto/grpc"
 	proto "github.com/cosmos/gogoproto/proto"
-	common "github.com/evmos/evmos/v12/types/common"
+	common "github.com/mocachain/moca/v2/types/common"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

@@ -23,9 +23,9 @@ import (
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/app"
-	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
-	mocad "github.com/evmos/evmos/v12/cmd/mocad/cmd"
+	"github.com/mocachain/moca/v2/app"
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
+	mocad "github.com/mocachain/moca/v2/cmd/mocad/cmd"
 )
 
 func main() {

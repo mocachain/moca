@@ -24,7 +24,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/x/erc20/types"
+	"github.com/mocachain/moca/v2/x/erc20/types"
 )
 
 // Keeper of this module maintains collections of erc20.

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
-	ethutils "github.com/evmos/evmos/v12/utils/eth"
+	ethutils "github.com/mocachain/moca/v2/utils/eth"
 	"github.com/stretchr/testify/require"
 )
 

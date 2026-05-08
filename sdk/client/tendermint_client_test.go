@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/evmos/evmos/v12/sdk/client/test"
+	"github.com/mocachain/moca/v2/sdk/client/test"
 )
 
 func TestGetABCIInfo(t *testing.T) {

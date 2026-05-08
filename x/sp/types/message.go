@@ -11,7 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 )
 
 const (

@@ -7,9 +7,9 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
+	"github.com/mocachain/moca/v2/testutil/sample"
 )
 
 func TestMsgSetBucketFlowRateLimit_ValidateBasic(t *testing.T) {

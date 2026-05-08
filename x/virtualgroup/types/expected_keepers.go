@@ -6,7 +6,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
 type SpKeeper interface {

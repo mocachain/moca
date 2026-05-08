@@ -24,11 +24,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	cosmosante "github.com/evmos/evmos/v12/app/ante/cosmos"
-	testutil "github.com/evmos/evmos/v12/testutil"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
-	evmostypes "github.com/evmos/evmos/v12/types"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
+	testutil "github.com/mocachain/moca/v2/testutil"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func TestAuthzLimiterDecorator(t *testing.T) {

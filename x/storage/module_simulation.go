@@ -6,9 +6,9 @@ import (
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	storagesimulation "github.com/evmos/evmos/v12/x/storage/simulation"
-	"github.com/evmos/evmos/v12/x/storage/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	storagesimulation "github.com/mocachain/moca/v2/x/storage/simulation"
+	"github.com/mocachain/moca/v2/x/storage/types"
 )
 
 // avoid unused import issue

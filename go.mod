@@ -1,4 +1,4 @@
-module github.com/evmos/evmos/v12
+module github.com/mocachain/moca/v2
 
 go 1.23.6
 

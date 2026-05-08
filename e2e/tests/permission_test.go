@@ -16,13 +16,13 @@ import (
 	govtypesv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	sdktype "github.com/evmos/evmos/v12/sdk/types"
-	storageutil "github.com/evmos/evmos/v12/testutil/storage"
-	types2 "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/types/common"
-	"github.com/evmos/evmos/v12/types/resource"
-	"github.com/evmos/evmos/v12/x/permission/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
+	sdktype "github.com/mocachain/moca/v2/sdk/types"
+	storageutil "github.com/mocachain/moca/v2/testutil/storage"
+	types2 "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/common"
+	"github.com/mocachain/moca/v2/types/resource"
+	"github.com/mocachain/moca/v2/x/permission/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 
-	gnfderrors "github.com/evmos/evmos/v12/types/errors"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 )
 
 func VerifySignature(sigAccAddress sdk.AccAddress, sigHash []byte, sig []byte) error {

@@ -7,8 +7,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 
-	"github.com/evmos/evmos/v12/x/challenge/keeper"
-	"github.com/evmos/evmos/v12/x/challenge/types"
+	"github.com/mocachain/moca/v2/x/challenge/keeper"
+	"github.com/mocachain/moca/v2/x/challenge/types"
 )
 
 func SimulateMsgSubmit(

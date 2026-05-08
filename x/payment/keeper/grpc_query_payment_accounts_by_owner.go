@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 func (k Keeper) PaymentAccountsByOwner(goCtx context.Context, req *types.QueryPaymentAccountsByOwnerRequest) (*types.QueryPaymentAccountsByOwnerResponse, error) {

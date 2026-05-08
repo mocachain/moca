@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/evmos/evmos/v12/internal/sequence"
+	"github.com/mocachain/moca/v2/internal/sequence"
 )
 
 const (

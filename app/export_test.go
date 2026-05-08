@@ -7,8 +7,8 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
-	"github.com/evmos/evmos/v12/sdk/client/test"
-	"github.com/evmos/evmos/v12/testutil"
+	"github.com/mocachain/moca/v2/sdk/client/test"
+	"github.com/mocachain/moca/v2/testutil"
 )
 
 func TestExportAppStateAndValidators(t *testing.T) {

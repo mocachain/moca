@@ -5,8 +5,8 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/x/sp/keeper"
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/x/sp/keeper"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) error {

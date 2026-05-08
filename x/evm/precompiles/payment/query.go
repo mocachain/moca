@@ -4,8 +4,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/evmos/v12/x/evm/types"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/x/evm/types"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 
 const (

@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 // GetTxCmd returns the transaction commands for this module

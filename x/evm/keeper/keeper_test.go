@@ -4,10 +4,10 @@ import (
 	_ "embed"
 	"math/big"
 
-	"github.com/evmos/evmos/v12/utils"
-	"github.com/evmos/evmos/v12/x/evm/keeper"
-	"github.com/evmos/evmos/v12/x/evm/statedb"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
+	"github.com/mocachain/moca/v2/utils"
+	"github.com/mocachain/moca/v2/x/evm/keeper"
+	"github.com/mocachain/moca/v2/x/evm/statedb"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 
 	"github.com/ethereum/go-ethereum/common"
 )

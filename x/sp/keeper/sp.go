@@ -4,7 +4,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
 func (k Keeper) GetStorageProvider(ctx sdk.Context, id uint32) (sp *types.StorageProvider, found bool) {

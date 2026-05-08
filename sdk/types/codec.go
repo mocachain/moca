@@ -16,12 +16,12 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	evmostypes "github.com/evmos/evmos/v12/types"
-	challengetypes "github.com/evmos/evmos/v12/x/challenge/types"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
-	vgtypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 func Codec() *codec.ProtoCodec {

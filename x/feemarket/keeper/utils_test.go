@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/evmos/evmos/v12/utils"
+	"github.com/mocachain/moca/v2/utils"
 
 	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
@@ -20,20 +20,20 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	servercfg "github.com/evmos/evmos/v12/server/config"
+	servercfg "github.com/mocachain/moca/v2/server/config"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
-	"github.com/evmos/evmos/v12/app"
-	"github.com/evmos/evmos/v12/encoding"
-	"github.com/evmos/evmos/v12/testutil"
-	utiltx "github.com/evmos/evmos/v12/testutil/tx"
-	evmostypes "github.com/evmos/evmos/v12/types"
-	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
-	"github.com/evmos/evmos/v12/x/feemarket/types"
+	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/encoding"
+	"github.com/mocachain/moca/v2/testutil"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	evmostypes "github.com/mocachain/moca/v2/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/mocachain/moca/v2/x/feemarket/types"
 
 	"github.com/stretchr/testify/require"
 

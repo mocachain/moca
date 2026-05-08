@@ -11,7 +11,7 @@ import (
 	_ "github.com/cosmos/gogoproto/gogoproto"
 	proto "github.com/cosmos/gogoproto/proto"
 	github_com_cosmos_gogoproto_types "github.com/cosmos/gogoproto/types"
-	_ "github.com/evmos/evmos/v12/types/resource"
+	_ "github.com/mocachain/moca/v2/types/resource"
 	_ "google.golang.org/protobuf/types/known/timestamppb"
 	io "io"
 	math "math"
