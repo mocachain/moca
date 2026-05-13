@@ -10,7 +10,7 @@ option go_package = "github.com/mocachain/moca/v2/x/payment/types";
 // The EndBlocker of payment module will scan the list of AutoSettleRecord
 // and settle the stream account if the timestamp is less than the current time.
 message AutoSettleRecord {
-  option (amino.name) = "evmos/x/payment/AutoSettleRecord";
+  option (amino.name) = "moca/x/payment/AutoSettleRecord";
   // timestamp is the unix timestamp when the stream account will be settled.
   int64 timestamp = 1;
   // A stream account address

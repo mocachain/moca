@@ -26,7 +26,7 @@ service Msg {
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
 message MsgUpdateParams {
-  option (amino.name) = "evmos/x/payment/MsgUpdateParams";
+  option (amino.name) = "moca/x/payment/MsgUpdateParams";
   option (cosmos.msg.v1.signer) = "authority";
 
   // authority is the address that controls the module (defaults to x/gov unless overwritten).
@@ -41,7 +41,7 @@ message MsgUpdateParams {
 message MsgUpdateParamsResponse {}
 
 message MsgCreatePaymentAccount {
-  option (amino.name) = "evmos/x/payment/MsgCreatePaymentAccount";
+  option (amino.name) = "moca/x/payment/MsgCreatePaymentAccount";
   option (cosmos.msg.v1.signer) = "creator";
 
   // creator is the address of the stream account that created the payment account
@@ -51,7 +51,7 @@ message MsgCreatePaymentAccount {
 message MsgCreatePaymentAccountResponse {}
 
 message MsgDeposit {
-  option (amino.name) = "evmos/x/payment/MsgDeposit";
+  option (amino.name) = "moca/x/payment/MsgDeposit";
   option (cosmos.msg.v1.signer) = "creator";
 
   // creator is the message signer for MsgDeposit and the address of the account to deposit from
@@ -70,7 +70,7 @@ message MsgDeposit {
 message MsgDepositResponse {}
 
 message MsgWithdraw {
-  option (amino.name) = "evmos/x/payment/MsgWithdraw";
+  option (amino.name) = "moca/x/payment/MsgWithdraw";
   option (cosmos.msg.v1.signer) = "creator";
 
   // creator is the message signer for MsgWithdraw and the address of the receive account
@@ -89,7 +89,7 @@ message MsgWithdraw {
 message MsgWithdrawResponse {}
 
 message MsgDisableRefund {
-  option (amino.name) = "evmos/x/payment/MsgDisableRefund";
+  option (amino.name) = "moca/x/payment/MsgDisableRefund";
   option (cosmos.msg.v1.signer) = "owner";
 
   // owner is the message signer for MsgDisableRefund and the address of the payment account owner

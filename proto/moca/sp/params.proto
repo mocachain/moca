@@ -9,7 +9,7 @@ option go_package = "github.com/mocachain/moca/v2/x/sp/types";
 
 // Params defines the parameters for the module.
 message Params {
-  option (amino.name) = "evmos/x/sp/Params";
+  option (amino.name) = "moca/x/sp/Params";
   option (gogoproto.equal) = true;
   option (gogoproto.goproto_stringer) = false;
 
