@@ -22,6 +22,7 @@ source "${ENV_FILE}"
 STORAGE_PROVIDER_ADDRESS_PORT_START="${STORAGE_PROVIDER_ADDRESS_PORT_START:-${STOREAGE_PROVIDER_ADDRESS_PORT_START:-9033}}"
 STOREAGE_PROVIDER_ADDRESS_PORT_START="${STOREAGE_PROVIDER_ADDRESS_PORT_START:-$STORAGE_PROVIDER_ADDRESS_PORT_START}"
 TIMEOUT_COMMIT="${TIMEOUT_COMMIT:-1s}"
+VALIDATOR_PPROF_PORT_START="${VALIDATOR_PPROF_PORT_START:-16060}"
 
 # Silent mode flag (enabled by default to reduce terminal output noise)
 QUIET_MODE=true
@@ -335,6 +336,7 @@ function start() {
 			--p2p.laddr tcp://0.0.0.0:$((${VALIDATOR_P2P_PORT_START} + ${i})) \
 			--p2p.external-address 127.0.0.1:$((${VALIDATOR_P2P_PORT_START} + ${i})) \
 			--rpc.laddr tcp://0.0.0.0:$((${VALIDATOR_RPC_PORT_START} + ${i})) \
+			--rpc.pprof_laddr localhost:$((${VALIDATOR_PPROF_PORT_START} + ${i})) \
 			--rpc.unsafe true \
 			--json-rpc.address 0.0.0.0:${evm_http_port} \
 			--json-rpc.ws-address 0.0.0.0:${evm_ws_port} \
