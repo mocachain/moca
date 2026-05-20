@@ -29,8 +29,6 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/mocachain/moca/v2/server/config"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-
-	"github.com/mocachain/moca/v2/x/erc20/types"
 )
 
 // CallEVM performs a smart contract method call using given args
@@ -44,10 +42,7 @@ func (k Keeper) CallEVM(
 ) (*evmtypes.MsgEthereumTxResponse, error) {
 	data, err := abi.Pack(method, args...)
 	if err != nil {
-		return nil, errorsmod.Wrap(
-			types.ErrABIPack,
-			errorsmod.Wrap(err, "failed to create transaction data").Error(),
-		)
+		return nil, errorsmod.Wrap(err, "failed to create transaction data")
 	}
 
 	resp, err := k.CallEVMWithData(ctx, from, &contract, data, commit)

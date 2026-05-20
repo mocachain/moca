@@ -23,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
-	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
 	"github.com/mocachain/moca/v2/x/evm/types"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
@@ -249,7 +248,6 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	types.RegisterInterfaces(interfaceRegistry)
 
 	challengetypes.RegisterInterfaces(interfaceRegistry)
-	erc20types.RegisterInterfaces(interfaceRegistry)
 	feemarkettypes.RegisterInterfaces(interfaceRegistry)
 	gensptypes.RegisterInterfaces(interfaceRegistry)
 	paymenttypes.RegisterInterfaces(interfaceRegistry)
