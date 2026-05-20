@@ -115,7 +115,6 @@ import (
 	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
 	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
 	precompilesbank "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
-	precompileserc20 "github.com/mocachain/moca/v2/x/evm/precompiles/erc20"
 	precompilesgov "github.com/mocachain/moca/v2/x/evm/precompiles/gov"
 	precompilespayment "github.com/mocachain/moca/v2/x/evm/precompiles/payment"
 	precompilespermission "github.com/mocachain/moca/v2/x/evm/precompiles/permission"
@@ -134,9 +133,6 @@ import (
 	_ "github.com/mocachain/moca/v2/client/docs/statik"
 
 	"github.com/mocachain/moca/v2/app/ante"
-	"github.com/mocachain/moca/v2/x/erc20"
-	erc20keeper "github.com/mocachain/moca/v2/x/erc20/keeper"
-	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
 
 	// Force-load the tracer engines to trigger registration due to Go-Ethereum v1.10.15 changes
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -185,7 +181,6 @@ var (
 		stakingtypes.NotBondedPoolName:     {authtypes.Burner, authtypes.Staking},
 		govtypes.ModuleName:                {authtypes.Burner},
 		evmtypes.ModuleName:                {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
-		erc20types.ModuleName:              {authtypes.Minter, authtypes.Burner},
 		paymentmoduletypes.ModuleName:      {authtypes.Burner, authtypes.Staking},
 		permissionmoduletypes.ModuleName:   nil,
 		spmoduletypes.ModuleName:           {authtypes.Staking},
@@ -255,9 +250,6 @@ type Evmos struct {
 	// Ethermint keepers
 	EvmKeeper       *evmkeeper.Keeper
 	FeeMarketKeeper feemarketkeeper.Keeper
-
-	// Evmos keepers
-	Erc20Keeper erc20keeper.Keeper
 
 	// the module manager
 	mm                 *module.Manager
@@ -340,8 +332,6 @@ func NewEvmos(
 		reconStoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
-		// evmos keys
-		erc20types.StoreKey,
 	)
 
 	// Add the EVM transient store key
@@ -471,19 +461,8 @@ func NewEvmos(
 		),
 	)
 
-	app.Erc20Keeper = erc20keeper.NewKeeper(
-		keys[erc20types.StoreKey], appCodec, authtypes.NewModuleAddress(govtypes.ModuleName),
-		app.AccountKeeper, app.BankKeeper, app.EvmKeeper, app.StakingKeeper,
-	)
-
 	app.GovKeeper = *govKeeper.SetHooks(
 		govtypes.NewMultiGovHooks(),
-	)
-
-	app.EvmKeeper = app.EvmKeeper.SetHooks(
-		evmkeeper.NewMultiEvmHooks(
-			app.Erc20Keeper.Hooks(),
-		),
 	)
 
 	// create evidence keeper with router
@@ -596,8 +575,6 @@ func NewEvmos(
 		// Ethermint app modules
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
 		feemarket.NewAppModule(app.FeeMarketKeeper),
-		// Evmos app modules
-		erc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -683,7 +660,6 @@ func NewEvmos(
 		feegrant.ModuleName,
 		upgradetypes.ModuleName,
 		// Evmos modules
-		erc20types.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
 		paymentmoduletypes.ModuleName,
@@ -970,7 +946,6 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 		evmostypes.FeemarketAddress,
 		evmostypes.PaymentAddress,
 		evmostypes.PermissionAddress,
-		evmostypes.Erc20Address,
 		evmostypes.VirtualGroupAddress,
 		evmostypes.StorageAddress,
 		evmostypes.SpAddress,
@@ -1194,11 +1169,6 @@ func (app *Evmos) EvmPrecompiled() {
 		return precompilesslashing.NewPrecompiledContract(ctx, app.SlashingKeeper)
 	}
 
-	// erc20 precompile
-	precompiled[precompileserc20.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
-		return precompileserc20.NewPrecompiledContract(ctx, app.Erc20Keeper)
-	}
-
 	// set precompiled contracts
 	app.EvmKeeper.WithPrecompiled(precompiled)
 }
@@ -1235,7 +1205,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis", "gashub"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis", "gashub", "erc20"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
