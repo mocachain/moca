@@ -9,7 +9,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	testutiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func (suite *AnteTestSuite) TestEthSetupContextDecorator() {

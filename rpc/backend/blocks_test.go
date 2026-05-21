@@ -16,7 +16,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
 
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"

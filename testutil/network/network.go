@@ -74,7 +74,7 @@ import (
 
 	"github.com/mocachain/moca/v2/server/config"
 	evmostypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 // package-wide network lock to only allow one test network at a time

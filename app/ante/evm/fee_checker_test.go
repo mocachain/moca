@@ -12,10 +12,9 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 var _ DynamicFeeEVMKeeper = MockEVMKeeper{}
@@ -25,7 +24,7 @@ type MockEVMKeeper struct {
 	EnableLondonHF bool
 }
 
-func (m MockEVMKeeper) GetBaseFee(_ sdk.Context, _ *params.ChainConfig) *big.Int {
+func (m MockEVMKeeper) GetBaseFee(_ sdk.Context) *big.Int {
 	if m.EnableLondonHF {
 		return m.BaseFee
 	}

@@ -23,7 +23,7 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/testutil"
 	"github.com/mocachain/moca/v2/utils"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 )
 

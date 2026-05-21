@@ -25,7 +25,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 )
 

@@ -15,8 +15,8 @@ import (
 	testutiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
@@ -209,9 +209,7 @@ func (suite *AnteTestSuite) TestEthGasConsumeDecorator() {
 	tx := evmtypes.NewTx(ethContractCreationTxParams)
 	tx.From = addr.Hex()
 
-	ethCfg := suite.app.EvmKeeper.GetParams(suite.ctx).
-		ChainConfig.EthereumConfig(chainID)
-	baseFee := suite.app.EvmKeeper.GetBaseFee(suite.ctx, ethCfg)
+	baseFee := suite.app.EvmKeeper.GetBaseFee(suite.ctx)
 	suite.Require().Equal(int64(1000000000), baseFee.Int64())
 
 	gasPrice := new(big.Int).Add(baseFee, evmtypes.DefaultPriorityReduction.BigInt())

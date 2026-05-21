@@ -7,7 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
-	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 )
 
 // TestnetGovParamFix is the upgrade handler for the `testnet-gov-param-fix`

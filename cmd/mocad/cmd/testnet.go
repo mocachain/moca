@@ -61,7 +61,7 @@ import (
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 
 	evmostypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	evmoskr "github.com/mocachain/moca/v2/crypto/keyring"

@@ -28,9 +28,9 @@ import (
 
 	anteutils "github.com/mocachain/moca/v2/app/ante/utils"
 	"github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm/keeper"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/keeper"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -176,7 +176,7 @@ func (egcd EthGasConsumeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 
 	// Use the lowest priority of all the messages as the final one.
 	minPriority := int64(math.MaxInt64)
-	baseFee := egcd.evmKeeper.GetBaseFee(ctx, ethCfg)
+	baseFee := egcd.evmKeeper.GetBaseFee(ctx)
 
 	msgs := tx.GetMsgs()
 	if len(msgs) == 0 {
@@ -292,7 +292,7 @@ func (ctd CanTransferDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate 
 			return ctx, errorsmod.Wrapf(errortypes.ErrUnknownRequest, "invalid message type %T, expected %T", msg, (*evmtypes.MsgEthereumTx)(nil))
 		}
 
-		baseFee := ctd.evmKeeper.GetBaseFee(ctx, ethCfg)
+		baseFee := ctd.evmKeeper.GetBaseFee(ctx)
 
 		coreMsg, err := msgEthTx.AsMessage(signer, baseFee)
 		if err != nil {

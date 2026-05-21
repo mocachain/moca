@@ -61,7 +61,7 @@ import (
 	"github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 	evmostypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"github.com/mocachain/moca/v2/testutil/network"
 )

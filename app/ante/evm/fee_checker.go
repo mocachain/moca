@@ -26,7 +26,7 @@ import (
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	anteutils "github.com/mocachain/moca/v2/app/ante/utils"
 	evmostypes "github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/types"
 )
 
 // NewDynamicFeeChecker returns a `TxFeeChecker` that applies a dynamic fee to
@@ -46,9 +46,8 @@ func NewDynamicFeeChecker(k DynamicFeeEVMKeeper) anteutils.TxFeeChecker {
 
 		params := k.GetParams(ctx)
 		denom := params.EvmDenom
-		ethCfg := params.ChainConfig.EthereumConfig(k.ChainID())
 
-		baseFee := k.GetBaseFee(ctx, ethCfg)
+		baseFee := k.GetBaseFee(ctx)
 		if baseFee == nil {
 			// london hardfork is not enabled: fallback to min-gas-prices logic
 			return checkTxFeeWithValidatorMinGasPrices(ctx, feeTx)

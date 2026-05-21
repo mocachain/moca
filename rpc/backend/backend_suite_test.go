@@ -24,7 +24,7 @@ import (
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 type BackendTestSuite struct {

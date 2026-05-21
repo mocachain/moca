@@ -8,7 +8,7 @@ import (
 	ethante "github.com/mocachain/moca/v2/app/ante/evm"
 	"github.com/mocachain/moca/v2/testutil"
 	testutiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func (suite *AnteTestSuite) TestEthSigVerificationDecorator() {

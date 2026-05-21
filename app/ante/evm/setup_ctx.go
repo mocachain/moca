@@ -26,7 +26,7 @@ import (
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 // EthSetupContextDecorator is adapted from SetUpContextDecorator from cosmos-sdk, it ignores gas consumption
@@ -156,12 +156,14 @@ func (vbd EthValidateBasicDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simu
 	txGasLimit := uint64(0)
 
 	evmParams := vbd.evmKeeper.GetParams(ctx)
-	chainCfg := evmParams.GetChainConfig()
-	chainID := vbd.evmKeeper.ChainID()
-	ethCfg := chainCfg.EthereumConfig(chainID)
-	baseFee := vbd.evmKeeper.GetBaseFee(ctx, ethCfg)
-	enableCreate := evmParams.GetEnableCreate()
-	enableCall := evmParams.GetEnableCall()
+	baseFee := vbd.evmKeeper.GetBaseFee(ctx)
+	// cosmos/evm replaced the EnableCreate/EnableCall bool params with an
+	// AccessControl model. Treat creation/calls as enabled unless the access
+	// type is fully restricted; fine-grained allowlist checks (permissioned)
+	// are enforced by the x/vm keeper itself.
+	accessControl := evmParams.AccessControl
+	enableCreate := accessControl.Create.AccessType != evmtypes.AccessTypeRestricted
+	enableCall := accessControl.Call.AccessType != evmtypes.AccessTypeRestricted
 	evmDenom := evmParams.GetEvmDenom()
 
 	for _, msg := range protoTx.GetMsgs() {

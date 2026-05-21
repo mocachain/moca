@@ -19,7 +19,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func (suite *BackendTestSuite) TestSendTransaction() {

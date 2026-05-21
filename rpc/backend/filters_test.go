@@ -8,7 +8,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	ethrpc "github.com/mocachain/moca/v2/rpc/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func (suite *BackendTestSuite) TestGetLogs() {

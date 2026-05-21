@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
@@ -111,8 +112,8 @@ import (
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 	evmostypes "github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm"
-	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
+	evm "github.com/cosmos/evm/x/vm"
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
 	precompilesbank "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
 	precompilesgov "github.com/mocachain/moca/v2/x/evm/precompiles/gov"
@@ -121,7 +122,7 @@ import (
 	precompilesstorage "github.com/mocachain/moca/v2/x/evm/precompiles/storage"
 	precompilessp "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
 	precompilesvirtualgroup "github.com/mocachain/moca/v2/x/evm/precompiles/virtualgroup"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/x/feemarket"
 	feemarketkeeper "github.com/mocachain/moca/v2/x/feemarket/keeper"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
@@ -316,6 +317,14 @@ func NewEvmos(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 
+	// cosmos/evm keeps its chain config and coin info in process globals that
+	// must be initialised before any transaction is processed; GetEthChainConfig
+	// panics otherwise. baseapp's chain id is empty until InitChain on the node
+	// start path, so fall back to the genesis file's chain_id.
+	if err := configureEVM(resolveEVMChainID(homePath, bApp.ChainID())); err != nil {
+		panic(err)
+	}
+
 	keys := storetypes.NewKVStoreKeys(
 		// SDK keys
 		authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
@@ -431,11 +440,13 @@ func NewEvmos(
 		tkeys[feemarkettypes.TransientKey],
 	)
 
+	// NOTE: moca's x/erc20 module was removed (#220/#221). cosmos/evm's x/vm
+	// keeper still requires an Erc20Keeper for dynamic ERC20 precompile
+	// lookups — a feature moca does not use — so a no-op stub is supplied.
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], authtypes.NewModuleAddress(govtypes.ModuleName),
-		app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.FeeMarketKeeper,
-		// FIX: Temporary solution to solve keeper interdependency while new precompile module
-		// is being developed.
+		app.AccountKeeper, app.BankKeeper, app.StakingKeeper,
+		newFeeMarketKeeperAdapter(app.FeeMarketKeeper), noopErc20Keeper{},
 		tracer,
 	)
 
@@ -1111,67 +1122,82 @@ func GetMaccPerms() map[string][]string {
 	return dupMaccPerms
 }
 
-// EvmPrecompiled  set evm precompiled contracts
+// EvmPrecompiled registers moca's custom precompiled contracts with the EVM
+// keeper.
+//
+// moca's precompiles are constructed per sdk.Context, whereas cosmos/evm's x/vm
+// keeper holds a static map of vm.PrecompiledContract (set via
+// WithStaticPrecompiles). The ctxBoundPrecompile adapter (see precompiles.go)
+// bridges the two models: it rebuilds the underlying precompile on every call
+// using the live context recovered from the EVM StateDB, preserving moca's
+// original per-context execution semantics without changing the precompiles.
+//
+// The standard Ethereum precompiles (ecrecover, sha256, …) are provided by the
+// go-ethereum EVM itself and must not be added here.
 func (app *Evmos) EvmPrecompiled() {
-	precompiled := evmkeeper.BerlinPrecompiled()
+	precompiled := make(map[common.Address]vm.PrecompiledContract)
+
+	register := func(addr common.Address, build precompileBuilder) {
+		precompiled[addr] = newCtxBoundPrecompile(addr, build)
+	}
 
 	// bank precompile
-	precompiled[precompilesbank.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilesbank.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesbank.NewPrecompiledContract(ctx, app.BankKeeper, app.PaymentKeeper)
-	}
+	})
 
 	// authz precompile
-	precompiled[precompilesauthz.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilesauthz.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesauthz.NewPrecompiledContract(ctx, app.AuthzKeeper)
-	}
+	})
 
 	// gov precompile
-	precompiled[precompilesgov.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilesgov.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesgov.NewPrecompiledContract(ctx, app.GovKeeper, app.AccountKeeper)
-	}
+	})
 
 	// payment precompile
-	precompiled[precompilespayment.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilespayment.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilespayment.NewPrecompiledContract(ctx, app.PaymentKeeper)
-	}
+	})
 
 	// permission precompile
-	precompiled[precompilespermission.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilespermission.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilespermission.NewPrecompiledContract(ctx, app.PermissionKeeper)
-	}
+	})
 
 	// staking precompile
-	precompiled[precompilesstaking.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilesstaking.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesstaking.NewPrecompiledContract(ctx, app.StakingKeeper)
-	}
+	})
 
 	// distribution precompile
-	precompiled[precompilesdistribution.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilesdistribution.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesdistribution.NewPrecompiledContract(ctx, app.DistrKeeper)
-	}
+	})
 
 	// storage precompile
-	precompiled[precompilesstorage.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilesstorage.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesstorage.NewPrecompiledContract(ctx, app.StorageKeeper)
-	}
+	})
 
 	// virtualgroup precompile
-	precompiled[precompilesvirtualgroup.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilesvirtualgroup.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesvirtualgroup.NewPrecompiledContract(ctx, app.VirtualgroupKeeper)
-	}
+	})
 
 	// storageprovider precompile
-	precompiled[precompilessp.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilessp.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilessp.NewPrecompiledContract(ctx, app.SpKeeper)
-	}
+	})
 
 	// slashing precompile
-	precompiled[precompilesslashing.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
+	register(precompilesslashing.GetAddress(), func(ctx sdk.Context) vm.PrecompiledContract {
 		return precompilesslashing.NewPrecompiledContract(ctx, app.SlashingKeeper)
-	}
+	})
 
 	// set precompiled contracts
-	app.EvmKeeper.WithPrecompiled(precompiled)
+	app.EvmKeeper.WithStaticPrecompiles(precompiled)
 }
 
 func (app *Evmos) setupUpgradeHandlers() {

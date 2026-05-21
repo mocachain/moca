@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/cobra"
 
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	types "github.com/cosmos/evm/x/vm/types"
 )
 
 // GetTxCmd returns the transaction commands for this module

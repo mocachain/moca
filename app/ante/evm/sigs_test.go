@@ -4,8 +4,8 @@ import (
 	"math/big"
 
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func (suite *AnteTestSuite) TestSignatures() {

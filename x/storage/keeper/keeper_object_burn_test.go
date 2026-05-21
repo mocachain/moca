@@ -20,7 +20,7 @@ import (
 	"github.com/mocachain/moca/v2/contracts"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/challenge"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/storage/keeper"

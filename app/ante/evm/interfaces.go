@@ -23,10 +23,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 )
 
@@ -53,7 +52,7 @@ type FeeMarketKeeper interface {
 type DynamicFeeEVMKeeper interface {
 	ChainID() *big.Int
 	GetParams(ctx sdk.Context) evmtypes.Params
-	GetBaseFee(ctx sdk.Context, ethCfg *params.ChainConfig) *big.Int
+	GetBaseFee(ctx sdk.Context) *big.Int
 }
 
 type protoTxProvider interface {

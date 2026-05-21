@@ -13,7 +13,7 @@ import (
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"google.golang.org/grpc/metadata"
 )
 
