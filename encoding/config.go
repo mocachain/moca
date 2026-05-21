@@ -27,7 +27,6 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	enccodec "github.com/mocachain/moca/v2/encoding/codec"
-	// erc20types "github.com/mocachain/moca/v2/x/erc20/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
@@ -36,8 +35,7 @@ func MakeConfig() sdktestutil.TestEncodingConfig {
 	cdc := amino.NewLegacyAmino()
 	signingOptions := signing.Options{
 		CustomGetSigners: map[protoreflect.FullName]signing.GetSignersFunc{
-			evmtypes.MsgEthereumTxCustomGetSigner.MsgType:     evmtypes.MsgEthereumTxCustomGetSigner.Fn,
-			// erc20types.MsgConvertERC20CustomGetSigner.MsgType: erc20types.MsgConvertERC20CustomGetSigner.Fn,
+			evmtypes.MsgEthereumTxCustomGetSigner.MsgType: evmtypes.MsgEthereumTxCustomGetSigner.Fn,
 		},
 	}
 

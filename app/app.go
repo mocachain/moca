@@ -946,6 +946,7 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 		evmostypes.FeemarketAddress,
 		evmostypes.PaymentAddress,
 		evmostypes.PermissionAddress,
+		evmostypes.DeprecatedErc20Address,
 		evmostypes.VirtualGroupAddress,
 		evmostypes.StorageAddress,
 		evmostypes.SpAddress,

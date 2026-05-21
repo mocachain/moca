@@ -53,6 +53,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
   `deployment/dockerup/README.md` (legacy Node dev.js docs)
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
+### State Machine Breaking
+
+- (erc20) [#221](https://github.com/mocachain/moca/pull/221) Remove the dormant `x/erc20` module and the erc20 precompile; register the `erc20` store for deletion in the `v2.0.0` store upgrade
+
 ### Bug Fixes
 
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
