@@ -20,8 +20,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltestutil "github.com/cosmos/cosmos-sdk/x/genutil/testutil"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/gensp"

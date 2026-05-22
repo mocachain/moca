@@ -284,23 +284,23 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/puneet2019/cosmos-sdk/api v0.9.3-0.20260522052804-59f668cf113e
-	cosmossdk.io/client/v2 => github.com/puneet2019/cosmos-sdk/client/v2 v2.0.0-beta.11.0.20260522052804-59f668cf113e
-	cosmossdk.io/math => github.com/puneet2019/cosmos-sdk/math v1.5.4-0.20260522052804-59f668cf113e
-	cosmossdk.io/simapp => github.com/puneet2019/cosmos-sdk/simapp v0.0.0-20260522052804-59f668cf113e
-	cosmossdk.io/store => github.com/puneet2019/cosmos-sdk/store v1.10.0-rc.1.0.20260522052804-59f668cf113e
-	cosmossdk.io/x/circuit => github.com/puneet2019/cosmos-sdk/x/circuit v0.2.1-0.20260522052804-59f668cf113e
-	cosmossdk.io/x/nft => github.com/puneet2019/cosmos-sdk/x/nft v0.2.1-0.20260522052804-59f668cf113e
-	cosmossdk.io/x/tx => github.com/puneet2019/cosmos-sdk/x/tx v1.1.1-0.20260522052804-59f668cf113e
+	cosmossdk.io/api => github.com/puneet2019/cosmos-sdk/api v0.9.3-0.20260522055949-76f35ed7f7ec
+	cosmossdk.io/client/v2 => github.com/puneet2019/cosmos-sdk/client/v2 v2.0.0-beta.11.0.20260522055949-76f35ed7f7ec
+	cosmossdk.io/math => github.com/puneet2019/cosmos-sdk/math v1.5.4-0.20260522055949-76f35ed7f7ec
+	cosmossdk.io/simapp => github.com/puneet2019/cosmos-sdk/simapp v0.0.0-20260522055949-76f35ed7f7ec
+	cosmossdk.io/store => github.com/puneet2019/cosmos-sdk/store v1.10.0-rc.1.0.20260522055949-76f35ed7f7ec
+	cosmossdk.io/x/circuit => github.com/puneet2019/cosmos-sdk/x/circuit v0.2.1-0.20260522055949-76f35ed7f7ec
+	cosmossdk.io/x/nft => github.com/puneet2019/cosmos-sdk/x/nft v0.2.1-0.20260522055949-76f35ed7f7ec
+	cosmossdk.io/x/tx => github.com/puneet2019/cosmos-sdk/x/tx v1.1.1-0.20260522055949-76f35ed7f7ec
 	// Use standard cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade from ecosystem
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// use cosmos fork of keyring
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
-	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260320015437-83994359d443
+	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260522043823-e86182950736
 	// use Cosmos-SDK fork to enable Ledger functionality
-	github.com/cosmos/cosmos-sdk => github.com/puneet2019/cosmos-sdk v0.53.8-0.20260522052804-59f668cf113e
+	github.com/cosmos/cosmos-sdk => github.com/puneet2019/cosmos-sdk v0.53.8-0.20260522055949-76f35ed7f7ec
 	// use Evmos geth fork
 	github.com/ethereum/go-ethereum => github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
