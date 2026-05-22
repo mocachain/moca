@@ -85,23 +85,23 @@ type PublicFilterAPI struct {
 // NewPublicAPI returns a new PublicFilterAPI instance.
 func NewPublicAPI(logger log.Logger, clientCtx client.Context, tmWSClient *rpcclient.WSClient, backend Backend) *PublicFilterAPI {
 	logger = logger.With("api", "filter")
-	
+
 	// Get rate limit configuration from backend
 	rateLimit := backend.RPCGetLogsRateLimit()
 	if rateLimit <= 0 {
 		rateLimit = 50 // Default: 50 requests per second
 	}
-	
+
 	burstLimit := backend.RPCGetLogsBurstLimit()
 	if burstLimit <= 0 {
 		burstLimit = 100 // Default: 100 burst
 	}
-	
+
 	// Create a rate limiter with configurable limits
 	// This prevents overwhelming the system with too many eth_getLogs queries
 	limiter := rate.NewLimiter(rate.Limit(rateLimit), burstLimit)
 	logger.Info("eth_getLogs rate limiter initialized", "rate", rateLimit, "burst", burstLimit)
-	
+
 	api := &PublicFilterAPI{
 		logger:      logger,
 		clientCtx:   clientCtx,

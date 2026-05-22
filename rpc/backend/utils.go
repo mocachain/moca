@@ -17,8 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
-	abci "github.com/cometbft/cometbft/abci/types"
 	"cosmossdk.io/log"
+	abci "github.com/cometbft/cometbft/abci/types"
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 
 	"github.com/cometbft/cometbft/proto/tendermint/crypto"
