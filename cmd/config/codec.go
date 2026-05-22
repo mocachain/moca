@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"strings"
 
 	"cosmossdk.io/core/address"
@@ -24,15 +25,21 @@ func NewMultiPrefixBech32Codec(primaryPrefix, secondaryPrefix string) address.Co
 }
 
 func (bc *MultiPrefixBech32Codec) StringToBytes(text string) ([]byte, error) {
+	// moca renders addresses as EIP-55 0x-hex; accept hex input directly.
+	// hex.DecodeString accepts mixed-case (checksummed) input.
+	if len(text) >= 2 && (text[0:2] == "0x" || text[0:2] == "0X") {
+		return hex.DecodeString(text[2:])
+	}
+
 	if strings.HasPrefix(text, bc.outputPrefix) {
 		return bc.primaryCodec.StringToBytes(text)
 	}
-	
+
 	bytes, err := bc.secondaryCodec.StringToBytes(text)
 	if err == nil {
 		return bytes, nil
 	}
-	
+
 	return bc.primaryCodec.StringToBytes(text)
 }
 
