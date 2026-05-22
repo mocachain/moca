@@ -777,10 +777,6 @@ func NewEvmos(
 		paymentIavl.EnableDiff()
 	}
 	app.initModules(ctx)
-	// add eth query router
-	ethRouter := app.BaseApp.EthQueryRouter()
-	ethRouter.RegisterConstHandler()
-	ethRouter.RegisterEthQueryBalanceHandler(app.BankKeeper, bankkeeper.EthQueryBalanceHandlerGen)
 
 	// Finally start the tpsCounter.
 	app.tpsCounter = newTPSCounter(logger)
