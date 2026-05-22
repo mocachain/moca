@@ -6,9 +6,9 @@ import (
 	"time"
 
 	// TODO update import to local pkg when rpc pkg is migrated
-	"github.com/mocachain/moca/v2/server/config"
 	"github.com/gorilla/mux"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/mocachain/moca/v2/server/config"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/netutil"
 
@@ -16,8 +16,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/version"
 
-	tmcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmlog "cosmossdk.io/log"
+	tmcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	rpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 )
 

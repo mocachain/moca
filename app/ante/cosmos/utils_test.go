@@ -3,8 +3,8 @@ package cosmos_test
 import (
 	"time"
 
-	sdkmath "cosmossdk.io/math"
 	"context"
+	sdkmath "cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"

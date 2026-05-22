@@ -110,7 +110,7 @@ func DefaultConfig() Config {
 		panic(fmt.Sprintf("failed creating temporary directory: %v", err))
 	}
 	defer os.RemoveAll(dir)
-	app := app.NewMoca(log.NewNopLogger(), dbm.NewMemDB(), nil, true, nil, dir, config.NewDefaultAppConfig(mocatypes.AttoEvmos), simutils.NewAppOptionsWithFlagHome(dir), baseapp.SetChainID(chainID))
+	app := app.NewMoca(log.NewNopLogger(), dbm.NewMemDB(), nil, true, nil, dir, config.NewDefaultAppConfig(mocatypes.AttoMoca), simutils.NewAppOptionsWithFlagHome(dir), baseapp.SetChainID(chainID))
 	return Config{
 		Codec:             app.AppCodec(),
 		TxConfig:          app.GetTxConfig(),
@@ -123,7 +123,7 @@ func DefaultConfig() Config {
 		ChainID:           chainID,
 		NumValidators:     4,
 		BondDenom:         "amoca",
-		MinGasPrices:      fmt.Sprintf("0.000006%s", mocatypes.AttoEvmos),
+		MinGasPrices:      fmt.Sprintf("0.000006%s", mocatypes.AttoMoca),
 		AccountTokens:     sdk.TokensFromConsensusPower(1000000000000000000, mocatypes.PowerReduction),
 		StakingTokens:     sdk.TokensFromConsensusPower(500000000000000000, mocatypes.PowerReduction),
 		BondedTokens:      sdk.TokensFromConsensusPower(100000000000000000, mocatypes.PowerReduction),
@@ -140,7 +140,7 @@ func NewAppConstructor(chainID string) AppConstructor {
 	return func(val Validator) servertypes.Application {
 		return app.NewMoca(
 			val.Ctx.Logger, dbm.NewMemDB(), nil, true, make(map[int64]bool), val.Ctx.Config.RootDir,
-			config.NewDefaultAppConfig(mocatypes.AttoEvmos),
+			config.NewDefaultAppConfig(mocatypes.AttoMoca),
 			simutils.NewAppOptionsWithFlagHome(val.Ctx.Config.RootDir),
 			baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
 			baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
@@ -492,7 +492,7 @@ func New(l Logger, baseDir string, cfg Config) (*Network, error) {
 			return nil, err
 		}
 
-		customAppTemplate, _ := config.NewAppConfig(mocatypes.AttoEvmos)
+		customAppTemplate, _ := config.NewAppConfig(mocatypes.AttoMoca)
 		srvconfig.SetConfigTemplate(customAppTemplate)
 		srvconfig.WriteConfigFile(filepath.Join(nodeDir, "config/app.toml"), appCfg)
 

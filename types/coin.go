@@ -9,13 +9,13 @@ import (
 )
 
 const (
-	// AttoEvmos defines the default coin denomination used in Moca in:
+	// AttoMoca defines the default coin denomination used in Moca in:
 	//
 	// - Staking parameters: denomination used as stake in the dPoS chain
 	// - Mint parameters: denomination minted due to fee distribution rewards
 	// - Governance parameters: denomination used for spam prevention in proposal deposits
 	// - EVM parameters: denomination used for running EVM state transitions in Moca.
-	AttoEvmos string = "amoca"
+	AttoMoca string = "amoca"
 
 	// BaseDenomUnit defines the base denomination unit for Moca.
 	// 1 moca = 1x10^{BaseDenomUnit} amoca
@@ -31,17 +31,17 @@ var PowerReduction = sdkmath.NewIntFromBigInt(new(big.Int).Exp(big.NewInt(10), b
 // NewMocaCoin is a utility function that returns an "amoca" coin with the given sdkmath.Int amount.
 // The function will panic if the provided amount is negative.
 func NewMocaCoin(amount sdkmath.Int) sdk.Coin {
-	return sdk.NewCoin(AttoEvmos, amount)
+	return sdk.NewCoin(AttoMoca, amount)
 }
 
-// NewEvmosDecCoin is a utility function that returns an "amoca" decimal coin with the given sdkmath.Int amount.
+// NewMocaDecCoin is a utility function that returns an "amoca" decimal coin with the given sdkmath.Int amount.
 // The function will panic if the provided amount is negative.
-func NewEvmosDecCoin(amount sdkmath.Int) sdk.DecCoin {
-	return sdk.NewDecCoin(AttoEvmos, amount)
+func NewMocaDecCoin(amount sdkmath.Int) sdk.DecCoin {
+	return sdk.NewDecCoin(AttoMoca, amount)
 }
 
 // NewMocaCoinInt64 is a utility function that returns an "amoca" coin with the given int64 amount.
 // The function will panic if the provided amount is negative.
 func NewMocaCoinInt64(amount int64) sdk.Coin {
-	return sdk.NewInt64Coin(AttoEvmos, amount)
+	return sdk.NewInt64Coin(AttoMoca, amount)
 }

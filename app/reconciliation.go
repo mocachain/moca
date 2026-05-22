@@ -29,7 +29,7 @@ var (
 )
 
 // reconcile will do reconciliation for accounts balances.
-func (app *Evmos) reconcile(ctx sdk.Context, bankIavl *iavl.Store, paymentIavl *iavl.Store) {
+func (app *Moca) reconcile(ctx sdk.Context, bankIavl *iavl.Store, paymentIavl *iavl.Store) {
 	if ctx.BlockHeight() <= 2 {
 		return
 	}
@@ -53,7 +53,7 @@ func (app *Evmos) reconcile(ctx sdk.Context, bankIavl *iavl.Store, paymentIavl *
 }
 
 // reconBankChanges will reconcile bank balance changes
-func (app *Evmos) reconBankChanges(ctx sdk.Context, bankIavl *iavl.Store) bool {
+func (app *Moca) reconBankChanges(ctx sdk.Context, bankIavl *iavl.Store) bool {
 	supplyPre := sdk.Coins{}
 	balancePre := sdk.Coins{}
 	supplyCurrent := sdk.Coins{}
@@ -111,7 +111,7 @@ func (app *Evmos) reconBankChanges(ctx sdk.Context, bankIavl *iavl.Store) bool {
 }
 
 // reconPaymentChanges will reconcile payment flow rate changes
-func (app *Evmos) reconPaymentChanges(ctx sdk.Context, paymentIavl *iavl.Store) bool {
+func (app *Moca) reconPaymentChanges(ctx sdk.Context, paymentIavl *iavl.Store) bool {
 	flowCurrent := math.ZeroInt()
 	flowPre := math.ZeroInt()
 
@@ -159,14 +159,14 @@ func (app *Evmos) reconPaymentChanges(ctx sdk.Context, paymentIavl *iavl.Store) 
 	return flowCurrent.Equal(flowPre)
 }
 
-func (app *Evmos) saveUnbalancedBlockHeight(ctx sdk.Context) {
+func (app *Moca) saveUnbalancedBlockHeight(ctx sdk.Context) {
 	reconStore := app.CommitMultiStore().GetCommitStore(storetypes.NewKVStoreKey(reconStoreKey)).(*iavl.Store)
 	bz := make([]byte, 8)
 	binary.BigEndian.PutUint64(bz, uint64(ctx.BlockHeight()))
 	reconStore.Set(unbalancedBlockHeightKey, bz)
 }
 
-func (app *Evmos) getUnbalancedBlockHeight(_ sdk.Context) (uint64, bool) {
+func (app *Moca) getUnbalancedBlockHeight(_ sdk.Context) (uint64, bool) {
 	reconStore := app.CommitMultiStore().GetCommitStore(app.GetKey(reconStoreKey)).(*iavl.Store)
 	bz := reconStore.Get(unbalancedBlockHeightKey)
 	if bz == nil {
