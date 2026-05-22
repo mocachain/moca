@@ -110,7 +110,7 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm"
 	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
 	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
@@ -202,7 +202,7 @@ func init() {
 	DefaultNodeHome = filepath.Join(userHomeDir, "."+ShortName)
 
 	// manually update the power reduction by replacing micro (u) -> atto (a) evmos
-	sdk.DefaultPowerReduction = evmostypes.PowerReduction
+	sdk.DefaultPowerReduction = mocatypes.PowerReduction
 	// modify fee market parameter defaults through global
 	feemarkettypes.DefaultMinGasPrice = MainnetMinGasPrices
 	feemarkettypes.DefaultMinGasMultiplier = MainnetMinGasMultiplier
@@ -364,7 +364,7 @@ func NewMoca(
 	// use custom Ethermint account for contracts
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
 		appCodec, runtime.NewKVStoreService(keys[authtypes.StoreKey]),
-		evmostypes.ProtoAccount, maccPerms,
+		mocatypes.ProtoAccount, maccPerms,
 		cmdcfg.NewMultiPrefixBech32AccCodec(),
 		authAddr,
 	)
@@ -806,7 +806,7 @@ func (app *Evmos) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) 
 		Cdc:                    app.appCodec,
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
-		ExtensionOptionChecker: evmostypes.HasDynamicFeeExtensionOption,
+		ExtensionOptionChecker: mocatypes.HasDynamicFeeExtensionOption,
 		EvmKeeper:              app.EvmKeeper,
 		FeegrantKeeper:         app.FeeGrantKeeper,
 		DistributionKeeper:     app.DistrKeeper,
@@ -886,7 +886,7 @@ func (app *Evmos) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.Respo
 
 // InitChainer updates at chain initialization
 func (app *Evmos) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
-	var genesisState evmostypes.GenesisState
+	var genesisState mocatypes.GenesisState
 	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
@@ -930,22 +930,22 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 	blockedAddrs := app.ModuleAccountAddrs()
 
 	blockedPrecompilesHex := []string{
-		evmostypes.BankAddress,
-		evmostypes.AuthAddress,
-		evmostypes.GovAddress,
-		evmostypes.StakingAddress,
-		evmostypes.DistributionAddress,
-		evmostypes.SlashingAddress,
-		evmostypes.EvidenceAddress,
-		evmostypes.DeprecatedEpochsAddress,
-		evmostypes.AuthzAddress,
-		evmostypes.FeemarketAddress,
-		evmostypes.PaymentAddress,
-		evmostypes.PermissionAddress,
-		evmostypes.DeprecatedErc20Address,
-		evmostypes.VirtualGroupAddress,
-		evmostypes.StorageAddress,
-		evmostypes.SpAddress,
+		mocatypes.BankAddress,
+		mocatypes.AuthAddress,
+		mocatypes.GovAddress,
+		mocatypes.StakingAddress,
+		mocatypes.DistributionAddress,
+		mocatypes.SlashingAddress,
+		mocatypes.EvidenceAddress,
+		mocatypes.DeprecatedEpochsAddress,
+		mocatypes.AuthzAddress,
+		mocatypes.FeemarketAddress,
+		mocatypes.PaymentAddress,
+		mocatypes.PermissionAddress,
+		mocatypes.DeprecatedErc20Address,
+		mocatypes.VirtualGroupAddress,
+		mocatypes.StorageAddress,
+		mocatypes.SpAddress,
 	}
 	for _, addr := range vm.PrecompiledAddressesBerlin {
 		blockedPrecompilesHex = append(blockedPrecompilesHex, addr.Hex())
@@ -975,7 +975,7 @@ func (app *Evmos) AppCodec() codec.Codec {
 }
 
 // DefaultGenesis returns a default genesis from the registered AppModuleBasic's.
-func (app *Evmos) DefaultGenesis() evmostypes.GenesisState {
+func (app *Evmos) DefaultGenesis() mocatypes.GenesisState {
 	return app.BasicModuleManager.DefaultGenesis(app.appCodec)
 }
 

@@ -59,15 +59,15 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 
-	evmosclient "github.com/mocachain/moca/v2/client"
+	mocaclient "github.com/mocachain/moca/v2/client"
 	"github.com/mocachain/moca/v2/client/debug"
-	evmosserver "github.com/mocachain/moca/v2/server"
+	mocaserver "github.com/mocachain/moca/v2/server"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 
 	"github.com/mocachain/moca/v2/app"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
-	evmoskr "github.com/mocachain/moca/v2/crypto/keyring"
+	mocakr "github.com/mocachain/moca/v2/crypto/keyring"
 	gensputilcli "github.com/mocachain/moca/v2/x/gensp/client/cli"
 )
 
@@ -147,7 +147,7 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithBroadcastMode(flags.FlagBroadcastMode).
 		WithHomeDir(app.DefaultNodeHome).
-		WithKeyringOptions(evmoskr.Option()).
+		WithKeyringOptions(mocakr.Option()).
 		WithViper(EnvPrefix).
 		WithLedgerHasProtobuf(true)
 
@@ -216,7 +216,7 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 	gentxModule := tempApp.BasicModuleManager[genutiltypes.ModuleName].(genutil.AppModuleBasic)
 
 	rootCmd.AddCommand(
-		evmosclient.ValidateChainID(
+		mocaclient.ValidateChainID(
 			InitCmd(tempApp.BasicModuleManager, app.DefaultNodeHome),
 		),
 		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome, gentxModule.GenTxValidator),
@@ -237,9 +237,9 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		pruning.Cmd(a.newApp, app.DefaultNodeHome),
 	)
 
-	evmosserver.AddCommands(
+	mocaserver.AddCommands(
 		rootCmd,
-		evmosserver.NewDefaultStartOptions(a.newApp, app.DefaultNodeHome),
+		mocaserver.NewDefaultStartOptions(a.newApp, app.DefaultNodeHome),
 		a.appExport,
 		addModuleInitFlags,
 	)
@@ -249,7 +249,7 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		sdkserver.StatusCommand(),
 		queryCommand(),
 		txCommand(),
-		evmosclient.KeyCommands(app.DefaultNodeHome),
+		mocaclient.KeyCommands(app.DefaultNodeHome),
 	)
 	rootCmd, err := srvflags.AddTxFlags(rootCmd)
 	if err != nil {
@@ -267,7 +267,7 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 }
 
 // addModuleInitFlags is intentionally a no-op after the x/crisis module was
-// removed. The hook is still wired through evmosserver.AddCommands because that
+// removed. The hook is still wired through mocaserver.AddCommands because that
 // signature mandates a non-nil types.ModuleInitFlags callback; future modules
 // that need to inject CLI flags into the start command can register them here.
 func addModuleInitFlags(_ *cobra.Command) {
@@ -396,7 +396,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		chainID = conf.ChainID
 	}
 
-	evmosApp := app.NewMoca(
+	mocaApp := app.NewMoca(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		AppConfig,
@@ -419,7 +419,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		baseapp.SetEnablePlainStore(cast.ToBool(appOpts.Get(sdkserver.FlagEnablePlainStore))),
 	)
 
-	return evmosApp
+	return mocaApp
 }
 
 // appExport creates a new simapp (optionally at a given height)
@@ -434,23 +434,23 @@ func (a appCreator) appExport(
 	appOpts servertypes.AppOptions,
 	modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
-	var evmosApp *app.Evmos
+	var mocaApp *app.Evmos
 	homePath, ok := appOpts.Get(flags.FlagHome).(string)
 	if !ok || homePath == "" {
 		return servertypes.ExportedApp{}, errors.New("application home not set")
 	}
 
 	if height != -1 {
-		evmosApp = app.NewMoca(logger, db, traceStore, false, map[int64]bool{}, "", AppConfig, appOpts)
+		mocaApp = app.NewMoca(logger, db, traceStore, false, map[int64]bool{}, "", AppConfig, appOpts)
 
-		if err := evmosApp.LoadHeight(height); err != nil {
+		if err := mocaApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		evmosApp = app.NewMoca(logger, db, traceStore, true, map[int64]bool{}, "", AppConfig, appOpts)
+		mocaApp = app.NewMoca(logger, db, traceStore, true, map[int64]bool{}, "", AppConfig, appOpts)
 	}
 
-	return evmosApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
+	return mocaApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
 }
 
 // initTendermintConfig helps to override default Tendermint Config values.

@@ -60,11 +60,11 @@ import (
 	"github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
-	evmoskr "github.com/mocachain/moca/v2/crypto/keyring"
+	mocakr "github.com/mocachain/moca/v2/crypto/keyring"
 	"github.com/mocachain/moca/v2/testutil/network"
 )
 
@@ -283,7 +283,7 @@ func initTestnetFiles(
 		memo := fmt.Sprintf("%s@%s:26656", nodeIDs[i], ip)
 		genFiles = append(genFiles, nodeConfig.GenesisFile())
 
-		kb, err := keyring.New(sdk.KeyringServiceName(), args.keyringBackend, nodeDir, inBuf, clientCtx.Codec, evmoskr.Option())
+		kb, err := keyring.New(sdk.KeyringServiceName(), args.keyringBackend, nodeDir, inBuf, clientCtx.Codec, mocakr.Option())
 		if err != nil {
 			return err
 		}
@@ -312,18 +312,18 @@ func initTestnetFiles(
 			return err
 		}
 
-		accStakingTokens := sdk.TokensFromConsensusPower(5000, evmostypes.PowerReduction)
+		accStakingTokens := sdk.TokensFromConsensusPower(5000, mocatypes.PowerReduction)
 		coins := sdk.Coins{
 			sdk.NewCoin(cmdcfg.BaseDenom, accStakingTokens),
 		}
 
 		genBalances = append(genBalances, banktypes.Balance{Address: addr.String(), Coins: coins.Sort()})
-		genAccounts = append(genAccounts, &evmostypes.EthAccount{
+		genAccounts = append(genAccounts, &mocatypes.EthAccount{
 			BaseAccount: authtypes.NewBaseAccount(addr, nil, 0, 0),
 			CodeHash:    common.BytesToHash(evmtypes.EmptyCodeHash).Hex(),
 		})
 
-		valTokens := sdk.TokensFromConsensusPower(100, evmostypes.PowerReduction)
+		valTokens := sdk.TokensFromConsensusPower(100, mocatypes.PowerReduction)
 		blsSecretKey, _ := bls.GenerateBlsKey()
 		blsPk := hex.EncodeToString(blsSecretKey.PublicKey().Marshal())
 		blsProofBuf, _ := blsSecretKey.Sign(tmhash.Sum(blsSecretKey.PublicKey().Marshal()), votepool.DST)

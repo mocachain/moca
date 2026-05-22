@@ -29,7 +29,7 @@ import (
 	"github.com/mocachain/moca/v2/rpc"
 
 	svrconfig "github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 )
 
 // StartJSONRPC starts the JSON-RPC server
@@ -38,7 +38,7 @@ func StartJSONRPC(ctx *server.Context,
 	tmRPCAddr,
 	tmEndpoint string,
 	config *svrconfig.AppConfig,
-	indexer evmostypes.EVMTxIndexer,
+	indexer mocatypes.EVMTxIndexer,
 ) (*http.Server, chan struct{}, error) {
 	tmWsClient := ConnectTmWS(tmRPCAddr, tmEndpoint, ctx.Logger)
 

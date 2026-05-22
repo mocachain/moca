@@ -43,7 +43,7 @@ import (
 
 	"github.com/mocachain/moca/v2/cmd/config"
 	servercfg "github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 )
@@ -109,7 +109,7 @@ func Setup(
 		log.NewNopLogger(),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
@@ -147,10 +147,10 @@ func Setup(
 	return app
 }
 
-func GenesisStateWithValSet(app *Evmos, genesisState evmostypes.GenesisState,
+func GenesisStateWithValSet(app *Evmos, genesisState mocatypes.GenesisState,
 	valSet *cmttypes.ValidatorSet, genAccs []authtypes.GenesisAccount,
 	balances ...banktypes.Balance,
-) evmostypes.GenesisState {
+) mocatypes.GenesisState {
 	// set genesis accounts
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
 	genesisState[authtypes.ModuleName] = app.AppCodec().MustMarshalJSON(authGenesis)

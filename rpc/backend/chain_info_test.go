@@ -18,7 +18,7 @@ import (
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpc "github.com/mocachain/moca/v2/rpc/types"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 )
@@ -156,7 +156,7 @@ func (suite *BackendTestSuite) TestBaseFee() {
 }
 
 func (suite *BackendTestSuite) TestChainId() {
-	eip155ChainID, err := evmostypes.ParseChainID(ChainID)
+	eip155ChainID, err := mocatypes.ParseChainID(ChainID)
 	suite.Require().NoError(err)
 	expChainID := (*hexutil.Big)(eip155ChainID)
 	testCases := []struct {

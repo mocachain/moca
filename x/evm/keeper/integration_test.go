@@ -17,7 +17,7 @@ import (
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
 	"github.com/mocachain/moca/v2/x/feemarket/types"
 
@@ -181,7 +181,7 @@ func setupChain(localMinGasPricesStr string) {
 		true,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
 		simutils.NewAppOptionsWithFlagHome(app.DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
