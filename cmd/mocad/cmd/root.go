@@ -124,7 +124,7 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// and the CLI options for the modules
 	// add keyring to autocli opts
-	tempApp := app.NewEvmos(
+	tempApp := app.NewMoca(
 		log.NewNopLogger(),
 		dbm.NewMemDB(),
 		nil, true, nil,
@@ -396,7 +396,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		chainID = conf.ChainID
 	}
 
-	evmosApp := app.NewEvmos(
+	evmosApp := app.NewMoca(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		AppConfig,
@@ -441,13 +441,13 @@ func (a appCreator) appExport(
 	}
 
 	if height != -1 {
-		evmosApp = app.NewEvmos(logger, db, traceStore, false, map[int64]bool{}, "", AppConfig, appOpts)
+		evmosApp = app.NewMoca(logger, db, traceStore, false, map[int64]bool{}, "", AppConfig, appOpts)
 
 		if err := evmosApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		evmosApp = app.NewEvmos(logger, db, traceStore, true, map[int64]bool{}, "", AppConfig, appOpts)
+		evmosApp = app.NewMoca(logger, db, traceStore, true, map[int64]bool{}, "", AppConfig, appOpts)
 	}
 
 	return evmosApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)

@@ -48,7 +48,7 @@ func TestEvmosExport(t *testing.T) {
 	db := dbm.NewMemDB()
 	chainID := utils.MainnetChainID + "-1"
 	appOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
-	app := NewEvmos(
+	app := NewMoca(
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
@@ -86,7 +86,7 @@ func TestEvmosExport(t *testing.T) {
 	require.NoError(t, err)
 
 	// Making a new app object with the db, so that initchain hasn't been called
-	app2 := NewEvmos(
+	app2 := NewMoca(
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,

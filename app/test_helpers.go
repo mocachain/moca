@@ -105,7 +105,7 @@ func Setup(
 
 	appOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
 
-	app := NewEvmos(
+	app := NewMoca(
 		log.NewNopLogger(),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
