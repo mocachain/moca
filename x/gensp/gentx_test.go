@@ -15,7 +15,7 @@ import (
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltestutil "github.com/cosmos/cosmos-sdk/x/genutil/testutil"

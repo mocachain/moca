@@ -8,7 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/mint"
 	"github.com/stretchr/testify/require"

@@ -2,6 +2,7 @@ package types
 
 import (
 	feegranttypes "cosmossdk.io/x/feegrant"
+	"cosmossdk.io/x/tx/signing"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -14,7 +15,9 @@ import (
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/cosmos/gogoproto/proto"
 
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
@@ -24,7 +27,19 @@ import (
 )
 
 func Codec() *codec.ProtoCodec {
-	interfaceRegistry := types.NewInterfaceRegistry()
+	// cosmos-sdk v0.53 requires address codecs on signing.Options; without them
+	// the registry has no signing context and downstream tx-config construction
+	// (authtx.NewTxConfig*) errors with "address codec is required".
+	interfaceRegistry, err := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
+		ProtoFiles: proto.HybridResolver,
+		SigningOptions: signing.Options{
+			AddressCodec:          cmdcfg.NewMultiPrefixBech32AccCodec(),
+			ValidatorAddressCodec: cmdcfg.NewMultiPrefixBech32ValCodec(),
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
 	challengetypes.RegisterInterfaces(interfaceRegistry)
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 	mocatypes.RegisterInterfaces(interfaceRegistry)
