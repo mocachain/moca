@@ -131,7 +131,7 @@ func (c *Contract) calculateExecGas(input []byte) uint64 {
 	}
 
 	// Calculate payload size (capped at max)
-		payloadSize := uint64(CalcPerMsgBytes(args.Msgs))
+	payloadSize := uint64(CalcPerMsgBytes(args.Msgs))
 	if payloadSize > MaxExecPayloadBytes {
 		payloadSize = MaxExecPayloadBytes
 	}

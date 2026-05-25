@@ -33,7 +33,7 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 	"github.com/stretchr/testify/require"
@@ -44,7 +44,7 @@ type KeeperTestSuite struct {
 	suite.Suite
 
 	ctx         sdk.Context
-	app         *app.Evmos
+	app         *app.Moca
 	queryClient evmtypes.QueryClient
 	address     common.Address
 	consAddress sdk.ConsAddress
@@ -99,7 +99,7 @@ func (suite *KeeperTestSuite) SetupExistingApp(checkTx bool, chainID string) {
 
 // SetupApp setup test environment, it uses`require.TestingT` to support both `testing.T` and `testing.B`.
 func (suite *KeeperTestSuite) SetupAppWithT(checkTx bool, t require.TestingT, chainID string) {
-	patchGenesis := func(app *app.Evmos, genesis simapp.GenesisState) simapp.GenesisState {
+	patchGenesis := func(app *app.Moca, genesis simapp.GenesisState) simapp.GenesisState {
 		feemarketGenesis := feemarkettypes.DefaultGenesisState()
 		evmGenesis := evmtypes.DefaultGenesisState()
 
@@ -188,7 +188,7 @@ func (suite *KeeperTestSuite) SetupExistingAppWithT(checkTx bool, t require.Test
 	suite.queryClient = evmtypes.NewQueryClient(queryHelper)
 
 	acc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, sdk.AccAddress(suite.address.Bytes()))
-	if ethAcc, ok := acc.(*evmostypes.EthAccount); ok {
+	if ethAcc, ok := acc.(*mocatypes.EthAccount); ok {
 		ethAcc.CodeHash = common.BytesToHash(crypto.Keccak256(nil)).String()
 	}
 	suite.app.AccountKeeper.SetAccount(suite.ctx, acc)

@@ -27,7 +27,7 @@ type AnteTestSuite struct {
 
 	ctx       sdk.Context
 	clientCtx client.Context
-	app       *app.Evmos
+	app       *app.Moca
 	denom     string
 }
 

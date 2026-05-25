@@ -1,19 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
-
 package app
 
 import (
@@ -110,7 +94,7 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm"
 	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
 	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
@@ -189,8 +173,8 @@ var (
 )
 
 var (
-	_ servertypes.Application = (*Evmos)(nil)
-	_ runtime.AppI            = (*Evmos)(nil)
+	_ servertypes.Application = (*Moca)(nil)
+	_ runtime.AppI            = (*Moca)(nil)
 )
 
 func init() {
@@ -202,7 +186,7 @@ func init() {
 	DefaultNodeHome = filepath.Join(userHomeDir, "."+ShortName)
 
 	// manually update the power reduction by replacing micro (u) -> atto (a) evmos
-	sdk.DefaultPowerReduction = evmostypes.PowerReduction
+	sdk.DefaultPowerReduction = mocatypes.PowerReduction
 	// modify fee market parameter defaults through global
 	feemarkettypes.DefaultMinGasPrice = MainnetMinGasPrices
 	feemarkettypes.DefaultMinGasMultiplier = MainnetMinGasMultiplier
@@ -213,7 +197,7 @@ func init() {
 // Evmos implements an extended ABCI application. It is an application
 // that may process transactions through Ethereum's EVM running atop of
 // Tendermint consensus.
-type Evmos struct {
+type Moca struct {
 	*baseapp.BaseApp
 
 	// encoding
@@ -274,12 +258,12 @@ type Evmos struct {
 }
 
 // SimulationManager implements runtime.AppI
-func (app *Evmos) SimulationManager() *module.SimulationManager {
+func (app *Moca) SimulationManager() *module.SimulationManager {
 	return app.sm
 }
 
 // NewEvmos returns a reference to a new initialized Ethermint application.
-func NewEvmos(
+func NewMoca(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
@@ -289,7 +273,7 @@ func NewEvmos(
 	customAppConfig *servercfg.AppConfig,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
-) *Evmos {
+) *Moca {
 	encodingConfig := encoding.MakeConfig()
 	appCodec := encodingConfig.Codec
 	cdc := encodingConfig.Amino
@@ -338,7 +322,7 @@ func NewEvmos(
 	tkeys := storetypes.NewTransientStoreKeys(evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey, storagemoduletypes.TStoreKey)
 	memKeys := storetypes.NewMemoryStoreKeys(challengemoduletypes.MemStoreKey)
 
-	app := &Evmos{
+	app := &Moca{
 		BaseApp:           bApp,
 		cdc:               cdc,
 		appCodec:          appCodec,
@@ -364,7 +348,7 @@ func NewEvmos(
 	// use custom Ethermint account for contracts
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
 		appCodec, runtime.NewKVStoreService(keys[authtypes.StoreKey]),
-		evmostypes.ProtoAccount, maccPerms,
+		mocatypes.ProtoAccount, maccPerms,
 		cmdcfg.NewMultiPrefixBech32AccCodec(),
 		authAddr,
 	)
@@ -792,24 +776,24 @@ func NewEvmos(
 	return app
 }
 
-func (app *Evmos) initModules(_ sdk.Context) {
+func (app *Moca) initModules(_ sdk.Context) {
 	app.initStorage()
 }
 
-func (app *Evmos) initStorage() {
+func (app *Moca) initStorage() {
 	storagemodulekeeper.InitPaymentCheck(app.StorageKeeper, app.appConfig.PaymentCheck.Enabled,
 		app.appConfig.PaymentCheck.Interval)
 }
 
 // Name returns the name of the App
-func (app *Evmos) Name() string { return app.BaseApp.Name() }
+func (app *Moca) Name() string { return app.BaseApp.Name() }
 
-func (app *Evmos) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
+func (app *Moca) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 	options := ante.HandlerOptions{
 		Cdc:                    app.appCodec,
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
-		ExtensionOptionChecker: evmostypes.HasDynamicFeeExtensionOption,
+		ExtensionOptionChecker: mocatypes.HasDynamicFeeExtensionOption,
 		EvmKeeper:              app.EvmKeeper,
 		FeegrantKeeper:         app.FeeGrantKeeper,
 		DistributionKeeper:     app.DistrKeeper,
@@ -827,7 +811,7 @@ func (app *Evmos) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) 
 	app.SetAnteHandler(ante.NewAnteHandler(options))
 }
 
-func (app *Evmos) setPostHandler() {
+func (app *Moca) setPostHandler() {
 	postHandler, err := posthandler.NewPostHandler(
 		posthandler.HandlerOptions{},
 	)
@@ -841,14 +825,14 @@ func (app *Evmos) setPostHandler() {
 // BeginBlocker runs the Tendermint ABCI BeginBlock logic. It executes state changes at the beginning
 // of the new block for every registered module. If there is a registered fork at the current height,
 // BeginBlocker will schedule the upgrade plan and perform the state migration (if any).
-func (app *Evmos) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
+func (app *Moca) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
 	// Perform any scheduled forks before executing the modules logic
 	app.ScheduleForkUpgrade(ctx)
 	return app.mm.BeginBlock(ctx)
 }
 
 // EndBlocker updates every end block
-func (app *Evmos) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
+func (app *Moca) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	resp, err := app.mm.EndBlock(ctx)
 	if err != nil {
 		return sdk.EndBlock{}, err
@@ -865,7 +849,7 @@ func (app *Evmos) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 }
 
 // The DeliverTx method is intentionally decomposed to calculate the transactions per second.
-func (app *Evmos) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.ResponseFinalizeBlock, err error) {
+func (app *Moca) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.ResponseFinalizeBlock, err error) {
 	defer func() {
 		// TODO: Record the count along with the code and or reason so as to display
 		// in the transactions per second live dashboards.
@@ -888,8 +872,8 @@ func (app *Evmos) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.Respo
 }
 
 // InitChainer updates at chain initialization
-func (app *Evmos) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
-	var genesisState evmostypes.GenesisState
+func (app *Moca) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
+	var genesisState mocatypes.GenesisState
 	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
@@ -901,17 +885,17 @@ func (app *Evmos) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abc
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 
-func (app *Evmos) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+func (app *Moca) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 	return app.mm.PreBlock(ctx)
 }
 
 // LoadHeight loads state at a particular height
-func (app *Evmos) LoadHeight(height int64) error {
+func (app *Moca) LoadHeight(height int64) error {
 	return app.LoadVersion(height)
 }
 
 // ModuleAccountAddrs returns all the app's module account addresses.
-func (app *Evmos) ModuleAccountAddrs() map[string]bool {
+func (app *Moca) ModuleAccountAddrs() map[string]bool {
 	modAccAddrs := make(map[string]bool)
 
 	accs := make([]string, 0, len(maccPerms))
@@ -929,26 +913,26 @@ func (app *Evmos) ModuleAccountAddrs() map[string]bool {
 
 // BlockedAccountAddrs returns all the app's module account and precompile addresses that are not
 // allowed to receive external tokens.
-func (app *Evmos) BlockedAccountAddrs() map[string]bool {
+func (app *Moca) BlockedAccountAddrs() map[string]bool {
 	blockedAddrs := app.ModuleAccountAddrs()
 
 	blockedPrecompilesHex := []string{
-		evmostypes.BankAddress,
-		evmostypes.AuthAddress,
-		evmostypes.GovAddress,
-		evmostypes.StakingAddress,
-		evmostypes.DistributionAddress,
-		evmostypes.SlashingAddress,
-		evmostypes.EvidenceAddress,
-		evmostypes.DeprecatedEpochsAddress,
-		evmostypes.AuthzAddress,
-		evmostypes.FeemarketAddress,
-		evmostypes.PaymentAddress,
-		evmostypes.PermissionAddress,
-		evmostypes.DeprecatedErc20Address,
-		evmostypes.VirtualGroupAddress,
-		evmostypes.StorageAddress,
-		evmostypes.SpAddress,
+		mocatypes.BankAddress,
+		mocatypes.AuthAddress,
+		mocatypes.GovAddress,
+		mocatypes.StakingAddress,
+		mocatypes.DistributionAddress,
+		mocatypes.SlashingAddress,
+		mocatypes.EvidenceAddress,
+		mocatypes.DeprecatedEpochsAddress,
+		mocatypes.AuthzAddress,
+		mocatypes.FeemarketAddress,
+		mocatypes.PaymentAddress,
+		mocatypes.PermissionAddress,
+		mocatypes.DeprecatedErc20Address,
+		mocatypes.VirtualGroupAddress,
+		mocatypes.StorageAddress,
+		mocatypes.SpAddress,
 	}
 	for _, addr := range vm.PrecompiledAddressesBerlin {
 		blockedPrecompilesHex = append(blockedPrecompilesHex, addr.Hex())
@@ -965,7 +949,7 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 //
 // NOTE: This is solely to be used for testing purposes as it may be desirable
 // for modules to register their own custom testing types.
-func (app *Evmos) LegacyAmino() *codec.LegacyAmino {
+func (app *Moca) LegacyAmino() *codec.LegacyAmino {
 	return app.cdc
 }
 
@@ -973,44 +957,44 @@ func (app *Evmos) LegacyAmino() *codec.LegacyAmino {
 //
 // NOTE: This is solely to be used for testing purposes as it may be desirable
 // for modules to register their own custom testing types.
-func (app *Evmos) AppCodec() codec.Codec {
+func (app *Moca) AppCodec() codec.Codec {
 	return app.appCodec
 }
 
 // DefaultGenesis returns a default genesis from the registered AppModuleBasic's.
-func (app *Evmos) DefaultGenesis() evmostypes.GenesisState {
+func (app *Moca) DefaultGenesis() mocatypes.GenesisState {
 	return app.BasicModuleManager.DefaultGenesis(app.appCodec)
 }
 
 // InterfaceRegistry returns Evmos's InterfaceRegistry
-func (app *Evmos) InterfaceRegistry() types.InterfaceRegistry {
+func (app *Moca) InterfaceRegistry() types.InterfaceRegistry {
 	return app.interfaceRegistry
 }
 
 // GetKey returns the KVStoreKey for the provided store key.
 //
 // NOTE: This is solely to be used for testing purposes.
-func (app *Evmos) GetKey(storeKey string) *storetypes.KVStoreKey {
+func (app *Moca) GetKey(storeKey string) *storetypes.KVStoreKey {
 	return app.keys[storeKey]
 }
 
 // GetTKey returns the TransientStoreKey for the provided store key.
 //
 // NOTE: This is solely to be used for testing purposes.
-func (app *Evmos) GetTKey(storeKey string) *storetypes.TransientStoreKey {
+func (app *Moca) GetTKey(storeKey string) *storetypes.TransientStoreKey {
 	return app.tkeys[storeKey]
 }
 
 // GetMemKey returns the MemStoreKey for the provided mem key.
 //
 // NOTE: This is solely used for testing purposes.
-func (app *Evmos) GetMemKey(storeKey string) *storetypes.MemoryStoreKey {
+func (app *Moca) GetMemKey(storeKey string) *storetypes.MemoryStoreKey {
 	return app.memKeys[storeKey]
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided
 // API server.
-func (app *Evmos) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
+func (app *Moca) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	clientCtx := apiSvr.ClientCtx
 
 	// Register new tx routes from grpc-gateway.
@@ -1029,12 +1013,12 @@ func (app *Evmos) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConf
 	}
 }
 
-func (app *Evmos) RegisterTxService(clientCtx client.Context) {
+func (app *Moca) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
-func (app *Evmos) RegisterTendermintService(clientCtx client.Context) {
+func (app *Moca) RegisterTendermintService(clientCtx client.Context) {
 	cmtservice.RegisterTendermintService(
 		clientCtx,
 		app.BaseApp.GRPCQueryRouter(),
@@ -1045,14 +1029,14 @@ func (app *Evmos) RegisterTendermintService(clientCtx client.Context) {
 
 // RegisterNodeService registers the node gRPC service on the provided
 // application gRPC query router.
-func (app *Evmos) RegisterNodeService(clientCtx client.Context, cfg config.Config) {
+func (app *Moca) RegisterNodeService(clientCtx client.Context, cfg config.Config) {
 	node.RegisterNodeService(clientCtx, app.GRPCQueryRouter(), cfg)
 }
 
 // IBC Go TestingApp functions
 
 // GetBaseApp implements the TestingApp interface.
-func (app *Evmos) GetBaseApp() *baseapp.BaseApp {
+func (app *Moca) GetBaseApp() *baseapp.BaseApp {
 	return app.BaseApp
 }
 
@@ -1062,17 +1046,17 @@ func (app *Evmos) GetBaseApp() *baseapp.BaseApp {
 // }
 
 // GetStakingKeeperSDK implements the TestingApp interface.
-func (app *Evmos) GetStakingKeeperSDK() stakingkeeper.Keeper {
+func (app *Moca) GetStakingKeeperSDK() stakingkeeper.Keeper {
 	return *app.StakingKeeper
 }
 
 // GetTxConfig implements the TestingApp interface.
-func (app *Evmos) GetTxConfig() client.TxConfig {
+func (app *Moca) GetTxConfig() client.TxConfig {
 	return app.txConfig
 }
 
 // AutoCliOpts returns the autocli options for the app.
-func (app *Evmos) AutoCliOpts() autocli.AppOptions {
+func (app *Moca) AutoCliOpts() autocli.AppOptions {
 	modules := make(map[string]appmodule.AppModule, 0)
 	for _, m := range app.mm.Modules {
 		if moduleWithName, ok := m.(module.HasName); ok {
@@ -1111,7 +1095,7 @@ func GetMaccPerms() map[string][]string {
 }
 
 // EvmPrecompiled  set evm precompiled contracts
-func (app *Evmos) EvmPrecompiled() {
+func (app *Moca) EvmPrecompiled() {
 	precompiled := evmkeeper.BerlinPrecompiled()
 
 	// bank precompile
@@ -1173,7 +1157,7 @@ func (app *Evmos) EvmPrecompiled() {
 	app.EvmKeeper.WithPrecompiled(precompiled)
 }
 
-func (app *Evmos) setupUpgradeHandlers() {
+func (app *Moca) setupUpgradeHandlers() {
 	// When a planned update height is reached, the old binary will panic
 	// writing on disk the height and name of the update that triggered it
 	// This will read that value, and execute the preparations for the upgrade.

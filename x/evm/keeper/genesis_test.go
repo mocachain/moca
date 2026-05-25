@@ -7,7 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm"
 	"github.com/mocachain/moca/v2/x/evm/statedb"
 	"github.com/mocachain/moca/v2/x/evm/types"
@@ -123,9 +123,9 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 			"ignore empty account code checking with non-empty codehash",
 			func() {
 				acc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, address.Bytes())
-				ethAcc, ok := acc.(*evmostypes.EthAccount)
+				ethAcc, ok := acc.(*mocatypes.EthAccount)
 				if !ok {
-					ethAcc = &evmostypes.EthAccount{
+					ethAcc = &mocatypes.EthAccount{
 						BaseAccount: acc.(*authtypes.BaseAccount),
 					}
 				}

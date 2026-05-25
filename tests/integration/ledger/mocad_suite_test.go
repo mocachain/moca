@@ -28,7 +28,7 @@ import (
 	cosmosledger "github.com/cosmos/cosmos-sdk/crypto/ledger"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	clientkeys "github.com/mocachain/moca/v2/client/keys"
-	evmoskeyring "github.com/mocachain/moca/v2/crypto/keyring"
+	mocakeyring "github.com/mocachain/moca/v2/crypto/keyring"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 
 	. "github.com/onsi/ginkgo/v2" //nolint
@@ -40,7 +40,7 @@ var s *LedgerTestSuite
 type LedgerTestSuite struct {
 	suite.Suite
 
-	app *app.Evmos
+	app *app.Moca
 	ctx sdk.Context
 
 	ledger       *mocks.SECP256K1
@@ -139,12 +139,12 @@ func (suite *LedgerTestSuite) mocaAddKeyCmd() *cobra.Command {
 
 func (suite *LedgerTestSuite) MockKeyringOption() keyring.Option {
 	return func(options *keyring.Options) {
-		options.SupportedAlgos = evmoskeyring.SupportedAlgorithms
-		options.SupportedAlgosLedger = evmoskeyring.SupportedAlgorithmsLedger
+		options.SupportedAlgos = mocakeyring.SupportedAlgorithms
+		options.SupportedAlgosLedger = mocakeyring.SupportedAlgorithmsLedger
 		options.LedgerDerivation = func() (cosmosledger.SECP256K1, error) { return suite.ledger, nil }
-		options.LedgerCreateKey = evmoskeyring.CreatePubkey
-		options.LedgerAppName = evmoskeyring.AppName
-		options.LedgerSigSkipDERConv = evmoskeyring.SkipDERConversion
+		options.LedgerCreateKey = mocakeyring.CreatePubkey
+		options.LedgerAppName = mocakeyring.AppName
+		options.LedgerSigSkipDERConv = mocakeyring.SkipDERConversion
 	}
 }
 

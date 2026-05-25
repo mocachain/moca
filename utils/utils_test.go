@@ -131,7 +131,7 @@ func TestGetMocaAddressFromBech32(t *testing.T) {
 	}
 }
 
-func TestEvmosCoinDenom(t *testing.T) {
+func TestMocaCoinDenom(t *testing.T) {
 	testCases := []struct {
 		name     string
 		denom    string

@@ -23,11 +23,11 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 
 	servercfg "github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
 )
 
-func TestEvmosExport(t *testing.T) {
+func TestMocaExport(t *testing.T) {
 	// create public key
 	privVal := cmttypes.NewMockPV()
 	pubKey, err := privVal.GetPubKey()
@@ -48,11 +48,11 @@ func TestEvmosExport(t *testing.T) {
 	db := dbm.NewMemDB()
 	chainID := utils.MainnetChainID + "-1"
 	appOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
-	app := NewEvmos(
+	app := NewMoca(
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
@@ -86,11 +86,11 @@ func TestEvmosExport(t *testing.T) {
 	require.NoError(t, err)
 
 	// Making a new app object with the db, so that initchain hasn't been called
-	app2 := NewEvmos(
+	app2 := NewMoca(
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 	)
