@@ -126,7 +126,7 @@ func DefaultConfig() Config {
 		panic(fmt.Sprintf("failed creating temporary directory: %v", err))
 	}
 	defer os.RemoveAll(dir)
-	app := app.NewEvmos(log.NewNopLogger(), dbm.NewMemDB(), nil, true, nil, dir, config.NewDefaultAppConfig(evmostypes.AttoEvmos), simutils.NewAppOptionsWithFlagHome(dir), baseapp.SetChainID(chainID))
+	app := app.NewMoca(log.NewNopLogger(), dbm.NewMemDB(), nil, true, nil, dir, config.NewDefaultAppConfig(evmostypes.AttoEvmos), simutils.NewAppOptionsWithFlagHome(dir), baseapp.SetChainID(chainID))
 	return Config{
 		Codec:             app.AppCodec(),
 		TxConfig:          app.GetTxConfig(),
@@ -154,7 +154,7 @@ func DefaultConfig() Config {
 // NewAppConstructor returns a new Evmos AppConstructor
 func NewAppConstructor(chainID string) AppConstructor {
 	return func(val Validator) servertypes.Application {
-		return app.NewEvmos(
+		return app.NewMoca(
 			val.Ctx.Logger, dbm.NewMemDB(), nil, true, make(map[int64]bool), val.Ctx.Config.RootDir,
 			config.NewDefaultAppConfig(evmostypes.AttoEvmos),
 			simutils.NewAppOptionsWithFlagHome(val.Ctx.Config.RootDir),

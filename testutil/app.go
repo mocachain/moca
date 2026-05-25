@@ -54,7 +54,7 @@ func NewTestApp(
 
 	encCfg := encoding.MakeConfig()
 	options = append(options, baseapp.SetChainID(chainID))
-	nApp := app.NewEvmos(
+	nApp := app.NewMoca(
 		logger,
 		db,
 		traceStore,

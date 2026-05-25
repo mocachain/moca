@@ -279,7 +279,7 @@ func (app *Evmos) SimulationManager() *module.SimulationManager {
 }
 
 // NewEvmos returns a reference to a new initialized Ethermint application.
-func NewEvmos(
+func NewMoca(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,

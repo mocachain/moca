@@ -69,7 +69,7 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 
 	appOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
 
-	app := NewEvmos(log.NewNopLogger(),
+	app := NewMoca(log.NewNopLogger(),
 		db,
 		nil,
 		true,
