@@ -21,7 +21,7 @@ import (
 //  2. Release the software defined in the upgrade-info
 //
 //nolint:all
-func (app *Evmos) ScheduleForkUpgrade(ctx sdk.Context) {
+func (app *Moca) ScheduleForkUpgrade(ctx sdk.Context) {
 	// 1) Config-driven hardfork scheduling (recommended for localnet/testnet and emergencies).
 	// This allows operators to schedule an x/upgrade plan without governance by coordinating
 	// the upgrade height and binaries (e.g. via cosmovisor).
@@ -63,7 +63,7 @@ func (app *Evmos) ScheduleForkUpgrade(ctx sdk.Context) {
 // scheduleConfiguredHardfork checks if theres a hardfork configured for the
 // current block height and schedules it. Returns true if a hardfork was found
 // and handled (either scheduled or already present).
-func (app *Evmos) scheduleConfiguredHardfork(ctx sdk.Context) bool {
+func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 	heightKey := strconv.FormatInt(ctx.BlockHeight(), 10)
 	entry, ok := app.appConfig.Hardforks[heightKey]
 	if !ok || entry.Name == "" {

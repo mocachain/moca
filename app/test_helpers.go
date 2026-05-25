@@ -69,7 +69,7 @@ func Setup(
 	isCheckTx bool,
 	feemarketGenesis *feemarkettypes.GenesisState,
 	chainID string,
-) *Evmos {
+) *Moca {
 	privVal := mock.NewPV()
 	pubKey, _ := privVal.GetPubKey()
 
@@ -93,7 +93,7 @@ func Setup(
 		log.NewNopLogger(),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
@@ -131,7 +131,7 @@ func Setup(
 	return app
 }
 
-func GenesisStateWithValSet(app *Evmos, genesisState mocatypes.GenesisState,
+func GenesisStateWithValSet(app *Moca, genesisState mocatypes.GenesisState,
 	valSet *cmttypes.ValidatorSet, genAccs []authtypes.GenesisAccount,
 	balances ...banktypes.Balance,
 ) mocatypes.GenesisState {

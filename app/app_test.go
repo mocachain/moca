@@ -27,7 +27,7 @@ import (
 	"github.com/mocachain/moca/v2/utils"
 )
 
-func TestEvmosExport(t *testing.T) {
+func TestMocaExport(t *testing.T) {
 	// create public key
 	privVal := cmttypes.NewMockPV()
 	pubKey, err := privVal.GetPubKey()
@@ -52,7 +52,7 @@ func TestEvmosExport(t *testing.T) {
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
@@ -90,7 +90,7 @@ func TestEvmosExport(t *testing.T) {
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 	)

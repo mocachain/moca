@@ -44,12 +44,12 @@ var EthDefaultConsensusParams = &tmtypes.ConsensusParams{
 }
 
 // EthSetup initializes a new EvmosApp. A Nop logger is set in EvmosApp.
-func EthSetup(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisState) simapp.GenesisState) *Evmos {
+func EthSetup(isCheckTx bool, patchGenesis func(*Moca, simapp.GenesisState) simapp.GenesisState) *Moca {
 	return EthSetupWithDB(isCheckTx, patchGenesis, dbm.NewMemDB())
 }
 
 // EthSetupWithDB initializes a new EvmosApp. A Nop logger is set in EvmosApp.
-func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisState) simapp.GenesisState, db dbm.DB) *Evmos {
+func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Moca, simapp.GenesisState) simapp.GenesisState, db dbm.DB) *Moca {
 	chainID := utils.TestnetChainID + "-1"
 
 	appOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
@@ -60,7 +60,7 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		true,
 		map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
@@ -111,7 +111,7 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 // The result is returned as simapp.GenesisState (an alias of
 // map[string]json.RawMessage) so that EthSetup's patchGenesis callback
 // signature (and its many call sites) stays untouched.
-func NewTestGenesisState(app *Evmos) simapp.GenesisState {
+func NewTestGenesisState(app *Moca) simapp.GenesisState {
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
 	if err != nil {

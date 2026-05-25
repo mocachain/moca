@@ -23,7 +23,7 @@ import (
 //  2. DeliverTx
 //  3. EndBlock
 //  4. Commit
-func Commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (sdk.Context, error) {
+func Commit(ctx sdk.Context, app *app.Moca, t time.Duration, vs *cmttypes.ValidatorSet) (sdk.Context, error) {
 	header, err := commit(ctx, app, t, vs)
 	if err != nil {
 		return ctx, err
@@ -35,15 +35,15 @@ func Commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.Valid
 // DeliverTx delivers a cosmos tx for a given set of msgs
 func DeliverTx(
 	ctx sdk.Context,
-	appEvmos *app.Evmos,
+	appMoca *app.Moca,
 	priv cryptotypes.PrivKey,
 	gasPrice *sdkmath.Int,
 	msgs ...sdk.Msg,
 ) (abci.ExecTxResult, error) {
-	txConfig := appEvmos.GetTxConfig()
+	txConfig := appMoca.GetTxConfig()
 	tx, err := tx.PrepareCosmosTx(
 		ctx,
-		appEvmos,
+		appMoca,
 		tx.CosmosTxArgs{
 			TxCfg:    txConfig,
 			Priv:     priv,
@@ -56,39 +56,39 @@ func DeliverTx(
 	if err != nil {
 		return abci.ExecTxResult{}, err
 	}
-	return BroadcastTxBytes(appEvmos, txConfig.TxEncoder(), tx, ctx.BlockHeader().ProposerAddress)
+	return BroadcastTxBytes(appMoca, txConfig.TxEncoder(), tx, ctx.BlockHeader().ProposerAddress)
 }
 
 // DeliverEthTx generates and broadcasts a Cosmos Tx populated with MsgEthereumTx messages.
 // ctx carries the proposer used by FinalizeBlock; EVM coinbase lookup needs it.
 func DeliverEthTx(
 	ctx sdk.Context,
-	appEvmos *app.Evmos,
+	appMoca *app.Moca,
 	priv cryptotypes.PrivKey,
 	msgs ...sdk.Msg,
 ) (abci.ExecTxResult, error) {
-	txConfig := appEvmos.GetTxConfig()
+	txConfig := appMoca.GetTxConfig()
 
-	tx, err := tx.PrepareEthTx(txConfig, appEvmos, priv, msgs...)
+	tx, err := tx.PrepareEthTx(txConfig, appMoca, priv, msgs...)
 	if err != nil {
 		return abci.ExecTxResult{}, err
 	}
-	return BroadcastTxBytes(appEvmos, txConfig.TxEncoder(), tx, ctx.BlockHeader().ProposerAddress)
+	return BroadcastTxBytes(appMoca, txConfig.TxEncoder(), tx, ctx.BlockHeader().ProposerAddress)
 }
 
 // CheckTx checks a cosmos tx for a given set of msgs
 func CheckTx(
 	ctx sdk.Context,
-	appEvmos *app.Evmos,
+	appMoca *app.Moca,
 	priv cryptotypes.PrivKey,
 	gasPrice *sdkmath.Int,
 	msgs ...sdk.Msg,
 ) (abci.ResponseCheckTx, error) {
-	txConfig := appEvmos.GetTxConfig()
+	txConfig := appMoca.GetTxConfig()
 
 	tx, err := tx.PrepareCosmosTx(
 		ctx,
-		appEvmos,
+		appMoca,
 		tx.CosmosTxArgs{
 			TxCfg:    txConfig,
 			Priv:     priv,
@@ -101,27 +101,27 @@ func CheckTx(
 	if err != nil {
 		return abci.ResponseCheckTx{}, err
 	}
-	return checkTxBytes(appEvmos, txConfig.TxEncoder(), tx)
+	return checkTxBytes(appMoca, txConfig.TxEncoder(), tx)
 }
 
 // CheckEthTx checks a Ethereum tx for a given set of msgs
 func CheckEthTx(
-	appEvmos *app.Evmos,
+	appMoca *app.Moca,
 	priv cryptotypes.PrivKey,
 	msgs ...sdk.Msg,
 ) (abci.ResponseCheckTx, error) {
-	txConfig := appEvmos.GetTxConfig()
+	txConfig := appMoca.GetTxConfig()
 
-	tx, err := tx.PrepareEthTx(txConfig, appEvmos, priv, msgs...)
+	tx, err := tx.PrepareEthTx(txConfig, appMoca, priv, msgs...)
 	if err != nil {
 		return abci.ResponseCheckTx{}, err
 	}
-	return checkTxBytes(appEvmos, txConfig.TxEncoder(), tx)
+	return checkTxBytes(appMoca, txConfig.TxEncoder(), tx)
 }
 
 // BroadcastTxBytes encodes a transaction and calls DeliverTx on the app.
 // proposerAddr is required by EVM's coinbase lookup (must match a bonded validator in CMS).
-func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx, proposerAddr []byte) (abci.ExecTxResult, error) {
+func BroadcastTxBytes(app *app.Moca, txEncoder sdk.TxEncoder, tx sdk.Tx, proposerAddr []byte) (abci.ExecTxResult, error) {
 	bz, err := txEncoder(tx)
 	if err != nil {
 		return abci.ExecTxResult{}, err
@@ -165,7 +165,7 @@ func BroadcastTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx, propos
 // ctx header height before calling Commit, so we derive the target height
 // from app.LastBlockHeight() instead of trusting ctx.BlockHeader().Height.
 // This mirrors what BroadcastTxBytes already does.
-func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.ValidatorSet) (tmproto.Header, error) {
+func commit(ctx sdk.Context, app *app.Moca, t time.Duration, vs *cmttypes.ValidatorSet) (tmproto.Header, error) {
 	header := ctx.BlockHeader()
 	nextHeight := app.LastBlockHeight() + 1
 	req := abci.RequestFinalizeBlock{
@@ -206,7 +206,7 @@ func commit(ctx sdk.Context, app *app.Evmos, t time.Duration, vs *cmttypes.Valid
 }
 
 // checkTxBytes encodes a transaction and calls checkTx on the app.
-func checkTxBytes(app *app.Evmos, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.ResponseCheckTx, error) {
+func checkTxBytes(app *app.Moca, txEncoder sdk.TxEncoder, tx sdk.Tx) (abci.ResponseCheckTx, error) {
 	bz, err := txEncoder(tx)
 	if err != nil {
 		return abci.ResponseCheckTx{}, err

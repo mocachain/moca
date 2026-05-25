@@ -27,12 +27,12 @@ func (bc *MultiPrefixBech32Codec) StringToBytes(text string) ([]byte, error) {
 	if strings.HasPrefix(text, bc.outputPrefix) {
 		return bc.primaryCodec.StringToBytes(text)
 	}
-	
+
 	bytes, err := bc.secondaryCodec.StringToBytes(text)
 	if err == nil {
 		return bytes, nil
 	}
-	
+
 	return bc.primaryCodec.StringToBytes(text)
 }
 

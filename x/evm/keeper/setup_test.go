@@ -44,7 +44,7 @@ type KeeperTestSuite struct {
 	suite.Suite
 
 	ctx         sdk.Context
-	app         *app.Evmos
+	app         *app.Moca
 	queryClient evmtypes.QueryClient
 	address     common.Address
 	consAddress sdk.ConsAddress
@@ -99,7 +99,7 @@ func (suite *KeeperTestSuite) SetupExistingApp(checkTx bool, chainID string) {
 
 // SetupApp setup test environment, it uses`require.TestingT` to support both `testing.T` and `testing.B`.
 func (suite *KeeperTestSuite) SetupAppWithT(checkTx bool, t require.TestingT, chainID string) {
-	patchGenesis := func(app *app.Evmos, genesis simapp.GenesisState) simapp.GenesisState {
+	patchGenesis := func(app *app.Moca, genesis simapp.GenesisState) simapp.GenesisState {
 		feemarketGenesis := feemarkettypes.DefaultGenesisState()
 		evmGenesis := evmtypes.DefaultGenesisState()
 

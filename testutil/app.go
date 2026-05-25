@@ -33,7 +33,7 @@ func NewTestApp(
 	loadLatest bool,
 	chainID string,
 	options ...func(baseApp *baseapp.BaseApp),
-) (*app.Evmos, sdktestutil.TestEncodingConfig, error) {
+) (*app.Moca, sdktestutil.TestEncodingConfig, error) {
 	// create public key
 	privVal := mock.NewPV()
 	pubKey, _ := privVal.GetPubKey()
@@ -61,7 +61,7 @@ func NewTestApp(
 		loadLatest,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		simtestutil.EmptyAppOptions{},
 		options...,
 	)

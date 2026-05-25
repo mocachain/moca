@@ -85,11 +85,6 @@ func GetMocaAddressFromBech32(address string) (sdk.AccAddress, error) {
 	return sdk.AccAddress(addressBz), nil
 }
 
-// GetEvmosAddressFromBech32 is kept as a compatibility wrapper for existing callers.
-func GetEvmosAddressFromBech32(address string) (sdk.AccAddress, error) {
-	return GetMocaAddressFromBech32(address)
-}
-
 func AccAddressMustToHexAddress(accStrAddress string) common.Address {
 	ValAddress, err := sdk.AccAddressFromBech32(accStrAddress)
 	var hexAddress common.Address
