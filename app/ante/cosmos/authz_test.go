@@ -27,7 +27,7 @@ import (
 	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
 	testutil "github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
@@ -351,12 +351,12 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 			return nil, fmt.Errorf("txBuilder does not support extension options")
 		}
 
-		parsedChainID, err := evmostypes.ParseChainID(suite.ctx.ChainID())
+		parsedChainID, err := mocatypes.ParseChainID(suite.ctx.ChainID())
 		if err != nil {
 			return nil, err
 		}
 
-		option, err := codectypes.NewAnyWithValue(&evmostypes.ExtensionOptionsWeb3Tx{
+		option, err := codectypes.NewAnyWithValue(&mocatypes.ExtensionOptionsWeb3Tx{
 			FeePayer:         common.BytesToAddress(priv.PubKey().Address()).Hex(),
 			TypedDataChainID: parsedChainID.Uint64(),
 		})

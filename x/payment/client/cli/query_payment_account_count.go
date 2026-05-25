@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/payment"
 
 	"github.com/mocachain/moca/v2/x/payment/types"
@@ -26,7 +26,7 @@ func CmdEvmListPaymentAccountCount() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contract, err := payment.NewIPayment(common.HexToAddress(evmostypes.PaymentAddress), clientCtx.EvmClient)
+			contract, err := payment.NewIPayment(common.HexToAddress(mocatypes.PaymentAddress), clientCtx.EvmClient)
 			if err != nil {
 				return err
 			}
@@ -62,7 +62,7 @@ func CmdEvmShowPaymentAccountCount() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			clientCtx := client.GetClientContextFromCmd(cmd)
 			argOwner := args[0]
-			contract, err := payment.NewIPayment(common.HexToAddress(evmostypes.PaymentAddress), clientCtx.EvmClient)
+			contract, err := payment.NewIPayment(common.HexToAddress(mocatypes.PaymentAddress), clientCtx.EvmClient)
 			if err != nil {
 				return err
 			}

@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm/statedb"
 	"github.com/mocachain/moca/v2/x/evm/types"
 )
@@ -115,7 +115,7 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 
 // WithChainID sets the chain id to the local variable in the keeper
 func (k *Keeper) WithChainID(ctx sdk.Context) {
-	chainID, err := evmostypes.ParseChainID(ctx.ChainID())
+	chainID, err := mocatypes.ParseChainID(ctx.ChainID())
 	if err != nil {
 		panic(err)
 	}
@@ -276,7 +276,7 @@ func (k *Keeper) GetAccountWithoutBalance(ctx sdk.Context, addr common.Address) 
 	}
 
 	codeHash := types.EmptyCodeHash
-	ethAcct, ok := acct.(evmostypes.EthAccountI)
+	ethAcct, ok := acct.(mocatypes.EthAccountI)
 	if ok {
 		codeHash = ethAcct.GetCodeHash().Bytes()
 	}

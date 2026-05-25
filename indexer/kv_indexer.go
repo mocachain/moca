@@ -29,7 +29,7 @@ import (
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/ethereum/go-ethereum/common"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
@@ -41,7 +41,7 @@ const (
 	TxIndexKeyLength = 1 + 8 + 8
 )
 
-var _ evmostypes.EVMTxIndexer = &KVIndexer{}
+var _ mocatypes.EVMTxIndexer = &KVIndexer{}
 
 // KVIndexer implements a eth tx indexer on a KV db.
 type KVIndexer struct {
@@ -95,7 +95,7 @@ func (kv *KVIndexer) IndexBlock(block *cmttypes.Block, txResults []*abci.ExecTxR
 			ethMsg := msg.(*evmtypes.MsgEthereumTx)
 			txHash := common.HexToHash(ethMsg.Hash)
 
-			txResult := evmostypes.TxResult{
+			txResult := mocatypes.TxResult{
 				Height:     height,
 				TxIndex:    uint32(txIndex),
 				MsgIndex:   uint32(msgIndex),
@@ -145,7 +145,7 @@ func (kv *KVIndexer) FirstIndexedBlock() (int64, error) {
 }
 
 // GetByTxHash finds eth tx by eth tx hash
-func (kv *KVIndexer) GetByTxHash(hash common.Hash) (*evmostypes.TxResult, error) {
+func (kv *KVIndexer) GetByTxHash(hash common.Hash) (*mocatypes.TxResult, error) {
 	bz, err := kv.db.Get(TxHashKey(hash))
 	if err != nil {
 		return nil, errorsmod.Wrapf(err, "GetByTxHash %s", hash.Hex())
@@ -153,7 +153,7 @@ func (kv *KVIndexer) GetByTxHash(hash common.Hash) (*evmostypes.TxResult, error)
 	if len(bz) == 0 {
 		return nil, fmt.Errorf("tx not found, hash: %s", hash.Hex())
 	}
-	var txKey evmostypes.TxResult
+	var txKey mocatypes.TxResult
 	if err := kv.clientCtx.Codec.Unmarshal(bz, &txKey); err != nil {
 		return nil, errorsmod.Wrapf(err, "GetByTxHash %s", hash.Hex())
 	}
@@ -161,7 +161,7 @@ func (kv *KVIndexer) GetByTxHash(hash common.Hash) (*evmostypes.TxResult, error)
 }
 
 // GetByBlockAndIndex finds eth tx by block number and eth tx index
-func (kv *KVIndexer) GetByBlockAndIndex(blockNumber int64, txIndex int32) (*evmostypes.TxResult, error) {
+func (kv *KVIndexer) GetByBlockAndIndex(blockNumber int64, txIndex int32) (*mocatypes.TxResult, error) {
 	bz, err := kv.db.Get(TxIndexKey(blockNumber, txIndex))
 	if err != nil {
 		return nil, errorsmod.Wrapf(err, "GetByBlockAndIndex %d %d", blockNumber, txIndex)
@@ -224,7 +224,7 @@ func isEthTx(tx sdk.Tx) bool {
 }
 
 // saveTxResult index the txResult into the kv db batch
-func saveTxResult(codec codec.Codec, batch dbm.Batch, txHash common.Hash, txResult *evmostypes.TxResult) error {
+func saveTxResult(codec codec.Codec, batch dbm.Batch, txHash common.Hash, txResult *mocatypes.TxResult) error {
 	bz := codec.MustMarshal(txResult)
 	if err := batch.Set(TxHashKey(txHash), bz); err != nil {
 		return errorsmod.Wrap(err, "set tx-hash key")

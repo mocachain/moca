@@ -39,7 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	ethparams "github.com/ethereum/go-ethereum/params"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm/statedb"
 	"github.com/mocachain/moca/v2/x/evm/types"
 )
@@ -56,7 +56,7 @@ func (k Keeper) Account(c context.Context, req *types.QueryAccountRequest) (*typ
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	if err := evmostypes.ValidateAddress(req.Address); err != nil {
+	if err := mocatypes.ValidateAddress(req.Address); err != nil {
 		return nil, status.Error(
 			codes.InvalidArgument, err.Error(),
 		)
@@ -79,7 +79,7 @@ func (k Keeper) CosmosAccount(c context.Context, req *types.QueryCosmosAccountRe
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	if err := evmostypes.ValidateAddress(req.Address); err != nil {
+	if err := mocatypes.ValidateAddress(req.Address); err != nil {
 		return nil, status.Error(
 			codes.InvalidArgument, err.Error(),
 		)
@@ -148,7 +148,7 @@ func (k Keeper) Balance(c context.Context, req *types.QueryBalanceRequest) (*typ
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	if err := evmostypes.ValidateAddress(req.Address); err != nil {
+	if err := mocatypes.ValidateAddress(req.Address); err != nil {
 		return nil, status.Error(
 			codes.InvalidArgument,
 			types.ErrZeroAddress.Error(),
@@ -170,7 +170,7 @@ func (k Keeper) Storage(c context.Context, req *types.QueryStorageRequest) (*typ
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	if err := evmostypes.ValidateAddress(req.Address); err != nil {
+	if err := mocatypes.ValidateAddress(req.Address); err != nil {
 		return nil, status.Error(
 			codes.InvalidArgument,
 			types.ErrZeroAddress.Error(),
@@ -196,7 +196,7 @@ func (k Keeper) Code(c context.Context, req *types.QueryCodeRequest) (*types.Que
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	if err := evmostypes.ValidateAddress(req.Address); err != nil {
+	if err := mocatypes.ValidateAddress(req.Address); err != nil {
 		return nil, status.Error(
 			codes.InvalidArgument,
 			types.ErrZeroAddress.Error(),
@@ -798,7 +798,7 @@ func (k Keeper) BaseFee(c context.Context, _ *types.QueryBaseFeeRequest) (*types
 // getChainID parse chainID from current context if not provided
 func getChainID(ctx sdk.Context, chainID int64) (*big.Int, error) {
 	if chainID == 0 {
-		return evmostypes.ParseChainID(ctx.ChainID())
+		return mocatypes.ParseChainID(ctx.ChainID())
 	}
 	return big.NewInt(chainID), nil
 }

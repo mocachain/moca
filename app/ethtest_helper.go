@@ -35,7 +35,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	servercfg "github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
 )
 
@@ -75,7 +75,7 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 		true,
 		map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
@@ -144,7 +144,7 @@ func NewTestGenesisState(app *Evmos) simapp.GenesisState {
 		Coins:   sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, math.NewInt(100000000000000))),
 	}
 
-	genesisState := evmostypes.GenesisState{}
+	genesisState := mocatypes.GenesisState{}
 	genesisState = GenesisStateWithValSet(app, genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
 	return simapp.GenesisState(genesisState)
 }

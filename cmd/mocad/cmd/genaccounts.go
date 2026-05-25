@@ -37,7 +37,7 @@ import (
 	"github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 
-	evmoskr "github.com/mocachain/moca/v2/crypto/keyring"
+	mocakr "github.com/mocachain/moca/v2/crypto/keyring"
 )
 
 // AddGenesisAccountCmd returns add-genesis-account cobra Command.
@@ -74,7 +74,7 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 						clientCtx.HomeDir,
 						inBuf,
 						cdc,
-						evmoskr.Option(),
+						mocakr.Option(),
 					)
 					if err != nil {
 						return err

@@ -66,7 +66,7 @@ import (
 	ethdebug "github.com/mocachain/moca/v2/rpc/namespaces/ethereum/debug"
 	"github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 )
 
 // DBOpener is a function to open `application.db`, potentially with customized options.
@@ -429,7 +429,7 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 		ethmetricsexp.Setup(config.JSONRPC.MetricsAddress)
 	}
 
-	var idxer evmostypes.EVMTxIndexer
+	var idxer mocatypes.EVMTxIndexer
 	if config.JSONRPC.EnableIndexer {
 		idxDB, err := OpenIndexerDB(home, server.GetAppDBBackend(svrCtx.Viper))
 		if err != nil {
@@ -655,7 +655,7 @@ func startJSONRPCServer(
 	config config.AppConfig,
 	genDocProvider node.GenesisDocProvider,
 	cmtRPCAddr string,
-	idxer evmostypes.EVMTxIndexer,
+	idxer mocatypes.EVMTxIndexer,
 ) (ctx client.Context, httpSrv *http.Server, httpSrvDone chan struct{}, err error) {
 	ctx = clientCtx
 	if !config.JSONRPC.Enable {

@@ -23,7 +23,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 
 	servercfg "github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
 )
 
@@ -52,7 +52,7 @@ func TestEvmosExport(t *testing.T) {
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
@@ -90,7 +90,7 @@ func TestEvmosExport(t *testing.T) {
 		log.NewLogger(os.Stdout),
 		db, nil, true, map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
 		simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 	)

@@ -31,7 +31,7 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	"github.com/mocachain/moca/v2/x/feemarket/types"
 
@@ -78,11 +78,11 @@ func (suite *KeeperTestSuite) SetupApp(checkTx bool, chainID string) {
 	types.RegisterQueryServer(queryHelper, suite.app.FeeMarketKeeper)
 	suite.queryClient = types.NewQueryClient(queryHelper)
 
-	acc := &evmostypes.EthAccount{
+	acc := &mocatypes.EthAccount{
 		BaseAccount: authtypes.NewBaseAccount(sdk.AccAddress(suite.address.Bytes()), nil, 0, 0),
 		CodeHash:    common.BytesToHash(crypto.Keccak256(nil)).String(),
 	}
-	acc = suite.app.AccountKeeper.NewAccount(suite.ctx, acc).(*evmostypes.EthAccount)
+	acc = suite.app.AccountKeeper.NewAccount(suite.ctx, acc).(*mocatypes.EthAccount)
 
 	suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 
@@ -187,7 +187,7 @@ func setupChain(localMinGasPricesStr string, chainID string, minGasPrice sdkmath
 		true,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
 		simutils.NewAppOptionsWithFlagHome(app.DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 		baseapp.SetMinGasPrices(localMinGasPricesStr),

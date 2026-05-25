@@ -25,7 +25,7 @@ import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm/statedb"
 	"github.com/mocachain/moca/v2/x/evm/types"
 
@@ -60,7 +60,7 @@ func (k *Keeper) NewEVM(
 		Transfer:    core.Transfer,
 		GetHash:     k.GetHashFn(ctx),
 		Coinbase:    cfg.CoinBase,
-		GasLimit:    evmostypes.BlockGasLimit(ctx),
+		GasLimit:    mocatypes.BlockGasLimit(ctx),
 		BlockNumber: big.NewInt(ctx.BlockHeight()),
 		Time:        big.NewInt(ctx.BlockHeader().Time.Unix()),
 		Difficulty:  big.NewInt(0), // unused. Only required in PoW context
@@ -82,7 +82,7 @@ func (k *Keeper) NewEVM(
 //  3. The requested height is from a height greater than the latest one
 func (k Keeper) GetHashFn(ctx sdk.Context) vm.GetHashFunc {
 	return func(height uint64) common.Hash {
-		h, err := evmostypes.SafeInt64(height)
+		h, err := mocatypes.SafeInt64(height)
 		if err != nil {
 			k.Logger(ctx).Error("failed to cast height to int64", "error", err)
 			return common.Hash{}

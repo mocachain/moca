@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm/keeper"
 	"github.com/mocachain/moca/v2/x/evm/types"
 )
@@ -60,7 +60,7 @@ func InitGenesis(
 			panic(fmt.Errorf("objectNftAccount not found for address %s", account.Address))
 		}
 
-		ethAcct, ok := acc.(evmostypes.EthAccountI)
+		ethAcct, ok := acc.(mocatypes.EthAccountI)
 		if !ok {
 			panic(
 				fmt.Errorf("objectNftAccount %s must be an EthAccount interface, got %T",
@@ -120,7 +120,7 @@ func InitGenesis(
 	code := common.Hex2Bytes(objectNftAccount.Code)
 	codeHash := crypto.Keccak256Hash(code)
 
-	acc := &evmostypes.EthAccount{
+	acc := &mocatypes.EthAccount{
 		BaseAccount: authtypes.NewBaseAccount(address.Bytes(), nil, accountKeeper.NextAccountNumber(ctx), 0),
 		CodeHash:    codeHash.String(),
 	}
@@ -159,7 +159,7 @@ func InitGenesis(
 	code = common.Hex2Bytes(groupNftAccount.Code)
 	codeHash = crypto.Keccak256Hash(code)
 
-	acc = &evmostypes.EthAccount{
+	acc = &mocatypes.EthAccount{
 		BaseAccount: authtypes.NewBaseAccount(address.Bytes(), nil, accountKeeper.NextAccountNumber(ctx), 0),
 		CodeHash:    codeHash.String(),
 	}
@@ -198,7 +198,7 @@ func InitGenesis(
 	code = common.Hex2Bytes(bucketNftAccount.Code)
 	codeHash = crypto.Keccak256Hash(code)
 
-	acc = &evmostypes.EthAccount{
+	acc = &mocatypes.EthAccount{
 		BaseAccount: authtypes.NewBaseAccount(address.Bytes(), nil, accountKeeper.NextAccountNumber(ctx), 0),
 		CodeHash:    codeHash.String(),
 	}
@@ -217,7 +217,7 @@ func InitGenesis(
 func ExportGenesis(ctx sdk.Context, k *keeper.Keeper, ak types.AccountKeeper) *types.GenesisState {
 	var ethGenAccounts []types.GenesisAccount
 	ak.IterateAccounts(ctx, func(account sdk.AccountI) bool {
-		ethAccount, ok := account.(evmostypes.EthAccountI)
+		ethAccount, ok := account.(mocatypes.EthAccountI)
 		if !ok {
 			// ignore non EthAccounts
 			return false
