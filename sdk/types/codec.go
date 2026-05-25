@@ -2,8 +2,12 @@ package types
 
 import (
 	feegranttypes "cosmossdk.io/x/feegrant"
+	"fmt"
+	gogoproto "github.com/cosmos/gogoproto/proto"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	txsigning "cosmossdk.io/x/tx/signing"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authztypes "github.com/cosmos/cosmos-sdk/x/authz"
@@ -21,10 +25,34 @@ import (
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
+	protov2 "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func Codec() *codec.ProtoCodec {
-	interfaceRegistry := types.NewInterfaceRegistry()
+	interfaceRegistry, err := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
+		ProtoFiles: gogoproto.HybridResolver,
+		SigningOptions: txsigning.Options{
+			AddressCodec: cmdcfg.NewMultiPrefixBech32AccCodec(),
+			CustomGetSigners: map[protoreflect.FullName]txsigning.GetSignersFunc{
+				protoreflect.FullName("moca.payment.MsgCreatePaymentAccount"): func(msg protov2.Message) ([][]byte, error) {
+					creatorField := msg.ProtoReflect().Descriptor().Fields().ByName("creator")
+					if creatorField == nil {
+						return nil, fmt.Errorf("creator field not found in %s", msg.ProtoReflect().Descriptor().FullName())
+					}
+					signer, err := sdk.AccAddressFromHexUnsafe(msg.ProtoReflect().Get(creatorField).String())
+					if err != nil {
+						return nil, err
+					}
+					return [][]byte{signer}, nil
+				},
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
 	challengetypes.RegisterInterfaces(interfaceRegistry)
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 	mocatypes.RegisterInterfaces(interfaceRegistry)
