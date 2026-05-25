@@ -23,7 +23,7 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/sdk/client/test"
 	servercfg "github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 )
 
 func NewTestApp(
@@ -54,14 +54,14 @@ func NewTestApp(
 
 	encCfg := encoding.MakeConfig()
 	options = append(options, baseapp.SetChainID(chainID))
-	nApp := app.NewEvmos(
+	nApp := app.NewMoca(
 		logger,
 		db,
 		traceStore,
 		loadLatest,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoEvmos),
 		simtestutil.EmptyAppOptions{},
 		options...,
 	)

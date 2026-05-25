@@ -23,7 +23,7 @@ service Msg {
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
 message MsgUpdateParams {
-  option (amino.name) = "evmos/x/permission/MsgUpdateParams";
+  option (amino.name) = "moca/x/permission/MsgUpdateParams";
   option (cosmos.msg.v1.signer) = "authority";
 
   // authority is the address that controls the module (defaults to x/gov unless overwritten).

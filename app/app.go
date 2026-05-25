@@ -1,19 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
-
 package app
 
 import (
@@ -110,12 +94,11 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/evm"
 	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
 	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
 	precompilesbank "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
-	precompileserc20 "github.com/mocachain/moca/v2/x/evm/precompiles/erc20"
 	precompilesgov "github.com/mocachain/moca/v2/x/evm/precompiles/gov"
 	precompilespayment "github.com/mocachain/moca/v2/x/evm/precompiles/payment"
 	precompilespermission "github.com/mocachain/moca/v2/x/evm/precompiles/permission"
@@ -134,9 +117,6 @@ import (
 	_ "github.com/mocachain/moca/v2/client/docs/statik"
 
 	"github.com/mocachain/moca/v2/app/ante"
-	"github.com/mocachain/moca/v2/x/erc20"
-	erc20keeper "github.com/mocachain/moca/v2/x/erc20/keeper"
-	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
 
 	// Force-load the tracer engines to trigger registration due to Go-Ethereum v1.10.15 changes
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -185,7 +165,6 @@ var (
 		stakingtypes.NotBondedPoolName:     {authtypes.Burner, authtypes.Staking},
 		govtypes.ModuleName:                {authtypes.Burner},
 		evmtypes.ModuleName:                {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
-		erc20types.ModuleName:              {authtypes.Minter, authtypes.Burner},
 		paymentmoduletypes.ModuleName:      {authtypes.Burner, authtypes.Staking},
 		permissionmoduletypes.ModuleName:   nil,
 		spmoduletypes.ModuleName:           {authtypes.Staking},
@@ -207,7 +186,7 @@ func init() {
 	DefaultNodeHome = filepath.Join(userHomeDir, "."+ShortName)
 
 	// manually update the power reduction by replacing micro (u) -> atto (a) evmos
-	sdk.DefaultPowerReduction = evmostypes.PowerReduction
+	sdk.DefaultPowerReduction = mocatypes.PowerReduction
 	// modify fee market parameter defaults through global
 	feemarkettypes.DefaultMinGasPrice = MainnetMinGasPrices
 	feemarkettypes.DefaultMinGasMultiplier = MainnetMinGasMultiplier
@@ -256,9 +235,6 @@ type Evmos struct {
 	EvmKeeper       *evmkeeper.Keeper
 	FeeMarketKeeper feemarketkeeper.Keeper
 
-	// Evmos keepers
-	Erc20Keeper erc20keeper.Keeper
-
 	// the module manager
 	mm                 *module.Manager
 	BasicModuleManager module.BasicManager
@@ -287,7 +263,7 @@ func (app *Evmos) SimulationManager() *module.SimulationManager {
 }
 
 // NewEvmos returns a reference to a new initialized Ethermint application.
-func NewEvmos(
+func NewMoca(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
@@ -340,8 +316,6 @@ func NewEvmos(
 		reconStoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
-		// evmos keys
-		erc20types.StoreKey,
 	)
 
 	// Add the EVM transient store key
@@ -374,7 +348,7 @@ func NewEvmos(
 	// use custom Ethermint account for contracts
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
 		appCodec, runtime.NewKVStoreService(keys[authtypes.StoreKey]),
-		evmostypes.ProtoAccount, maccPerms,
+		mocatypes.ProtoAccount, maccPerms,
 		cmdcfg.NewMultiPrefixBech32AccCodec(),
 		authAddr,
 	)
@@ -471,19 +445,8 @@ func NewEvmos(
 		),
 	)
 
-	app.Erc20Keeper = erc20keeper.NewKeeper(
-		keys[erc20types.StoreKey], appCodec, authtypes.NewModuleAddress(govtypes.ModuleName),
-		app.AccountKeeper, app.BankKeeper, app.EvmKeeper, app.StakingKeeper,
-	)
-
 	app.GovKeeper = *govKeeper.SetHooks(
 		govtypes.NewMultiGovHooks(),
-	)
-
-	app.EvmKeeper = app.EvmKeeper.SetHooks(
-		evmkeeper.NewMultiEvmHooks(
-			app.Erc20Keeper.Hooks(),
-		),
 	)
 
 	// create evidence keeper with router
@@ -596,8 +559,6 @@ func NewEvmos(
 		// Ethermint app modules
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
 		feemarket.NewAppModule(app.FeeMarketKeeper),
-		// Evmos app modules
-		erc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -683,7 +644,6 @@ func NewEvmos(
 		feegrant.ModuleName,
 		upgradetypes.ModuleName,
 		// Evmos modules
-		erc20types.ModuleName,
 		spmoduletypes.ModuleName,
 		virtualgroupmoduletypes.ModuleName,
 		paymentmoduletypes.ModuleName,
@@ -801,10 +761,6 @@ func NewEvmos(
 		paymentIavl.EnableDiff()
 	}
 	app.initModules(ctx)
-	// add eth query router
-	ethRouter := app.BaseApp.EthQueryRouter()
-	ethRouter.RegisterConstHandler()
-	ethRouter.RegisterEthQueryBalanceHandler(app.BankKeeper, bankkeeper.EthQueryBalanceHandlerGen)
 
 	// Finally start the tpsCounter.
 	app.tpsCounter = newTPSCounter(logger)
@@ -834,7 +790,7 @@ func (app *Evmos) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) 
 		Cdc:                    app.appCodec,
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
-		ExtensionOptionChecker: evmostypes.HasDynamicFeeExtensionOption,
+		ExtensionOptionChecker: mocatypes.HasDynamicFeeExtensionOption,
 		EvmKeeper:              app.EvmKeeper,
 		FeegrantKeeper:         app.FeeGrantKeeper,
 		DistributionKeeper:     app.DistrKeeper,
@@ -914,7 +870,7 @@ func (app *Evmos) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.Respo
 
 // InitChainer updates at chain initialization
 func (app *Evmos) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
-	var genesisState evmostypes.GenesisState
+	var genesisState mocatypes.GenesisState
 	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
@@ -958,22 +914,22 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 	blockedAddrs := app.ModuleAccountAddrs()
 
 	blockedPrecompilesHex := []string{
-		evmostypes.BankAddress,
-		evmostypes.AuthAddress,
-		evmostypes.GovAddress,
-		evmostypes.StakingAddress,
-		evmostypes.DistributionAddress,
-		evmostypes.SlashingAddress,
-		evmostypes.EvidenceAddress,
-		evmostypes.DeprecatedEpochsAddress,
-		evmostypes.AuthzAddress,
-		evmostypes.FeemarketAddress,
-		evmostypes.PaymentAddress,
-		evmostypes.PermissionAddress,
-		evmostypes.Erc20Address,
-		evmostypes.VirtualGroupAddress,
-		evmostypes.StorageAddress,
-		evmostypes.SpAddress,
+		mocatypes.BankAddress,
+		mocatypes.AuthAddress,
+		mocatypes.GovAddress,
+		mocatypes.StakingAddress,
+		mocatypes.DistributionAddress,
+		mocatypes.SlashingAddress,
+		mocatypes.EvidenceAddress,
+		mocatypes.DeprecatedEpochsAddress,
+		mocatypes.AuthzAddress,
+		mocatypes.FeemarketAddress,
+		mocatypes.PaymentAddress,
+		mocatypes.PermissionAddress,
+		mocatypes.DeprecatedErc20Address,
+		mocatypes.VirtualGroupAddress,
+		mocatypes.StorageAddress,
+		mocatypes.SpAddress,
 	}
 	for _, addr := range vm.PrecompiledAddressesBerlin {
 		blockedPrecompilesHex = append(blockedPrecompilesHex, addr.Hex())
@@ -1003,7 +959,7 @@ func (app *Evmos) AppCodec() codec.Codec {
 }
 
 // DefaultGenesis returns a default genesis from the registered AppModuleBasic's.
-func (app *Evmos) DefaultGenesis() evmostypes.GenesisState {
+func (app *Evmos) DefaultGenesis() mocatypes.GenesisState {
 	return app.BasicModuleManager.DefaultGenesis(app.appCodec)
 }
 
@@ -1194,11 +1150,6 @@ func (app *Evmos) EvmPrecompiled() {
 		return precompilesslashing.NewPrecompiledContract(ctx, app.SlashingKeeper)
 	}
 
-	// erc20 precompile
-	precompiled[precompileserc20.GetAddress()] = func(ctx sdk.Context) vm.PrecompiledContract {
-		return precompileserc20.NewPrecompiledContract(ctx, app.Erc20Keeper)
-	}
-
 	// set precompiled contracts
 	app.EvmKeeper.WithPrecompiled(precompiled)
 }
@@ -1235,7 +1186,7 @@ func (app *Evmos) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis", "gashub"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis", "gashub", "erc20"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {

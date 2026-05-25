@@ -21,7 +21,7 @@ enum StreamAccountStatus {
 
 // Stream Payment Record of a stream account
 message StreamRecord {
-  option (amino.name) = "evmos/x/payment/StreamRecord";
+  option (amino.name) = "moca/x/payment/StreamRecord";
   // account address
   string account = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // latest update timestamp of the stream record

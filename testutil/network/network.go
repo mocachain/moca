@@ -1,19 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
-
 package network
 
 import (
@@ -70,10 +54,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/mocachain/moca/v2/app"
-	evmoskr "github.com/mocachain/moca/v2/crypto/keyring"
+	mocakr "github.com/mocachain/moca/v2/crypto/keyring"
 
 	"github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
@@ -96,25 +80,25 @@ type Config struct {
 	InterfaceRegistry codectypes.InterfaceRegistry
 	TxConfig          client.TxConfig
 	AccountRetriever  client.AccountRetriever
-	AppConstructor    AppConstructor          // the ABCI application constructor
-	GenesisState      evmostypes.GenesisState // custom gensis state to provide
-	TimeoutCommit     time.Duration           // the consensus commitment timeout
-	AccountTokens     math.Int                // the amount of unique validator tokens (e.g. 1000node0)
-	StakingTokens     math.Int                // the amount of tokens each validator has available to stake
-	BondedTokens      math.Int                // the amount of tokens each validator stakes
-	NumValidators     int                     // the total number of validators to create and bond
-	ChainID           string                  // the network chain-id
-	BondDenom         string                  // the staking bond denomination
-	MinGasPrices      string                  // the minimum gas prices each validator will accept
-	PruningStrategy   string                  // the pruning strategy each validator will have
-	SigningAlgo       string                  // signing algorithm for keys
-	RPCAddress        string                  // RPC listen address (including port)
-	JSONRPCAddress    string                  // JSON-RPC listen address (including port)
-	APIAddress        string                  // REST API listen address (including port)
-	GRPCAddress       string                  // GRPC server listen address (including port)
-	EnableTMLogging   bool                    // enable Tendermint logging to STDOUT
-	CleanupDir        bool                    // remove base temporary directory during cleanup
-	PrintMnemonic     bool                    // print the mnemonic of first validator as log output for testing
+	AppConstructor    AppConstructor         // the ABCI application constructor
+	GenesisState      mocatypes.GenesisState // custom gensis state to provide
+	TimeoutCommit     time.Duration          // the consensus commitment timeout
+	AccountTokens     math.Int               // the amount of unique validator tokens (e.g. 1000node0)
+	StakingTokens     math.Int               // the amount of tokens each validator has available to stake
+	BondedTokens      math.Int               // the amount of tokens each validator stakes
+	NumValidators     int                    // the total number of validators to create and bond
+	ChainID           string                 // the network chain-id
+	BondDenom         string                 // the staking bond denomination
+	MinGasPrices      string                 // the minimum gas prices each validator will accept
+	PruningStrategy   string                 // the pruning strategy each validator will have
+	SigningAlgo       string                 // signing algorithm for keys
+	RPCAddress        string                 // RPC listen address (including port)
+	JSONRPCAddress    string                 // JSON-RPC listen address (including port)
+	APIAddress        string                 // REST API listen address (including port)
+	GRPCAddress       string                 // GRPC server listen address (including port)
+	EnableTMLogging   bool                   // enable Tendermint logging to STDOUT
+	CleanupDir        bool                   // remove base temporary directory during cleanup
+	PrintMnemonic     bool                   // print the mnemonic of first validator as log output for testing
 }
 
 // DefaultConfig returns a sane default configuration suitable for nearly all
@@ -126,7 +110,7 @@ func DefaultConfig() Config {
 		panic(fmt.Sprintf("failed creating temporary directory: %v", err))
 	}
 	defer os.RemoveAll(dir)
-	app := app.NewEvmos(log.NewNopLogger(), dbm.NewMemDB(), nil, true, nil, dir, config.NewDefaultAppConfig(evmostypes.AttoEvmos), simutils.NewAppOptionsWithFlagHome(dir), baseapp.SetChainID(chainID))
+	app := app.NewMoca(log.NewNopLogger(), dbm.NewMemDB(), nil, true, nil, dir, config.NewDefaultAppConfig(mocatypes.AttoEvmos), simutils.NewAppOptionsWithFlagHome(dir), baseapp.SetChainID(chainID))
 	return Config{
 		Codec:             app.AppCodec(),
 		TxConfig:          app.GetTxConfig(),
@@ -139,14 +123,14 @@ func DefaultConfig() Config {
 		ChainID:           chainID,
 		NumValidators:     4,
 		BondDenom:         "amoca",
-		MinGasPrices:      fmt.Sprintf("0.000006%s", evmostypes.AttoEvmos),
-		AccountTokens:     sdk.TokensFromConsensusPower(1000000000000000000, evmostypes.PowerReduction),
-		StakingTokens:     sdk.TokensFromConsensusPower(500000000000000000, evmostypes.PowerReduction),
-		BondedTokens:      sdk.TokensFromConsensusPower(100000000000000000, evmostypes.PowerReduction),
+		MinGasPrices:      fmt.Sprintf("0.000006%s", mocatypes.AttoEvmos),
+		AccountTokens:     sdk.TokensFromConsensusPower(1000000000000000000, mocatypes.PowerReduction),
+		StakingTokens:     sdk.TokensFromConsensusPower(500000000000000000, mocatypes.PowerReduction),
+		BondedTokens:      sdk.TokensFromConsensusPower(100000000000000000, mocatypes.PowerReduction),
 		PruningStrategy:   pruningtypes.PruningOptionNothing,
 		CleanupDir:        true,
 		SigningAlgo:       string(hd.EthSecp256k1Type),
-		KeyringOptions:    []keyring.Option{evmoskr.Option()},
+		KeyringOptions:    []keyring.Option{mocakr.Option()},
 		PrintMnemonic:     false,
 	}
 }
@@ -154,9 +138,9 @@ func DefaultConfig() Config {
 // NewAppConstructor returns a new Evmos AppConstructor
 func NewAppConstructor(chainID string) AppConstructor {
 	return func(val Validator) servertypes.Application {
-		return app.NewEvmos(
+		return app.NewMoca(
 			val.Ctx.Logger, dbm.NewMemDB(), nil, true, make(map[int64]bool), val.Ctx.Config.RootDir,
-			config.NewDefaultAppConfig(evmostypes.AttoEvmos),
+			config.NewDefaultAppConfig(mocatypes.AttoEvmos),
 			simutils.NewAppOptionsWithFlagHome(val.Ctx.Config.RootDir),
 			baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
 			baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
@@ -249,7 +233,7 @@ func New(l Logger, baseDir string, cfg Config) (*Network, error) {
 	l.Log("acquiring test network lock")
 	lock.Lock()
 
-	if !evmostypes.IsValidChainID(cfg.ChainID) {
+	if !mocatypes.IsValidChainID(cfg.ChainID) {
 		return nil, fmt.Errorf("invalid chain-id: %s", cfg.ChainID)
 	}
 
@@ -439,7 +423,7 @@ func New(l Logger, baseDir string, cfg Config) (*Network, error) {
 
 		genFiles = append(genFiles, cmtCfg.GenesisFile())
 		genBalances = append(genBalances, banktypes.Balance{Address: addr.String(), Coins: balances.Sort()})
-		genAccounts = append(genAccounts, &evmostypes.EthAccount{
+		genAccounts = append(genAccounts, &mocatypes.EthAccount{
 			BaseAccount: authtypes.NewBaseAccount(addr, nil, 0, 0),
 			CodeHash:    common.BytesToHash(evmtypes.EmptyCodeHash).Hex(),
 		})
@@ -508,7 +492,7 @@ func New(l Logger, baseDir string, cfg Config) (*Network, error) {
 			return nil, err
 		}
 
-		customAppTemplate, _ := config.NewAppConfig(evmostypes.AttoEvmos)
+		customAppTemplate, _ := config.NewAppConfig(mocatypes.AttoEvmos)
 		srvconfig.SetConfigTemplate(customAppTemplate)
 		srvconfig.WriteConfigFile(filepath.Join(nodeDir, "config/app.toml"), appCfg)
 
