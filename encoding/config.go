@@ -2,19 +2,18 @@ package encoding
 
 import (
 	"cosmossdk.io/x/tx/signing"
+	"fmt"
 	amino "github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/cosmos/gogoproto/proto"
-	"fmt"
 	protov2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	enccodec "github.com/mocachain/moca/v2/encoding/codec"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
@@ -23,7 +22,6 @@ import (
 func MakeConfig() sdktestutil.TestEncodingConfig {
 	cdc := amino.NewLegacyAmino()
 	signingOptions := signing.Options{
-		AddressCodec: cmdcfg.NewMultiPrefixBech32AccCodec(),
 		CustomGetSigners: map[protoreflect.FullName]signing.GetSignersFunc{
 			evmtypes.MsgEthereumTxCustomGetSigner.MsgType: evmtypes.MsgEthereumTxCustomGetSigner.Fn,
 			protoreflect.FullName("moca.payment.MsgCreatePaymentAccount"): func(msg protov2.Message) ([][]byte, error) {

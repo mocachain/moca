@@ -2,13 +2,12 @@ package types
 
 import (
 	feegranttypes "cosmossdk.io/x/feegrant"
+	txsigning "cosmossdk.io/x/tx/signing"
 	"fmt"
-	gogoproto "github.com/cosmos/gogoproto/proto"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	txsigning "cosmossdk.io/x/tx/signing"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authztypes "github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -18,6 +17,7 @@ import (
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	gogoproto "github.com/cosmos/gogoproto/proto"
 
 	mocatypes "github.com/mocachain/moca/v2/types"
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
@@ -25,7 +25,6 @@ import (
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
-	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	protov2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -34,7 +33,6 @@ func Codec() *codec.ProtoCodec {
 	interfaceRegistry, err := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
 		ProtoFiles: gogoproto.HybridResolver,
 		SigningOptions: txsigning.Options{
-			AddressCodec: cmdcfg.NewMultiPrefixBech32AccCodec(),
 			CustomGetSigners: map[protoreflect.FullName]txsigning.GetSignersFunc{
 				protoreflect.FullName("moca.payment.MsgCreatePaymentAccount"): func(msg protov2.Message) ([][]byte, error) {
 					creatorField := msg.ProtoReflect().Descriptor().Fields().ByName("creator")
