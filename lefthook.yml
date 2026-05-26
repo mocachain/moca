@@ -1,0 +1,21 @@
+pre-commit:
+  parallel: false
+  commands:
+    go-format:
+      glob: "*.go"
+      run: env GOTOOLCHAIN=go1.23.12 go run mvdan.cc/gofumpt@v0.7.0 -w {staged_files} && git add {staged_files}
+    js-shell-format:
+      glob: "*.{js,sh}"
+      run: npx lint-staged
+
+pre-push:
+  parallel: false
+  commands:
+    go-lint:
+      run: env GOTOOLCHAIN=go1.23.12 go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0 run --new-from-rev=HEAD~1
+
+commit-msg:
+  parallel: false
+  commands:
+    commitlint:
+      run: npx --no -- commitlint --edit {1}

@@ -7,9 +7,9 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/mint"
+	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mocachain/moca/v2/x/challenge/keeper"

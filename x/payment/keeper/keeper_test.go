@@ -6,8 +6,8 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"go.uber.org/mock/gomock"
 
 	"github.com/mocachain/moca/v2/x/payment"
