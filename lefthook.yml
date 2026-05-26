@@ -12,7 +12,7 @@ pre-push:
   parallel: false
   commands:
     go-lint:
-      run: go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0 run --new-from-rev=HEAD~1
+      run: env GOTOOLCHAIN=go1.23.12 go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0 run --new-from-rev=HEAD~1
 
 commit-msg:
   parallel: false
