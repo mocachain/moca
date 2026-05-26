@@ -161,6 +161,11 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 				txConfigOpts := tx.ConfigOptions{
 					EnabledSignModes:           enabledSignModes,
 					TextualCoinMetadataQueryFn: txmodule.NewGRPCCoinMetadataQueryFn(initClientCtx),
+					// cosmos-sdk v0.53 requires a signing context with address
+					// codecs; without it, NewTxConfigWithOptions falls back to
+					// empty signing options and errors with "address codec is
+					// required". Reuse the one already built into the registry.
+					SigningContext: initClientCtx.InterfaceRegistry.SigningContext(),
 				}
 				txConfig, err := tx.NewTxConfigWithOptions(
 					initClientCtx.Codec,

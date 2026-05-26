@@ -3,7 +3,9 @@ package types
 import (
 	context "context"
 	"math/big"
+	"time"
 
+	"cosmossdk.io/core/address"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -25,6 +27,12 @@ type AccountKeeper interface {
 	RemoveAccount(ctx context.Context, account sdk.AccountI)
 	GetParams(ctx context.Context) (params authtypes.Params)
 	NextAccountNumber(ctx context.Context) uint64
+	// Required by cosmos-sdk v0.53 ante.AccountKeeper (address codec +
+	// unordered-transaction support).
+	AddressCodec() address.Codec
+	UnorderedTransactionsEnabled() bool
+	RemoveExpiredUnorderedNonces(ctx sdk.Context) error
+	TryAddUnorderedNonce(ctx sdk.Context, sender []byte, timestamp time.Time) error
 }
 
 // BankKeeper defines the expected interface needed to retrieve account balances.
