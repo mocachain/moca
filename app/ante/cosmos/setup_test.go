@@ -29,8 +29,8 @@ import (
 	"github.com/mocachain/moca/v2/testutil"
 	"github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 )
 

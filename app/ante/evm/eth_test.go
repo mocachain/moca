@@ -15,8 +15,8 @@ import (
 	testutiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )

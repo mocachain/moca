@@ -11,7 +11,7 @@ import (
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	anteutils "github.com/mocachain/moca/v2/app/ante/utils"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/types"
 )
 
 // NewDynamicFeeChecker returns a `TxFeeChecker` that applies a dynamic fee to

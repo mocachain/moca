@@ -19,7 +19,7 @@ import (
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/server/config"
 	"github.com/mocachain/moca/v2/utils"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 // PrepareEthTx creates an ethereum tx and signs it with the provided messages and private key.

@@ -14,7 +14,7 @@ import (
 	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
 	evmante "github.com/mocachain/moca/v2/app/ante/evm"
 	anteutils "github.com/mocachain/moca/v2/app/ante/utils"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 )

@@ -95,8 +95,12 @@ import (
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm"
-	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
+	// TODO(cosmos-evm migration): the in-tree x/evm module was deleted; the
+	// cosmos/evm vm.NewAppModule registration needs to land here with the right
+	// keeper, AccountKeeper, BankKeeper, and AddressCodec wiring (cosmos/evm
+	// v0.6.0 signature). Stubbed for now so the binary compiles.
+	vm "github.com/cosmos/evm/x/vm"
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
 	precompilesbank "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
 	precompilesgov "github.com/mocachain/moca/v2/x/evm/precompiles/gov"
@@ -105,7 +109,7 @@ import (
 	precompilesstorage "github.com/mocachain/moca/v2/x/evm/precompiles/storage"
 	precompilessp "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
 	precompilesvirtualgroup "github.com/mocachain/moca/v2/x/evm/precompiles/virtualgroup"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/cosmos/evm/x/feemarket"
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
@@ -560,8 +564,11 @@ func NewMoca(
 		storageModule,
 		challengeModule,
 		// Ethermint app modules
-		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
-		feemarket.NewAppModule(app.FeeMarketKeeper),
+		// TODO(cosmos-evm migration): wire cosmos/evm vm.NewAppModule(*keeper.Keeper,
+		// AccountKeeper, BankKeeper, address.Codec) and cosmos/evm feemarket
+		// equivalent. Reference: cosmos/evm@v0.6.0/x/vm/module.go.
+		_ = vm.AppModule{},
+		// feemarket.NewAppModule(app.FeeMarketKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,

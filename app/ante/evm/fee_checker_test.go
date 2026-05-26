@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 var _ DynamicFeeEVMKeeper = MockEVMKeeper{}

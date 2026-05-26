@@ -17,7 +17,7 @@ import (
 
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/testutil/tx"
-	evm "github.com/mocachain/moca/v2/x/evm/types"
+	evm "github.com/cosmos/evm/x/vm/types"
 )
 
 // DeployContract deploys a contract with the provided private key,

@@ -12,9 +12,9 @@ import (
 
 	anteutils "github.com/mocachain/moca/v2/app/ante/utils"
 	"github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm/keeper"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/keeper"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"

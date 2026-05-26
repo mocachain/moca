@@ -17,7 +17,7 @@ import (
 	"github.com/mocachain/moca/v2/indexer"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/types"
 	"github.com/stretchr/testify/require"
 )
 

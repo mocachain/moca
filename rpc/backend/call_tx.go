@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	"github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

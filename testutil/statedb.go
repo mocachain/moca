@@ -4,7 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mocachain/moca/v2/app/ante/evm"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
+	"github.com/cosmos/evm/x/vm/statedb"
 )
 
 // NewStateDB returns a new StateDB for testing purposes.
