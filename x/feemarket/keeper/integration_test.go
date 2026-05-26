@@ -9,7 +9,6 @@ import (
 	. "github.com/onsi/gomega"    //nolint
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
@@ -29,7 +28,7 @@ var _ = Describe("Feemarket", func() {
 	Describe("Performing Cosmos transactions", func() {
 		Context("with min-gas-prices (local) < MinGasPrices (feemarket param)", func() {
 			BeforeEach(func() {
-				privKey, msg = setupTestWithContext(chainID, "1", sdk.NewDec(3), sdk.ZeroInt())
+				privKey, msg = setupTestWithContext(chainID, "1", sdkmath.LegacyNewDec(3), sdkmath.ZeroInt())
 			})
 
 			Context("during CheckTx", func() {
@@ -73,7 +72,7 @@ var _ = Describe("Feemarket", func() {
 
 		Context("with min-gas-prices (local) == MinGasPrices (feemarket param)", func() {
 			BeforeEach(func() {
-				privKey, msg = setupTestWithContext(chainID, "3", sdk.NewDec(3), sdk.ZeroInt())
+				privKey, msg = setupTestWithContext(chainID, "3", sdkmath.LegacyNewDec(3), sdkmath.ZeroInt())
 			})
 
 			Context("during CheckTx", func() {
@@ -117,7 +116,7 @@ var _ = Describe("Feemarket", func() {
 
 		Context("with MinGasPrices (feemarket param) < min-gas-prices (local)", func() {
 			BeforeEach(func() {
-				privKey, msg = setupTestWithContext(chainID, "5", sdk.NewDec(3), sdk.NewInt(5))
+				privKey, msg = setupTestWithContext(chainID, "5", sdkmath.LegacyNewDec(3), sdkmath.NewInt(5))
 			})
 
 			Context("during CheckTx", func() {
@@ -202,7 +201,7 @@ var _ = Describe("Feemarket", func() {
 				// 100000`. With the fee calculation `Fee = (baseFee + tip) * gasLimit`,
 				// a `minGasPrices = 40_000_000_000` results in `minGlobalFee =
 				// 4000000000000000`
-				privKey, _ = setupTestWithContext(chainID, "1", sdk.NewDec(minGasPrices), sdkmath.NewInt(baseFee))
+				privKey, _ = setupTestWithContext(chainID, "1", sdkmath.LegacyNewDec(minGasPrices), sdkmath.NewInt(baseFee))
 			})
 
 			Context("during CheckTx", func() {
@@ -321,7 +320,7 @@ var _ = Describe("Feemarket", func() {
 				// 100_000`. With the fee calculation `Fee = (baseFee + tip) * gasLimit`,
 				// a `minGasPrices = 5_000_000_000` results in `minGlobalFee =
 				// 500_000_000_000_000`
-				privKey, _ = setupTestWithContext(chainID, "1", sdk.NewDec(minGasPrices), sdkmath.NewInt(baseFee))
+				privKey, _ = setupTestWithContext(chainID, "1", sdkmath.LegacyNewDec(minGasPrices), sdkmath.NewInt(baseFee))
 
 				// setupTestWithContext commits once before each case, so BaseFee has
 				// already decayed before assertions run. CheckTx reads BaseApp's

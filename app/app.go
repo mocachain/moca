@@ -366,7 +366,10 @@ func NewMoca(
 	// optional: enable sign mode textual by overwriting the default tx config (after setting the bank keeper)
 	enabledSignModes := append(authtx.DefaultSignModes, sigtypes.SignMode_SIGN_MODE_TEXTUAL) //nolint:gocritic
 	txConfigOpts := authtx.ConfigOptions{
-		EnabledSignModes:           enabledSignModes,
+		EnabledSignModes: enabledSignModes,
+		// cosmos-sdk v0.53: ConfigOptions needs a signing context with
+		// address codecs, else NewTxConfigWithOptions panics.
+		SigningContext:             interfaceRegistry.SigningContext(),
 		TextualCoinMetadataQueryFn: txmodule.NewBankKeeperCoinMetadataQueryFn(app.BankKeeper),
 	}
 	txConfig, err := authtx.NewTxConfigWithOptions(

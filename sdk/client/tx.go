@@ -12,7 +12,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"google.golang.org/grpc"
 
@@ -31,7 +30,7 @@ type TransactionClient interface {
 
 // BroadcastTx signs and broadcasts a tx with simulated gas(if not provided in txOpt)
 func (c *MocaClient) BroadcastTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.BroadcastTxResponse, error) {
-	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
+	txConfig := newMocaTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
 
 	// txBuilder holds tx info
@@ -83,7 +82,7 @@ func (c *MocaClient) BroadcastTx(ctx context.Context, msgs []sdk.Msg, txOpt *typ
 
 // SimulateTx simulates a tx and gets Gas info
 func (c *MocaClient) SimulateTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
-	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
+	txConfig := newMocaTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
 	err := c.constructTx(ctx, msgs, txOpt, txBuilder)
 	if err != nil {
@@ -116,7 +115,7 @@ func (c *MocaClient) simulateTx(ctx context.Context, txBytes []byte, opts ...grp
 
 // SignTx signs the tx with private key and returns bytes
 func (c *MocaClient) SignTx(ctx context.Context, msgs []sdk.Msg, txOpt *types.TxOption) ([]byte, error) {
-	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
+	txConfig := newMocaTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
 	if err := c.constructTxWithGasInfo(ctx, msgs, txOpt, txConfig, txBuilder); err != nil {
 		return nil, err

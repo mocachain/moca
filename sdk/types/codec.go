@@ -4,8 +4,7 @@ import (
 	"fmt"
 
 	feegranttypes "cosmossdk.io/x/feegrant"
-	txsigning "cosmossdk.io/x/tx/signing"
-
+	"cosmossdk.io/x/tx/signing"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -19,10 +18,12 @@ import (
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	gogoproto "github.com/cosmos/gogoproto/proto"
+	"github.com/cosmos/gogoproto/proto"
 
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
@@ -32,10 +33,16 @@ import (
 )
 
 func Codec() *codec.ProtoCodec {
+	// cosmos-sdk v0.53 requires address codecs on signing.Options; without them
+	// the registry has no signing context and downstream tx-config construction
+	// (authtx.NewTxConfig*) errors with "address codec is required".
 	interfaceRegistry, err := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
-		ProtoFiles: gogoproto.HybridResolver,
-		SigningOptions: txsigning.Options{
-			CustomGetSigners: map[protoreflect.FullName]txsigning.GetSignersFunc{
+		ProtoFiles: proto.HybridResolver,
+		SigningOptions: signing.Options{
+			AddressCodec:          cmdcfg.NewMultiPrefixBech32AccCodec(),
+			ValidatorAddressCodec: cmdcfg.NewMultiPrefixBech32ValCodec(),
+			CustomGetSigners: map[protoreflect.FullName]signing.GetSignersFunc{
+				evmtypes.MsgEthereumTxCustomGetSigner.MsgType: evmtypes.MsgEthereumTxCustomGetSigner.Fn,
 				protoreflect.FullName("moca.payment.MsgCreatePaymentAccount"): func(msg protov2.Message) ([][]byte, error) {
 					creatorField := msg.ProtoReflect().Descriptor().Fields().ByName("creator")
 					if creatorField == nil {
