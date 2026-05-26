@@ -1,9 +1,11 @@
 package types
 
 import (
+	"fmt"
+
 	feegranttypes "cosmossdk.io/x/feegrant"
 	txsigning "cosmossdk.io/x/tx/signing"
-	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -37,7 +39,10 @@ func Codec() *codec.ProtoCodec {
 				protoreflect.FullName("moca.payment.MsgCreatePaymentAccount"): func(msg protov2.Message) ([][]byte, error) {
 					creatorField := msg.ProtoReflect().Descriptor().Fields().ByName("creator")
 					if creatorField == nil {
-						return nil, fmt.Errorf("creator field not found in %s", msg.ProtoReflect().Descriptor().FullName())
+						return nil, fmt.Errorf(
+							"creator field not found in %s",
+							msg.ProtoReflect().Descriptor().FullName(),
+						)
 					}
 					signer, err := sdk.AccAddressFromHexUnsafe(msg.ProtoReflect().Get(creatorField).String())
 					if err != nil {

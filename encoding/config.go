@@ -1,8 +1,10 @@
 package encoding
 
 import (
-	"cosmossdk.io/x/tx/signing"
 	"fmt"
+
+	"cosmossdk.io/x/tx/signing"
+
 	amino "github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
@@ -27,7 +29,10 @@ func MakeConfig() sdktestutil.TestEncodingConfig {
 			protoreflect.FullName("moca.payment.MsgCreatePaymentAccount"): func(msg protov2.Message) ([][]byte, error) {
 				creatorField := msg.ProtoReflect().Descriptor().Fields().ByName("creator")
 				if creatorField == nil {
-					return nil, fmt.Errorf("creator field not found in %s", msg.ProtoReflect().Descriptor().FullName())
+					return nil, fmt.Errorf(
+						"creator field not found in %s",
+						msg.ProtoReflect().Descriptor().FullName(),
+					)
 				}
 				signer, err := sdk.AccAddressFromHexUnsafe(msg.ProtoReflect().Get(creatorField).String())
 				if err != nil {
