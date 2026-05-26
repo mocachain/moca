@@ -106,9 +106,9 @@ import (
 	precompilessp "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
 	precompilesvirtualgroup "github.com/mocachain/moca/v2/x/evm/precompiles/virtualgroup"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-	"github.com/mocachain/moca/v2/x/feemarket"
-	feemarketkeeper "github.com/mocachain/moca/v2/x/feemarket/keeper"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	"github.com/cosmos/evm/x/feemarket"
+	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 
 	consensusparamkeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	consensusparamtypes "github.com/cosmos/cosmos-sdk/x/consensus/types"

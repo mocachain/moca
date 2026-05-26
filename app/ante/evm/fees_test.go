@@ -11,7 +11,7 @@ import (
 	"github.com/mocachain/moca/v2/testutil"
 	testutiltx "github.com/mocachain/moca/v2/testutil/tx"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 )
 
 // stubFeeMarketKeeperNilMinGasPrice satisfies evm.FeeMarketKeeper while always

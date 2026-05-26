@@ -31,7 +31,7 @@ import (
 	"github.com/mocachain/moca/v2/utils"
 	"github.com/mocachain/moca/v2/x/evm/statedb"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 )
 
 type AnteTestSuite struct {

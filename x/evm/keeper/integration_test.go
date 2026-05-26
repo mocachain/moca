@@ -19,7 +19,7 @@ import (
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/x/feemarket/types"
+	"github.com/cosmos/evm/x/feemarket/types"
 
 	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"

@@ -20,7 +20,7 @@ import (
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 )
 
 func (suite *BackendTestSuite) TestBaseFee() {
