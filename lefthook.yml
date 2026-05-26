@@ -12,7 +12,7 @@ pre-push:
   parallel: false
   commands:
     go-lint:
-      run: make lint
+      run: go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0 run --new-from-rev=HEAD~1
 
 commit-msg:
   parallel: false
