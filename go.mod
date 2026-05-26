@@ -30,7 +30,6 @@ require (
 	github.com/cosmos/gogoproto v1.7.2
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/ethereum/go-ethereum v1.15.5
-	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
@@ -151,6 +150,7 @@ require (
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.3 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/flatbuffers v2.0.8+incompatible // indirect
@@ -284,14 +284,14 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/puneet2019/cosmos-sdk/api v0.9.3-0.20260522055949-76f35ed7f7ec
-	cosmossdk.io/client/v2 => github.com/puneet2019/cosmos-sdk/client/v2 v2.0.0-beta.11.0.20260522055949-76f35ed7f7ec
-	cosmossdk.io/math => github.com/puneet2019/cosmos-sdk/math v1.5.4-0.20260522055949-76f35ed7f7ec
-	cosmossdk.io/simapp => github.com/puneet2019/cosmos-sdk/simapp v0.0.0-20260522055949-76f35ed7f7ec
-	cosmossdk.io/store => github.com/puneet2019/cosmos-sdk/store v1.10.0-rc.1.0.20260522055949-76f35ed7f7ec
-	cosmossdk.io/x/circuit => github.com/puneet2019/cosmos-sdk/x/circuit v0.2.1-0.20260522055949-76f35ed7f7ec
-	cosmossdk.io/x/nft => github.com/puneet2019/cosmos-sdk/x/nft v0.2.1-0.20260522055949-76f35ed7f7ec
-	cosmossdk.io/x/tx => github.com/puneet2019/cosmos-sdk/x/tx v1.1.1-0.20260522055949-76f35ed7f7ec
+	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2.0.20260526063327-ca1044372d6c
+	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.2.0-rc2.0.20260526063327-ca1044372d6c
+	cosmossdk.io/math => github.com/mocachain/moca-cosmos-sdk/math v0.0.0-20260526063327-ca1044372d6c
+	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v1.2.0-rc2.0.20260526063327-ca1044372d6c
+	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2.0.20260526063327-ca1044372d6c
+	cosmossdk.io/x/circuit => github.com/mocachain/moca-cosmos-sdk/x/circuit v1.2.0-rc2.0.20260526063327-ca1044372d6c
+	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2.0.20260526063327-ca1044372d6c
+	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v1.2.0-rc2.0.20260526063327-ca1044372d6c
 	// Use standard cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade from ecosystem
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
@@ -300,7 +300,7 @@ replace (
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260522043823-e86182950736
 	// use Cosmos-SDK fork to enable Ledger functionality
-	github.com/cosmos/cosmos-sdk => github.com/puneet2019/cosmos-sdk v0.53.8-0.20260522055949-76f35ed7f7ec
+	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260526063327-ca1044372d6c
 	// use Evmos geth fork
 	github.com/ethereum/go-ethereum => github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
