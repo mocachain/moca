@@ -1,0 +1,21 @@
+pre-commit:
+  parallel: false
+  commands:
+    go-format:
+      glob: "*.go"
+      run: make format
+    js-shell-format:
+      glob: "*.{js,sh}"
+      run: npx lint-staged
+
+pre-push:
+  parallel: false
+  commands:
+    go-lint:
+      run: make lint
+
+commit-msg:
+  parallel: false
+  commands:
+    commitlint:
+      run: npx --no -- commitlint --edit {1}
