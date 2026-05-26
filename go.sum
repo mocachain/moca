@@ -1358,8 +1358,8 @@ github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjU
 github.com/mitchellh/pointerstructure v1.2.0/go.mod h1:BRAsLI5zgXmw97Lf6s25bs8ohIXc3tViBH44KcwB2g4=
 github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee h1:UDDD+dP9OYE3pf7H37Mi7h4DcydlbBgVXBQe3ti3u74=
 github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee/go.mod h1:I5j+rJP+h5ZruTJ+fu1nVWkd4XmuodZ3pzYjAzTreeg=
-github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260522043823-e86182950736 h1:kWGnPWBPaIYSWRUJFIzmO/4u62v/qM4PyqwVBFeybQg=
-github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260522043823-e86182950736/go.mod h1:ph+97FbAyRFZLjXBqG7bK7RdwdsdS8SMyISLekuVYhI=
+github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260525065257-182cd579d91b h1:p+VKfY5zvtrYHFAd2qzdithny/b8dLjM7hl+KGxfyhA=
+github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260525065257-182cd579d91b/go.mod h1:ph+97FbAyRFZLjXBqG7bK7RdwdsdS8SMyISLekuVYhI=
 github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260526063327-ca1044372d6c h1:6jpxyoEbBiFdgVPpCNstY+hwB+UYE1JkwftPOr1Nt8o=
 github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260526063327-ca1044372d6c/go.mod h1:KWPVcH4Q8kMv1uma3xc3wkFI7g+hqdKFaKC3xz/4HNA=
 github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2.0.20260526063327-ca1044372d6c h1:6tZOCEUx/nMSJG13TsFRcNiaRis4tZhHs1vSD0WQElI=
