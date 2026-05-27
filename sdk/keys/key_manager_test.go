@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateKeyManagerFromPrivateKeyHex(t *testing.T) {
@@ -32,6 +33,23 @@ func TestCreateBlsKeyManagerFromPrivateKeyHex(t *testing.T) {
 	blsPubKey := hex.EncodeToString(blsPrivKey.PublicKey().Marshal())
 	blsPrivKeyBts, _ := blsPrivKey.Marshal()
 	km, err := NewBlsPrivateKeyManager(hex.EncodeToString(blsPrivKeyBts))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, blsPubKey, hex.EncodeToString(km.PubKey().Bytes()))
+}
+
+func TestCreateBlsKeyManagerFromShortPrivateKeyHex(t *testing.T) {
+	shortPrivKeyHex := "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd"
+	paddedPrivKeyHex := "00" + shortPrivKeyHex
+
+	shortKeyManager, err := NewBlsPrivateKeyManager(shortPrivKeyHex)
+	require.NoError(t, err)
+
+	paddedKeyManager, err := NewBlsPrivateKeyManager(paddedPrivKeyHex)
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		hex.EncodeToString(paddedKeyManager.PubKey().Bytes()),
+		hex.EncodeToString(shortKeyManager.PubKey().Bytes()),
+	)
 }
