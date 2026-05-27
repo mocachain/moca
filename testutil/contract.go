@@ -30,7 +30,9 @@ func DeployContract(
 	contract evm.CompiledContract,
 	constructorArgs ...interface{},
 ) (common.Address, error) {
-	chainID := mocaApp.EvmKeeper.ChainID()
+	// TODO(cosmos-evm migration): chainID + GetBaseFee shape changed.
+	// See testutil/tx/eth.go for the same shim notes.
+	var chainID *big.Int
 	from := common.BytesToAddress(priv.PubKey().Address().Bytes())
 	nonce := mocaApp.EvmKeeper.GetNonce(ctx, from)
 
@@ -45,16 +47,18 @@ func DeployContract(
 		return common.Address{}, err
 	}
 
+	baseFee := mocaApp.FeeMarketKeeper.GetBaseFee(ctx)
 	msgEthereumTx := evm.NewTx(&evm.EvmTxArgs{
 		ChainID:   chainID,
 		Nonce:     nonce,
 		GasLimit:  gas,
-		GasFeeCap: mocaApp.FeeMarketKeeper.GetBaseFee(ctx),
+		GasFeeCap: baseFee.TruncateInt().BigInt(),
 		GasTipCap: big.NewInt(1),
 		Input:     data,
 		Accesses:  &ethtypes.AccessList{},
 	})
-	msgEthereumTx.From = from.String()
+	// cosmos/evm v0.6.0: MsgEthereumTx.From is now []byte.
+	msgEthereumTx.From = from.Bytes()
 
 	res, err := DeliverEthTx(ctx, mocaApp, priv, msgEthereumTx)
 	if err != nil {
@@ -76,7 +80,8 @@ func DeployContractWithFactory(
 	priv cryptotypes.PrivKey,
 	factoryAddress common.Address,
 ) (common.Address, abci.ExecTxResult, error) {
-	chainID := mocaApp.EvmKeeper.ChainID()
+	// TODO(cosmos-evm migration): chainID source removed; see above.
+	var chainID *big.Int
 	from := common.BytesToAddress(priv.PubKey().Address().Bytes())
 	factoryNonce := mocaApp.EvmKeeper.GetNonce(ctx, factoryAddress)
 	nonce := mocaApp.EvmKeeper.GetNonce(ctx, from)
@@ -88,7 +93,8 @@ func DeployContractWithFactory(
 		GasLimit: uint64(100000),
 		GasPrice: big.NewInt(1000000000),
 	})
-	msgEthereumTx.From = from.String()
+	// cosmos/evm v0.6.0: MsgEthereumTx.From is now []byte.
+	msgEthereumTx.From = from.Bytes()
 
 	res, err := DeliverEthTx(ctx, mocaApp, priv, msgEthereumTx)
 	if err != nil {

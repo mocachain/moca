@@ -278,7 +278,8 @@ func (b *Backend) EthMsgsFromTendermintBlock(
 				continue
 			}
 
-			ethMsg.Hash = ethMsg.AsTransaction().Hash().Hex()
+			// cosmos/evm v0.6.0: MsgEthereumTx.Hash is a getter now; no
+			// assignment is needed (and the field is read-only).
 			result = append(result, ethMsg)
 		}
 	}
@@ -382,8 +383,8 @@ func (b *Backend) RPCBlockFromTendermintBlock(
 	msgs := b.EthMsgsFromTendermintBlock(resBlock, blockRes)
 	for txIndex, ethMsg := range msgs {
 		if !fullTx {
-			hash := common.HexToHash(ethMsg.Hash)
-			ethRPCTxs = append(ethRPCTxs, hash)
+			// cosmos/evm v0.6.0: MsgEthereumTx.Hash is a method now.
+			ethRPCTxs = append(ethRPCTxs, ethMsg.Hash())
 			continue
 		}
 
@@ -506,7 +507,9 @@ func (b *Backend) EthBlockFromTendermintBlock(
 		txs[i] = ethMsg.AsTransaction()
 	}
 
-	// TODO: add tx receipts
-	ethBlock := ethtypes.NewBlock(ethHeader, txs, nil, nil, trie.NewStackTrie(nil))
+	// TODO: add tx receipts.
+	// geth v1.15 changed NewBlock(header, txs, uncles, receipts, hasher) to
+	// NewBlock(header, *Body, receipts, hasher); wrap txs in a Body literal.
+	ethBlock := ethtypes.NewBlock(ethHeader, &ethtypes.Body{Transactions: txs}, nil, trie.NewStackTrie(nil))
 	return ethBlock, nil
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethmath "github.com/ethereum/go-ethereum/common/math"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/mocachain/moca/v2/rpc/backend"
@@ -77,7 +78,8 @@ type EthereumAPI interface {
 	ProtocolVersion() hexutil.Uint
 	GasPrice() (*hexutil.Big, error)
 	EstimateGas(args evmtypes.TransactionArgs, blockNrOptional *rpctypes.BlockNumber) (hexutil.Uint64, error)
-	FeeHistory(blockCount rpc.DecimalOrHex, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*rpctypes.FeeHistoryResult, error)
+	// geth v1.15 retired rpc.DecimalOrHex; use common/math.HexOrDecimal64.
+	FeeHistory(blockCount ethmath.HexOrDecimal64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*rpctypes.FeeHistoryResult, error)
 	MaxPriorityFeePerGas() (*hexutil.Big, error)
 	ChainId() (*hexutil.Big, error)
 
@@ -217,7 +219,7 @@ func (e *PublicAPI) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) 
 
 // SendTransaction sends an Ethereum transaction.
 func (e *PublicAPI) SendTransaction(args evmtypes.TransactionArgs) (common.Hash, error) {
-	e.logger.Debug("eth_sendTransaction", "args", args.String())
+	e.logger.Debug("eth_sendTransaction", "args", args)
 	return e.backend.SendTransaction(args)
 }
 
@@ -267,7 +269,7 @@ func (e *PublicAPI) Call(args evmtypes.TransactionArgs,
 	blockNrOrHash rpctypes.BlockNumberOrHash,
 	_ *rpctypes.StateOverride,
 ) (hexutil.Bytes, error) {
-	e.logger.Debug("eth_call", "args", args.String(), "block number or hash", blockNrOrHash)
+	e.logger.Debug("eth_call", "args", args, "block number or hash", blockNrOrHash)
 
 	blockNum, err := e.backend.BlockNumberFromTendermint(blockNrOrHash)
 	if err != nil {
@@ -308,7 +310,7 @@ func (e *PublicAPI) EstimateGas(args evmtypes.TransactionArgs, blockNrOptional *
 	return e.backend.EstimateGas(args, blockNrOptional)
 }
 
-func (e *PublicAPI) FeeHistory(blockCount rpc.DecimalOrHex,
+func (e *PublicAPI) FeeHistory(blockCount ethmath.HexOrDecimal64,
 	lastBlock rpc.BlockNumber,
 	rewardPercentiles []float64,
 ) (*rpctypes.FeeHistoryResult, error) {
@@ -453,8 +455,11 @@ func (e *PublicAPI) FillTransaction(args evmtypes.TransactionArgs) (*rpctypes.Si
 		return nil, err
 	}
 
-	// Assemble the transaction and obtain rlp
-	tx := args.ToTransaction().AsTransaction()
+	// Assemble the transaction and obtain rlp.
+	// cosmos/evm v0.6.0: TransactionArgs.ToTransaction(defaultType) returns
+	// *ethtypes.Transaction directly; the legacy .AsTransaction() wrapper
+	// is gone.
+	tx := args.ToTransaction(ethtypes.LegacyTxType)
 
 	data, err := tx.MarshalBinary()
 	if err != nil {
@@ -474,7 +479,7 @@ func (e *PublicAPI) Resend(_ context.Context,
 	gasPrice *hexutil.Big,
 	gasLimit *hexutil.Uint64,
 ) (common.Hash, error) {
-	e.logger.Debug("eth_resend", "args", args.String())
+	e.logger.Debug("eth_resend", "args", args)
 	return e.backend.Resend(args, gasPrice, gasLimit)
 }
 

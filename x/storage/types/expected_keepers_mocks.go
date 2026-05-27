@@ -17,8 +17,6 @@ import (
 	math "cosmossdk.io/math"
 	types "github.com/cosmos/cosmos-sdk/types"
 	common "github.com/ethereum/go-ethereum/common"
-	core "github.com/ethereum/go-ethereum/core"
-	vm "github.com/ethereum/go-ethereum/core/vm"
 	resource "github.com/mocachain/moca/v2/types/resource"
 	statedb "github.com/cosmos/evm/x/vm/statedb"
 	types0 "github.com/cosmos/evm/x/vm/types"
@@ -1384,21 +1382,6 @@ func NewMockEVMKeeper(ctrl *gomock.Controller) *MockEVMKeeper {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockEVMKeeper) EXPECT() *MockEVMKeeperMockRecorder {
 	return m.recorder
-}
-
-// ApplyMessage mocks base method.
-func (m *MockEVMKeeper) ApplyMessage(ctx types.Context, msg core.Message, tracer vm.EVMLogger, commit bool) (*types0.MsgEthereumTxResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ApplyMessage", ctx, msg, tracer, commit)
-	ret0, _ := ret[0].(*types0.MsgEthereumTxResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ApplyMessage indicates an expected call of ApplyMessage.
-func (mr *MockEVMKeeperMockRecorder) ApplyMessage(ctx, msg, tracer, commit any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyMessage", reflect.TypeOf((*MockEVMKeeper)(nil).ApplyMessage), ctx, msg, tracer, commit)
 }
 
 // EstimateGas mocks base method.

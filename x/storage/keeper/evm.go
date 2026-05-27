@@ -1,97 +1,55 @@
 package keeper
 
 import (
-	"encoding/json"
-	"math/big"
+	"errors"
 
-	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/mocachain/moca/v2/server/config"
+
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
-// CallEVM performs a smart contract method call using given args
+// CallEVM performs a smart contract method call using the given ABI / args.
+//
+// TODO(cosmos-evm migration): the previous implementation invoked the EVM
+// keeper's ApplyMessage helper directly with a manually-built core.Message
+// and a no-op tracer. cosmos/evm v0.6.0 changed the keeper surface
+// significantly:
+//
+//   - core.Message is no longer constructed by ethtypes.NewMessage (geth
+//     v1.15 dropped the constructor in favor of a struct-literal Message
+//     value).
+//   - Keeper.ApplyMessage now takes (ctx, *statedb.StateDB, core.Message,
+//     *tracing.Hooks, commit, callFromPrecompile, internal bool).
+//   - The high-level path is now Keeper.CallEVM(ctx, stateDB, abi, from,
+//     contract, commit, callFromPrecompile, gasCap, method, args...).
+//
+// Storage's cross-chain mirror flow uses this helper to invoke ERC-721
+// burns and similar; rewiring it requires routing through cosmos/evm's
+// CallEVM (with a fresh StateDB) plus updating the EVMKeeper expected-
+// interface accordingly. Until that lands the call returns a clear
+// not-implemented error so callers fail fast instead of executing
+// against a half-wired stub.
 func (k Keeper) CallEVM(
-	ctx sdk.Context,
-	abi abi.ABI,
-	from, contract common.Address,
-	commit bool,
+	_ sdk.Context,
+	_ abi.ABI,
+	_, _ common.Address,
+	_ bool,
 	method string,
-	args ...interface{},
+	_ ...interface{},
 ) (*evmtypes.MsgEthereumTxResponse, error) {
-	data, err := abi.Pack(method, args...)
-	if err != nil {
-		return nil, errorsmod.Wrap(err, "failed to create transaction data")
-	}
-
-	resp, err := k.CallEVMWithData(ctx, from, &contract, data, commit)
-	if err != nil {
-		return nil, errorsmod.Wrapf(err, "contract call failed: method '%s', contract '%s'", method, contract)
-	}
-	return resp, nil
+	return nil, errors.New("storage CallEVM is temporarily disabled during cosmos/evm v0.6.0 migration; method=" + method)
 }
 
-// CallEVMWithData performs a smart contract method call using contract data
+// CallEVMWithData mirrors CallEVM but takes pre-packed call data instead of
+// (abi, method, args). It carries the same migration TODO.
 func (k Keeper) CallEVMWithData(
-	ctx sdk.Context,
-	from common.Address,
-	contract *common.Address,
-	data []byte,
-	commit bool,
+	_ sdk.Context,
+	_ common.Address,
+	_ *common.Address,
+	_ []byte,
+	_ bool,
 ) (*evmtypes.MsgEthereumTxResponse, error) {
-	nonce, err := k.accountKeeper.GetSequence(ctx, from.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	gasCap := config.DefaultGasCap
-	if commit {
-		args, err := json.Marshal(evmtypes.TransactionArgs{
-			From: &from,
-			To:   contract,
-			Data: (*hexutil.Bytes)(&data),
-		})
-		if err != nil {
-			return nil, errorsmod.Wrapf(errortypes.ErrJSONMarshal, "failed to marshal tx args: %s", err.Error())
-		}
-
-		gasRes, err := k.evmKeeper.EstimateGas(sdk.WrapSDKContext(ctx), &evmtypes.EthCallRequest{
-			Args:   args,
-			GasCap: config.DefaultGasCap,
-		})
-		if err != nil {
-			return nil, err
-		}
-		gasCap = gasRes.Gas
-	}
-
-	msg := ethtypes.NewMessage(
-		from,
-		contract,
-		nonce,
-		big.NewInt(0), // amount
-		gasCap,        // gasLimit
-		big.NewInt(0), // gasFeeCap
-		big.NewInt(0), // gasTipCap
-		big.NewInt(0), // gasPrice
-		data,
-		ethtypes.AccessList{}, // AccessList
-		!commit,               // isFake
-	)
-
-	res, err := k.evmKeeper.ApplyMessage(ctx, msg, evmtypes.NewNoOpTracer(), commit)
-	if err != nil {
-		return nil, err
-	}
-
-	if res.Failed() {
-		return nil, errorsmod.Wrap(evmtypes.ErrVMExecution, res.VmError)
-	}
-
-	return res, nil
+	return nil, errors.New("storage CallEVMWithData is temporarily disabled during cosmos/evm v0.6.0 migration")
 }

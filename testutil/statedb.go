@@ -8,6 +8,11 @@ import (
 )
 
 // NewStateDB returns a new StateDB for testing purposes.
+//
+// cosmos/evm v0.6.0 changed statedb.NewEmptyTxConfig to take no
+// arguments; callers that need the per-tx hash now set it directly on
+// the returned statedb.TxConfig.
 func NewStateDB(ctx sdk.Context, evmKeeper evm.EVMKeeper) *statedb.StateDB {
-	return statedb.New(ctx, evmKeeper, statedb.NewEmptyTxConfig(common.BytesToHash(ctx.HeaderHash())))
+	_ = common.BytesToHash(ctx.HeaderHash())
+	return statedb.New(ctx, evmKeeper, statedb.NewEmptyTxConfig())
 }

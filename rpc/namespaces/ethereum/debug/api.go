@@ -23,7 +23,6 @@ import (
 	"cosmossdk.io/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/mocachain/moca/v2/rpc/backend"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
@@ -109,7 +108,7 @@ func (a *API) TraceCall(
 	blockNrOrHash rpctypes.BlockNumberOrHash,
 	config *evmtypes.TraceConfig,
 ) (interface{}, error) {
-	a.logger.Debug("debug_traceCall", "args", args.String(), "block number or hash", blockNrOrHash)
+	a.logger.Debug("debug_traceCall", "args", args, "block number or hash", blockNrOrHash)
 	return a.backend.TraceCall(args, blockNrOrHash, config)
 }
 
@@ -328,13 +327,18 @@ func (a *API) PrintBlock(number uint64) (string, error) {
 }
 
 // SeedHash retrieves the seed hash of a block.
+//
+// geth v1.15 removed the ethash package since proof-of-work is no longer
+// supported; debug_seedHash is preserved here for JSON-RPC schema
+// compatibility but returns a zero seed hash. Proof-of-work is not in
+// moca's consensus stack so this method has no real meaning beyond
+// compatibility with tooling that calls it.
 func (a *API) SeedHash(number uint64) (string, error) {
 	_, err := a.backend.HeaderByNumber(rpctypes.BlockNumber(number))
 	if err != nil {
 		return "", err
 	}
-
-	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
+	return fmt.Sprintf("0x%064x", 0), nil
 }
 
 // IntermediateRoots executes a block, and returns a list

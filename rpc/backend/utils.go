@@ -14,7 +14,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	"cosmossdk.io/log"
@@ -88,10 +88,10 @@ func (b *Backend) getAccountNonce(accAddr common.Address, pending bool, height i
 				break
 			}
 
-			sender, err := ethMsg.GetSender(b.chainID)
-			if err != nil {
-				continue
-			}
+			// cosmos/evm v0.6.0: GetSender takes no args and returns just
+			// the recovered sender (no error); chain-id is no longer
+			// needed at the call site.
+			sender := ethMsg.GetSender()
 			if sender == accAddr {
 				nonce++
 			}
@@ -123,7 +123,8 @@ func (b *Backend) processBlock(
 		if err != nil {
 			return err
 		}
-		targetOneFeeHistory.NextBaseFee = misc.CalcBaseFee(cfg, header)
+		// geth v1.15 moved CalcBaseFee from consensus/misc to consensus/misc/eip1559.
+		targetOneFeeHistory.NextBaseFee = eip1559.CalcBaseFee(cfg, header)
 	} else {
 		targetOneFeeHistory.NextBaseFee = new(big.Int)
 	}
@@ -177,7 +178,11 @@ func (b *Backend) processBlock(
 				continue
 			}
 			tx := ethMsg.AsTransaction()
-			reward := tx.EffectiveGasTipValue(blockBaseFee)
+			// geth v1.15: EffectiveGasTipValue was replaced by
+			// EffectiveGasTip, which returns (*big.Int, error). Treat the
+			// error case (under-priced tx) as a zero reward, mirroring the
+			// old helper's nil-coerce behavior.
+			reward, _ := tx.EffectiveGasTip(blockBaseFee)
 			if reward == nil {
 				reward = big.NewInt(0)
 			}
@@ -212,7 +217,9 @@ func (b *Backend) processBlock(
 func AllTxLogsFromEvents(events []abci.Event) ([][]*ethtypes.Log, error) {
 	allLogs := make([][]*ethtypes.Log, 0, 4)
 	for _, event := range events {
-		if event.Type != evmtypes.EventTypeTxLog {
+		// cosmos/evm v0.6.0 collapsed EventTypeTxLog into EventTypeEthereumTx;
+		// log attributes (AttributeKeyTxLog) hang off the EthereumTx event.
+		if event.Type != evmtypes.EventTypeEthereumTx {
 			continue
 		}
 
@@ -229,7 +236,9 @@ func AllTxLogsFromEvents(events []abci.Event) ([][]*ethtypes.Log, error) {
 // TxLogsFromEvents parses ethereum logs from cosmos events for specific msg index
 func TxLogsFromEvents(events []abci.Event, msgIndex int) ([]*ethtypes.Log, error) {
 	for _, event := range events {
-		if event.Type != evmtypes.EventTypeTxLog {
+		// cosmos/evm v0.6.0 collapsed EventTypeTxLog into EventTypeEthereumTx;
+		// log attributes (AttributeKeyTxLog) hang off the EthereumTx event.
+		if event.Type != evmtypes.EventTypeEthereumTx {
 			continue
 		}
 

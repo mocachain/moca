@@ -78,7 +78,9 @@ func (kv *KVIndexer) IndexBlock(block *cmttypes.Block, txResults []*abci.ExecTxR
 		var cumulativeGasUsed uint64
 		for msgIndex, msg := range tx.GetMsgs() {
 			ethMsg := msg.(*evmtypes.MsgEthereumTx)
-			txHash := common.HexToHash(ethMsg.Hash)
+			// cosmos/evm v0.6.0: MsgEthereumTx.Hash is a method that computes
+			// the eth tx hash on demand, not a precomputed string field.
+			txHash := ethMsg.Hash()
 
 			txResult := mocatypes.TxResult{
 				Height:     height,
