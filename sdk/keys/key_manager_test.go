@@ -2,6 +2,7 @@ package keys
 
 import (
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/0xPolygon/polygon-edge/bls"
@@ -38,7 +39,7 @@ func TestCreateBlsKeyManagerFromPrivateKeyHex(t *testing.T) {
 }
 
 func TestCreateBlsKeyManagerFromShortPrivateKeyHex(t *testing.T) {
-	shortPrivKeyHex := "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd"
+	shortPrivKeyHex := strings.Repeat("12", 31)
 	paddedPrivKeyHex := "00" + shortPrivKeyHex
 
 	shortKeyManager, err := NewBlsPrivateKeyManager(shortPrivKeyHex)
