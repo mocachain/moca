@@ -89,7 +89,11 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 
-	ethante "github.com/mocachain/moca/v2/app/ante/evm"
+	// app/ante/evm now only re-exports cosmos/evm v0.6.0's ante interfaces;
+	// the moca-specific decorators that lived here were deleted with the
+	// migration. ante construction below uses cosmos/evm's MonoDecorator
+	// directly via app/ante/handler_options.go.
+	_ "github.com/mocachain/moca/v2/app/ante/evm"
 	"github.com/mocachain/moca/v2/app/upgrades"
 	"github.com/mocachain/moca/v2/encoding"
 	servercfg "github.com/mocachain/moca/v2/server/config"
@@ -808,7 +812,10 @@ func (app *Moca) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 		SignModeHandler:        txConfig.SignModeHandler(),
 		SigGasConsumer:         ante.SigVerificationGasConsumer,
 		MaxTxGasWanted:         maxGasWanted,
-		TxFeeChecker:           ethante.NewDynamicFeeChecker(app.EvmKeeper),
+		// TxFeeChecker is left nil; moca's NewDeductFeeDecorator falls back to
+		// checkTxFeeWithValidatorMinGasPrices. cosmos/evm v0.6.0's
+		// NewDynamicFeeChecker takes per-call feemarket params and is wired
+		// in newCosmosAnteHandler/newEVMAnteHandler when needed.
 	}
 
 	if err := options.Validate(); err != nil {
