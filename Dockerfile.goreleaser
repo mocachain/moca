@@ -3,7 +3,7 @@
 # GoReleaser handles the compilation and copies the pre-built binary
 FROM golang:1.25.10-bookworm
 
-RUN apt-get update -y && apt-get install ca-certificates jq -y
+RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates jq && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root
 

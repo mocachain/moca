@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 
 FROM golang:1.25.10-bookworm
-RUN apt-get update -y && apt-get install ca-certificates jq -y
+RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates jq && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /workspace/build/mocad /usr/local/bin/mocad
 

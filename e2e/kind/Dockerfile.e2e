@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     make build
 
-FROM debian:bullseye-slim
-RUN apt-get update && apt-get install -y ca-certificates jq curl && rm -rf /var/lib/apt/lists/*
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends bash ca-certificates jq curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /workspace/build/mocad /usr/local/bin/mocad
 ENTRYPOINT ["mocad"]
