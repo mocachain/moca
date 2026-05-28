@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build mocad from local source for e2e testing.
-FROM golang:1.23.6-bullseye AS builder
+FROM golang:1.25.10-bookworm AS builder
 
 ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"

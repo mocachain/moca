@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build mocad from a specific git ref (tag/branch/commit) for upgrade tests.
-ARG GO_VERSION=1.23.6
-FROM golang:${GO_VERSION}-bullseye AS builder
+ARG GO_VERSION=1.25.10
+FROM golang:${GO_VERSION}-bookworm AS builder
 
 ARG GIT_REF=main
 ARG REPO_URL=github.com/mocachain/moca
