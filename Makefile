@@ -4,7 +4,8 @@
 -include .env
 export
 
-GO_TOOLCHAIN ?= go1.23.11
+GO_TOOLCHAIN ?= go1.25.10
+VULNCHECK_GO_TOOLCHAIN ?= go1.25.10
 GO := env GOTOOLCHAIN=$(GO_TOOLCHAIN) go
 
 # Configure git to use HTTPS+Token for private repositories if GITHUB_TOKEN is set
@@ -271,8 +272,10 @@ go.sum: go.mod
 	$(GO) mod tidy
 
 vulncheck: $(BUILDDIR)/
-	GOBIN=$(BUILDDIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-	$(BUILDDIR)/govulncheck ./...
+	VULNCHECK_GOROOT="$$(env GOTOOLCHAIN=$(VULNCHECK_GO_TOOLCHAIN) go env GOROOT)" && \
+	PATH="$$VULNCHECK_GOROOT/bin:$$PATH" GOBIN=$(BUILDDIR) go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+	VULNCHECK_GOROOT="$$(env GOTOOLCHAIN=$(VULNCHECK_GO_TOOLCHAIN) go env GOROOT)" && \
+	PATH="$$VULNCHECK_GOROOT/bin:$$PATH" $(BUILDDIR)/govulncheck ./...
 
 ###############################################################################
 ###                              Documentation                              ###
