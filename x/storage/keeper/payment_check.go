@@ -5,7 +5,6 @@ import (
 	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/mocachain/moca/v2/internal/sequence"
-	"github.com/mocachain/moca/v2/utils"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	"github.com/mocachain/moca/v2/x/storage/types"
 	"github.com/pkg/errors"
@@ -166,9 +165,7 @@ Exit:
 
 		actualLockBalance := streamRecord.LockBalance
 		if !expectedLockBalance.Equal(actualLockBalance) {
-			if !k.isKnownLockBalanceIssue(ctx, address) {
-				result = errors.New("lock balance not equal")
-			}
+			result = errors.New("lock balance not equal")
 			ctx.Logger().Error("lock balance not equal", "address", address, "expected", expectedLockBalance, "actual", actualLockBalance)
 			details := lockBalanceDetailMap[address]
 			for _, detail := range details {
@@ -259,9 +256,7 @@ Exit:
 		if streamRecord.LockBalance.IsPositive() {
 			_, found := lockBalanceMap[streamRecord.Account]
 			if !found {
-				if !k.isKnownLockBalanceIssue(ctx, streamRecord.Account) {
-					result = errors.New("the stream record has lock balance which is not expected")
-				}
+				result = errors.New("the stream record has lock balance which is not expected")
 				ctx.Logger().Error("the stream record has lock balance which is not expected", "address", streamRecord.Account)
 			}
 		}
@@ -285,26 +280,4 @@ Exit:
 
 	ctx.Logger().Info("finish checking payment data")
 	return result
-}
-
-// isKnownLockBalanceIssue checks if the address is the known addresses of the lock balance issue on testnet.
-func (k Keeper) isKnownLockBalanceIssue(ctx sdk.Context, address string) bool {
-	if ctx.ChainID() != utils.TestnetChainID+"-1" {
-		return false
-	}
-
-	// Moca testnet currently has no known lock balance issues
-	// The original BNB GreenField testnet addresses should not be applied to Moca testnet
-	mocaTestnetKnownIssues := []string{
-		// Add Moca testnet specific addresses here when/if any are identified
-	}
-
-	// Check against Moca testnet known issues
-	for _, addr := range mocaTestnetKnownIssues {
-		if address == addr {
-			return true
-		}
-	}
-
-	return false
 }
