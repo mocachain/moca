@@ -13,7 +13,7 @@
   "type": "module",
   "lint-staged": {
     "*.js": [
-      "prettier --write"
+      "prettier --write --single-quote --no-semi --trailing-comma none"
     ],
     "*.sh": [
       "shfmt -w"
