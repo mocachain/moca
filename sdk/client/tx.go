@@ -261,7 +261,7 @@ func (c *MocaClient) constructTxWithGasInfo(ctx context.Context, msgs []sdk.Msg,
 		return err
 	}
 	gasLimit := simulateRes.GasInfo.GetGasUsed()
-	gasPrice, err := sdk.ParseCoinNormalized(simulateRes.GasInfo.GetMinGasPrice())
+	gasPrice, err := simulatedGasPrice(simulateRes.GasInfo.GetMinGasPrice())
 	if err != nil {
 		return err
 	}
@@ -306,6 +306,13 @@ func (c *MocaClient) GetAccountByAddr(ctx context.Context, addr sdk.AccAddress) 
 		return nil, err
 	}
 	return account, nil
+}
+
+func simulatedGasPrice(minGasPrice string) (sdk.Coin, error) {
+	if minGasPrice == "" {
+		return sdk.NewCoin(types.Denom, math.NewInt(types.DefaultGasPrice)), nil
+	}
+	return sdk.ParseCoinNormalized(minGasPrice)
 }
 
 func isFeeAmountZero(feeAmount sdk.Coins) (bool, error) {
