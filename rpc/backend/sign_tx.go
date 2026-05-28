@@ -3,109 +3,31 @@ package backend
 import (
 	"errors"
 	"fmt"
-	"math/big"
 
-	errorsmod "cosmossdk.io/errors"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
-// SendTransaction sends transaction based on received args using Node's key to sign it
+// SendTransaction is temporarily disabled during the cosmos/evm v0.6.0
+// migration. The pre-migration path depended on moca's old MsgEthereumTx
+// helpers (Sign / ValidateBasic / BuildTx); cosmos/evm v0.6.0 no longer
+// exposes those methods because TransactionArgs.ToTransaction returns a
+// raw *ethtypes.Transaction. Re-implementing the flow requires switching
+// to cosmos/evm's keystore-driven signing path (mirror of
+// cosmos/evm@v0.6.0 rpc/backend/sign_tx.go::SendTransaction).
+//
+// TODO(cosmos-evm migration): port that flow. Until then,
+// eth_sendRawTransaction remains the supported submission path.
 func (b *Backend) SendTransaction(args evmtypes.TransactionArgs) (common.Hash, error) {
-	// Look up the wallet containing the requested signer
-	_, err := b.clientCtx.Keyring.KeyByAddress(sdk.AccAddress(args.GetFrom().Bytes()))
-	if err != nil {
-		b.logger.Error("failed to find key in keyring", "address", args.GetFrom(), "error", err.Error())
-		return common.Hash{}, fmt.Errorf("failed to find key in the node's keyring; %s; %s", keystore.ErrNoMatch, err.Error())
-	}
-
-	if args.ChainID != nil && (b.chainID).Cmp((*big.Int)(args.ChainID)) != 0 {
-		return common.Hash{}, fmt.Errorf("chainId does not match node's (have=%v, want=%v)", args.ChainID, (*hexutil.Big)(b.chainID))
-	}
-
-	args, err = b.SetTxDefaults(args)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	bn, err := b.BlockNumber()
-	if err != nil {
-		b.logger.Debug("failed to fetch latest block number", "error", err.Error())
-		return common.Hash{}, err
-	}
-
-	signer := ethtypes.MakeSigner(b.ChainConfig(), new(big.Int).SetUint64(uint64(bn)))
-
-	// LegacyTx derives chainID from the signature. To make sure the msg.ValidateBasic makes
-	// the corresponding chainID validation, we need to sign the transaction before calling it
-
-	// Sign transaction
-	msg := args.ToTransaction()
-	if err := msg.Sign(signer, b.clientCtx.Keyring); err != nil {
-		b.logger.Debug("failed to sign tx", "error", err.Error())
-		return common.Hash{}, err
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		b.logger.Debug("tx failed basic validation", "error", err.Error())
-		return common.Hash{}, err
-	}
-
-	// Query params to use the EVM denomination
-	res, err := b.queryClient.QueryClient.Params(b.ctx, &evmtypes.QueryParamsRequest{})
-	if err != nil {
-		b.logger.Error("failed to query evm params", "error", err.Error())
-		return common.Hash{}, err
-	}
-
-	// Assemble transaction from fields
-	tx, err := msg.BuildTx(b.clientCtx.TxConfig.NewTxBuilder(), res.Params.EvmDenom)
-	if err != nil {
-		b.logger.Error("build cosmos tx failed", "error", err.Error())
-		return common.Hash{}, err
-	}
-
-	// Encode transaction by default Tx encoder
-	txEncoder := b.clientCtx.TxConfig.TxEncoder()
-	txBytes, err := txEncoder(tx)
-	if err != nil {
-		b.logger.Error("failed to encode eth tx using default encoder", "error", err.Error())
-		return common.Hash{}, err
-	}
-
-	ethTx := msg.AsTransaction()
-
-	// check the local node config in case unprotected txs are disabled
-	if !b.UnprotectedAllowed() && !ethTx.Protected() {
-		// Ensure only eip155 signed transactions are submitted if EIP155Required is set.
-		return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
-	}
-
-	txHash := ethTx.Hash()
-
-	// Broadcast transaction in sync mode (default)
-	// NOTE: If error is encountered on the node, the broadcast will not return an error
-	syncCtx := b.clientCtx.WithBroadcastMode(flags.BroadcastSync)
-	rsp, err := syncCtx.BroadcastTx(txBytes)
-	if rsp != nil && rsp.Code != 0 {
-		err = errorsmod.ABCIError(rsp.Codespace, rsp.Code, rsp.RawLog)
-	}
-	if err != nil {
-		b.logger.Error("failed to broadcast tx", "error", err.Error())
-		return txHash, err
-	}
-
-	// Return transaction hash
-	return txHash, nil
+	_ = args
+	return common.Hash{}, errors.New("eth_sendTransaction is temporarily disabled during cosmos/evm v0.6.0 migration; use eth_sendRawTransaction with client-side signing")
 }
 
 // Sign signs the provided data using the private key of address via Geth's signature standard.

@@ -1,46 +1,20 @@
+// Package evm previously held moca's bespoke EVM-tx AnteHandler decorators
+// (modeled on evmos v12's app/ante/evm package). With the cosmos/evm v0.6.0
+// migration the decorators themselves are gone: the EVM ante pipeline is now
+// the upstream Mono decorator from github.com/cosmos/evm/ante/evm. This file
+// retains just the keeper-interface aliases so the few moca packages that
+// still hold a reference to the old type names (app/ante/cosmos/min_price.go,
+// testutil/statedb.go) compile unchanged.
 package evm
 
 import (
-	"math/big"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
-
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	anteinterfaces "github.com/cosmos/evm/ante/interfaces"
 )
 
-// EVMKeeper defines the expected keeper interface used on the AnteHandler
-type EVMKeeper interface { //nolint: revive
-	statedb.Keeper
-	DynamicFeeEVMKeeper
+// EVMKeeper is the cosmos/evm v0.6.0 ante EVMKeeper surface. The previous
+// moca-specific interface accepted a vm.EVMLogger tracer; the v0.6.0 keeper
+// uses *tracing.Hooks instead, matching geth v1.15.
+type EVMKeeper = anteinterfaces.EVMKeeper
 
-	NewEVM(ctx sdk.Context, msg core.Message, cfg *statedb.EVMConfig, tracer vm.EVMLogger, stateDB vm.StateDB) *vm.EVM
-	DeductTxCostsFromUserBalance(ctx sdk.Context, fees sdk.Coins, from common.Address) error
-	GetBalance(ctx sdk.Context, addr common.Address) *big.Int
-	ResetTransientGasUsed(ctx sdk.Context)
-	GetTxIndexTransient(ctx sdk.Context) uint64
-	GetParams(ctx sdk.Context) evmtypes.Params
-}
-
-type FeeMarketKeeper interface {
-	GetParams(ctx sdk.Context) (params feemarkettypes.Params)
-	AddTransientGasWanted(ctx sdk.Context, gasWanted uint64) (uint64, error)
-	GetBaseFeeEnabled(ctx sdk.Context) bool
-}
-
-// DynamicFeeEVMKeeper is a subset of EVMKeeper interface that supports dynamic fee checker
-type DynamicFeeEVMKeeper interface {
-	ChainID() *big.Int
-	GetParams(ctx sdk.Context) evmtypes.Params
-	GetBaseFee(ctx sdk.Context, ethCfg *params.ChainConfig) *big.Int
-}
-
-type protoTxProvider interface {
-	GetProtoTx() *tx.Tx
-}
+// FeeMarketKeeper is the cosmos/evm v0.6.0 ante FeeMarketKeeper surface.
+type FeeMarketKeeper = anteinterfaces.FeeMarketKeeper

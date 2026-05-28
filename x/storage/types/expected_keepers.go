@@ -8,11 +8,9 @@ import (
 	"cosmossdk.io/math"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/mocachain/moca/v2/types/resource"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	permtypes "github.com/mocachain/moca/v2/x/permission/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
@@ -136,10 +134,16 @@ type StorageMsgServer interface {
 	SetBucketFlowRateLimit(context.Context, *MsgSetBucketFlowRateLimit) (*MsgSetBucketFlowRateLimitResponse, error)
 }
 
-// EVMKeeper defines the expected EVM keeper interface used on erc20
+// EVMKeeper defines the expected EVM keeper interface used by moca's
+// storage module to call into ERC-20 / ERC-721 contracts during cross-chain
+// mirroring. Only the methods storage actually invokes are listed; the
+// ApplyMessage method declared in the pre-cosmos/evm version was dropped
+// because cosmos/evm v0.6.0 changed its signature significantly (it now
+// takes a *statedb.StateDB plus extra precompile / internal flags). Until
+// CallEVM/CallEVMWithData in keeper/evm.go is rewired onto cosmos/evm's
+// CallEVM helper, that path is stubbed and ApplyMessage is unused.
 type EVMKeeper interface {
 	GetParams(ctx sdktypes.Context) evmtypes.Params
 	GetAccountWithoutBalance(ctx sdktypes.Context, addr common.Address) *statedb.Account
 	EstimateGas(c context.Context, req *evmtypes.EthCallRequest) (*evmtypes.EstimateGasResponse, error)
-	ApplyMessage(ctx sdktypes.Context, msg core.Message, tracer vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error)
 }

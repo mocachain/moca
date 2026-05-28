@@ -4,10 +4,9 @@ import (
 	"context"
 
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
-	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 )
 
 // TestnetGovParamFix is the upgrade handler for the `testnet-gov-param-fix`
@@ -35,13 +34,10 @@ func TestnetGovParamFix(govKeeper *govkeeper.Keeper, evmKeeper *evmkeeper.Keeper
 			return nil, err
 		}
 
-		// Allow unprotected (non EIP155 signed) txs at the protocol level.
-		sdkCtx := sdk.UnwrapSDKContext(ctx)
-		evmParams := evmKeeper.GetParams(sdkCtx)
-		evmParams.AllowUnprotectedTxs = true
-		if err := evmKeeper.SetParams(sdkCtx, evmParams); err != nil {
-			return nil, err
-		}
+		// TODO(cosmos-evm migration): cosmos/evm v0.6.0 dropped the
+		// Params.AllowUnprotectedTxs field; re-enable equivalent behavior
+		// through cosmos/evm's new permissioning layer when the migration lands.
+		_ = evmKeeper
 
 		return mm.RunMigrations(ctx, configurator, fromVM)
 	}

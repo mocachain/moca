@@ -73,7 +73,8 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 		return nil, err
 	}
 	msg := &paymenttypes.MsgDeposit{
-		Creator: contract.CallerAddress.String(),
+		// geth v1.15: vm.Contract.CallerAddress field was replaced by Caller().
+		Creator: contract.Caller().String(),
 		To:      args.To,
 		Amount:  math.NewIntFromBigInt(args.Amount),
 	}

@@ -9,7 +9,7 @@ import (
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/app/upgrades"
 	"github.com/mocachain/moca/v2/utils"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/stretchr/testify/require"
 )
 

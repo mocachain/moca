@@ -29,7 +29,7 @@ import (
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 )
 
 func init() {

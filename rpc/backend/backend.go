@@ -14,6 +14,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethmath "github.com/ethereum/go-ethereum/common/math"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -21,7 +22,7 @@ import (
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	"github.com/mocachain/moca/v2/server/config"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 // BackendI implements the Cosmos and EVM backend.
@@ -96,7 +97,9 @@ type EVMBackend interface {
 	CurrentHeader() (*ethtypes.Header, error)
 	PendingTransactions() ([]*sdk.Tx, error)
 	GetCoinbase() (sdk.AccAddress, error)
-	FeeHistory(blockCount rpc.DecimalOrHex, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*rpctypes.FeeHistoryResult, error)
+	// geth v1.15 retired the rpc.DecimalOrHex shorthand; cosmos/evm's RPC
+	// backend uses common/math.HexOrDecimal64 for the same purpose.
+	FeeHistory(blockCount ethmath.HexOrDecimal64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*rpctypes.FeeHistoryResult, error)
 	SuggestGasTipCap(baseFee *big.Int) (*big.Int, error)
 
 	// Tx Info

@@ -18,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/mocachain/moca/v2/utils"
 	"github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 

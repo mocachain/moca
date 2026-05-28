@@ -4,39 +4,52 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
 	txsigning "cosmossdk.io/x/tx/signing"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+
+	cosmosevmante "github.com/cosmos/evm/ante"
+	cosmosevmevm "github.com/cosmos/evm/ante/evm"
+	anteinterfaces "github.com/cosmos/evm/ante/interfaces"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
-	evmante "github.com/mocachain/moca/v2/app/ante/evm"
 	anteutils "github.com/mocachain/moca/v2/app/ante/utils"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-
-	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 )
 
-// HandlerOptions defines the list of module keepers required to run the Evmos
-// AnteHandler decorators.
+// HandlerOptions defines the list of module keepers required to run the moca
+// AnteHandler decorators. The EVM-tx path is the cosmos/evm v0.6.0 Mono
+// decorator; the Cosmos-tx path keeps moca's custom DeductFee + MinGasPrice
+// decorators so moca-specific behavior (staking-rewards top-up on insufficient
+// balance, moca's per-denom min-gas rules) is preserved.
 type HandlerOptions struct {
 	Cdc                    codec.BinaryCodec
-	AccountKeeper          evmtypes.AccountKeeper
-	BankKeeper             evmtypes.BankKeeper
+	AccountKeeper          anteinterfaces.AccountKeeper
+	BankKeeper             anteinterfaces.BankKeeper
 	DistributionKeeper     anteutils.DistributionKeeper
-	FeeMarketKeeper        evmante.FeeMarketKeeper
-	EvmKeeper              evmante.EVMKeeper
+	FeeMarketKeeper        anteinterfaces.FeeMarketKeeper
+	EvmKeeper              anteinterfaces.EVMKeeper
 	FeegrantKeeper         ante.FeegrantKeeper
 	ExtensionOptionChecker ante.ExtensionOptionChecker
 	SignModeHandler        *txsigning.HandlerMap
 	SigGasConsumer         func(meter storetypes.GasMeter, sig signing.SignatureV2, params authtypes.Params) error
 	MaxTxGasWanted         uint64
-	TxFeeChecker           anteutils.TxFeeChecker
+	// TxFeeChecker, when non-nil, replaces the default fee check inside moca's
+	// custom DeductFeeDecorator on the cosmos-tx path. Leaving it nil falls
+	// back to checkTxFeeWithValidatorMinGasPrices.
+	TxFeeChecker anteutils.TxFeeChecker
+	// PendingTxListener, when non-nil, appends cosmos/evm's tx-listener
+	// decorator to the EVM-tx chain so JSON-RPC newPendingTransactions
+	// subscriptions can fire from CheckTx. Optional.
+	PendingTxListener cosmosevmante.PendingTxListener
 }
 
-// Validate checks if the keepers are defined
+// Validate checks if the keepers are defined.
 func (options HandlerOptions) Validate() error {
 	if options.Cdc == nil {
 		return errorsmod.Wrap(errortypes.ErrLogic, "codec is required for AnteHandler")
@@ -62,38 +75,44 @@ func (options HandlerOptions) Validate() error {
 	if options.DistributionKeeper == nil {
 		return errorsmod.Wrap(errortypes.ErrLogic, "distribution keeper is required for AnteHandler")
 	}
-	if options.TxFeeChecker == nil {
-		return errorsmod.Wrap(errortypes.ErrLogic, "tx fee checker is required for AnteHandler")
-	}
 	return nil
 }
 
-// newEVMAnteHandler creates the default ante handler for Ethereum transactions
-func newEVMAnteHandler(options HandlerOptions) sdk.AnteHandler {
-	return sdk.ChainAnteDecorators(
-		// outermost AnteDecorator. SetUpContext must be called first
-		evmante.NewEthSetUpContextDecorator(options.EvmKeeper),
-		// Check eth effective gas price against the node's minimal-gas-prices config
-		evmante.NewEthMempoolFeeDecorator(options.EvmKeeper),
-		// Check eth effective gas price against the global MinGasPrice
-		evmante.NewEthMinGasPriceDecorator(options.FeeMarketKeeper, options.EvmKeeper),
-		evmante.NewEthValidateBasicDecorator(options.EvmKeeper),
-		evmante.NewEthSigVerificationDecorator(options.EvmKeeper),
-		evmante.NewEthAccountVerificationDecorator(options.AccountKeeper, options.EvmKeeper),
-		evmante.NewCanTransferDecorator(options.EvmKeeper),
-		evmante.NewEthGasConsumeDecorator(options.BankKeeper, options.DistributionKeeper, options.EvmKeeper, options.MaxTxGasWanted),
-		evmante.NewEthIncrementSenderSequenceDecorator(options.AccountKeeper),
-		evmante.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper),
-		// emit eth tx hash and index at the very last ante handler.
-		evmante.NewEthEmitEventDecorator(options.EvmKeeper),
-	)
+// newEVMAnteHandler builds the EVM-transaction AnteHandler using cosmos/evm
+// v0.6.0's Mono decorator. evmParams/feemarketParams are loaded once per tx
+// at handler construction time (NewAnteHandler calls newEVMAnteHandler with
+// the live ctx) so the Mono decorator sees the same params throughout its
+// run.
+func newEVMAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandler {
+	evmParams := options.EvmKeeper.GetParams(ctx)
+	feemarketParams := options.FeeMarketKeeper.GetParams(ctx)
+	decorators := []sdk.AnteDecorator{
+		cosmosevmevm.NewEVMMonoDecorator(
+			options.AccountKeeper,
+			options.FeeMarketKeeper,
+			options.EvmKeeper,
+			options.MaxTxGasWanted,
+			&evmParams,
+			&feemarketParams,
+		),
+	}
+	if options.PendingTxListener != nil {
+		decorators = append(decorators, cosmosevmante.NewTxListenerDecorator(options.PendingTxListener))
+	}
+	return sdk.ChainAnteDecorators(decorators...)
 }
 
-// newCosmosAnteHandler creates the default ante handler for Cosmos transactions
-func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
+// newCosmosAnteHandler builds the Cosmos-transaction AnteHandler. It mostly
+// mirrors cosmos/evm v0.6.0's cosmos.go but swaps in moca's bespoke
+// DeductFeeDecorator (which can settle fees out of unclaimed staking
+// rewards) and moca's MinGasPriceDecorator (which checks against moca's
+// evm-denom min gas price). The IBC redundant-relay decorator is dropped
+// since moca does not run IBC.
+func newCosmosAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandler {
+	feemarketParams := options.FeeMarketKeeper.GetParams(ctx)
 	return sdk.ChainAnteDecorators(
-		cosmosante.RejectMessagesDecorator{}, // reject MsgEthereumTxs
-		cosmosante.NewAuthzLimiterDecorator( // disable the Msg types that cannot be included on an authz.MsgExec msgs field
+		cosmosante.RejectMessagesDecorator{}, // reject MsgEthereumTxs on cosmos path
+		cosmosante.NewAuthzLimiterDecorator( // disallow these Msg types inside authz.MsgExec
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}),
 		),
@@ -104,40 +123,18 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		ante.NewValidateMemoDecorator(options.AccountKeeper),
 		cosmosante.NewMinGasPriceDecorator(options.FeeMarketKeeper, options.EvmKeeper),
 		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
-		cosmosante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.DistributionKeeper, options.FeegrantKeeper, options.TxFeeChecker),
-		// SetPubKeyDecorator must be called before all signature verification decorators
+		cosmosante.NewDeductFeeDecorator(
+			options.AccountKeeper,
+			options.BankKeeper,
+			options.DistributionKeeper,
+			options.FeegrantKeeper,
+			options.TxFeeChecker,
+		),
 		ante.NewSetPubKeyDecorator(options.AccountKeeper),
 		ante.NewValidateSigCountDecorator(options.AccountKeeper),
 		ante.NewSigGasConsumeDecorator(options.AccountKeeper, options.SigGasConsumer),
 		ante.NewSigVerificationDecorator(options.AccountKeeper, options.SignModeHandler),
 		ante.NewIncrementSequenceDecorator(options.AccountKeeper),
-		evmante.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper),
-	)
-}
-
-// newCosmosAnteHandlerEip712 creates the ante handler for transactions signed with EIP712
-func newLegacyCosmosAnteHandlerEip712(options HandlerOptions) sdk.AnteHandler {
-	return sdk.ChainAnteDecorators(
-		cosmosante.RejectMessagesDecorator{}, // reject MsgEthereumTxs
-		cosmosante.NewAuthzLimiterDecorator( // disable the Msg types that cannot be included on an authz.MsgExec msgs field
-			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
-			sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}),
-		),
-		ante.NewSetUpContextDecorator(),
-		ante.NewValidateBasicDecorator(),
-		ante.NewTxTimeoutHeightDecorator(),
-		cosmosante.NewMinGasPriceDecorator(options.FeeMarketKeeper, options.EvmKeeper),
-		ante.NewValidateMemoDecorator(options.AccountKeeper),
-		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
-		cosmosante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.DistributionKeeper, options.FeegrantKeeper, options.TxFeeChecker),
-		// SetPubKeyDecorator must be called before all signature verification decorators
-		ante.NewSetPubKeyDecorator(options.AccountKeeper),
-		ante.NewValidateSigCountDecorator(options.AccountKeeper),
-		ante.NewSigGasConsumeDecorator(options.AccountKeeper, options.SigGasConsumer),
-		// Note: signature verification uses EIP instead of the cosmos signature validator
-		//nolint: staticcheck
-		cosmosante.NewLegacyEip712SigVerificationDecorator(options.AccountKeeper),
-		ante.NewIncrementSequenceDecorator(options.AccountKeeper),
-		evmante.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper),
+		cosmosevmevm.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper, &feemarketParams),
 	)
 }

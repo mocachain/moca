@@ -2,15 +2,26 @@ package ante
 
 import (
 	errorsmod "cosmossdk.io/errors"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 )
 
-// NewAnteHandler returns an ante handler responsible for attempting to route an
-// Ethereum or SDK transaction to an internal ante handler for performing
-// transaction-level processing (e.g. fee payment, signature verification) before
-// being passed onto it's respective handler.
+// NewAnteHandler returns an ante handler responsible for attempting to route
+// an Ethereum or SDK transaction to its respective ante handler chain. The
+// route is selected by the transaction's first extension option:
+//
+//   - /cosmos.evm.vm.v1.ExtensionOptionsEthereumTx → EVM-tx mono pipeline
+//     (cosmos/evm v0.6.0's NewEVMMonoDecorator).
+//   - /cosmos.evm.ante.v1.ExtensionOptionDynamicFeeTx → cosmos-tx pipeline
+//     with the dynamic-fee check enabled.
+//   - default (no extension or unknown) → moca's cosmos-tx pipeline.
+//
+// The legacy ethermint Web3Tx EIP712 handler that the pre-migration ante
+// supported is removed: cosmos/evm v0.6.0 no longer ships a Web3Tx
+// extension and the corresponding type URL is no longer emitted by any
+// supported signing flow.
 func NewAnteHandler(options HandlerOptions) sdk.AnteHandler {
 	return func(
 		ctx sdk.Context, tx sdk.Tx, sim bool,
@@ -22,15 +33,10 @@ func NewAnteHandler(options HandlerOptions) sdk.AnteHandler {
 			opts := txWithExtensions.GetExtensionOptions()
 			if len(opts) > 0 {
 				switch typeURL := opts[0].GetTypeUrl(); typeURL {
-				case "/ethermint.evm.v1.ExtensionOptionsEthereumTx":
-					// handle as *evmtypes.MsgEthereumTx
-					anteHandler = newEVMAnteHandler(options)
-				case "/ethermint.types.v1.ExtensionOptionsWeb3Tx":
-					// handle as normal Cosmos SDK tx, except signature is checked for EIP712 representation
-					anteHandler = newLegacyCosmosAnteHandlerEip712(options)
-				case "/ethermint.types.v1.ExtensionOptionDynamicFeeTx":
-					// cosmos-sdk tx with dynamic fee extension
-					anteHandler = newCosmosAnteHandler(options)
+				case "/cosmos.evm.vm.v1.ExtensionOptionsEthereumTx":
+					anteHandler = newEVMAnteHandler(ctx, options)
+				case "/cosmos.evm.ante.v1.ExtensionOptionDynamicFeeTx":
+					anteHandler = newCosmosAnteHandler(ctx, options)
 				default:
 					return ctx, errorsmod.Wrapf(
 						errortypes.ErrUnknownExtensionOptions,
@@ -42,10 +48,10 @@ func NewAnteHandler(options HandlerOptions) sdk.AnteHandler {
 			}
 		}
 
-		// handle as totally normal Cosmos SDK tx
+		// Plain cosmos-tx with no extension option.
 		switch tx.(type) {
 		case sdk.Tx:
-			anteHandler = newCosmosAnteHandler(options)
+			anteHandler = newCosmosAnteHandler(ctx, options)
 		default:
 			return ctx, errorsmod.Wrapf(errortypes.ErrUnknownRequest, "invalid transaction type: %T", tx)
 		}

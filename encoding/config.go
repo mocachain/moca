@@ -18,7 +18,7 @@ import (
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	enccodec "github.com/mocachain/moca/v2/encoding/codec"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 // encodingConfig creates a new EncodingConfig and returns it
