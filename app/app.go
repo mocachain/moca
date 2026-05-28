@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/core/vm"
 
@@ -104,6 +105,7 @@ import (
 	// precompile registry (WithStaticPrecompiles). The blank imports keep the
 	// precompile packages compiled so a future commit can wire them in
 	// without re-adding the imports.
+	evmmodule "github.com/cosmos/evm/x/vm"
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 	_ "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
 	_ "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
@@ -159,6 +161,11 @@ const (
 	Name      = "mocad"
 	ShortName = "mocad"
 )
+
+// setEVMGlobalConfigOnce guards cosmos/evm's sealed-once global EVM coin-info /
+// configurator setup so it runs at most once per process even though NewMoca
+// is constructed more than once (root command builds a throwaway app).
+var setEVMGlobalConfigOnce sync.Once
 
 var (
 	// DefaultNodeHome default home directories for the application daemon
@@ -425,19 +432,51 @@ func NewMoca(
 		tkeys[feemarkettypes.TransientKey],
 	)
 
-	// TODO(cosmos-evm migration): cosmos/evm v0.6.0 changed evmkeeper.NewKeeper
-	// to require (BinaryCodec, store StoreKey, transient StoreKey,
-	// map[string]*KVStoreKey, authority AccAddress, AccountKeeper, BankKeeper,
-	// StakingKeeper, FeeMarketKeeper, ConsensusParamsKeeper, Erc20Keeper,
-	// chainID uint64, evmDenom string). moca's app doesn't yet wire
-	// ConsensusParamsKeeper / Erc20Keeper of the right interface types and
-	// needs the chainID parsed from the cosmos chain-id string. Stubbed to
-	// nil so the binary compiles; downstream registrations against
-	// app.EvmKeeper are also stubbed below (see EvmPrecompiled).
-	app.EvmKeeper = (*evmkeeper.Keeper)(nil)
-	_ = tracer
-	_ = evmtypes.StoreKey
-	_ = feemarkettypes.StoreKey
+	// cosmos/evm v0.6.0 requires the EVM coin info + activators to be set
+	// globally before the keeper is built. SetGlobalConfigVariables registers
+	// the base denom (amoca, 18 decimals) and runs the EVM configurator
+	// (which extends the opcode activators). Both the coin-info setter and the
+	// configurator are sealed-once and panic if invoked twice; NewMoca is
+	// constructed more than once per process (the root command builds a
+	// throwaway app for encoding/autocli before the real app), so guard the
+	// call behind a sync.Once.
+	setEVMGlobalConfigOnce.Do(func() {
+		evmmodule.SetGlobalConfigVariables(evmtypes.EvmCoinInfo{
+			Denom:         cmdcfg.BaseDenom,
+			ExtendedDenom: cmdcfg.BaseDenom,
+			DisplayDenom:  cmdcfg.DisplayDenom,
+			Decimals:      uint32(evmtypes.EighteenDecimals),
+		})
+	})
+
+	// evmkeeper.NewKeeper internally calls types.SetChainConfig, which
+	// populates the global eth chain config that the ante GasWantedDecorator
+	// (and EVM tx processing) read via evmtypes.GetEthChainConfig().
+	//
+	// The EVM chain ID is read from appOpts (srvflags.EVMChainID). It MUST NOT
+	// be hardcoded: the root command builds a throwaway app with empty
+	// appOpts, so it gets 0 -> DefaultChainConfig(0) -> the cosmos/evm default
+	// (262144). cosmos/evm's SetChainConfig only allows the global config to
+	// be (re)written while it still equals that default, so the second
+	// construction (the real app, which may carry a configured EVMChainID)
+	// transitions default -> configured cleanly. Hardcoding a non-default
+	// value on both constructions trips the "chainConfig already set" guard.
+	evmChainID := cast.ToUint64(appOpts.Get(srvflags.EVMChainID))
+	app.EvmKeeper = evmkeeper.NewKeeper(
+		appCodec,
+		keys[evmtypes.StoreKey],
+		tkeys[evmtypes.TransientKey],
+		keys,
+		authtypes.NewModuleAddress(govtypes.ModuleName),
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.StakingKeeper,
+		app.FeeMarketKeeper,
+		app.ConsensusParamsKeeper,
+		erc20StubKeeper{},
+		evmChainID,
+		tracer,
+	)
 
 	govConfig := govtypes.DefaultConfig()
 	/*
