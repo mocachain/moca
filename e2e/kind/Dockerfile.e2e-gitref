@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build mocad from a specific git ref (tag/branch/commit) for upgrade tests.
-ARG GO_VERSION=1.23.6
+ARG GO_VERSION=1.23.11
 FROM golang:${GO_VERSION}-bullseye AS builder
 
 ARG GIT_REF=main
