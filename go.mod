@@ -314,3 +314,5 @@ replace (
 )
 
 replace github.com/confio/ics23/go => github.com/cosmos/ics23/go v0.10.0
+
+replace cosmossdk.io/x/feegrant => github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260526063327-ca1044372d6c

@@ -630,8 +630,6 @@ cosmossdk.io/tools/confix v0.1.2 h1:2hoM1oFCNisd0ltSAAZw2i4ponARPmlhuNu3yy0VwI4=
 cosmossdk.io/tools/confix v0.1.2/go.mod h1:7XfcbK9sC/KNgVGxgLM0BrFbVcR/+6Dg7MFfpx7duYo=
 cosmossdk.io/x/evidence v0.2.0 h1:o72zbmgCM7U0v7z7b0XnMB+NqX0tFamqb1HHkQbhrZ0=
 cosmossdk.io/x/evidence v0.2.0/go.mod h1:zx/Xqy+hnGVzkqVuVuvmP9KsO6YCl4SfbAetYi+k+sE=
-cosmossdk.io/x/feegrant v0.2.0 h1:oq3WVpoJdxko/XgWmpib63V1mYy9ZQN/1qxDajwGzJ8=
-cosmossdk.io/x/feegrant v0.2.0/go.mod h1:9CutZbmhulk/Yo6tQSVD5LG8Lk40ZAQ1OX4d1CODWAE=
 cosmossdk.io/x/upgrade v0.2.0 h1:ZHy0xny3wBCSLomyhE06+UmQHWO8cYlVYjfFAJxjz5g=
 cosmossdk.io/x/upgrade v0.2.0/go.mod h1:DXDtkvi//TrFyHWSOaeCZGBoiGAE6Rs8/0ABt2pcDD0=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
@@ -1374,6 +1372,8 @@ github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2.0.20260526063327-ca1044372
 github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2.0.20260526063327-ca1044372d6c/go.mod h1:v/M/ebXEDAorBFXfu9HY10SEgv4ZQHygeeE5bCE/dLI=
 github.com/mocachain/moca-cosmos-sdk/x/circuit v1.2.0-rc2.0.20260526063327-ca1044372d6c h1:Fn/Mn2gUv6m1bTbKMJojfstU76N5MB6k2DzwwFtfDuw=
 github.com/mocachain/moca-cosmos-sdk/x/circuit v1.2.0-rc2.0.20260526063327-ca1044372d6c/go.mod h1:G70XeShy3XO/yIN21FoV5wszLF3Wzl6wpdyiy1L+lNQ=
+github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260526063327-ca1044372d6c h1:/5V47oglunoCwWlwU1DdW/Iv5Vm0MhMc1ID+yTHSJDM=
+github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260526063327-ca1044372d6c/go.mod h1:RGvg5iww8Usy1Hqb//kkkdbJ1UXnCipsF0azpJaKGsA=
 github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2.0.20260526063327-ca1044372d6c h1:G8N4GkLB56v+w9Vr7zyZbLycSz1WHP8y9O84EQQNgpQ=
 github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2.0.20260526063327-ca1044372d6c/go.mod h1:tXFiv2C+RJZMdGW0sEAX5gnQ/DxY1EYtlwcnpWntnws=
 github.com/mocachain/moca-cosmos-sdk/x/tx v1.2.0-rc2.0.20260526063327-ca1044372d6c h1:6NfXzokLfojlppkdBviI/yZmMHAc4XBrdOxVEoNWO2k=
