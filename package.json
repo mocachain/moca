@@ -3,7 +3,8 @@
     "@commitlint/cli": "^19.2.2",
     "@commitlint/config-conventional": "^19.2.2",
     "lefthook": "^1.8.4",
-    "lint-staged": "^15.2.7"
+    "lint-staged": "^15.2.7",
+    "prettier": "^3.6.2"
   },
   "scripts": {
     "prepare": "lefthook install",
@@ -12,7 +13,7 @@
   "type": "module",
   "lint-staged": {
     "*.js": [
-      "prettier --write"
+      "prettier --write --single-quote --no-semi --trailing-comma none"
     ],
     "*.sh": [
       "shfmt -w"
