@@ -233,8 +233,8 @@ github.com/Mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4 h1:Q
 github.com/Mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4/go.mod h1:RXKZzgk3b0mBvoWaANTHLtXdKNQ/HfAlbSB5RMkawS4=
 github.com/Mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3 h1:4MYnPiM8VHROmOY+K2kMAqMoSFjBbuFhesmsmXnk0bY=
 github.com/Mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
-github.com/Mocachain/moca-iavl v1.2.0-rc0 h1:XrueL7KrBl54dT7/8qXGuZKAMAiZNfBi+FladVF0Ypw=
-github.com/Mocachain/moca-iavl v1.2.0-rc0/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
+github.com/Mocachain/moca-iavl v1.2.0-rc1 h1:/qxdm6TW9VirQwkPv/4IiJK2Wpw4FdgFUwuGjYcKNPk=
+github.com/Mocachain/moca-iavl v1.2.0-rc1/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
 github.com/Mocachain/moca-ibc-go/v10 v10.2.0-rc0 h1:PrEeIUqb20WzjQN7qg/CJat0QO5iL6E1RJPTUe2na2A=
 github.com/Mocachain/moca-ibc-go/v10 v10.2.0-rc0/go.mod h1:aSY93nbW1E8OwEf2eDri3xSM7vWJskxrm37Mfs66cWM=
 github.com/Mocachain/polygon-edge v1.3.3-moca.1 h1:g/l0I01/xBI6UPy/17PuOLWrOghYxXHLRr34nlHsUv4=
