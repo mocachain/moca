@@ -418,7 +418,10 @@ func (api *pubSubAPI) subscribeNewHeads(wsConn *wsConn, subID rpc.ID) (pubsub.Un
 					continue
 				}
 
-				header := types.EthHeaderFromTendermint(data.Header, ethtypes.Bloom{}, baseFee)
+				header := types.RPCMarshalHeader(
+					types.EthHeaderFromTendermint(data.Header, ethtypes.Bloom{}, baseFee),
+					common.BytesToHash(data.Header.Hash()),
+				)
 
 				// write to ws conn
 				res := &SubscriptionNotification{
