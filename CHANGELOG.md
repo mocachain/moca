@@ -56,6 +56,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 ### State Machine Breaking
 
 - (erc20) [#221](https://github.com/mocachain/moca/pull/221) Remove the dormant `x/erc20` module and the erc20 precompile; register the `erc20` store for deletion in the `v2.0.0` store upgrade
+- (deps) [#240](https://github.com/mocachain/moca/pull/240) Bump `moca-cosmos-sdk` to the upstream gas meter (remove greenfield RW metering): store writes/deletes now consume tx gas (reads stay free under `KVGasConfigAfterNagqu`), and the `GasInfo.rw_used` / `TxMsgData.extra_data` fields are removed
 
 ### Bug Fixes
 
