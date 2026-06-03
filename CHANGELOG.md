@@ -41,6 +41,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 - (proto) [#67](https://github.com/mocachain/moca/pull/67) Publish protos to BSR under moca org
 - (e2e) [#105](https://github.com/mocachain/moca/pull/105) Add Kind-based e2e test framework with smoke and upgrade tests
+- (cli) [#243](https://github.com/mocachain/moca/pull/243) Add `mocad snapshots` command tree (list/delete/dump/export/load/restore) for managing local state-sync snapshots
 
 ### Improvements
 
