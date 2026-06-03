@@ -1559,6 +1559,11 @@ func (app *Evmos) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
+	app.UpgradeKeeper.SetUpgradeHandler("v1.3.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		// noop
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
 	// testnet only upgrade Handlers
 	app.UpgradeKeeper.SetUpgradeHandler(
 		"testnet-gov-param-fix",
