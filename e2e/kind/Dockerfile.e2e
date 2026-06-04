@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+# Build mocad from local source for e2e testing.
+FROM golang:1.25.10-bookworm AS builder
+
+ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
+
+WORKDIR /workspace
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+COPY . .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    make build
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends bash ca-certificates jq curl && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /workspace/build/mocad /usr/local/bin/mocad
+ENTRYPOINT ["mocad"]

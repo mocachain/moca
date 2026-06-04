@@ -623,3 +623,38 @@ precompile:
 
 verify:
 	@cd solidity && node verify.js
+
+###############################################################################
+###                        Kind E2E Tests                                   ###
+###############################################################################
+
+E2E_KIND_DIR := e2e/kind
+
+# Run all Kind e2e framework tests
+e2e-fw:
+	@bash $(E2E_KIND_DIR)/framework/runner.sh
+
+# Run a single test: make e2e-fw-test TEST=smoke
+#   Validator parity (moca-devcontainer check-validators.sh test): TEST=validator_devcontainer_parity
+#   RPC + balances/validators parity (devcontainer RPC/rpc.sh + check-validators): TEST=rpc_suite
+e2e-fw-test:
+	@bash $(E2E_KIND_DIR)/tests/test_$(TEST).sh
+
+# Run without cleanup (for dev): make e2e-fw-dev TEST=smoke
+e2e-fw-dev:
+	@FW_SKIP_CLEANUP=true bash $(E2E_KIND_DIR)/tests/test_$(TEST).sh
+
+# Individual Kind e2e steps
+e2e-kind-setup:
+	@bash $(E2E_KIND_DIR)/scripts/setup-kind.sh
+
+e2e-kind-build:
+	@bash $(E2E_KIND_DIR)/scripts/build-images.sh
+
+e2e-kind-deploy:
+	@bash $(E2E_KIND_DIR)/scripts/deploy.sh
+
+e2e-kind-cleanup:
+	@bash $(E2E_KIND_DIR)/scripts/cleanup.sh
+
+.PHONY: e2e-fw e2e-fw-test e2e-fw-dev e2e-kind-setup e2e-kind-build e2e-kind-deploy e2e-kind-cleanup
