@@ -40,6 +40,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 ### Features
 
 - (proto) [#67](https://github.com/mocachain/moca/pull/67) Publish protos to BSR under moca org
+- (cli) [#243](https://github.com/mocachain/moca/pull/243) Add `mocad snapshots` command tree (list/delete/dump/export/load/restore) for managing local state-sync snapshots
 
 ### Improvements
 
