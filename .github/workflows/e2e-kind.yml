@@ -10,9 +10,14 @@ on:
         description: "Old version tag for upgrade tests (used by hardfork/governance/comprehensive)"
         default: "v1.2.1"
         type: string
+      upgrade_name:
+        description: "Upgrade name — must match a registered handler in the new binary (governance/comprehensive)"
+        default: "v1.3.0"
+        type: string
 
 env:
   OLD_VERSION: ${{ inputs.old_version || 'v1.2.1' }}
+  UPGRADE_NAME: ${{ inputs.upgrade_name || 'v1.3.0' }}
   DOCKER_IMAGE: mocachain/moca
   DOCKER_TAG: e2e-local
   CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
