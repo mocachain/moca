@@ -8,10 +8,12 @@ import (
 	"cosmossdk.io/core/address"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 )
 
@@ -39,9 +41,20 @@ type AccountKeeper interface {
 type BankKeeper interface {
 	authtypes.BankKeeper
 	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
+	GetSupply(ctx context.Context, denom string) sdk.Coin
+	GetDenomMetaData(ctx context.Context, denom string) (banktypes.Metadata, bool)
 	SendCoinsFromModuleToAccount(ctx context.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
 	MintCoins(ctx context.Context, moduleName string, amt sdk.Coins) error
 	BurnCoins(ctx context.Context, moduleName string, amt sdk.Coins) error
+}
+
+type ERC20Keeper interface {
+	GetParams(ctx sdk.Context) erc20types.Params
+	GetERC20Map(ctx sdk.Context, erc20 common.Address) []byte
+	GetTokenPair(ctx sdk.Context, id []byte) (erc20types.TokenPair, bool)
+	GetAllowance(ctx sdk.Context, erc20 common.Address, owner common.Address, spender common.Address) (*big.Int, error)
+	SetAllowance(ctx sdk.Context, erc20 common.Address, owner common.Address, spender common.Address, value *big.Int) error
+	DeleteAllowance(ctx sdk.Context, erc20 common.Address, owner common.Address, spender common.Address) error
 }
 
 // StakingKeeper returns the historical headers kept in store.

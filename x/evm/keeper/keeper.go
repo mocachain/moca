@@ -56,6 +56,7 @@ type Keeper struct {
 	hooks types.EvmHooks
 
 	precompiledFunc map[common.Address]PrecompiledContractFunc
+	erc20Keeper     types.ERC20Keeper
 }
 
 // NewKeeper generates new evm module keeper
@@ -115,6 +116,14 @@ func (k *Keeper) WithChainID(ctx sdk.Context) {
 // ChainID returns the EIP155 chain ID for the EVM context
 func (k Keeper) ChainID() *big.Int {
 	return k.eip155ChainID
+}
+
+func (k *Keeper) WithERC20Keeper(erc20Keeper types.ERC20Keeper) *Keeper {
+	if k.erc20Keeper != nil {
+		panic("erc20 keeper already set")
+	}
+	k.erc20Keeper = erc20Keeper
+	return k
 }
 
 // ----------------------------------------------------------------------------

@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"golang.org/x/exp/maps"
+
+	precompileserc20 "github.com/mocachain/moca/v2/x/evm/precompiles/erc20"
 )
 
 // Precompiles returns the all precompiled contracts.
@@ -21,6 +23,27 @@ func (k Keeper) Precompiles(ctx sdk.Context) ([]common.Address, map[common.Addre
 		}
 		addrs = append(addrs, addr)
 		precompiles[addr] = precompile
+	}
+	if k.erc20Keeper != nil {
+		params := k.erc20Keeper.GetParams(ctx)
+		erc20Addrs := append([]string{}, params.DynamicPrecompiles...)
+		erc20Addrs = append(erc20Addrs, params.NativePrecompiles...)
+
+		for _, addrHex := range erc20Addrs {
+			addr := common.HexToAddress(addrHex)
+			if _, ok := precompiles[addr]; ok {
+				continue
+			}
+
+			tokenPairID := k.erc20Keeper.GetERC20Map(ctx, addr)
+			tokenPair, found := k.erc20Keeper.GetTokenPair(ctx, tokenPairID)
+			if !found || !tokenPair.Enabled {
+				continue
+			}
+
+			precompiles[addr] = precompileserc20.NewPrecompiledContract(ctx, tokenPair, k.bankKeeper, k.erc20Keeper)
+			addrs = append(addrs, addr)
+		}
 	}
 	sort.SliceStable(addrs, func(i, j int) bool {
 		return bytes.Compare(addrs[i].Bytes(), addrs[j].Bytes()) < 0
