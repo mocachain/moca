@@ -27,7 +27,6 @@ import (
 const consensusVersion = 1
 
 var (
-	_ module.AppModule           = AppModule{}
 	_ module.AppModuleBasic      = AppModuleBasic{}
 	_ module.AppModuleSimulation = AppModule{}
 	_ appmodule.AppModule        = AppModule{}
@@ -66,8 +65,7 @@ func (b AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncoding
 
 func (AppModuleBasic) RegisterRESTRoutes(_ client.Context, _ *mux.Router) {}
 
-func (AppModuleBasic) RegisterGRPCGatewayRoutes(c client.Context, serveMux *runtime.ServeMux) {
-}
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 
 func (AppModuleBasic) GetTxCmd() *cobra.Command {
 	return nil

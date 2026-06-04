@@ -390,11 +390,15 @@ func (c *Contract) addLog(ctx sdk.Context, evm *vm.EVM, event abi.Event, topics 
 	if err != nil {
 		return err
 	}
+	blockHeight := ctx.BlockHeight()
+	if blockHeight < 0 {
+		return fmt.Errorf("block height %d is negative", blockHeight)
+	}
 	evm.StateDB.AddLog(&ethtypes.Log{
 		Address:     c.Address(),
 		Topics:      newTopics,
 		Data:        data,
-		BlockNumber: uint64(ctx.BlockHeight()),
+		BlockNumber: uint64(blockHeight),
 	})
 	return nil
 }
