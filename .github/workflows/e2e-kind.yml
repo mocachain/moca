@@ -1,0 +1,136 @@
+name: E2E Kind Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      old_version:
+        description: "Old version tag for upgrade tests (used by hardfork/governance/comprehensive)"
+        default: "v1.1.2"
+        type: string
+
+env:
+  OLD_VERSION: ${{ inputs.old_version || 'v1.1.2' }}
+  DOCKER_IMAGE: mocachain/moca
+  DOCKER_TAG: e2e-local
+  CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
+  CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
+
+jobs:
+  # ── Build Docker images once, share via artifact ─────────────────────────────
+  build-e2e-images:
+    name: Build E2E Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build current version image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: e2e/kind/Dockerfile.e2e
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+          load: true
+          no-cache: true
+
+      - name: Build old version image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: e2e/kind/Dockerfile.e2e-gitref
+          build-args: GIT_REF=${{ env.OLD_VERSION }}
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.OLD_VERSION }}
+          load: true
+          no-cache: true
+
+      - name: Save images
+        run: |
+          docker save \
+            "$DOCKER_IMAGE:$DOCKER_TAG" \
+            "$DOCKER_IMAGE:$OLD_VERSION" \
+            | gzip > /tmp/e2e-images.tar.gz
+
+      - name: Upload images
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-images
+          path: /tmp/e2e-images.tar.gz
+          retention-days: 1
+
+  # ── Run tests in parallel, reusing pre-built images ──────────────────────────
+  e2e-tests:
+    name: "E2E: ${{ matrix.name }}"
+    needs: build-e2e-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Smoke
+            script: test_smoke.sh
+          - name: Upgrade (hardfork)
+            script: test_upgrade_hardfork.sh
+          - name: Upgrade (governance)
+            script: test_upgrade_governance.sh
+          - name: Comprehensive
+            script: test_upgrade_comprehensive.sh
+            foundry: true
+          - name: Validator devcontainer parity
+            script: test_validator_devcontainer_parity.sh
+          - name: RPC suite
+            script: test_rpc_suite.sh
+            foundry: true
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download images
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-images
+          path: /tmp
+
+      - name: Load images into Docker
+        run: gunzip -c /tmp/e2e-images.tar.gz | docker load
+
+      - name: Install Kind
+        run: |
+          curl -sSLo ./kind "https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-amd64"
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install Foundry
+        if: matrix.foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run ${{ matrix.name }}
+        env:
+          FW_SKIP_BUILD: "true"
+          FW_SKIP_CLEANUP: "true"
+        run: bash e2e/kind/tests/${{ matrix.script }}
+
+      - name: Collect debug logs
+        if: failure()
+        run: |
+          mkdir -p /tmp/e2e-logs
+          for i in 0 1 2 3; do
+            kubectl logs -n moca-e2e "validator-${i}-0" -c mocad --tail=200 \
+              > "/tmp/e2e-logs/validator-${i}.log" 2>/dev/null || true
+            kubectl describe pod -n moca-e2e "validator-${i}-0" \
+              > "/tmp/e2e-logs/validator-${i}-describe.txt" 2>/dev/null || true
+          done
+
+      - name: Upload debug logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-logs-${{ matrix.name }}
+          path: /tmp/e2e-logs
+          retention-days: 7
