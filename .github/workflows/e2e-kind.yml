@@ -3,16 +3,16 @@ name: E2E Kind Tests
 on:
   pull_request:
     branches:
-      - main
+      - release/1.3.x
   workflow_dispatch:
     inputs:
       old_version:
         description: "Old version tag for upgrade tests (used by hardfork/governance/comprehensive)"
-        default: "v1.1.2"
+        default: "v1.2.1"
         type: string
 
 env:
-  OLD_VERSION: ${{ inputs.old_version || 'v1.1.2' }}
+  OLD_VERSION: ${{ inputs.old_version || 'v1.2.1' }}
   DOCKER_IMAGE: mocachain/moca
   DOCKER_TAG: e2e-local
   CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
