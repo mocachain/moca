@@ -303,7 +303,7 @@ replace (
 	github.com/cometbft/cometbft-db => github.com/Mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3
 	// use Cosmos-SDK fork to enable Ledger functionality
 	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.2.0-rc2
-	github.com/cosmos/iavl => github.com/Mocachain/moca-iavl v1.2.0-rc1
+	github.com/cosmos/iavl => github.com/Mocachain/moca-iavl v1.2.0-rc0
 	github.com/cosmos/ibc-go/v10 => github.com/Mocachain/moca-ibc-go/v10 v10.2.0-rc0
 	// use Evmos geth fork
 	github.com/ethereum/go-ethereum => github.com/Mocachain/go-ethereum v1.10.27-moca.2
