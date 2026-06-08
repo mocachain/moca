@@ -95,6 +95,9 @@ import (
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 	mocatypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/x/erc20"
+	erc20keeper "github.com/mocachain/moca/v2/x/erc20/keeper"
+	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
 	"github.com/mocachain/moca/v2/x/evm"
 	evmkeeper "github.com/mocachain/moca/v2/x/evm/keeper"
 	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
@@ -165,6 +168,7 @@ var (
 		stakingtypes.NotBondedPoolName:     {authtypes.Burner, authtypes.Staking},
 		govtypes.ModuleName:                {authtypes.Burner},
 		evmtypes.ModuleName:                {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
+		erc20types.ModuleName:              {authtypes.Minter, authtypes.Burner},
 		paymentmoduletypes.ModuleName:      {authtypes.Burner, authtypes.Staking},
 		permissionmoduletypes.ModuleName:   nil,
 		spmoduletypes.ModuleName:           {authtypes.Staking},
@@ -234,6 +238,7 @@ type Moca struct {
 	// Ethermint keepers
 	EvmKeeper       *evmkeeper.Keeper
 	FeeMarketKeeper feemarketkeeper.Keeper
+	Erc20Keeper     erc20keeper.Keeper
 
 	// the module manager
 	mm                 *module.Manager
@@ -315,7 +320,7 @@ func NewMoca(
 		challengemoduletypes.StoreKey,
 		reconStoreKey,
 		// ethermint keys
-		evmtypes.StoreKey, feemarkettypes.StoreKey,
+		evmtypes.StoreKey, feemarkettypes.StoreKey, erc20types.StoreKey,
 	)
 
 	// Add the EVM transient store key
@@ -424,6 +429,15 @@ func NewMoca(
 		// FIX: Temporary solution to solve keeper interdependency while new precompile module
 		// is being developed.
 		tracer,
+	)
+
+	app.Erc20Keeper = erc20keeper.NewKeeper(
+		keys[erc20types.StoreKey],
+		appCodec,
+		authtypes.NewModuleAddress(govtypes.ModuleName),
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.EvmKeeper,
 	)
 
 	govConfig := govtypes.DefaultConfig()
@@ -559,6 +573,7 @@ func NewMoca(
 		permissionModule,
 		storageModule,
 		challengeModule,
+		erc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
 		// Ethermint app modules
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
 		feemarket.NewAppModule(app.FeeMarketKeeper),
@@ -604,6 +619,7 @@ func NewMoca(
 		storagemoduletypes.ModuleName,
 		gensptypes.ModuleName,
 		challengemoduletypes.ModuleName,
+		erc20types.ModuleName,
 	)
 
 	// NOTE: fee market module must go last in order to retrieve the block gas used.
@@ -622,6 +638,7 @@ func NewMoca(
 		storagemoduletypes.ModuleName,
 		gensptypes.ModuleName,
 		challengemoduletypes.ModuleName,
+		erc20types.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -654,6 +671,7 @@ func NewMoca(
 		storagemoduletypes.ModuleName,
 		gensptypes.ModuleName,
 		challengemoduletypes.ModuleName,
+		erc20types.ModuleName,
 	)
 
 	// Collect every module's invariants into a local registry so that
@@ -1194,7 +1212,7 @@ func (app *Moca) setupUpgradeHandlers() {
 
 	storeUpgrades := &storetypes.StoreUpgrades{
 		Added:   []string{},
-		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis", "gashub", "erc20"},
+		Deleted: []string{"epochs", "oracle", "bridge", "group", "crosschain", "transfer", "icahost", "ibc", "capability", "params", "crisis", "gashub"},
 	}
 
 	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
