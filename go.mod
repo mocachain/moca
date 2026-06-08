@@ -17,7 +17,7 @@ require (
 	cosmossdk.io/x/tx v0.14.0
 	cosmossdk.io/x/upgrade v0.2.0
 	github.com/0xPolygon/polygon-edge v1.3.3
-	github.com/bits-and-blooms/bitset v1.24.3
+	github.com/bits-and-blooms/bitset v1.24.5
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cometbft/cometbft v0.38.21
