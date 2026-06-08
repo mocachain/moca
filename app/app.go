@@ -439,6 +439,7 @@ func NewMoca(
 		app.BankKeeper,
 		app.EvmKeeper,
 	)
+	app.EvmKeeper.WithERC20Keeper(&app.Erc20Keeper)
 
 	govConfig := govtypes.DefaultConfig()
 	/*
