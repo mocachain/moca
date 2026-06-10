@@ -1177,10 +1177,14 @@ func (app *Moca) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
-	app.UpgradeKeeper.SetUpgradeHandler("v1.3.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		// noop
-		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
-	})
+	// v1.3.0: re-insert authz grants dropped from the merkle tree by the
+	// moca-iavl commit-time bug at mainnet block 17,123,239 (deterministic
+	// no-op on chains with no recorded damage). The v1.3.0 binary also carries
+	// the cosmos/iavl#1009 GetNode reformatted-root fix.
+	app.UpgradeKeeper.SetUpgradeHandler(
+		upgrades.V1_3_0UpgradeName,
+		upgrades.V1_3_0AuthzRecovery(app.AuthzKeeper, app.mm, app.configurator),
+	)
 
 	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)

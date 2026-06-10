@@ -43,6 +43,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (e2e) [#105](https://github.com/mocachain/moca/pull/105) Add Kind-based e2e test framework with smoke and upgrade tests
 - (cli) [#243](https://github.com/mocachain/moca/pull/243) Add `mocad snapshots` command tree (list/delete/dump/export/load/restore) for managing local state-sync snapshots
 - (upgrade) [#246](https://github.com/mocachain/moca/pull/246) Add `v1.3.0` upgrade handler (noop `RunMigrations`)
+- (upgrade) [#263](https://github.com/mocachain/moca/pull/263) `v1.3.0` upgrade now re-inserts the 4 authz grants that the moca-iavl commit-time bug dropped from the merkle tree at mainnet block 17,123,239 (data present in live state but unprovable). Recovery set is embedded as `app/upgrades/recovery.json`, keyed by chain-id (no-op on devnet/testnet). An off-chain audit of all 34 substores confirmed authz is the only damaged store (evm, sp, staking, bank, acc and all others are fully reachable)
 
 ### Improvements
 
