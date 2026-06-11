@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -22,50 +21,38 @@ import (
 // V1_3_0UpgradeName is the on-chain name of the v1.3.0 software upgrade.
 const V1_3_0UpgradeName = "v1.3.0"
 
-// V1_3_0ResetAuthzGrants clears the authz store and re-grants only the grants
-// that moca's custom handlers require to function.
+// V1_3_0RestoreGovGrants re-grants the authz grants that moca's custom handlers
+// require but that the moca-iavl commit-time bug dropped from the merkle tree:
 //
-// Background: the moca-iavl commit-time bug left the authz store with
-// fastnode-vs-merkle-tree drift on the original chain participants. Some grants
-// live only in the fastnode index (prove=false returns them) but were dropped
-// from the merkle tree (prove=true panics, apphash excludes them); state-synced
-// nodes never received them. Notably, the grants every validator must hold —
-// SelfDelAddress -> gov for MsgDelegate, enforced by CheckStakeAuthorization on
-// MsgCreateValidator — were among those dropped, so on a clean node no new
-// validator could be created.
+//   - each validator's SelfDelAddress -> gov : MsgDelegate (Generic), required
+//     by CheckStakeAuthorization on MsgCreateValidator
+//   - each storage provider's FundingAddress -> gov : MsgDeposit (Generic),
+//     required by CheckDepositAuthorization on MsgDeposit
 //
-// Two-phase, fully deterministic:
+// It is keyed off the canonical staking and sp stores (identical on every node
+// by consensus), so the set of SaveGrant writes is the SAME on every node
+// regardless of any per-node authz fastnode drift. SaveGrant's Set re-adds the
+// grant to the merkle tree (so a node that lost it from the tree gets it back)
+// and overwrites any stale fastnode entry for that exact key — healing the
+// drift for the keys that matter, deterministically.
 //
-//  1. Hard-purge the entire authz store, scrubbing BOTH the merkle tree and the
-//     IAVL fastnode index. A plain Delete only clears the fastnode entry when
-//     the key is in the tree (iavl's Remove returns removed=true); a phantom is
-//     in fastnode only, so Delete short-circuits and leaves it. Doing
-//     Set(key)+Delete(key) instead first puts the key in the tree, so the Delete
-//     then removes it from both the tree and the fastnode. Sweeping every key
-//     the store iterator yields (which includes the drifted-node phantoms) thus
-//     ends with an empty authz tree AND an empty authz fastnode on every node.
-//     The final tree is empty regardless of how many keys each node swept, so
-//     the apphash is identical; the fastnode is empty everywhere, so the drift
-//     is gone — no app.toml toggle, state-sync, or moca-iavl change needed.
-//     (cmd/iavl_audit confirmed authz is the only drifted store.)
+// Why this does NOT purge the authz store: a 2-node test proved that a handler
+// CANNOT safely clear the store. The only enumeration reachable from a handler
+// is the store iterator, which reads the IAVL fastnode index — not the tree. A
+// node whose fastnode is *missing* a tree-backed key (fastnode < tree) never
+// yields that key, so a purge keyed off the iterator skips it; the key survives
+// in that node's tree while other nodes delete it -> divergent apphash -> fork.
+// The fastnode drift itself is a node-local concern and is fixed the right way
+// by an IAVL fastnode rebuild (state-sync, or bumping fastStorageVersionValue),
+// which rebuilds the fastnode from the canonical tree and so covers both drift
+// directions without any consensus risk.
 //
-//  2. Re-grant the essential module-account grants, keyed off the canonical
-//     staking and sp stores (identical on every node), so the set of writes is
-//     deterministic regardless of drift:
-//       - each validator's SelfDelAddress -> gov : MsgDelegate (Generic)
-//       - each storage provider's FundingAddress -> gov : MsgDeposit (Generic)
-//
-// Non-essential grants (user-to-user MsgVote, capped SP DepositAuthorizations,
-// etc.) are intentionally dropped; their owners re-create them. Generic is used
-// for the restored grants to match the standard moca setup flow
-// (deployment/dockerup/create_validator_proposal.sh grants gov a Generic
-// MsgDelegate authorization).
-//
-// Determinism notes: the handler runs at block level on the infinite gas meter
-// (op counts never metered into consensus), and the store writes emit no
-// module events. MUST run on the v1.3.0 binary (carries cosmos/iavl#1009).
-func V1_3_0ResetAuthzGrants(
-	authzStoreKey storetypes.StoreKey,
+// Determinism notes: the restored grants are Generic with no expiration (the
+// standard moca setup grant — see deployment/dockerup/create_validator_proposal.sh),
+// so SaveGrant touches no grant-queue state and its result does not depend on
+// reading the drifted store. The handler runs at block level on the infinite
+// gas meter. MUST run on the v1.3.0 binary (carries cosmos/iavl#1009).
+func V1_3_0RestoreGovGrants(
 	authzKeeper authzkeeper.Keeper,
 	stakingKeeper *stakingkeeper.Keeper,
 	spKeeper spkeeper.Keeper,
@@ -77,69 +64,44 @@ func V1_3_0ResetAuthzGrants(
 		logger := sdkCtx.Logger().With("upgrade", V1_3_0UpgradeName)
 		govAddr := authtypes.NewModuleAddress(govtypes.ModuleName)
 
-		// ── Phase 1: hard-purge the authz store (tree + fastnode) ───────────
-		store := sdkCtx.KVStore(authzStoreKey)
-		var keys [][]byte
-		it := store.Iterator(nil, nil)
-		for ; it.Valid(); it.Next() {
-			k := make([]byte, len(it.Key()))
-			copy(k, it.Key())
-			keys = append(keys, k)
-		}
-		if err := it.Close(); err != nil {
-			return nil, fmt.Errorf("authz reset: close iterator: %w", err)
-		}
-		for _, k := range keys {
-			// Set first so the key is guaranteed present in the merkle tree, then
-			// Delete so it is removed from BOTH the tree and the fastnode index
-			// (a plain Delete leaves a not-in-tree phantom in the fastnode).
-			store.Set(k, []byte{0})
-			store.Delete(k)
-		}
-		logger.Info("authz reset: hard-purged store (tree+fastnode)", "keys", len(keys))
-
-		// ── Phase 2: restore the essential module-account grants ────────────
 		delegateMsg := sdk.MsgTypeURL(&stakingtypes.MsgDelegate{})
 		depositMsg := sdk.MsgTypeURL(&sptypes.MsgDeposit{})
 
-		// 2a. validator self-delegation account -> gov : MsgDelegate
+		// validator self-delegation account -> gov : MsgDelegate
 		vals, err := stakingKeeper.GetAllValidators(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("authz reset: list validators: %w", err)
+			return nil, fmt.Errorf("authz restore: list validators: %w", err)
 		}
 		valGrants := 0
 		for _, v := range vals {
 			granter, err := sdk.AccAddressFromHexUnsafe(v.SelfDelAddress)
 			if err != nil || granter.Empty() {
-				// Skip rather than halt the upgrade on an unexpected/empty
-				// self-del address; deterministic since every node sees the same
-				// validator store.
-				logger.Error("authz reset: skip validator with bad self-del addr",
+				logger.Error("authz restore: skip validator with bad self-del addr",
 					"validator", v.OperatorAddress, "self_del", v.SelfDelAddress, "err", err)
 				continue
 			}
 			if err := authzKeeper.SaveGrant(ctx, govAddr, granter, authz.NewGenericAuthorization(delegateMsg), nil); err != nil {
-				return nil, fmt.Errorf("authz reset: grant MsgDelegate for %s: %w", v.SelfDelAddress, err)
+				return nil, fmt.Errorf("authz restore: grant MsgDelegate for %s: %w", v.SelfDelAddress, err)
 			}
 			valGrants++
 		}
 
-		// 2b. storage provider funding account -> gov : MsgDeposit
+		// storage provider funding account -> gov : MsgDeposit
 		spGrants := 0
 		for _, sp := range spKeeper.GetAllStorageProviders(sdkCtx) {
 			granter, err := sdk.AccAddressFromHexUnsafe(sp.FundingAddress)
 			if err != nil || granter.Empty() {
-				logger.Error("authz reset: skip sp with bad funding addr",
+				logger.Error("authz restore: skip sp with bad funding addr",
 					"sp", sp.Id, "funding", sp.FundingAddress, "err", err)
 				continue
 			}
 			if err := authzKeeper.SaveGrant(ctx, govAddr, granter, authz.NewGenericAuthorization(depositMsg), nil); err != nil {
-				return nil, fmt.Errorf("authz reset: grant MsgDeposit for %s: %w", sp.FundingAddress, err)
+				return nil, fmt.Errorf("authz restore: grant MsgDeposit for %s: %w", sp.FundingAddress, err)
 			}
 			spGrants++
 		}
 
-		logger.Info("authz reset: restored essential grants",
+		logger.Info("authz restore: re-granted required gov grants",
 			"validator_delegate", valGrants, "sp_deposit", spGrants)
 		return mm.RunMigrations(ctx, configurator, fromVM)
 	}
