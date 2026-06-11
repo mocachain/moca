@@ -66,11 +66,47 @@ func TestV1_3_0AuthzRecovery_Mainnet_ReinsertsGrants(t *testing.T) {
 	}
 }
 
-// On a chain-id with no recorded damage (devnet), the handler is a no-op and
-// must not error or add any grants.
+// On the devnet chain-id, the handler must re-insert the 2 synthetic grants
+// recorded in recovery.json (added in v1.3.0-rc1 to exercise the recovery path
+// on devnet). Each must become retrievable with the right msg type.
+func TestV1_3_0AuthzRecovery_Devnet_ReinsertsGrants(t *testing.T) {
+	const devnetChainID = "moca_5151-1"
+	mocaApp := app.Setup(false, feemarkettypes.DefaultGenesisState(), devnetChainID)
+	sdkCtx := mocaApp.BaseApp.NewContext(false).WithChainID(devnetChainID)
+	ctx := sdk.WrapSDKContext(sdkCtx)
+
+	type grant struct {
+		granter, grantee, msg string
+	}
+	want := []grant{
+		{"23862ed69722cd93ecda2eeb7b78b0c1ecd153fa", "6584f98acf2ea6114afec13826701b725cd40b6c", "/cosmos.bank.v1beta1.MsgSend"},
+		{"e7e0a484112f6c8363f2e806f05b7bedd4bc3dc2", "6584f98acf2ea6114afec13826701b725cd40b6c", "/cosmos.gov.v1.MsgVote"},
+	}
+
+	for _, g := range want {
+		got, _ := mocaApp.AuthzKeeper.GetAuthorization(ctx, mustAcc(t, g.grantee), mustAcc(t, g.granter), g.msg)
+		require.Nil(t, got, "grant %s->%s should be absent before recovery", g.granter, g.grantee)
+	}
+
+	mm := module.NewManager()
+	configurator := module.NewConfigurator(mocaApp.AppCodec(), mocaApp.MsgServiceRouter(), mocaApp.GRPCQueryRouter())
+	handler := upgrades.V1_3_0AuthzRecovery(mocaApp.AuthzKeeper, mm, configurator)
+	_, err := handler(ctx, upgradetypes.Plan{Name: upgrades.V1_3_0UpgradeName}, module.VersionMap{})
+	require.NoError(t, err)
+
+	for _, g := range want {
+		got, _ := mocaApp.AuthzKeeper.GetAuthorization(ctx, mustAcc(t, g.grantee), mustAcc(t, g.granter), g.msg)
+		require.NotNil(t, got, "grant %s->%s should exist after recovery", g.granter, g.grantee)
+		require.Equal(t, g.msg, got.MsgTypeURL())
+	}
+}
+
+// On a chain-id with no recorded grants (testnet — left empty pending audit),
+// the handler is a no-op and must not error or add any grants.
 func TestV1_3_0AuthzRecovery_OtherChain_NoOp(t *testing.T) {
-	mocaApp := app.Setup(false, feemarkettypes.DefaultGenesisState(), "moca_5151-1") // devnet
-	sdkCtx := mocaApp.BaseApp.NewContext(false).WithChainID("moca_5151-1")
+	const testnetChainID = "moca_222888-1"
+	mocaApp := app.Setup(false, feemarkettypes.DefaultGenesisState(), testnetChainID)
+	sdkCtx := mocaApp.BaseApp.NewContext(false).WithChainID(testnetChainID)
 	ctx := sdk.WrapSDKContext(sdkCtx)
 
 	mm := module.NewManager()
@@ -79,7 +115,7 @@ func TestV1_3_0AuthzRecovery_OtherChain_NoOp(t *testing.T) {
 	_, err := handler(ctx, upgradetypes.Plan{Name: upgrades.V1_3_0UpgradeName}, module.VersionMap{})
 	require.NoError(t, err)
 
-	// devnet's recorded grant set is empty; the mainnet grant must NOT appear.
+	// testnet's recorded grant set is empty; the mainnet grant must NOT appear.
 	got, _ := mocaApp.AuthzKeeper.GetAuthorization(ctx,
 		mustAcc(t, "7b5fe22b5446f7c62ea27b8bd71cef94e03f3df2"),
 		mustAcc(t, "75233ac05854d55ea2f6c2bbd37c15c21907b891"),

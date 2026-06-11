@@ -33,8 +33,21 @@
       ]
     },
     "moca_5151-1": {
-      "note": "devnet-2 — probed 2026-06-09: all authz grants reachable with valid proofs on every tier. No recovery needed.",
-      "grants": []
+      "note": "devnet-2 — probed 2026-06-09: all real authz grants reachable, no merkle damage. The grants below are SYNTHETIC test entries (not dropped grants) added in v1.3.0-rc1 to exercise the authz-recovery handler end-to-end on devnet before mainnet. All GenericAuthorization, no expiration, so they are deterministic to re-insert.",
+      "grants": [
+        {
+          "granter": "0x23862ED69722cd93eCdA2EEB7B78b0C1Ecd153Fa",
+          "grantee": "0x6584F98aCF2EA6114Afec13826701B725CD40B6C",
+          "msg_type_url": "/cosmos.bank.v1beta1.MsgSend",
+          "iavl_leaf_version": 0
+        },
+        {
+          "granter": "0xe7E0a484112F6C8363F2E806f05b7bEdD4Bc3dC2",
+          "grantee": "0x6584F98aCF2EA6114Afec13826701B725CD40B6C",
+          "msg_type_url": "/cosmos.gov.v1.MsgVote",
+          "iavl_leaf_version": 0
+        }
+      ]
     },
     "moca_222888-1": {
       "note": "testnet-1 — not yet audited with cmd/iavl_audit. Left empty (no-op) until audited; re-run the audit and populate before relying on a testnet upgrade.",
