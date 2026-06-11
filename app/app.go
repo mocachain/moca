@@ -1177,13 +1177,15 @@ func (app *Moca) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
-	// v1.3.0: re-insert authz grants dropped from the merkle tree by the
-	// moca-iavl commit-time bug at mainnet block 17,123,239 (deterministic
-	// no-op on chains with no recorded damage). The v1.3.0 binary also carries
-	// the cosmos/iavl#1009 GetNode reformatted-root fix.
+	// v1.3.0: clear the fastnode-vs-merkle-tree drift the moca-iavl commit-time
+	// bug left in the authz store, then re-grant the grants moca's custom
+	// handlers require — each validator's SelfDelAddress -> gov (MsgDelegate) and
+	// each SP's funding address -> gov (MsgDeposit) — keyed off the canonical
+	// staking/sp stores so the result is deterministic on every node. The v1.3.0
+	// binary also carries the cosmos/iavl#1009 GetNode reformatted-root fix.
 	app.UpgradeKeeper.SetUpgradeHandler(
 		upgrades.V1_3_0UpgradeName,
-		upgrades.V1_3_0AuthzRecovery(app.AuthzKeeper, app.mm, app.configurator),
+		upgrades.V1_3_0ResetAuthzGrants(app.AuthzKeeper, app.StakingKeeper, app.SpKeeper, app.mm, app.configurator),
 	)
 
 	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {

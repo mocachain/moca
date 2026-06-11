@@ -2,148 +2,150 @@ package upgrades
 
 import (
 	"context"
-	_ "embed"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+
+	spkeeper "github.com/mocachain/moca/v2/x/sp/keeper"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
 // V1_3_0UpgradeName is the on-chain name of the v1.3.0 software upgrade.
 const V1_3_0UpgradeName = "v1.3.0"
 
-//go:embed recovery.json
-var recoveryJSON []byte
-
-// recoveryFile is the structure of recovery.json. It is keyed by chain-id so
-// the same binary is a deterministic no-op on networks with no damage
-// (devnet/testnet) and only re-inserts grants on the network that needs it.
-type recoveryFile struct {
-	Description   string                     `json:"description"`
-	AuditedHeight int64                      `json:"audited_version"`
-	Networks      map[string]networkRecovery `json:"networks"`
-}
-
-type networkRecovery struct {
-	Note   string          `json:"note"`
-	Grants []recoveryGrant `json:"grants"`
-}
-
-type recoveryGrant struct {
-	Granter         string `json:"granter"`           // 0x-hex, 20 bytes
-	Grantee         string `json:"grantee"`           // 0x-hex, 20 bytes
-	MsgTypeURL      string `json:"msg_type_url"`      // e.g. /moca.sp.MsgDeposit
-	IAVLLeafVersion int64  `json:"iavl_leaf_version"` // provenance only; unused at runtime
-}
-
-// V1_3_0AuthzRecovery re-inserts the authz grants that the moca-iavl
-// commit-time bug dropped from the merkle tree at mainnet block 17,123,239.
+// V1_3_0ResetAuthzGrants clears the authz store and re-grants only the grants
+// that moca's custom handlers require to function.
 //
-// The affected grants are still present in live state (no-proof queries return
-// them), but the merkle tree cannot reach them: proof queries panic, and any
-// node that state-synced after the bug never received them. cmd/iavl_audit
-// confirmed that authz is the ONLY damaged store on mainnet — evm, sp, staking,
-// bank, acc and every other substore are fully reachable.
+// Background: the moca-iavl commit-time bug left the authz store with
+// fastnode-vs-merkle-tree drift on the original chain participants. Some grants
+// live only in the fastnode index (prove=false returns them) but were dropped
+// from the merkle tree (prove=true panics, apphash excludes them); state-synced
+// nodes never received them. Notably, the grants every validator must hold —
+// SelfDelAddress -> gov for MsgDelegate, enforced by CheckStakeAuthorization on
+// MsgCreateValidator — were among those dropped, so on a clean node no new
+// validator could be created.
 //
-// Why unconditional SaveGrant (not "skip if present"): the keeper's
-// GetAuthorization reads the fastnode cache, which still holds these grants, so
-// it would wrongly report them present and skip the repair while the merkle
-// tree stays broken. SaveGrant writes through to the IAVL tree, so it repairs
-// the merkle on a block-synced node and inserts the leaf on a state-synced one.
-// Because the committed authz root currently EXCLUDES these grants on every node
-// (consensus), the same SaveGrant set produces the same new root everywhere —
-// deterministic, no fork.
+// Two-phase, fully deterministic:
 //
-// MUST run on the v1.3.0 binary, which carries the cosmos/iavl#1009 GetNode
-// reformatted-root fallback; without it, SaveGrant's tree traversal can hit the
-// same missing node and panic.
-func V1_3_0AuthzRecovery(
+//  1. Purge every authz grant. The canonical merkle tree (identical on every
+//     node by consensus) holds the healthy grants; deleting those empties the
+//     tree. Phantom grants were never in the tree, so deleting them is a no-op.
+//     The result is an empty authz tree on every node — no per-node-drift data
+//     to reconstruct, no list to get wrong.
+//
+//  2. Re-grant the essential module-account grants, keyed off the canonical
+//     staking and sp stores (identical on every node), so the set of writes is
+//     deterministic regardless of drift:
+//       - each validator's SelfDelAddress -> gov : MsgDelegate (Generic)
+//       - each storage provider's FundingAddress -> gov : MsgDeposit (Generic)
+//     SaveGrant uses Set, which writes the grant into the tree on every node
+//     (restoring any that were dropped) and overwrites the phantom fastnode
+//     entry — so these keys end up consistent (tree == fastnode) everywhere.
+//
+// Non-essential grants (user-to-user MsgVote, capped SP DepositAuthorizations,
+// etc.) are intentionally dropped; their owners re-create them. Generic is used
+// for the restored grants to match the standard moca setup flow
+// (deployment/dockerup/create_validator_proposal.sh grants gov a Generic
+// MsgDelegate authorization).
+//
+// Determinism notes: the handler runs at block level on the infinite gas meter
+// (op counts never metered into consensus), and DeleteGrant/SaveGrant emit
+// block-level events that are not part of LastResultsHash. MUST run on the
+// v1.3.0 binary (carries cosmos/iavl#1009).
+func V1_3_0ResetAuthzGrants(
 	authzKeeper authzkeeper.Keeper,
+	stakingKeeper *stakingkeeper.Keeper,
+	spKeeper spkeeper.Keeper,
 	mm *module.Manager,
 	configurator module.Configurator,
 ) upgradetypes.UpgradeHandler {
 	return func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		logger := sdkCtx.Logger().With("upgrade", V1_3_0UpgradeName)
-		chainID := sdkCtx.ChainID()
+		govAddr := authtypes.NewModuleAddress(govtypes.ModuleName)
 
-		var rf recoveryFile
-		if err := json.Unmarshal(recoveryJSON, &rf); err != nil {
-			return nil, fmt.Errorf("authz recovery: parse recovery.json: %w", err)
+		// ── Phase 1: purge every grant ──────────────────────────────────────
+		type gk struct {
+			granter, grantee sdk.AccAddress
+			msg              string
 		}
-
-		spec, ok := rf.Networks[chainID]
-		if !ok || len(spec.Grants) == 0 {
-			logger.Info("authz recovery: nothing to do for this chain",
-				"chain_id", chainID, "audited_version", rf.AuditedHeight)
-			return mm.RunMigrations(ctx, configurator, fromVM)
-		}
-
-		logger.Info("authz recovery: begin",
-			"chain_id", chainID, "grants", len(spec.Grants), "note", spec.Note)
-
-		recovered := 0
-		for _, g := range spec.Grants {
-			granter, err := parseHexAddr(g.Granter)
-			if err != nil {
-				return nil, fmt.Errorf("authz recovery: granter %q: %w", g.Granter, err)
+		var existing []gk
+		authzKeeper.IterateGrants(ctx, func(granter, grantee sdk.AccAddress, g authz.Grant) bool {
+			m := ""
+			if a, err := g.GetAuthorization(); err == nil && a != nil {
+				m = a.MsgTypeURL()
 			}
-			grantee, err := parseHexAddr(g.Grantee)
-			if err != nil {
-				return nil, fmt.Errorf("authz recovery: grantee %q: %w", g.Grantee, err)
+			existing = append(existing, gk{granter: granter, grantee: grantee, msg: m})
+			return false
+		})
+		purged := 0
+		for _, k := range existing {
+			if k.msg == "" {
+				continue
 			}
+			if err := authzKeeper.DeleteGrant(ctx, k.grantee, k.granter, k.msg); err != nil {
+				// Iterator surfaced a grant DeleteGrant can't remove (e.g. a
+				// drifted-node phantom): a no-op for the merkle tree. Continue so
+				// the handler stays deterministic across nodes with different drift.
+				logger.Error("authz reset: delete failed (continuing)",
+					"granter", k.granter.String(), "grantee", k.grantee.String(), "msg", k.msg, "err", err)
+				continue
+			}
+			purged++
+		}
+		logger.Info("authz reset: purged grants", "found", len(existing), "deleted", purged)
 
-			authorization := authz.NewGenericAuthorization(g.MsgTypeURL)
-			// expiration nil: all recovered mainnet grants were created without
-			// an expiration (confirmed from their on-disk leaf bytes).
-			if err := authzKeeper.SaveGrant(ctx, grantee, granter, authorization, nil); err != nil {
-				return nil, fmt.Errorf("authz recovery: SaveGrant(%s -> %s, %s): %w",
-					g.Granter, g.Grantee, g.MsgTypeURL, err)
+		// ── Phase 2: restore the essential module-account grants ────────────
+		delegateMsg := sdk.MsgTypeURL(&stakingtypes.MsgDelegate{})
+		depositMsg := sdk.MsgTypeURL(&sptypes.MsgDeposit{})
+
+		// 2a. validator self-delegation account -> gov : MsgDelegate
+		vals, err := stakingKeeper.GetAllValidators(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("authz reset: list validators: %w", err)
+		}
+		valGrants := 0
+		for _, v := range vals {
+			granter, err := sdk.AccAddressFromHexUnsafe(v.SelfDelAddress)
+			if err != nil || granter.Empty() {
+				// Skip rather than halt the upgrade on an unexpected/empty
+				// self-del address; deterministic since every node sees the same
+				// validator store.
+				logger.Error("authz reset: skip validator with bad self-del addr",
+					"validator", v.OperatorAddress, "self_del", v.SelfDelAddress, "err", err)
+				continue
 			}
-			logger.Info("authz recovery: re-inserted grant",
-				"granter", g.Granter, "grantee", g.Grantee, "msg", g.MsgTypeURL)
-			recovered++
+			if err := authzKeeper.SaveGrant(ctx, govAddr, granter, authz.NewGenericAuthorization(delegateMsg), nil); err != nil {
+				return nil, fmt.Errorf("authz reset: grant MsgDelegate for %s: %w", v.SelfDelAddress, err)
+			}
+			valGrants++
 		}
 
-		// Sanity check: every recovered grant must now be retrievable. (This
-		// reads the live store; the authoritative merkle/proof verification is
-		// done off-chain post-upgrade with cmd/iavl_audit + prove=true queries.)
-		var failed []string
-		for _, g := range spec.Grants {
-			granter, _ := parseHexAddr(g.Granter)
-			grantee, _ := parseHexAddr(g.Grantee)
-			if got, _ := authzKeeper.GetAuthorization(ctx, grantee, granter, g.MsgTypeURL); got == nil {
-				failed = append(failed, fmt.Sprintf("%s->%s (%s)", g.Granter, g.Grantee, g.MsgTypeURL))
+		// 2b. storage provider funding account -> gov : MsgDeposit
+		spGrants := 0
+		for _, sp := range spKeeper.GetAllStorageProviders(sdkCtx) {
+			granter, err := sdk.AccAddressFromHexUnsafe(sp.FundingAddress)
+			if err != nil || granter.Empty() {
+				logger.Error("authz reset: skip sp with bad funding addr",
+					"sp", sp.Id, "funding", sp.FundingAddress, "err", err)
+				continue
 			}
-		}
-		if len(failed) > 0 {
-			return nil, fmt.Errorf("authz recovery: post-check failed for %d grant(s): %s",
-				len(failed), strings.Join(failed, ", "))
+			if err := authzKeeper.SaveGrant(ctx, govAddr, granter, authz.NewGenericAuthorization(depositMsg), nil); err != nil {
+				return nil, fmt.Errorf("authz reset: grant MsgDeposit for %s: %w", sp.FundingAddress, err)
+			}
+			spGrants++
 		}
 
-		logger.Info("authz recovery: complete", "recovered", recovered)
+		logger.Info("authz reset: restored essential grants",
+			"validator_delegate", valGrants, "sp_deposit", spGrants)
 		return mm.RunMigrations(ctx, configurator, fromVM)
 	}
-}
-
-// parseHexAddr converts moca's 0x-hex address form to sdk.AccAddress (raw bytes).
-func parseHexAddr(s string) (sdk.AccAddress, error) {
-	s = strings.TrimSpace(s)
-	if !strings.HasPrefix(s, "0x") && !strings.HasPrefix(s, "0X") {
-		return nil, fmt.Errorf("missing 0x prefix: %q", s)
-	}
-	b, err := hex.DecodeString(s[2:])
-	if err != nil {
-		return nil, fmt.Errorf("not hex: %q (%w)", s, err)
-	}
-	if len(b) != 20 {
-		return nil, fmt.Errorf("expected 20-byte address, got %d bytes from %q", len(b), s)
-	}
-	return sdk.AccAddress(b), nil
 }
