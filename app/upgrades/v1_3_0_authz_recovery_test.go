@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/mocachain/moca/v2/app"
@@ -60,7 +61,7 @@ func TestV1_3_0ResetAuthzGrants(t *testing.T) {
 	mm := module.NewManager()
 	configurator := module.NewConfigurator(mocaApp.AppCodec(), mocaApp.MsgServiceRouter(), mocaApp.GRPCQueryRouter())
 	handler := upgrades.V1_3_0ResetAuthzGrants(
-		mocaApp.AuthzKeeper, mocaApp.StakingKeeper, mocaApp.SpKeeper, mm, configurator)
+		mocaApp.GetKey(authzkeeper.StoreKey), mocaApp.AuthzKeeper, mocaApp.StakingKeeper, mocaApp.SpKeeper, mm, configurator)
 	_, err = handler(ctx, upgradetypes.Plan{Name: upgrades.V1_3_0UpgradeName}, module.VersionMap{})
 	require.NoError(t, err)
 

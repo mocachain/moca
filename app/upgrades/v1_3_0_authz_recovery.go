@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -35,20 +36,24 @@ const V1_3_0UpgradeName = "v1.3.0"
 //
 // Two-phase, fully deterministic:
 //
-//  1. Purge every authz grant. The canonical merkle tree (identical on every
-//     node by consensus) holds the healthy grants; deleting those empties the
-//     tree. Phantom grants were never in the tree, so deleting them is a no-op.
-//     The result is an empty authz tree on every node — no per-node-drift data
-//     to reconstruct, no list to get wrong.
+//  1. Hard-purge the entire authz store, scrubbing BOTH the merkle tree and the
+//     IAVL fastnode index. A plain Delete only clears the fastnode entry when
+//     the key is in the tree (iavl's Remove returns removed=true); a phantom is
+//     in fastnode only, so Delete short-circuits and leaves it. Doing
+//     Set(key)+Delete(key) instead first puts the key in the tree, so the Delete
+//     then removes it from both the tree and the fastnode. Sweeping every key
+//     the store iterator yields (which includes the drifted-node phantoms) thus
+//     ends with an empty authz tree AND an empty authz fastnode on every node.
+//     The final tree is empty regardless of how many keys each node swept, so
+//     the apphash is identical; the fastnode is empty everywhere, so the drift
+//     is gone — no app.toml toggle, state-sync, or moca-iavl change needed.
+//     (cmd/iavl_audit confirmed authz is the only drifted store.)
 //
 //  2. Re-grant the essential module-account grants, keyed off the canonical
 //     staking and sp stores (identical on every node), so the set of writes is
 //     deterministic regardless of drift:
 //       - each validator's SelfDelAddress -> gov : MsgDelegate (Generic)
 //       - each storage provider's FundingAddress -> gov : MsgDeposit (Generic)
-//     SaveGrant uses Set, which writes the grant into the tree on every node
-//     (restoring any that were dropped) and overwrites the phantom fastnode
-//     entry — so these keys end up consistent (tree == fastnode) everywhere.
 //
 // Non-essential grants (user-to-user MsgVote, capped SP DepositAuthorizations,
 // etc.) are intentionally dropped; their owners re-create them. Generic is used
@@ -57,10 +62,10 @@ const V1_3_0UpgradeName = "v1.3.0"
 // MsgDelegate authorization).
 //
 // Determinism notes: the handler runs at block level on the infinite gas meter
-// (op counts never metered into consensus), and DeleteGrant/SaveGrant emit
-// block-level events that are not part of LastResultsHash. MUST run on the
-// v1.3.0 binary (carries cosmos/iavl#1009).
+// (op counts never metered into consensus), and the store writes emit no
+// module events. MUST run on the v1.3.0 binary (carries cosmos/iavl#1009).
 func V1_3_0ResetAuthzGrants(
+	authzStoreKey storetypes.StoreKey,
 	authzKeeper authzkeeper.Keeper,
 	stakingKeeper *stakingkeeper.Keeper,
 	spKeeper spkeeper.Keeper,
@@ -72,36 +77,26 @@ func V1_3_0ResetAuthzGrants(
 		logger := sdkCtx.Logger().With("upgrade", V1_3_0UpgradeName)
 		govAddr := authtypes.NewModuleAddress(govtypes.ModuleName)
 
-		// ── Phase 1: purge every grant ──────────────────────────────────────
-		type gk struct {
-			granter, grantee sdk.AccAddress
-			msg              string
+		// ── Phase 1: hard-purge the authz store (tree + fastnode) ───────────
+		store := sdkCtx.KVStore(authzStoreKey)
+		var keys [][]byte
+		it := store.Iterator(nil, nil)
+		for ; it.Valid(); it.Next() {
+			k := make([]byte, len(it.Key()))
+			copy(k, it.Key())
+			keys = append(keys, k)
 		}
-		var existing []gk
-		authzKeeper.IterateGrants(ctx, func(granter, grantee sdk.AccAddress, g authz.Grant) bool {
-			m := ""
-			if a, err := g.GetAuthorization(); err == nil && a != nil {
-				m = a.MsgTypeURL()
-			}
-			existing = append(existing, gk{granter: granter, grantee: grantee, msg: m})
-			return false
-		})
-		purged := 0
-		for _, k := range existing {
-			if k.msg == "" {
-				continue
-			}
-			if err := authzKeeper.DeleteGrant(ctx, k.grantee, k.granter, k.msg); err != nil {
-				// Iterator surfaced a grant DeleteGrant can't remove (e.g. a
-				// drifted-node phantom): a no-op for the merkle tree. Continue so
-				// the handler stays deterministic across nodes with different drift.
-				logger.Error("authz reset: delete failed (continuing)",
-					"granter", k.granter.String(), "grantee", k.grantee.String(), "msg", k.msg, "err", err)
-				continue
-			}
-			purged++
+		if err := it.Close(); err != nil {
+			return nil, fmt.Errorf("authz reset: close iterator: %w", err)
 		}
-		logger.Info("authz reset: purged grants", "found", len(existing), "deleted", purged)
+		for _, k := range keys {
+			// Set first so the key is guaranteed present in the merkle tree, then
+			// Delete so it is removed from BOTH the tree and the fastnode index
+			// (a plain Delete leaves a not-in-tree phantom in the fastnode).
+			store.Set(k, []byte{0})
+			store.Delete(k)
+		}
+		logger.Info("authz reset: hard-purged store (tree+fastnode)", "keys", len(keys))
 
 		// ── Phase 2: restore the essential module-account grants ────────────
 		delegateMsg := sdk.MsgTypeURL(&stakingtypes.MsgDelegate{})

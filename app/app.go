@@ -1185,7 +1185,7 @@ func (app *Moca) setupUpgradeHandlers() {
 	// binary also carries the cosmos/iavl#1009 GetNode reformatted-root fix.
 	app.UpgradeKeeper.SetUpgradeHandler(
 		upgrades.V1_3_0UpgradeName,
-		upgrades.V1_3_0ResetAuthzGrants(app.AuthzKeeper, app.StakingKeeper, app.SpKeeper, app.mm, app.configurator),
+		upgrades.V1_3_0ResetAuthzGrants(app.GetKey(authzkeeper.StoreKey), app.AuthzKeeper, app.StakingKeeper, app.SpKeeper, app.mm, app.configurator),
 	)
 
 	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
