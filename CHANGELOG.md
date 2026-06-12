@@ -41,7 +41,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 - (proto) [#67](https://github.com/mocachain/moca/pull/67) Publish protos to BSR under moca org
 - (cli) [#243](https://github.com/mocachain/moca/pull/243) Add `mocad snapshots` command tree (list/delete/dump/export/load/restore) for managing local state-sync snapshots
-- (upgrade) [#266](https://github.com/mocachain/moca/pull/266) `v1.3.0` upgrade re-grants the validator→gov (`MsgDelegate`) and SP→gov (`MsgDeposit`) authz grants the moca-iavl commit-time bug dropped from the merkle tree, keyed off the canonical staking/sp stores so it is deterministic on every node
+- (upgrade) [#266](https://github.com/mocachain/moca/pull/266) `v1.3.0` upgrade re-grants the validator self-del → gov (`MsgDelegate`, Generic) authz grant required by `MsgCreateValidator` that the moca-iavl commit-time bug dropped from the merkle tree, keyed off the canonical staking store so it is deterministic on every node. Scope is intentionally minimal (only this required grant); other dropped grants are not reconstructable from on-chain state and owners re-create them
 
 ### Improvements
 

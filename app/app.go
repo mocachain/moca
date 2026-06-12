@@ -1559,17 +1559,18 @@ func (app *Evmos) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
-	// v1.3.0: re-grant the authz grants moca's custom handlers require but that
-	// the moca-iavl commit-time bug dropped from the merkle tree — each
-	// validator's SelfDelAddress -> gov (MsgDelegate) and each SP's funding
-	// address -> gov (MsgDeposit) — keyed off the canonical staking/sp stores so
-	// the result is deterministic on every node regardless of per-node fastnode
-	// drift. (The fastnode drift itself is fixed by an IAVL rebuild — state-sync
-	// or a fastStorageVersionValue bump — not from a consensus handler.) The
-	// v1.3.0 binary also carries the cosmos/iavl#1009 GetNode reformatted-root fix.
+	// v1.3.0: re-grant the validator SelfDelAddress -> gov (MsgDelegate) authz
+	// grant that moca's MsgCreateValidator handler requires but that the
+	// moca-iavl commit-time bug dropped from the merkle tree. Keyed off the
+	// canonical staking store so it is deterministic on every node regardless of
+	// per-node fastnode drift; restored as Generic to match the standard
+	// create-validator flow. Other dropped grants are not reconstructable from
+	// on-chain state and owners re-create them; the residual fastnode drift is
+	// fixed by an IAVL rebuild (state-sync / fastStorageVersionValue bump), not
+	// from a consensus handler. The v1.3.0 binary also carries cosmos/iavl#1009.
 	app.UpgradeKeeper.SetUpgradeHandler(
 		upgrades.V1_3_0UpgradeName,
-		upgrades.V1_3_0RestoreGovGrants(app.AuthzKeeper, app.StakingKeeper, app.SpKeeper, app.mm, app.configurator),
+		upgrades.V1_3_0RestoreValidatorDelegateGrant(app.AuthzKeeper, app.StakingKeeper, app.mm, app.configurator),
 	)
 
 	// testnet only upgrade Handlers
