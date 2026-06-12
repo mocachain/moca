@@ -43,7 +43,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (e2e) [#105](https://github.com/mocachain/moca/pull/105) Add Kind-based e2e test framework with smoke and upgrade tests
 - (cli) [#243](https://github.com/mocachain/moca/pull/243) Add `mocad snapshots` command tree (list/delete/dump/export/load/restore) for managing local state-sync snapshots
 - (upgrade) [#246](https://github.com/mocachain/moca/pull/246) Add `v1.3.0` upgrade handler (noop `RunMigrations`)
-- (upgrade) [#263](https://github.com/mocachain/moca/pull/263) `v1.3.0` upgrade re-grants the validator→gov (`MsgDelegate`) and SP→gov (`MsgDeposit`) authz grants the moca-iavl commit-time bug dropped from the merkle tree, keyed off the canonical staking/sp stores so it is deterministic on every node
+- (upgrade) [#263](https://github.com/mocachain/moca/pull/263) `v1.3.0` upgrade re-grants the validator self-del → gov (`MsgDelegate`, Generic) authz grant required by `MsgCreateValidator` that the moca-iavl commit-time bug dropped from the merkle tree, keyed off the canonical staking store so it is deterministic on every node. Scope is intentionally minimal (only this required grant); other dropped grants are not reconstructable from on-chain state and owners re-create them
 
 ### Improvements
 

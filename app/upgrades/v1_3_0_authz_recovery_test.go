@@ -27,7 +27,7 @@ func mustAcc(t *testing.T, hexAddr string) sdk.AccAddress {
 
 // The handler must re-grant each validator's SelfDelAddress -> gov : MsgDelegate
 // (Generic), and leave unrelated grants untouched.
-func TestV1_3_0RestoreGovGrants(t *testing.T) {
+func TestV1_3_0RestoreValidatorDelegateGrant(t *testing.T) {
 	const chainID = "moca_5151-1"
 	mocaApp := app.Setup(false, feemarkettypes.DefaultGenesisState(), chainID)
 	sdkCtx := mocaApp.BaseApp.NewContext(false).WithChainID(chainID)
@@ -57,8 +57,8 @@ func TestV1_3_0RestoreGovGrants(t *testing.T) {
 
 	mm := module.NewManager()
 	configurator := module.NewConfigurator(mocaApp.AppCodec(), mocaApp.MsgServiceRouter(), mocaApp.GRPCQueryRouter())
-	handler := upgrades.V1_3_0RestoreGovGrants(
-		mocaApp.AuthzKeeper, mocaApp.StakingKeeper, mocaApp.SpKeeper, mm, configurator)
+	handler := upgrades.V1_3_0RestoreValidatorDelegateGrant(
+		mocaApp.AuthzKeeper, mocaApp.StakingKeeper, mm, configurator)
 	_, err = handler(ctx, upgradetypes.Plan{Name: upgrades.V1_3_0UpgradeName}, module.VersionMap{})
 	require.NoError(t, err)
 
