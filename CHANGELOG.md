@@ -43,7 +43,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (e2e) [#105](https://github.com/mocachain/moca/pull/105) Add Kind-based e2e test framework with smoke and upgrade tests
 - (cli) [#243](https://github.com/mocachain/moca/pull/243) Add `mocad snapshots` command tree (list/delete/dump/export/load/restore) for managing local state-sync snapshots
 - (upgrade) [#246](https://github.com/mocachain/moca/pull/246) Add `v1.3.0` upgrade handler (noop `RunMigrations`)
-- (upgrade) [#263](https://github.com/mocachain/moca/pull/263) `v1.3.0` upgrade re-grants the validator self-del → gov (`MsgDelegate`, Generic) authz grant required by `MsgCreateValidator` that the moca-iavl commit-time bug dropped from the merkle tree, keyed off the canonical staking store so it is deterministic on every node. Scope is intentionally minimal (only this required grant); other dropped grants are not reconstructable from on-chain state and owners re-create them
+- (upgrade) [#263](https://github.com/mocachain/moca/pull/263) Add `v1.3.0` upgrade handler (noop `RunMigrations`). The moca-iavl commit-time bug left authz fastnode-vs-tree drift, but the only authz grants moca reads are create-time gates (validator→gov `MsgDelegate` in `MsgCreateValidator`, SP funding→gov `MsgDeposit` in `MsgCreateStorageProvider`) — nothing consumes them after creation, so the dropped grants need no restoration. The `prove=true` panic is fixed by `cosmos/iavl#1009` in the binary; the residual fastnode drift is cleared by an IAVL rebuild (state-sync / `fastStorageVersionValue` bump), not a consensus handler
 
 ### Improvements
 
