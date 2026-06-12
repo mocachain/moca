@@ -1559,19 +1559,23 @@ func (app *Evmos) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
-	// v1.3.0: re-grant the validator SelfDelAddress -> gov (MsgDelegate) authz
-	// grant that moca's MsgCreateValidator handler requires but that the
-	// moca-iavl commit-time bug dropped from the merkle tree. Keyed off the
-	// canonical staking store so it is deterministic on every node regardless of
-	// per-node fastnode drift; restored as Generic to match the standard
-	// create-validator flow. Other dropped grants are not reconstructable from
-	// on-chain state and owners re-create them; the residual fastnode drift is
-	// fixed by an IAVL rebuild (state-sync / fastStorageVersionValue bump), not
-	// from a consensus handler. The v1.3.0 binary also carries cosmos/iavl#1009.
-	app.UpgradeKeeper.SetUpgradeHandler(
-		upgrades.V1_3_0UpgradeName,
-		upgrades.V1_3_0RestoreValidatorDelegateGrant(app.AuthzKeeper, app.StakingKeeper, app.mm, app.configurator),
-	)
+	// v1.3.0: no state-machine changes. The moca-iavl commit-time bug left authz
+	// fastnode-vs-tree drift, but the only authz grants moca's handlers read are
+	// create-time gates — validator self-del -> gov (MsgDelegate) in
+	// MsgCreateValidator, and SP funding -> gov (MsgDeposit) in
+	// MsgCreateStorageProvider. Nothing consumes them after creation (delegate,
+	// withdraw, unjail, redelegate, edit, deposit top-ups, slashing all skip the
+	// check), and a new creator re-grants right before creating, so the dropped
+	// grants need no restoration. Restoring them is also consensus-unsafe from a
+	// handler (a purge/regrant keyed off the store iterator, which reads the
+	// fastnode not the tree, forks on a node whose fastnode is missing a
+	// tree-backed key). The v1.3.0 binary carries cosmos/iavl#1009 (stops the
+	// prove=true panic on the phantom keys); the residual fastnode drift is
+	// cleared by an IAVL rebuild (state-sync / fastStorageVersionValue bump),
+	// not from this handler.
+	app.UpgradeKeeper.SetUpgradeHandler("v1.3.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
 
 	// testnet only upgrade Handlers
 	app.UpgradeKeeper.SetUpgradeHandler(
