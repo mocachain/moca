@@ -43,6 +43,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (e2e) [#105](https://github.com/mocachain/moca/pull/105) Add Kind-based e2e test framework with smoke and upgrade tests
 - (cli) [#243](https://github.com/mocachain/moca/pull/243) Add `mocad snapshots` command tree (list/delete/dump/export/load/restore) for managing local state-sync snapshots
 - (upgrade) [#246](https://github.com/mocachain/moca/pull/246) Add `v1.3.0` upgrade handler (noop `RunMigrations`)
+- (upgrade) [#263](https://github.com/mocachain/moca/pull/263) Add `v1.3.0` upgrade handler (noop `RunMigrations`). The validator→gov `StakeAuthorization` and SP funding→gov `DepositAuthorization` grants that can appear "missing" are **consumed and auto-deleted by normal authz flow** at validator/SP creation (`CheckStakeAuthorization`/`CheckDepositAuthorization` call `Accept` then `DeleteGrant` once the scoped limit is exhausted) — they are not dropped by the moca-iavl commit-time bug, so nothing needs restoring. `main` tracks upstream `cosmos/iavl` (which carries the `GetNode` reformatted-root fallback / `cosmos/iavl#1009`); the residual-fastnode-phantom cleanup for the commit-time bug is delivered by the `v1.3.0` release on `release/1.3.x` (via the `moca-iavl` `fastStorageVersionValue` bump that forces an in-binary fastnode rebuild), so the handler here is a pure noop
 
 ### Improvements
 
