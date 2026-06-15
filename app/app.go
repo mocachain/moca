@@ -1559,8 +1559,21 @@ func (app *Evmos) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
+	// v1.3.0: no state-machine changes. The moca-iavl commit-time bug left authz
+	// fastnode-vs-tree drift, but the only authz grants moca's handlers read are
+	// create-time gates — validator self-del -> gov (MsgDelegate) in
+	// MsgCreateValidator, and SP funding -> gov (MsgDeposit) in
+	// MsgCreateStorageProvider. Nothing consumes them after creation (delegate,
+	// withdraw, unjail, redelegate, edit, deposit top-ups, slashing all skip the
+	// check), and a new creator re-grants right before creating, so the dropped
+	// grants need no restoration. Restoring them is also consensus-unsafe from a
+	// handler (a purge/regrant keyed off the store iterator, which reads the
+	// fastnode not the tree, forks on a node whose fastnode is missing a
+	// tree-backed key). The v1.3.0 binary carries cosmos/iavl#1009 (stops the
+	// prove=true panic on the phantom keys); the residual fastnode drift is
+	// cleared by an IAVL rebuild (state-sync / fastStorageVersionValue bump),
+	// not from this handler.
 	app.UpgradeKeeper.SetUpgradeHandler("v1.3.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		// noop
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
