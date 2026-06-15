@@ -93,6 +93,22 @@ test_send_tokens_post_upgrade() {
     assert_eq "$bal" "1000000000000000000" "Post-upgrade transfer should succeed"
 }
 
+test_fastnode_rebuild_fired() {
+    # The v1.3.0 fix pins moca-iavl v1.2.0-rc3, which bumps fastStorageVersionValue
+    # (1.1.0 -> 1.1.1). On the new binary's first start that makes IsUpgradeable()
+    # true, so IAVL rebuilds the fastnode index from the canonical tree — clearing
+    # any residual fastnode phantoms left by the commit-time SaveVersion early-return
+    # bug (node-local, non-consensus, automatic). Confirm the rebuild actually fired
+    # on the upgraded binary by grepping the validator log for the IAVL rebuild
+    # banner (info level; the e2e runs validators at log_level=debug).
+    local count
+    count=$(kubectl logs -n "${K8S_NAMESPACE}" validator-0-0 -c mocad 2>/dev/null \
+        | grep -c "Upgrading IAVL storage" || true)
+    count=${count:-0}
+    log_info "fastnode rebuild banner lines on validator-0: ${count}"
+    assert_gt "$count" 0 "fastnode rebuild ('Upgrading IAVL storage') should fire on the v1.3.0 binary"
+}
+
 # ── Run tests ────────────────────────────────────────────────────────────────
 
 fw_run_test "Chain producing blocks post-upgrade"  test_chain_producing_blocks_post_upgrade
@@ -100,5 +116,6 @@ fw_run_test "Height past pre-upgrade"              test_height_past_upgrade
 fw_run_test "Balances preserved across upgrade"    test_balances_preserved
 fw_run_test "Upgrade handler applied"              test_upgrade_applied
 fw_run_test "Token transfers work post-upgrade"    test_send_tokens_post_upgrade
+fw_run_test "Fastnode rebuild fired (v1.3.0 fix)"  test_fastnode_rebuild_fired
 
 fw_done
