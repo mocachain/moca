@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25.10"
+          go-version: "1.26.4"
           check-latest: true
       - name: "Checkout Repository"
         uses: actions/checkout@v6
@@ -23,5 +23,5 @@ jobs:
         uses: actions/dependency-review-action@v5
         if: env.GIT_DIFF
       - name: "Go vulnerability check"
-        run: make vulncheck VULNCHECK_GO_TOOLCHAIN=go1.25.10
+        run: make vulncheck VULNCHECK_GO_TOOLCHAIN=go1.26.4
         if: env.GIT_DIFF
