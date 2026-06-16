@@ -22,7 +22,11 @@ GENESIS_ACCOUNT_BALANCE="${GENESIS_ACCOUNT_BALANCE:-1000000000000000000000000000
 COMMISSION_MAX_CHANGE_RATE="${COMMISSION_MAX_CHANGE_RATE:-0.01}"
 COMMISSION_MAX_RATE="${COMMISSION_MAX_RATE:-1.0}"
 COMMISSION_RATE="${COMMISSION_RATE:-0.07}"
-NATIVE_COIN_DESC='{"description":"The native staking token of the Moca.","denom_units":[{"denom":"amoca","exponent":0,"aliases":["wei"]}],"base":"amoca","display":"amoca"}'
+# cosmos/evm v0.6.0 resolves the EVM coin's decimals from this bank metadata's
+# display denom-unit exponent (keeper.LoadEvmCoinInfo). It must expose an
+# 18-decimal display unit (moca) or x/vm InitGenesis panics with
+# "setting EVM coin decimals: received unsupported decimals: 0".
+NATIVE_COIN_DESC='{"description":"The native staking and EVM token of the Moca chain","denom_units":[{"denom":"amoca","exponent":0,"aliases":["wei"]},{"denom":"moca","exponent":18}],"base":"amoca","display":"moca","name":"moca","symbol":"MOCA"}'
 DEPOSIT_VOTE_PERIOD="${DEPOSIT_VOTE_PERIOD:-15s}"
 GOV_MIN_DEPOSIT_AMOUNT="${GOV_MIN_DEPOSIT_AMOUNT:-10000000000000000}"
 SP_MIN_DEPOSIT_AMOUNT="${SP_MIN_DEPOSIT_AMOUNT:-10000000000000000000000000}"
