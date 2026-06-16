@@ -9,6 +9,7 @@
 # Usage:
 #   OLD_VERSION=v1.2.0 bash tests/test_upgrade_governance.sh
 
+# shellcheck source=/dev/null
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
