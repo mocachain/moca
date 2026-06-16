@@ -10,9 +10,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/challenge"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -79,8 +79,12 @@ func (s *TestSuite) SetupTest() {
 	)
 
 	accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
-	evmKeeper.EXPECT().EstimateGas(gomock.Any(), gomock.Any()).Return(&evmtypes.EstimateGasResponse{Gas: 100000}, nil).AnyTimes()
-	evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
+	// cosmos/evm v0.6.0 migration: the production mint/burn path (keeper.CallEVM
+	// / CallEVMWithData in x/storage/keeper/evm.go) now really executes and routes
+	// the ERC-721 mint/burn call through the EVM keeper. Stub both entrypoints to
+	// return a non-failed response so bucket/object/group create/delete succeed.
+	evmKeeper.EXPECT().CallEVMWithData(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
+	evmKeeper.EXPECT().CallEVM(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
 
 	s.cdc = encCfg.Codec
 	s.accountKeeper = accountKeeper

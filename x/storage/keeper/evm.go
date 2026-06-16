@@ -1,55 +1,54 @@
 package keeper
 
 import (
-	"errors"
-
+	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/cosmos/evm/x/vm/statedb"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
-// CallEVM performs a smart contract method call using the given ABI / args.
-//
-// TODO(cosmos-evm migration): the previous implementation invoked the EVM
-// keeper's ApplyMessage helper directly with a manually-built core.Message
-// and a no-op tracer. cosmos/evm v0.6.0 changed the keeper surface
-// significantly:
-//
-//   - core.Message is no longer constructed by ethtypes.NewMessage (geth
-//     v1.15 dropped the constructor in favor of a struct-literal Message
-//     value).
-//   - Keeper.ApplyMessage now takes (ctx, *statedb.StateDB, core.Message,
-//     *tracing.Hooks, commit, callFromPrecompile, internal bool).
-//   - The high-level path is now Keeper.CallEVM(ctx, stateDB, abi, from,
-//     contract, commit, callFromPrecompile, gasCap, method, args...).
-//
-// Storage's cross-chain mirror flow uses this helper to invoke ERC-721
-// burns and similar; rewiring it requires routing through cosmos/evm's
-// CallEVM (with a fresh StateDB) plus updating the EVMKeeper expected-
-// interface accordingly. Until that lands the call returns a clear
-// not-implemented error so callers fail fast instead of executing
-// against a half-wired stub.
+// CallEVM performs a smart-contract method call (the ERC-721 mint/burn that
+// mirrors buckets/objects/groups as non-transferable NFTs) by packing the
+// calldata and delegating to CallEVMWithData. It is a thin wrapper over
+// cosmos/evm v0.6.0's keeper EVM execution.
 func (k Keeper) CallEVM(
-	_ sdk.Context,
-	_ abi.ABI,
-	_, _ common.Address,
-	_ bool,
+	ctx sdk.Context,
+	contractABI abi.ABI,
+	from, contract common.Address,
+	commit bool,
 	method string,
-	_ ...interface{},
+	args ...interface{},
 ) (*evmtypes.MsgEthereumTxResponse, error) {
-	return nil, errors.New("storage CallEVM is temporarily disabled during cosmos/evm v0.6.0 migration; method=" + method)
+	data, err := contractABI.Pack(method, args...)
+	if err != nil {
+		return nil, errorsmod.Wrap(
+			evmtypes.ErrABIPack,
+			errorsmod.Wrap(err, "failed to create transaction data").Error(),
+		)
+	}
+
+	return k.CallEVMWithData(ctx, from, &contract, data, commit)
 }
 
-// CallEVMWithData mirrors CallEVM but takes pre-packed call data instead of
-// (abi, method, args). It carries the same migration TODO.
+// CallEVMWithData routes a raw-calldata EVM call through cosmos/evm's keeper.
+//
+// cosmos/evm v0.6.0 requires the caller to supply an explicit *statedb.StateDB
+// (the geth-v1.15-era keeper no longer builds the core.Message via
+// ethtypes.NewMessage). Storage's calls originate from msg handlers / keeper
+// logic — not from inside a running precompile — so a fresh StateDB is created
+// per call and callFromPrecompile is false. gasCap is nil because cosmos/evm's
+// CallEVMWithData hardcodes the gas limit to its DefaultGasCap. When commit is
+// true (mint/burn) the resulting state is flushed to the underlying store.
 func (k Keeper) CallEVMWithData(
-	_ sdk.Context,
-	_ common.Address,
-	_ *common.Address,
-	_ []byte,
-	_ bool,
+	ctx sdk.Context,
+	from common.Address,
+	contract *common.Address,
+	data []byte,
+	commit bool,
 ) (*evmtypes.MsgEthereumTxResponse, error) {
-	return nil, errors.New("storage CallEVMWithData is temporarily disabled during cosmos/evm v0.6.0 migration")
+	stateDB := statedb.New(ctx, k.evmKeeper, statedb.NewEmptyTxConfig())
+	return k.evmKeeper.CallEVMWithData(ctx, stateDB, from, contract, data, commit, false, nil)
 }

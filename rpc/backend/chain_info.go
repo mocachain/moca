@@ -44,12 +44,9 @@ func (b *Backend) ChainID() (*hexutil.Big, error) {
 // ChainConfig returns the latest ethereum chain configuration
 func (b *Backend) ChainConfig() *params.ChainConfig {
 	// cosmos/evm v0.6.0 dropped the ChainConfig field from x/vm Params; the
-	// canonical chain config is now a static value owned by the package
-	// configurator and exposed via evmtypes.GetEthChainConfig.
-	_, err := b.queryClient.Params(b.ctx, &evmtypes.QueryParamsRequest{})
-	if err != nil {
-		return nil
-	}
+	// canonical chain config is now a static, always-available value owned by
+	// the package configurator (set at keeper construction). It does not depend
+	// on a Params query, so return it directly (matches upstream cosmos/evm).
 	return evmtypes.GetEthChainConfig()
 }
 

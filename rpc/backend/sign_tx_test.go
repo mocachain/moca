@@ -23,6 +23,12 @@ import (
 )
 
 func (suite *BackendTestSuite) TestSendTransaction() {
+	// cosmos/evm v0.6.0 migration: Backend.SendTransaction is temporarily
+	// disabled (returns "eth_sendTransaction is temporarily disabled ...");
+	// see rpc/backend/sign_tx.go. The keyring-side signing + broadcast flow
+	// this test exercised no longer exists, so skip until it is re-enabled.
+	suite.T().Skip("cosmos/evm v0.6.0 migration: SendTransaction temporarily disabled, see rpc/backend/sign_tx.go")
+
 	gasPrice := new(hexutil.Big)
 	gas := hexutil.Uint64(1)
 	zeroGas := hexutil.Uint64(0)
@@ -126,13 +132,20 @@ func (suite *BackendTestSuite) TestSendTransaction() {
 			tc.registerMock()
 
 			if tc.expPass {
-				// Sign the transaction and get the hash
+				// cosmos/evm v0.6.0: TransactionArgs.ToTransaction returns a
+				// *ethtypes.Transaction; sign it with the geth signer and the
+				// raw private key, then wrap into a MsgEthereumTx to obtain the
+				// expected hash (mirrors rpc/backend/call_tx.go SendRawTransaction).
 				queryClient := suite.backend.queryClient.QueryClient.(*mocks.EVMQueryClient)
 				RegisterParamsWithoutHeader(queryClient, 1)
 				ethSigner := ethtypes.LatestSigner(suite.backend.ChainConfig())
-				msg := callArgsDefault.ToTransaction()
-				err := msg.Sign(ethSigner, suite.backend.clientCtx.Keyring)
+				tx := callArgsDefault.ToTransaction(ethtypes.LegacyTxType)
+				ecdsaKey, err := priv.ToECDSA()
 				suite.Require().NoError(err)
+				signedTx, err := ethtypes.SignTx(tx, ethSigner, ecdsaKey)
+				suite.Require().NoError(err)
+				msg := &evmtypes.MsgEthereumTx{}
+				msg.FromEthereumTx(signedTx)
 				tc.expHash = msg.AsTransaction().Hash()
 			}
 			responseHash, err := suite.backend.SendTransaction(tc.args)
@@ -257,9 +270,16 @@ func broadcastTx(suite *BackendTestSuite, priv *ethsecp256k1.PrivKey, baseFee ma
 	RegisterBaseFee(queryClient, baseFee)
 	RegisterParamsWithoutHeader(queryClient, 1)
 	ethSigner := ethtypes.LatestSigner(suite.backend.ChainConfig())
-	msg := callArgsDefault.ToTransaction()
-	err = msg.Sign(ethSigner, suite.backend.clientCtx.Keyring)
+	// cosmos/evm v0.6.0: TransactionArgs.ToTransaction returns a geth
+	// *ethtypes.Transaction; sign it with the raw private key and wrap into a
+	// MsgEthereumTx (mirrors rpc/backend/call_tx.go SendRawTransaction).
+	ethTx := callArgsDefault.ToTransaction(ethtypes.LegacyTxType)
+	ecdsaKey, err := priv.ToECDSA()
 	suite.Require().NoError(err)
+	signedTx, err := ethtypes.SignTx(ethTx, ethSigner, ecdsaKey)
+	suite.Require().NoError(err)
+	msg := &evmtypes.MsgEthereumTx{}
+	msg.FromEthereumTx(signedTx)
 	tx, _ := msg.BuildTx(suite.backend.clientCtx.TxConfig.NewTxBuilder(), evmtypes.DefaultEVMDenom)
 	txEncoder := suite.backend.clientCtx.TxConfig.TxEncoder()
 	txBytes, _ = txEncoder(tx)

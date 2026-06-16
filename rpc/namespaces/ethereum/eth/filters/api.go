@@ -365,7 +365,11 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, er
 				baseFee := types.BaseFeeFromEvents(data.ResultFinalizeBlock.Events)
 
 				// TODO: fetch bloom from events
-				header := types.EthHeaderFromTendermint(data.Block.Header, ethtypes.Bloom{}, baseFee)
+				header, err := types.BlockHeaderFromProto(data.Block.Header.ToProto(), ethtypes.Bloom{}, baseFee)
+				if err != nil {
+					api.logger.Debug("failed to convert newHeads header", "height", data.Block.Height, "error", err.Error())
+					continue
+				}
 				_ = notifier.Notify(rpcSub.ID, header) // #nosec G703
 			case <-rpcSub.Err():
 				headersSub.Unsubscribe(api.events)

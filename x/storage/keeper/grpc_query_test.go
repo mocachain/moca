@@ -10,11 +10,11 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/cosmos/cosmos-sdk/x/mint"
+	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 

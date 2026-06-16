@@ -55,15 +55,20 @@ func (suite *AnteTestSuite) SetupTest() {
 			genesis[feemarkettypes.ModuleName] = app.AppCodec().MustMarshalJSON(feemarketGenesis)
 		}
 		evmGenesis := evmtypes.DefaultGenesisState()
-		evmGenesis.Params.AllowUnprotectedTxs = false
 		if !suite.enableLondonHF {
+			// cosmos/evm v0.6.0 migration: ChainConfig is no longer a field on
+			// evmtypes.Params; it is a global value. Mutate the live global chain
+			// config (returned pointer) to push the relevant forks out of range so
+			// London (and later) stay disabled. GetEthChainConfig reads this global
+			// lazily. Mirrors cosmos/evm tests/integration/ante/ante_test_suite.go.
 			maxInt := sdkmath.NewInt(math.MaxInt64)
-			evmGenesis.Params.ChainConfig.LondonBlock = &maxInt
-			evmGenesis.Params.ChainConfig.ArrowGlacierBlock = &maxInt
-			evmGenesis.Params.ChainConfig.GrayGlacierBlock = &maxInt
-			evmGenesis.Params.ChainConfig.MergeNetsplitBlock = &maxInt
-			evmGenesis.Params.ChainConfig.ShanghaiBlock = &maxInt
-			evmGenesis.Params.ChainConfig.CancunBlock = &maxInt
+			chainConfig := evmtypes.GetChainConfig()
+			chainConfig.LondonBlock = &maxInt
+			chainConfig.ArrowGlacierBlock = &maxInt
+			chainConfig.GrayGlacierBlock = &maxInt
+			chainConfig.MergeNetsplitBlock = &maxInt
+			chainConfig.ShanghaiTime = &maxInt
+			chainConfig.CancunTime = &maxInt
 		}
 		if suite.evmParamsOption != nil {
 			suite.evmParamsOption(&evmGenesis.Params)
@@ -75,7 +80,10 @@ func (suite *AnteTestSuite) SetupTest() {
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx)
 	suite.ctx = suite.ctx.WithMinGasPrices(sdk.NewDecCoins(sdk.NewDecCoin(evmtypes.DefaultEVMDenom, sdkmath.OneInt())))
 	suite.ctx = suite.ctx.WithBlockGasMeter(storetypes.NewGasMeter(1000000000000000000))
-	suite.app.EvmKeeper.WithChainID(suite.ctx)
+	// cosmos/evm v0.6.0 migration: EvmKeeper.WithChainID was removed. The EVM
+	// chain config (and its chain ID) is now a global value initialized during
+	// app construction via evmtypes.SetChainConfig, so no per-context init is
+	// needed here.
 
 	// set staking denomination to Evmos denom
 	params, err := suite.app.StakingKeeper.GetParams(suite.ctx)
@@ -111,7 +119,11 @@ func (suite *AnteTestSuite) SetupTest() {
 	})
 
 	suite.anteHandler = anteHandler
-	suite.ethSigner = types.LatestSignerForChainID(suite.app.EvmKeeper.ChainID())
+	// cosmos/evm v0.6.0 migration: EvmKeeper.ChainID() was removed; the EVM
+	// chain ID now lives in the global chain config. Mirror production
+	// (app.go / rpc/backend/chain_info.go), which reads it via
+	// evmtypes.GetEthChainConfig().
+	suite.ethSigner = types.LatestSignerForChainID(evmtypes.GetEthChainConfig().ChainID)
 
 	suite.ctx, err = testutil.Commit(suite.ctx, suite.app, time.Second*0, nil)
 	suite.Require().NoError(err)

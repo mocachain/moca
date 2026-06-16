@@ -121,10 +121,16 @@ func (b *Backend) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 		return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
 	}
 
-	// cosmos/evm v0.6.0: FromEthereumTx is a setter that returns nothing
-	// (it just populates msg.Raw from the parsed geth transaction).
+	// cosmos/evm v0.6.0: FromSignedEthereumTx recovers the sender from the
+	// signature (using the chain's latest signer) and populates the MsgEthereumTx,
+	// including the From field that ValidateBasic / BuildTx require. Matches
+	// upstream cosmos/evm rpc/backend.
+	ethSigner := ethtypes.LatestSigner(b.ChainConfig())
 	ethereumTx := &evmtypes.MsgEthereumTx{}
-	ethereumTx.FromEthereumTx(tx)
+	if err := ethereumTx.FromSignedEthereumTx(tx, ethSigner); err != nil {
+		b.logger.Error("failed to convert signed ethereum tx", "error", err.Error())
+		return common.Hash{}, err
+	}
 
 	if err := ethereumTx.ValidateBasic(); err != nil {
 		b.logger.Debug("tx failed basic validation", "error", err.Error())

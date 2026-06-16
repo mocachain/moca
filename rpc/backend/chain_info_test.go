@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethmath "github.com/ethereum/go-ethereum/common/math"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	"google.golang.org/grpc/metadata"
@@ -328,7 +329,7 @@ func (suite *BackendTestSuite) TestFeeHistory() {
 	testCases := []struct {
 		name           string
 		registerMock   func(validator sdk.AccAddress)
-		userBlockCount ethrpc.DecimalOrHex
+		userBlockCount ethmath.HexOrDecimal64
 		latestBlock    ethrpc.BlockNumber
 		expFeeHistory  *rpc.FeeHistoryResult
 		validator      sdk.AccAddress

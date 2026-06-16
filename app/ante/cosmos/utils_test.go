@@ -70,6 +70,26 @@ func generatePrivKeyAddressPairs(accCount int) ([]*ethsecp256k1.PrivKey, []sdk.A
 	return testPrivKeys, testAddresses, nil
 }
 
+// createUnsignedTx builds a tx with the given messages but without signing it.
+//
+// The moca SDK fork forces the EIP-712 sign-bytes path in
+// signing.GetSignBytesAdapter, and cosmos/evm's MsgEthereumTx cannot be
+// EIP-712 serialized (its protobuf struct carries fields with no json tag, so
+// the typed-data builder panics with "empty json tag"). The
+// AuthzLimiterDecorator only inspects tx.GetMsgs() and never verifies
+// signatures, so an unsigned tx is a faithful fixture for it and lets the
+// MsgEthereumTx top-level case exercise the same code path as the others.
+func createUnsignedTx(msgs ...sdk.Msg) (sdk.Tx, error) {
+	encodingConfig := encoding.MakeConfig()
+	txBuilder := encodingConfig.TxConfig.NewTxBuilder()
+
+	txBuilder.SetGasLimit(1000000)
+	if err := txBuilder.SetMsgs(msgs...); err != nil {
+		return nil, err
+	}
+	return txBuilder.GetTx(), nil
+}
+
 func createTx(priv cryptotypes.PrivKey, msgs ...sdk.Msg) (sdk.Tx, error) {
 	encodingConfig := encoding.MakeConfig()
 	txBuilder := encodingConfig.TxConfig.NewTxBuilder()

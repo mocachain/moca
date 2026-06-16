@@ -3,7 +3,6 @@ package staking
 import (
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -11,17 +10,20 @@ import (
 
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
+	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/mocachain/moca/v2/x/evm/types"
 )
 
 type Contract struct {
-	ctx           sdk.Context
 	stakingKeeper *stakingkeeper.Keeper
 }
 
-func NewPrecompiledContract(ctx sdk.Context, stakingKeeper *stakingkeeper.Keeper) *Contract {
+// NewPrecompiledContract builds a context-free static precompile instance.
+// cosmos/evm v0.6.0 registers precompiles once (WithStaticPrecompiles) rather
+// than rebuilding them per-tx, so the sdk.Context is no longer bound at
+// construction; Run pulls the live context from the EVM StateDB instead.
+func NewPrecompiledContract(stakingKeeper *stakingkeeper.Keeper) *Contract {
 	return &Contract{
-		ctx:           ctx,
 		stakingKeeper: stakingKeeper,
 	}
 }
@@ -85,7 +87,19 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 		return types.PackRetError("invalid input")
 	}
 
-	ctx, commit := c.ctx.CacheContext()
+	// cosmos/evm static precompiles are built once, so the live SDK context is
+	// sourced from the EVM StateDB's cache context per call (not bound at
+	// construction). We branch a writable cache off it and only commit on
+	// success; the StateDB flushes that cache when the EVM tx commits.
+	stateDB, ok := evm.StateDB.(*statedb.StateDB)
+	if !ok {
+		return types.PackRetError("staking precompile must run within the cosmos/evm StateDB")
+	}
+	cacheCtx, err := stateDB.GetCacheContext()
+	if err != nil {
+		return types.PackRetError(err.Error())
+	}
+	ctx, commit := cacheCtx.CacheContext()
 	snapshot := evm.StateDB.Snapshot()
 
 	method, err := GetMethodByID(contract.Input)

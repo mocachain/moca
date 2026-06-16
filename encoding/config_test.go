@@ -27,7 +27,7 @@ func TestTxEncoding(t *testing.T) {
 		Input:     []byte{},
 	}
 	msg := evmtypes.NewTx(&ethTxParams)
-	msg.From = addr.Hex()
+	msg.From = addr.Bytes()
 
 	ethSigner := ethtypes.LatestSignerForChainID(big.NewInt(1))
 	err := msg.Sign(ethSigner, signer)

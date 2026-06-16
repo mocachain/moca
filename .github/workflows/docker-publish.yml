@@ -12,6 +12,11 @@ on:
         required: false
         type: boolean
         default: false
+      platforms:
+        description: Target platforms for the Docker image manifest.
+        required: false
+        type: string
+        default: linux/amd64,linux/arm64
 
 jobs:
   docker:
@@ -65,6 +70,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          platforms: ${{ inputs.platforms }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |

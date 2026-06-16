@@ -41,6 +41,9 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 - (proto) [#67](https://github.com/mocachain/moca/pull/67) Publish protos to BSR under moca org
 - (e2e) [#105](https://github.com/mocachain/moca/pull/105) Add Kind-based e2e test framework with smoke and upgrade tests
+- (cli) [#243](https://github.com/mocachain/moca/pull/243) Add `mocad snapshots` command tree (list/delete/dump/export/load/restore) for managing local state-sync snapshots
+- (upgrade) [#246](https://github.com/mocachain/moca/pull/246) Add `v1.3.0` upgrade handler (noop `RunMigrations`)
+- (upgrade) [#263](https://github.com/mocachain/moca/pull/263) Add `v1.3.0` upgrade handler (noop `RunMigrations`). The validator→gov `StakeAuthorization` and SP funding→gov `DepositAuthorization` grants that can appear "missing" are **consumed and auto-deleted by normal authz flow** at validator/SP creation (`CheckStakeAuthorization`/`CheckDepositAuthorization` call `Accept` then `DeleteGrant` once the scoped limit is exhausted) — they are not dropped by the moca-iavl commit-time bug, so nothing needs restoring. `main` tracks upstream `cosmos/iavl` (which carries the `GetNode` reformatted-root fallback / `cosmos/iavl#1009`); the residual-fastnode-phantom cleanup for the commit-time bug is delivered by the `v1.3.0` release on `release/1.3.x` (via the `moca-iavl` `fastStorageVersionValue` bump that forces an in-binary fastnode rebuild), so the handler here is a pure noop
 
 ### Improvements
 
@@ -56,6 +59,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 ### State Machine Breaking
 
 - (erc20) [#221](https://github.com/mocachain/moca/pull/221) Remove the dormant `x/erc20` module and the erc20 precompile; register the `erc20` store for deletion in the `v2.0.0` store upgrade
+- (deps) [#240](https://github.com/mocachain/moca/pull/240) Bump `moca-cosmos-sdk` to the upstream gas meter (remove greenfield RW metering): store writes/deletes now consume tx gas (reads stay free under `KVGasConfigAfterNagqu`), and the `GasInfo.rw_used` / `TxMsgData.extra_data` fields are removed
 
 ### Bug Fixes
 

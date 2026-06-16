@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
@@ -100,22 +100,20 @@ import (
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	// TODO(cosmos-evm migration): the cosmos/evm v0.6.0 EVM + feemarket keepers
-	// need to be constructed and wired into app.mm (NewAppModule) plus the
-	// precompile registry (WithStaticPrecompiles). The blank imports keep the
-	// precompile packages compiled so a future commit can wire them in
-	// without re-adding the imports.
+	// cosmos/evm v0.6.0 EVM keeper + moca's chain-specific precompiles, registered
+	// into the EVM via WithStaticPrecompiles in EvmPrecompiled().
 	evmmodule "github.com/cosmos/evm/x/vm"
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/gov"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/payment"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/permission"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/storage"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/virtualgroup"
+	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
+	precompilesbank "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
+	precompilesgov "github.com/mocachain/moca/v2/x/evm/precompiles/gov"
+	precompilespayment "github.com/mocachain/moca/v2/x/evm/precompiles/payment"
+	precompilespermission "github.com/mocachain/moca/v2/x/evm/precompiles/permission"
+	precompilesstorage "github.com/mocachain/moca/v2/x/evm/precompiles/storage"
+	precompilessp "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
+	precompilesvirtualgroup "github.com/mocachain/moca/v2/x/evm/precompiles/virtualgroup"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
+	feemarketmodule "github.com/cosmos/evm/x/feemarket"
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 
@@ -134,9 +132,9 @@ import (
 	challengemodule "github.com/mocachain/moca/v2/x/challenge"
 	challengemodulekeeper "github.com/mocachain/moca/v2/x/challenge/keeper"
 	challengemoduletypes "github.com/mocachain/moca/v2/x/challenge/types"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/distribution"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/slashing"
-	_ "github.com/mocachain/moca/v2/x/evm/precompiles/staking"
+	precompilesdistribution "github.com/mocachain/moca/v2/x/evm/precompiles/distribution"
+	precompilesslashing "github.com/mocachain/moca/v2/x/evm/precompiles/slashing"
+	precompilesstaking "github.com/mocachain/moca/v2/x/evm/precompiles/staking"
 	"github.com/mocachain/moca/v2/x/gensp"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
 	paymentmodule "github.com/mocachain/moca/v2/x/payment"
@@ -162,10 +160,6 @@ const (
 	ShortName = "mocad"
 )
 
-// setEVMGlobalConfigOnce guards cosmos/evm's sealed-once global EVM coin-info /
-// configurator setup so it runs at most once per process even though NewMoca
-// is constructed more than once (root command builds a throwaway app).
-var setEVMGlobalConfigOnce sync.Once
 
 var (
 	// DefaultNodeHome default home directories for the application daemon
@@ -432,22 +426,20 @@ func NewMoca(
 		tkeys[feemarkettypes.TransientKey],
 	)
 
-	// cosmos/evm v0.6.0 requires the EVM coin info + activators to be set
-	// globally before the keeper is built. SetGlobalConfigVariables registers
-	// the base denom (amoca, 18 decimals) and runs the EVM configurator
-	// (which extends the opcode activators). Both the coin-info setter and the
-	// configurator are sealed-once and panic if invoked twice; NewMoca is
-	// constructed more than once per process (the root command builds a
-	// throwaway app for encoding/autocli before the real app), so guard the
-	// call behind a sync.Once.
-	setEVMGlobalConfigOnce.Do(func() {
-		evmmodule.SetGlobalConfigVariables(evmtypes.EvmCoinInfo{
-			Denom:         cmdcfg.BaseDenom,
-			ExtendedDenom: cmdcfg.BaseDenom,
-			DisplayDenom:  cmdcfg.DisplayDenom,
-			Decimals:      uint32(evmtypes.EighteenDecimals),
-		})
-	})
+	// cosmos/evm's sealed process-global EVM coin info / opcode activators are
+	// set by the x/vm module itself — at genesis via InitGenesis and on every
+	// restart via PreBlock (both guarded by the module's shared sync.Once) — so
+	// the app must NOT seal them here (doing so panics with "EVM coin info
+	// already set" when the module then tries). We only register a non-sealing
+	// fallback so coin-info reads before the first PreBlock (RPC, keeper setup)
+	// don't nil-deref. moca is an 18-decimal native chain: base == extended.
+	mocaEvmCoinInfo := evmtypes.EvmCoinInfo{
+		Denom:         cmdcfg.BaseDenom,
+		ExtendedDenom: cmdcfg.BaseDenom,
+		DisplayDenom:  cmdcfg.DisplayDenom,
+		Decimals:      uint32(evmtypes.EighteenDecimals),
+	}
+	evmtypes.SetDefaultEvmCoinInfo(mocaEvmCoinInfo)
 
 	// evmkeeper.NewKeeper internally calls types.SetChainConfig, which
 	// populates the global eth chain config that the ante GasWantedDecorator
@@ -477,6 +469,10 @@ func NewMoca(
 		evmChainID,
 		tracer,
 	)
+	// Register the keeper's fallback coin info (also sets the package-level
+	// default); the x/vm module's PreBlock/InitGenesis seal the authoritative
+	// value at runtime.
+	app.EvmKeeper.WithDefaultEvmCoinInfo(mocaEvmCoinInfo)
 
 	govConfig := govtypes.DefaultConfig()
 	/*
@@ -611,16 +607,12 @@ func NewMoca(
 		permissionModule,
 		storageModule,
 		challengeModule,
-		// TODO(cosmos-evm migration): wire cosmos/evm's EVM and feemarket app
-		// modules into module-manager. The signatures are:
-		//   vm.NewAppModule(keeper *vmkeeper.Keeper, ak vmtypes.AccountKeeper,
-		//                   bk vmtypes.BankKeeper, ac address.Codec)
-		//   feemarket.NewAppModule(keeper *feemarketkeeper.Keeper, ak vmtypes.AccountKeeper)
-		// Requires constructing cosmos/evm's vm + feemarket keepers earlier in
-		// NewMoca (currently the chain still references the deleted
-		// app.EvmKeeper / app.FeeMarketKeeper from the in-tree x/evm). Until
-		// those keepers are wired the chain has no EVM or feemarket app module
-		// in the manager — a follow-up commit.
+		// cosmos/evm v0.6.0 EVM (x/vm) and feemarket app modules. Registering
+		// them runs their RegisterServices (x/vm MsgServer + QueryServer, the
+		// feemarket EndBlocker) and gives both InitGenesis. The keepers are
+		// constructed above (app.EvmKeeper, app.FeeMarketKeeper).
+		evmmodule.NewAppModule(app.EvmKeeper, app.AccountKeeper, app.BankKeeper, cmdcfg.NewMultiPrefixBech32AccCodec()),
+		feemarketmodule.NewAppModule(app.FeeMarketKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -641,6 +633,9 @@ func NewMoca(
 	// NOTE: upgrade module is required to be prioritized
 	app.mm.SetOrderPreBlockers(
 		upgradetypes.ModuleName,
+		// cosmos/evm x/vm implements HasPreBlocker (refreshes the EVM
+		// base-fee/chain-config cache); runs after the upgrade module.
+		evmtypes.ModuleName,
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -1023,9 +1018,34 @@ func (app *Moca) AppCodec() codec.Codec {
 	return app.appCodec
 }
 
-// DefaultGenesis returns a default genesis from the registered AppModuleBasic's.
+// DefaultGenesis returns a default genesis from the registered AppModuleBasic's,
+// patched for moca's cosmos/evm wiring. cosmos/evm's x/vm reads the EVM denom
+// from genesis params and, at InitGenesis, resolves its coin info (decimals /
+// display) from the bank denom metadata for that denom (keeper.LoadEvmCoinInfo).
+// moca is an 18-decimal EVM-native chain (base "amoca", display "moca"), so we
+// set EvmDenom to the base denom and register its bank metadata; without this
+// the EVM module's InitGenesis panics ("denom metadata aatom could not be found").
 func (app *Moca) DefaultGenesis() mocatypes.GenesisState {
-	return app.BasicModuleManager.DefaultGenesis(app.appCodec)
+	genState := app.BasicModuleManager.DefaultGenesis(app.appCodec)
+
+	// EVM module: use moca's 18-decimal base denom as the EVM denom, and activate
+	// moca's static precompiles (cosmos/evm only dispatches precompiles listed,
+	// sorted, in Params.ActiveStaticPrecompiles).
+	var evmGen evmtypes.GenesisState
+	app.appCodec.MustUnmarshalJSON(genState[evmtypes.ModuleName], &evmGen)
+	evmGen.Params.EvmDenom = cmdcfg.BaseDenom
+	evmGen.Params.ExtendedDenomOptions = nil // 18-decimal native chain: extended denom == base denom
+	evmGen.Params.ActiveStaticPrecompiles = MocaActiveStaticPrecompiles()
+	genState[evmtypes.ModuleName] = app.appCodec.MustMarshalJSON(&evmGen)
+
+	// Bank module: register denom metadata for the EVM denom so cosmos/evm's
+	// LoadEvmCoinInfo can resolve decimals/display at InitGenesis.
+	var bankGen banktypes.GenesisState
+	app.appCodec.MustUnmarshalJSON(genState[banktypes.ModuleName], &bankGen)
+	bankGen.DenomMetadata = append(bankGen.DenomMetadata, mocaDenomMetadata())
+	genState[banktypes.ModuleName] = app.appCodec.MustMarshalJSON(&bankGen)
+
+	return genState
 }
 
 // InterfaceRegistry returns Evmos's InterfaceRegistry
@@ -1156,23 +1176,130 @@ func GetMaccPerms() map[string][]string {
 	return dupMaccPerms
 }
 
-// EvmPrecompiled is a no-op under the cosmos/evm v0.6.0 migration.
+// mocaStaticPrecompiles builds moca's chain-specific EVM precompiles, keyed by
+// address. cosmos/evm v0.6.0 uses a build-once static model (precompiles are no
+// longer reconstructed per-tx); each precompile pulls the live SDK context from
+// the EVM StateDB at Run time instead of binding it at construction.
+func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContract {
+	return map[common.Address]vm.PrecompiledContract{
+		precompilesbank.GetAddress():         precompilesbank.NewPrecompiledContract(app.BankKeeper, app.PaymentKeeper),
+		precompilesauthz.GetAddress():        precompilesauthz.NewPrecompiledContract(app.AuthzKeeper),
+		precompilesgov.GetAddress():          precompilesgov.NewPrecompiledContract(app.GovKeeper, app.AccountKeeper),
+		precompilespayment.GetAddress():      precompilespayment.NewPrecompiledContract(app.PaymentKeeper),
+		precompilespermission.GetAddress():   precompilespermission.NewPrecompiledContract(app.PermissionKeeper),
+		precompilesstaking.GetAddress():      precompilesstaking.NewPrecompiledContract(app.StakingKeeper),
+		precompilesdistribution.GetAddress(): precompilesdistribution.NewPrecompiledContract(app.DistrKeeper),
+		precompilesslashing.GetAddress():     precompilesslashing.NewPrecompiledContract(app.SlashingKeeper),
+		precompilesstorage.GetAddress():      precompilesstorage.NewPrecompiledContract(app.StorageKeeper),
+		precompilesvirtualgroup.GetAddress(): precompilesvirtualgroup.NewPrecompiledContract(app.VirtualgroupKeeper),
+		precompilessp.GetAddress():           precompilessp.NewPrecompiledContract(app.SpKeeper),
+	}
+}
+
+// MocaActiveStaticPrecompiles returns the sorted hex addresses of moca's
+// precompiles. cosmos/evm only dispatches a static precompile whose address is
+// listed (sorted) in x/vm Params.ActiveStaticPrecompiles, so this is used both
+// in DefaultGenesis and in the v2 upgrade handler.
+func MocaActiveStaticPrecompiles() []string {
+	addrs := []string{
+		precompilesbank.GetAddress().Hex(),
+		precompilesauthz.GetAddress().Hex(),
+		precompilesgov.GetAddress().Hex(),
+		precompilespayment.GetAddress().Hex(),
+		precompilespermission.GetAddress().Hex(),
+		precompilesstaking.GetAddress().Hex(),
+		precompilesdistribution.GetAddress().Hex(),
+		precompilesslashing.GetAddress().Hex(),
+		precompilesstorage.GetAddress().Hex(),
+		precompilesvirtualgroup.GetAddress().Hex(),
+		precompilessp.GetAddress().Hex(),
+	}
+	sort.Strings(addrs)
+	return addrs
+}
+
+// EvmPrecompiled registers moca's static precompiles with the EVM keeper. Called
+// once during app construction, after the dependency keepers are built.
+func (app *Moca) EvmPrecompiled() {
+	app.EvmKeeper.WithStaticPrecompiles(app.mocaStaticPrecompiles())
+}
+
+// mocaDenomMetadata is the bank denom metadata for moca's native token. The EVM
+// module (cosmos/evm) resolves its coin info (decimals/display) from this, so it
+// must be present both in genesis and after the v2 in-place upgrade.
+func mocaDenomMetadata() banktypes.Metadata {
+	return banktypes.Metadata{
+		Description: "The native staking and EVM token of the Moca chain",
+		Base:        cmdcfg.BaseDenom,
+		DenomUnits: []*banktypes.DenomUnit{
+			{Denom: cmdcfg.BaseDenom, Exponent: 0},
+			{Denom: cmdcfg.DisplayDenom, Exponent: uint32(evmtypes.EighteenDecimals)},
+		},
+		Name:    cmdcfg.DisplayDenom,
+		Symbol:  "MOCA",
+		Display: cmdcfg.DisplayDenom,
+	}
+}
+
+// migrateToV2 performs the in-place state migration from moca's in-tree x/evm +
+// x/feemarket (v1.3.0) to cosmos/evm's x/vm + x/feemarket (v2). It runs inside
+// the v2.0.0 software-upgrade handler — there is NO genesis export/import.
 //
-// TODO(cosmos-evm migration): cosmos/evm v0.6.0 replaced the
-// evmkeeper.BerlinPrecompiled + keeper.WithPrecompiled pattern with
-// WithStaticPrecompiles, plus a vm.PrecompiledContract surface that takes
-// a context-bound construction via the precompile registry. Rewiring
-// requires:
-//   - constructing a *vmkeeper.Keeper (cosmos/evm v0.6.0 signature),
-//   - adapting each moca precompile constructor to cosmos/evm's
-//     vm.PrecompiledContract interface (a per-ctx adapter or static
-//     factory),
-//   - calling vmkeeper.WithStaticPrecompiles(adapters).
-// Moca's precompile packages (bank/authz/gov/payment/permission/staking/
-// distribution/storage/virtualgroup/storageprovider/slashing) are
-// preserved on this branch (see blank-imports at the top of app.go) but
-// are not yet registered with cosmos/evm's keeper.
-func (app *Moca) EvmPrecompiled() {}
+// What it does and why:
+//   - The old in-tree x/evm and x/feemarket Params are wire-INCOMPATIBLE with
+//     cosmos/evm's (x/evm Params field 10 was a ChainConfig message, now a
+//     uint64; feemarket Params field 6 BaseFee was math.Int, now LegacyDec), so
+//     the old param bytes cannot be re-decoded — both are overwritten wholesale.
+//   - cosmos/evm reads the EVM coin info from bank denom metadata, which the old
+//     chain lacks, so we register it and initialize the coin info (InitGenesis,
+//     which would normally do this, does not run on a software upgrade).
+//   - cosmos/evm moved the per-contract code-hash index off the account (moca's
+//     EthAccount.CodeHash) into a dedicated store prefix. That index is empty
+//     for every pre-upgrade contract, so we backfill it from the EthAccounts;
+//     without this, existing contracts' GetCode returns nil and they execute as
+//     empty EOAs. Contract CODE and STORAGE themselves are byte-identical on
+//     disk ("evm" store, same key prefixes) and need no rewriting.
+func (app *Moca) migrateToV2(ctx sdk.Context) error {
+	// 1. Register the native-token bank denom metadata (cosmos/evm coin info).
+	app.BankKeeper.SetDenomMetaData(ctx, mocaDenomMetadata())
+
+	// 2. Overwrite x/vm params with fresh cosmos/evm-format params, enabling
+	//    moca's static precompiles and the moca EVM denom.
+	evmParams := evmtypes.DefaultParams()
+	evmParams.EvmDenom = cmdcfg.BaseDenom
+	evmParams.ExtendedDenomOptions = nil
+	evmParams.ActiveStaticPrecompiles = MocaActiveStaticPrecompiles()
+	if err := app.EvmKeeper.SetParams(ctx, evmParams); err != nil {
+		return fmt.Errorf("v2 migration: set evm params: %w", err)
+	}
+
+	// 3. Initialize the EVM coin info from the bank metadata set above.
+	if err := app.EvmKeeper.InitEvmCoinInfo(ctx); err != nil {
+		return fmt.Errorf("v2 migration: init evm coin info: %w", err)
+	}
+
+	// 4. Overwrite feemarket params (wire-incompatible BaseFee type change).
+	if err := app.FeeMarketKeeper.SetParams(ctx, feemarkettypes.DefaultParams()); err != nil {
+		return fmt.Errorf("v2 migration: set feemarket params: %w", err)
+	}
+
+	// 5. Backfill the cosmos/evm code-hash index from the existing EthAccounts so
+	//    contracts deployed under the old x/evm remain executable.
+	var backfillErr error
+	app.AccountKeeper.IterateAccounts(ctx, func(acc sdk.AccountI) (stop bool) {
+		ethAcct, ok := acc.(mocatypes.EthAccountI)
+		if !ok {
+			return false
+		}
+		codeHash := ethAcct.GetCodeHash()
+		if evmtypes.IsEmptyCodeHash(codeHash.Bytes()) {
+			return false
+		}
+		app.EvmKeeper.SetCodeHash(ctx, acc.GetAddress().Bytes(), codeHash.Bytes())
+		return false
+	})
+	return backfillErr
+}
 
 func (app *Moca) setupUpgradeHandlers() {
 	// When a planned update height is reached, the old binary will panic
@@ -1194,7 +1321,38 @@ func (app *Moca) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
+	// v1.3.0: no state-machine changes. The moca-iavl commit-time bug left authz
+	// fastnode-vs-tree drift, but the only authz grants moca's handlers read are
+	// create-time gates — validator self-del -> gov (MsgDelegate) in
+	// MsgCreateValidator, and SP funding -> gov (MsgDeposit) in
+	// MsgCreateStorageProvider. Nothing consumes them after creation (delegate,
+	// withdraw, unjail, redelegate, edit, deposit top-ups, slashing all skip the
+	// check), and a new creator re-grants right before creating, so the dropped
+	// grants need no restoration. Restoring them is also consensus-unsafe from a
+	// handler (a purge/regrant keyed off the store iterator, which reads the
+	// fastnode not the tree, forks on a node whose fastnode is missing a
+	// tree-backed key). The v1.3.0 binary carries cosmos/iavl#1009 (stops the
+	// prove=true panic on the phantom keys); the residual fastnode drift is
+	// cleared by an IAVL rebuild (state-sync / fastStorageVersionValue bump),
+	// not from this handler.
+	app.UpgradeKeeper.SetUpgradeHandler("v1.3.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
 	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		sdkCtx := sdk.UnwrapSDKContext(ctx)
+		// In-place migration of the in-tree x/evm + x/feemarket state to
+		// cosmos/evm's x/vm + x/feemarket. See migrateToV2 for details.
+		if err := app.migrateToV2(sdkCtx); err != nil {
+			return fromVM, err
+		}
+		// The in-tree modules ran at higher consensus versions (evm=5,
+		// feemarket=4) than cosmos/evm's (both 1). RunMigrations would treat
+		// that as a downgrade and error, and there are no cosmos/evm RegisterMigration
+		// steps anyway — migrateToV2 above performs the state migration — so pin
+		// both to the new modules' ConsensusVersion before running the rest.
+		fromVM[evmtypes.ModuleName] = evmmodule.AppModule{}.ConsensusVersion()
+		fromVM[feemarkettypes.ModuleName] = feemarketmodule.AppModule{}.ConsensusVersion()
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
