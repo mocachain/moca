@@ -348,6 +348,13 @@ generate_genesis() {
 
     # ---- app.toml patches ----
     sed -i "s/minimum-gas-prices = \"0amoca\"/minimum-gas-prices = \"5000000000${BASIC_DENOM}\"/g" "$app"
+    # cosmos/evm reads the EIP-155 EVM chain id from app.toml [evm] evm-chain-id;
+    # if unset it defaults to 262144, so EVM clients (which derive chainId from
+    # the cosmos chain-id, e.g. moca_5151-1 -> 5151) mismatch the node. The key
+    # is absent from moca's default app.toml template, so insert it under [evm],
+    # derived from CHAIN_ID.
+    evm_chain_id=$(echo "${CHAIN_ID}" | sed -E 's/.*_([0-9]+)-.*/\1/')
+    sed -i "/^\[evm\]$/a evm-chain-id = ${evm_chain_id}" "$app"
     sed -i "s/snapshot-interval = [0-9][0-9]*/snapshot-interval = ${SNAPSHOT_INTERVAL}/g" "$app"
     sed -i "s/snapshot-keep-recent = 2/snapshot-keep-recent = ${SNAPSHOT_KEEP_RECENT}/g" "$app"
     sed -i "s/src-chain-id = 1/src-chain-id = ${SRC_CHAIN_ID}/g" "$app"
