@@ -110,6 +110,22 @@ func newEVMAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandler 
 // since moca does not run IBC.
 func newCosmosAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandler {
 	feemarketParams := options.FeeMarketKeeper.GetParams(ctx)
+	// Cosmos txs are fee-checked with the EIP-1559 feemarket logic (effective
+	// gas price vs the feemarket base fee), matching cosmos/evm's own cosmos
+	// ante and moca's pre-migration behavior. Without this, NewDeductFeeDecorator
+	// falls back to the node's app.toml min-gas-prices, which rejects txs that
+	// satisfy the (lower) consensus base fee — breaking cross-node tx inclusion.
+	txFeeChecker := options.TxFeeChecker
+	if txFeeChecker == nil {
+		// cosmos/evm's NewDynamicFeeChecker is an authante.TxFeeChecker
+		// (func(ctx, sdk.Tx)); moca's DeductFeeDecorator wants an
+		// anteutils.TxFeeChecker (func(ctx, sdk.FeeTx)). Adapt — an sdk.FeeTx
+		// is an sdk.Tx.
+		dynamicFeeChecker := cosmosevmevm.NewDynamicFeeChecker(&feemarketParams)
+		txFeeChecker = func(ctx sdk.Context, feeTx sdk.FeeTx) (sdk.Coins, int64, error) {
+			return dynamicFeeChecker(ctx, feeTx)
+		}
+	}
 	return sdk.ChainAnteDecorators(
 		cosmosante.RejectMessagesDecorator{}, // reject MsgEthereumTxs on cosmos path
 		cosmosante.NewAuthzLimiterDecorator( // disallow these Msg types inside authz.MsgExec
@@ -128,7 +144,7 @@ func newCosmosAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandl
 			options.BankKeeper,
 			options.DistributionKeeper,
 			options.FeegrantKeeper,
-			options.TxFeeChecker,
+			txFeeChecker,
 		),
 		ante.NewSetPubKeyDecorator(options.AccountKeeper),
 		ante.NewValidateSigCountDecorator(options.AccountKeeper),
