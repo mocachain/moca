@@ -14,6 +14,7 @@ import (
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
@@ -43,9 +44,9 @@ func (s *PrecompileTestSuite) SetupTest() {
 	// skipped by the EthSetup harness (see app.NewTestGenesisState), and the
 	// old evmtypes.Params.EnableCall / DefaultGenesisState patch is obsolete
 	// (call permission is now governed by AccessControl, which allows calls by
-	// default). The storageprovider precompile is also not yet wired into
-	// cosmos/evm's keeper (see app.go EvmPrecompiled, a no-op stub), so no EVM
-	// genesis patching is required for these tests.
+	// default). Tests that drive the EVM keeper (TestUpdateSPPrice_EVMApply) set
+	// the evm denom + active static-precompile allowlist on the per-test ctx
+	// themselves, so no EVM genesis patching is required here.
 	s.app = app.EthSetup(checkTx, nil)
 
 	// initialize context, then prepare a valid proposer/validator for EVM coinbase resolution
@@ -85,9 +86,8 @@ func (s *PrecompileTestSuite) SetupTest() {
 // does, runs it through the real SP msg server, and asserts the SP price is
 // updated in state.
 //
-// NOTE: the end-to-end EVM-apply path (ethtypes message -> EvmKeeper ->
-// precompile dispatch) is covered separately and is currently skipped: see
-// TestUpdateSPPrice_EVMApply below.
+// NOTE: the end-to-end EVM-apply path (calldata -> EvmKeeper -> precompile
+// dispatch) is covered separately by TestUpdateSPPrice_EVMApply below.
 func (s *PrecompileTestSuite) TestUpdateSPPrice() {
 	// Create a storage provider (use bech32 addresses)
 	bech32 := sdk.AccAddress(s.address.Bytes()).String()
@@ -149,18 +149,60 @@ func (s *PrecompileTestSuite) TestUpdateSPPrice() {
 	s.Require().Equal(freeReadQuota, spPrice.FreeReadQuota, "free read quota should be updated")
 }
 
-// TestUpdateSPPrice_EVMApply would drive updateSPPrice end-to-end through the
-// EVM keeper (build an eth tx to the precompile address and ApplyTransaction),
-// asserting the precompile is dispatched and the SP price is updated.
-//
-// It is skipped pending the cosmos/evm v0.6.0 migration finishing the precompile
-// wiring: app.Moca.EvmPrecompiled() is currently a no-op stub (see
-// app/app.go), so moca's static precompiles (including storageprovider) are NOT
-// registered with cosmos/evm's vm keeper. Until WithStaticPrecompiles is wired
-// up, an EVM call to the precompile address would not dispatch to this handler.
-// Additionally geth v1.15+ removed ethtypes.NewMessage and the
-// EvmKeeper.ApplyMessage signature changed (now requires a *statedb.StateDB and
-// *tracing.Hooks), so the old fixture can no longer be built as-is.
+// TestUpdateSPPrice_EVMApply drives updateSPPrice end-to-end THROUGH the EVM
+// keeper: it builds the ABI calldata, sends it to the storageprovider precompile
+// address via CallEVMWithData, and asserts the precompile was dispatched (the SP
+// price actually changed in state). Unlike TestUpdateSPPrice — which exercises
+// only the decode + msg-server path — this proves cosmos/evm's static-precompile
+// dispatch reaches moca's handler after the v0.6.0 migration (app.EvmPrecompiled
+// -> WithStaticPrecompiles, plus the address listed in Params.ActiveStaticPrecompiles).
 func (s *PrecompileTestSuite) TestUpdateSPPrice_EVMApply() {
-	s.T().Skip("cosmos/evm v0.6.0 migration: storageprovider precompile not yet registered with cosmos/evm vm keeper (app.go EvmPrecompiled is a no-op stub); re-enable once WithStaticPrecompiles wiring lands")
+	// Create the storage provider whose price the precompile will update.
+	bech32 := sdk.AccAddress(s.address.Bytes()).String()
+	sp := sptypes.StorageProvider{
+		OperatorAddress: bech32,
+		FundingAddress:  bech32,
+		SealAddress:     bech32,
+		ApprovalAddress: bech32,
+		GcAddress:       bech32,
+		Status:          sptypes.STATUS_IN_SERVICE,
+		TotalDeposit:    math.NewInt(1000),
+	}
+	s.app.SpKeeper.SetStorageProvider(s.ctx, &sp)
+	s.app.SpKeeper.SetStorageProviderByOperatorAddr(s.ctx, &sp)
+
+	// The EthSetup harness skips the EVM genesis, so set the params this dispatch
+	// path needs: the evm denom and the active static-precompile allowlist (a
+	// static precompile is only dispatched when its address is listed here).
+	evmParams := s.app.EvmKeeper.GetParams(s.ctx)
+	evmParams.EvmDenom = utils.BaseDenom
+	evmParams.ActiveStaticPrecompiles = app.MocaActiveStaticPrecompiles()
+	s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, evmParams))
+
+	// Pack updateSPPrice(readPrice, freeReadQuota, storePrice) WITH the 4-byte
+	// selector — the EVM forwards the full input and the precompile slices [4:].
+	newReadPrice := big.NewInt(2000000000000000000)  // 2e18
+	newStorePrice := big.NewInt(1000000000000000000) // 1e18
+	freeReadQuota := uint64(1024)
+	method := storageprovider.GetAbiMethod(storageprovider.UpdateSPPriceMethodName)
+	packedArgs, err := method.Inputs.Pack(newReadPrice, freeReadQuota, newStorePrice)
+	s.Require().NoError(err)
+	input := append(append([]byte{}, method.ID...), packedArgs...)
+
+	// Execute through the EVM keeper so static-precompile dispatch runs for real.
+	precompileAddr := storageprovider.GetAddress()
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
+	s.Require().NoError(err)
+	s.Require().False(res.Failed(), "evm call reverted: %s", res.VmError)
+
+	// The precompile must have mutated SP state — this is what bypassing the EVM
+	// (TestUpdateSPPrice) cannot prove.
+	updatedSP, found := s.app.SpKeeper.GetStorageProviderByOperatorAddr(s.ctx, sdk.AccAddress(s.address.Bytes()))
+	s.Require().True(found, "storage provider should be found")
+	spPrice, ok := s.app.SpKeeper.GetSpStoragePrice(s.ctx, updatedSP.Id)
+	s.Require().True(ok, "storage provider price should exist")
+	s.Require().Equal(math.LegacyNewDecFromBigIntWithPrec(newReadPrice, math.LegacyPrecision).String(), spPrice.ReadPrice.String(), "read price updated via EVM dispatch")
+	s.Require().Equal(math.LegacyNewDecFromBigIntWithPrec(newStorePrice, math.LegacyPrecision).String(), spPrice.StorePrice.String(), "store price updated via EVM dispatch")
+	s.Require().Equal(freeReadQuota, spPrice.FreeReadQuota, "free read quota updated via EVM dispatch")
 }
