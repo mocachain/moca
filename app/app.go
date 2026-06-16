@@ -102,8 +102,12 @@ import (
 	mocatypes "github.com/mocachain/moca/v2/types"
 	// cosmos/evm v0.6.0 EVM keeper + moca's chain-specific precompiles, registered
 	// into the EVM via WithStaticPrecompiles in EvmPrecompiled().
+	feemarketmodule "github.com/cosmos/evm/x/feemarket"
+	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmmodule "github.com/cosmos/evm/x/vm"
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
 	precompilesbank "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
 	precompilesgov "github.com/mocachain/moca/v2/x/evm/precompiles/gov"
@@ -112,10 +116,6 @@ import (
 	precompilesstorage "github.com/mocachain/moca/v2/x/evm/precompiles/storage"
 	precompilessp "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
 	precompilesvirtualgroup "github.com/mocachain/moca/v2/x/evm/precompiles/virtualgroup"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
-	feemarketmodule "github.com/cosmos/evm/x/feemarket"
-	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
-	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 
 	consensusparamkeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	consensusparamtypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
@@ -160,7 +160,6 @@ const (
 	ShortName = "mocad"
 )
 
-
 var (
 	// DefaultNodeHome default home directories for the application daemon
 	DefaultNodeHome string
@@ -200,6 +199,16 @@ func init() {
 	feemarkettypes.DefaultMinGasMultiplier = MainnetMinGasMultiplier
 	// modify default min commission to 5%
 	stakingtypes.DefaultMinCommissionRate = sdkmath.LegacyNewDecWithPrec(5, 2)
+
+	// cosmos/evm defaults to aatom; moca is an 18-decimal native chain with base
+	// denom amoca (base == extended). Override the package defaults so the EVM
+	// module's DefaultGenesis (used by `mocad init`, testnet, etc. via the basic
+	// module manager) yields moca's denom and activates moca's static precompiles.
+	// Without this, a real-network genesis carries evm_denom=aatom with no bank
+	// metadata and the node panics in x/vm InitGenesis on startup.
+	evmtypes.DefaultEVMDenom = cmdcfg.BaseDenom
+	evmtypes.DefaultEVMExtendedDenom = cmdcfg.BaseDenom
+	evmtypes.DefaultStaticPrecompiles = MocaActiveStaticPrecompiles()
 }
 
 // Evmos implements an extended ABCI application. It is an application
@@ -625,6 +634,10 @@ func NewMoca(
 			genutiltypes.ModuleName: genutil.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
 			stakingtypes.ModuleName: staking.AppModule{AppModuleBasic: staking.AppModuleBasic{}},
 			govtypes.ModuleName:     gov.NewAppModuleBasic([]govclient.ProposalHandler{}),
+			// register the native denom metadata in the default genesis so every
+			// genesis path (mocad init, testnet, mainnet) satisfies cosmos/evm's
+			// InitEvmCoinInfo, which resolves the EVM coin info from bank metadata.
+			banktypes.ModuleName: mocaBankModuleBasic{},
 		},
 	)
 	app.BasicModuleManager.RegisterLegacyAminoCodec(cdc)
@@ -1026,26 +1039,12 @@ func (app *Moca) AppCodec() codec.Codec {
 // set EvmDenom to the base denom and register its bank metadata; without this
 // the EVM module's InitGenesis panics ("denom metadata aatom could not be found").
 func (app *Moca) DefaultGenesis() mocatypes.GenesisState {
-	genState := app.BasicModuleManager.DefaultGenesis(app.appCodec)
-
-	// EVM module: use moca's 18-decimal base denom as the EVM denom, and activate
-	// moca's static precompiles (cosmos/evm only dispatches precompiles listed,
-	// sorted, in Params.ActiveStaticPrecompiles).
-	var evmGen evmtypes.GenesisState
-	app.appCodec.MustUnmarshalJSON(genState[evmtypes.ModuleName], &evmGen)
-	evmGen.Params.EvmDenom = cmdcfg.BaseDenom
-	evmGen.Params.ExtendedDenomOptions = nil // 18-decimal native chain: extended denom == base denom
-	evmGen.Params.ActiveStaticPrecompiles = MocaActiveStaticPrecompiles()
-	genState[evmtypes.ModuleName] = app.appCodec.MustMarshalJSON(&evmGen)
-
-	// Bank module: register denom metadata for the EVM denom so cosmos/evm's
-	// LoadEvmCoinInfo can resolve decimals/display at InitGenesis.
-	var bankGen banktypes.GenesisState
-	app.appCodec.MustUnmarshalJSON(genState[banktypes.ModuleName], &bankGen)
-	bankGen.DenomMetadata = append(bankGen.DenomMetadata, mocaDenomMetadata())
-	genState[banktypes.ModuleName] = app.appCodec.MustMarshalJSON(&bankGen)
-
-	return genState
+	// The cosmos/evm-specific genesis customizations (EVM denom = amoca + active
+	// static precompiles via the evmtypes package defaults set in init(), and the
+	// bank denom metadata via mocaBankModuleBasic) live in the basic module
+	// manager, so they apply uniformly to every genesis path (mocad init,
+	// testnet, mainnet) — not just this app-level helper.
+	return app.BasicModuleManager.DefaultGenesis(app.appCodec)
 }
 
 // InterfaceRegistry returns Evmos's InterfaceRegistry
@@ -1239,6 +1238,23 @@ func mocaDenomMetadata() banktypes.Metadata {
 		Symbol:  "MOCA",
 		Display: cmdcfg.DisplayDenom,
 	}
+}
+
+// mocaBankModuleBasic overrides the bank module's default genesis to register
+// moca's native denom metadata. cosmos/evm's x/vm InitGenesis resolves the EVM
+// coin info from bank denom metadata (keeper.LoadEvmCoinInfo) and panics if it
+// is missing, so every genesis built via the basic module manager (mocad init,
+// testnet, mainnet) must carry it.
+type mocaBankModuleBasic struct {
+	bank.AppModuleBasic
+}
+
+// DefaultGenesis returns the bank default genesis with moca's native denom
+// metadata registered.
+func (mocaBankModuleBasic) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	genState := banktypes.DefaultGenesisState()
+	genState.DenomMetadata = []banktypes.Metadata{mocaDenomMetadata()}
+	return cdc.MustMarshalJSON(genState)
 }
 
 // migrateToV2 performs the in-place state migration from moca's in-tree x/evm +
