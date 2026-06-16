@@ -42,7 +42,10 @@ fw_upgrade_chain --name "$UPGRADE_NAME" --mode hardfork
 test_chain_producing_blocks_post_upgrade() {
     local h1
     h1=$(get_block_height "http://localhost:26657")
-    sleep 3
+    # Right after an upgrade the restarted binary needs a few seconds to resume
+    # consensus, so poll for the next block instead of a fixed sleep (a single
+    # 3s read can race the first post-upgrade block and spuriously fail).
+    wait_for_height "$((h1 + 1))" "http://localhost:26657"
     local h2
     h2=$(get_block_height "http://localhost:26657")
     assert_gt "$h2" "$h1" "Chain should produce blocks post-upgrade"
