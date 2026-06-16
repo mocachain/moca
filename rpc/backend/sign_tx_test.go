@@ -17,20 +17,18 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func (suite *BackendTestSuite) TestSendTransaction() {
-	// cosmos/evm v0.6.0 migration: Backend.SendTransaction is temporarily
-	// disabled (returns "eth_sendTransaction is temporarily disabled ...");
-	// see rpc/backend/sign_tx.go. The keyring-side signing + broadcast flow
-	// this test exercised no longer exists, so skip until it is re-enabled.
-	suite.T().Skip("cosmos/evm v0.6.0 migration: SendTransaction temporarily disabled, see rpc/backend/sign_tx.go")
-
 	gasPrice := new(hexutil.Big)
-	gas := hexutil.Uint64(1)
+	// 21000 is the intrinsic-gas floor for a plain transfer; cosmos/evm v0.6.0's
+	// MsgEthereumTx.ValidateBasic enforces it (the old in-tree x/evm did not), so
+	// the happy-path fixture must meet it. The gas-set-to-0 case below still uses
+	// zeroGas to assert that floor is enforced.
+	gas := hexutil.Uint64(21000)
 	zeroGas := hexutil.Uint64(0)
 	toAddr := utiltx.GenerateAddress()
 	priv, _ := ethsecp256k1.GenPrivKey()
@@ -279,7 +277,10 @@ func broadcastTx(suite *BackendTestSuite, priv *ethsecp256k1.PrivKey, baseFee ma
 	signedTx, err := ethtypes.SignTx(ethTx, ethSigner, ecdsaKey)
 	suite.Require().NoError(err)
 	msg := &evmtypes.MsgEthereumTx{}
-	msg.FromEthereumTx(signedTx)
+	// Recover and set MsgEthereumTx.From: SendTransaction builds the message via
+	// NewTxFromArgs + Sign, which populates From (BuildTx needs the signer), so
+	// the expected bytes must include it too.
+	suite.Require().NoError(msg.FromSignedEthereumTx(signedTx, ethSigner))
 	tx, _ := msg.BuildTx(suite.backend.clientCtx.TxConfig.NewTxBuilder(), evmtypes.DefaultEVMDenom)
 	txEncoder := suite.backend.clientCtx.TxConfig.TxEncoder()
 	txBytes, _ = txEncoder(tx)
