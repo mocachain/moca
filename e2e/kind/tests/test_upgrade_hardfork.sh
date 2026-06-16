@@ -6,6 +6,7 @@
 #   OLD_VERSION=v1.2.0 bash tests/test_upgrade_hardfork.sh
 #   OLD_VERSION=main   bash tests/test_upgrade_hardfork.sh
 
+# shellcheck source=/dev/null
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
