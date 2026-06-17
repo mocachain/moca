@@ -1,19 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
-
 package app
 
 import (
@@ -37,7 +21,7 @@ import (
 //  2. Release the software defined in the upgrade-info
 //
 //nolint:all
-func (app *Evmos) ScheduleForkUpgrade(ctx sdk.Context) {
+func (app *Moca) ScheduleForkUpgrade(ctx sdk.Context) {
 	// 1) Config-driven hardfork scheduling (recommended for localnet/testnet and emergencies).
 	// This allows operators to schedule an x/upgrade plan without governance by coordinating
 	// the upgrade height and binaries (e.g. via cosmovisor).
@@ -79,7 +63,7 @@ func (app *Evmos) ScheduleForkUpgrade(ctx sdk.Context) {
 // scheduleConfiguredHardfork checks if theres a hardfork configured for the
 // current block height and schedules it. Returns true if a hardfork was found
 // and handled (either scheduled or already present).
-func (app *Evmos) scheduleConfiguredHardfork(ctx sdk.Context) bool {
+func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 	heightKey := strconv.FormatInt(ctx.BlockHeight(), 10)
 	entry, ok := app.appConfig.Hardforks[heightKey]
 	if !ok || entry.Name == "" {

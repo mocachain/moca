@@ -1,9 +1,9 @@
 # Dockerfile.goreleaser
 # This Dockerfile is used by GoReleaser to build multi-arch Docker images
 # GoReleaser handles the compilation and copies the pre-built binary
-FROM golang:1.23.6-bullseye
+FROM golang:1.26.4-bookworm
 
-RUN apt-get update -y && apt-get install ca-certificates jq -y
+RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates jq && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root
 

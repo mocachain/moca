@@ -1,50 +1,60 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
 package encoding
 
 import (
+	"fmt"
+
 	"cosmossdk.io/x/tx/signing"
+
 	amino "github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/cosmos/gogoproto/proto"
+	protov2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	enccodec "github.com/mocachain/moca/v2/encoding/codec"
-	// erc20types "github.com/mocachain/moca/v2/x/erc20/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // encodingConfig creates a new EncodingConfig and returns it
 func MakeConfig() sdktestutil.TestEncodingConfig {
 	cdc := amino.NewLegacyAmino()
+	// cosmos-sdk v0.53 requires AddressCodec/ValidatorAddressCodec on
+	// signing.Options; without them NewInterfaceRegistryWithOptions errors.
 	signingOptions := signing.Options{
+		AddressCodec:          cmdcfg.NewMultiPrefixBech32AccCodec(),
+		ValidatorAddressCodec: cmdcfg.NewMultiPrefixBech32ValCodec(),
 		CustomGetSigners: map[protoreflect.FullName]signing.GetSignersFunc{
-			evmtypes.MsgEthereumTxCustomGetSigner.MsgType:     evmtypes.MsgEthereumTxCustomGetSigner.Fn,
-			// erc20types.MsgConvertERC20CustomGetSigner.MsgType: erc20types.MsgConvertERC20CustomGetSigner.Fn,
+			evmtypes.MsgEthereumTxCustomGetSigner.MsgType: evmtypes.MsgEthereumTxCustomGetSigner.Fn,
+			protoreflect.FullName("moca.payment.MsgCreatePaymentAccount"): func(msg protov2.Message) ([][]byte, error) {
+				creatorField := msg.ProtoReflect().Descriptor().Fields().ByName("creator")
+				if creatorField == nil {
+					return nil, fmt.Errorf(
+						"creator field not found in %s",
+						msg.ProtoReflect().Descriptor().FullName(),
+					)
+				}
+				signer, err := sdk.AccAddressFromHexUnsafe(msg.ProtoReflect().Get(creatorField).String())
+				if err != nil {
+					return nil, err
+				}
+				return [][]byte{signer}, nil
+			},
 		},
 	}
 
-	interfaceRegistry, _ := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
+	interfaceRegistry, err := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
 		ProtoFiles:     proto.HybridResolver,
 		SigningOptions: signingOptions,
 	})
+	if err != nil {
+		panic(err)
+	}
 	codec := amino.NewProtoCodec(interfaceRegistry)
 	enccodec.RegisterLegacyAminoCodec(cdc)
 	enccodec.RegisterInterfaces(interfaceRegistry)
@@ -56,10 +66,21 @@ func MakeConfig() sdktestutil.TestEncodingConfig {
 	eip712.AminoCodec = cdc
 	eip712.ProtoCodec = codec
 
+	// cosmos-sdk v0.53: the bare tx.NewTxConfig falls back to empty signing
+	// options (no address codec) and panics. Build the tx config with the
+	// signing context from the interface registry instead.
+	txConfig, err := tx.NewTxConfigWithOptions(codec, tx.ConfigOptions{
+		EnabledSignModes: tx.DefaultSignModes,
+		SigningContext:   interfaceRegistry.SigningContext(),
+	})
+	if err != nil {
+		panic(err)
+	}
+
 	return sdktestutil.TestEncodingConfig{
 		InterfaceRegistry: interfaceRegistry,
 		Codec:             codec,
-		TxConfig:          tx.NewTxConfig(codec, tx.DefaultSignModes),
+		TxConfig:          txConfig,
 		Amino:             cdc,
 	}
 }

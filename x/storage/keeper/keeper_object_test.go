@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.uber.org/mock/gomock"
 
 	"github.com/mocachain/moca/v2/testutil/sample"
@@ -146,19 +145,19 @@ func (s *TestSuite) TestCreateObject() {
 		ObjectName: objectName,
 	})
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(types3.GlobalSpStorePrice{
-		ReadPrice:           sdk.NewDec(1),
-		PrimaryStorePrice:   sdk.NewDec(2),
-		SecondaryStorePrice: sdk.NewDec(1),
+		ReadPrice:           math.LegacyNewDec(1),
+		PrimaryStorePrice:   math.LegacyNewDec(2),
+		SecondaryStorePrice: math.LegacyNewDec(1),
 	}, nil).AnyTimes()
 	s.paymentKeeper.EXPECT().GetVersionedParamsWithTs(gomock.Any(), gomock.Any()).Return(types4.VersionedParams{
 		ReserveTime:      10000,
-		ValidatorTaxRate: sdk.NewDec(1),
+		ValidatorTaxRate: math.LegacyNewDec(1),
 	}, nil).AnyTimes()
 	s.paymentKeeper.EXPECT().UpdateStreamRecordByAddr(gomock.Any(), gomock.Any()).Return(&types4.StreamRecord{
 		Account:           "",
 		CrudTimestamp:     0,
 		NetflowRate:       math.Int{},
-		StaticBalance:     sdk.NewInt(100),
+		StaticBalance:     math.NewInt(100),
 		BufferBalance:     math.Int{},
 		LockBalance:       math.Int{},
 		Status:            0,

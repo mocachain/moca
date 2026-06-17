@@ -1,18 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
 package types
 
 import (
@@ -36,17 +21,15 @@ type ErrorGasOverflow struct {
 }
 
 type infiniteGasMeterWithLimit struct {
-	consumed   storetypes.Gas
-	limit      storetypes.Gas
-	rwConsumed storetypes.Gas
+	consumed storetypes.Gas
+	limit    storetypes.Gas
 }
 
 // NewInfiniteGasMeterWithLimit returns a reference to a new infiniteGasMeter.
 func NewInfiniteGasMeterWithLimit(limit storetypes.Gas) storetypes.GasMeter {
 	return &infiniteGasMeterWithLimit{
-		consumed:   0,
-		limit:      limit,
-		rwConsumed: 0,
+		consumed: 0,
+		limit:    limit,
 	}
 }
 
@@ -115,19 +98,6 @@ func (g *infiniteGasMeterWithLimit) IsOutOfGas() bool {
 // String returns the BasicGasMeter's gas limit and gas consumed.
 func (g *infiniteGasMeterWithLimit) String() string {
 	return fmt.Sprintf("InfiniteGasMeter:\n  consumed: %d", g.consumed)
-}
-
-func (g *infiniteGasMeterWithLimit) RwConsumed() storetypes.Gas {
-	return g.rwConsumed
-}
-
-func (g *infiniteGasMeterWithLimit) ConsumeRw(amount storetypes.Gas, descriptor string) {
-	var overflow bool
-	g.rwConsumed, overflow = addUint64Overflow(g.rwConsumed, amount)
-	if overflow {
-		g.rwConsumed = math.MaxUint64
-		panic(ErrorGasOverflow{descriptor})
-	}
 }
 
 // GasRemaining returns MaxUint64 since limit is not confined in infiniteGasMeter.

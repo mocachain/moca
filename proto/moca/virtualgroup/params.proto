@@ -9,7 +9,7 @@ option go_package = "github.com/mocachain/moca/v2/x/virtualgroup/types";
 
 // Params defines the parameters for the module.
 message Params {
-  option (amino.name) = "evmos/x/virtualgroup/Params";
+  option (amino.name) = "moca/x/virtualgroup/Params";
   option (gogoproto.equal) = true;
   option (gogoproto.goproto_stringer) = false;
 

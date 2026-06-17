@@ -29,7 +29,7 @@ import (
 type PrecompileTestSuite struct {
 	suite.Suite
 	ctx     sdk.Context
-	app     *app.Evmos
+	app     *app.Moca
 	address common.Address
 	// no EVM stateDB needed
 }
@@ -41,7 +41,7 @@ func TestPrecompileTestSuite(t *testing.T) {
 func (s *PrecompileTestSuite) SetupTest() {
 	checkTx := false
 	chainID := utils.TestnetChainID + "-1"
-	s.app = app.EthSetup(checkTx, func(app *app.Evmos, genesis simapp.GenesisState) simapp.GenesisState {
+	s.app = app.EthSetup(checkTx, func(app *app.Moca, genesis simapp.GenesisState) simapp.GenesisState {
 		evmGenesis := evmtypes.DefaultGenesisState()
 		if bz := genesis[evmtypes.ModuleName]; len(bz) > 0 {
 			app.AppCodec().MustUnmarshalJSON(bz, evmGenesis)

@@ -4,10 +4,9 @@ import (
 	_ "embed" // embed compiled smart contract
 	"encoding/json"
 
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-
-	"github.com/mocachain/moca/v2/x/erc20/types"
 )
 
 // This is an evil token. Whenever an A -> B transfer is called,
@@ -24,7 +23,7 @@ var (
 )
 
 func init() {
-	ERC20MaliciousDelayedAddress = types.ModuleAddress
+	ERC20MaliciousDelayedAddress = common.BytesToAddress(authtypes.NewModuleAddress("erc20").Bytes())
 
 	err := json.Unmarshal(ERC20MaliciousDelayedJSON, &ERC20MaliciousDelayedContract)
 	if err != nil {

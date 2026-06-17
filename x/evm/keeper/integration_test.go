@@ -17,7 +17,7 @@ import (
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
 	"github.com/mocachain/moca/v2/x/feemarket/types"
 
@@ -174,14 +174,14 @@ func setupChain(localMinGasPricesStr string) {
 	// validator-specific min-gas-prices setting
 	db := dbm.NewMemDB()
 	chainID := utils.TestnetChainID + "-1"
-	newapp := app.NewEvmos(
+	newapp := app.NewMoca(
 		log.NewNopLogger(),
 		db,
 		nil,
 		true,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		simutils.NewAppOptionsWithFlagHome(app.DefaultNodeHome),
 		baseapp.SetChainID(chainID),
 		baseapp.SetMinGasPrices(localMinGasPricesStr),

@@ -5,7 +5,6 @@ import (
 
 	"github.com/mocachain/moca/v2/utils"
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
-	erc20types "github.com/mocachain/moca/v2/x/erc20/types"
 	"github.com/mocachain/moca/v2/x/evm/types"
 	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
@@ -361,7 +360,6 @@ func OutputsProposal(proposal govv1.Proposal) Proposal {
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 
 	challengetypes.RegisterInterfaces(interfaceRegistry)
-	erc20types.RegisterInterfaces(interfaceRegistry)
 	types.RegisterInterfaces(interfaceRegistry)
 	feemarkettypes.RegisterInterfaces(interfaceRegistry)
 	gensptypes.RegisterInterfaces(interfaceRegistry)

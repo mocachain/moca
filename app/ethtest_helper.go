@@ -1,18 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
 package app
 
 import (
@@ -35,7 +20,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	servercfg "github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
 )
 
@@ -59,23 +44,23 @@ var EthDefaultConsensusParams = &tmtypes.ConsensusParams{
 }
 
 // EthSetup initializes a new EvmosApp. A Nop logger is set in EvmosApp.
-func EthSetup(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisState) simapp.GenesisState) *Evmos {
+func EthSetup(isCheckTx bool, patchGenesis func(*Moca, simapp.GenesisState) simapp.GenesisState) *Moca {
 	return EthSetupWithDB(isCheckTx, patchGenesis, dbm.NewMemDB())
 }
 
 // EthSetupWithDB initializes a new EvmosApp. A Nop logger is set in EvmosApp.
-func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisState) simapp.GenesisState, db dbm.DB) *Evmos {
+func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Moca, simapp.GenesisState) simapp.GenesisState, db dbm.DB) *Moca {
 	chainID := utils.TestnetChainID + "-1"
 
 	appOpts := simtestutil.NewAppOptionsWithFlagHome(DefaultNodeHome)
 
-	app := NewEvmos(log.NewNopLogger(),
+	app := NewMoca(log.NewNopLogger(),
 		db,
 		nil,
 		true,
 		map[int64]bool{},
 		DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		appOpts,
 		baseapp.SetChainID(chainID),
 	)
@@ -126,7 +111,7 @@ func EthSetupWithDB(isCheckTx bool, patchGenesis func(*Evmos, simapp.GenesisStat
 // The result is returned as simapp.GenesisState (an alias of
 // map[string]json.RawMessage) so that EthSetup's patchGenesis callback
 // signature (and its many call sites) stays untouched.
-func NewTestGenesisState(app *Evmos) simapp.GenesisState {
+func NewTestGenesisState(app *Moca) simapp.GenesisState {
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
 	if err != nil {
@@ -144,7 +129,7 @@ func NewTestGenesisState(app *Evmos) simapp.GenesisState {
 		Coins:   sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, math.NewInt(100000000000000))),
 	}
 
-	genesisState := evmostypes.GenesisState{}
+	genesisState := mocatypes.GenesisState{}
 	genesisState = GenesisStateWithValSet(app, genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
 	return simapp.GenesisState(genesisState)
 }

@@ -1,18 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
 package filters
 
 import (
@@ -100,23 +85,23 @@ type PublicFilterAPI struct {
 // NewPublicAPI returns a new PublicFilterAPI instance.
 func NewPublicAPI(logger log.Logger, clientCtx client.Context, tmWSClient *rpcclient.WSClient, backend Backend) *PublicFilterAPI {
 	logger = logger.With("api", "filter")
-	
+
 	// Get rate limit configuration from backend
 	rateLimit := backend.RPCGetLogsRateLimit()
 	if rateLimit <= 0 {
 		rateLimit = 50 // Default: 50 requests per second
 	}
-	
+
 	burstLimit := backend.RPCGetLogsBurstLimit()
 	if burstLimit <= 0 {
 		burstLimit = 100 // Default: 100 burst
 	}
-	
+
 	// Create a rate limiter with configurable limits
 	// This prevents overwhelming the system with too many eth_getLogs queries
 	limiter := rate.NewLimiter(rate.Limit(rateLimit), burstLimit)
 	logger.Info("eth_getLogs rate limiter initialized", "rate", rateLimit, "burst", burstLimit)
-	
+
 	api := &PublicFilterAPI{
 		logger:      logger,
 		clientCtx:   clientCtx,
@@ -383,7 +368,11 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, er
 				baseFee := types.BaseFeeFromEvents(data.ResultFinalizeBlock.Events)
 
 				// TODO: fetch bloom from events
-				header := types.EthHeaderFromTendermint(data.Block.Header, ethtypes.Bloom{}, baseFee)
+				header, err := types.BlockHeaderFromProto(data.Block.Header.ToProto(), ethtypes.Bloom{}, baseFee)
+				if err != nil {
+					api.logger.Debug("failed to convert newHeads header", "height", data.Block.Height, "error", err.Error())
+					continue
+				}
 				_ = notifier.Notify(rpcSub.ID, header) // #nosec G703
 			case <-rpcSub.Err():
 				headersSub.Unsubscribe(api.events)

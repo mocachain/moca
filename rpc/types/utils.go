@@ -1,18 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
 package types
 
 import (
@@ -22,6 +7,7 @@ import (
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -94,6 +80,47 @@ func EthHeaderFromTendermint(header tmtypes.Header, bloom ethtypes.Bloom, baseFe
 		Nonce:       ethtypes.BlockNonce{},
 		BaseFee:     baseFee,
 	}
+}
+
+// RPCMarshalHeader converts an Ethereum header into the JSON-RPC header shape while
+// preserving the canonical block hash exposed by block-by-number/block-by-hash APIs.
+func RPCMarshalHeader(ethHeader *ethtypes.Header, blockHash common.Hash) map[string]interface{} {
+	result := map[string]interface{}{
+		"number":           (*hexutil.Big)(ethHeader.Number),
+		"hash":             blockHash,
+		"parentHash":       ethHeader.ParentHash,
+		"nonce":            ethHeader.Nonce,
+		"sha3Uncles":       ethHeader.UncleHash,
+		"logsBloom":        ethHeader.Bloom,
+		"stateRoot":        ethHeader.Root,
+		"miner":            ethHeader.Coinbase,
+		"mixHash":          ethHeader.MixDigest,
+		"difficulty":       (*hexutil.Big)(ethHeader.Difficulty),
+		"extraData":        hexutil.Bytes(ethHeader.Extra),
+		"gasLimit":         hexutil.Uint64(ethHeader.GasLimit),
+		"gasUsed":          hexutil.Uint64(ethHeader.GasUsed),
+		"timestamp":        hexutil.Uint64(ethHeader.Time),
+		"transactionsRoot": ethHeader.TxHash,
+		"receiptsRoot":     ethHeader.ReceiptHash,
+	}
+
+	if ethHeader.BaseFee != nil {
+		result["baseFeePerGas"] = (*hexutil.Big)(ethHeader.BaseFee)
+	}
+
+	return result
+}
+
+// BlockHeaderFromProto builds the JSON-RPC newHeads payload from a CometBFT header,
+// ensuring the exposed hash matches the canonical block hash used by lookup APIs.
+func BlockHeaderFromProto(protoHeader *tmproto.Header, bloom ethtypes.Bloom, baseFee *big.Int) (map[string]interface{}, error) {
+	header, err := tmtypes.HeaderFromProto(protoHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	ethHeader := EthHeaderFromTendermint(header, bloom, baseFee)
+	return RPCMarshalHeader(ethHeader, common.BytesToHash(header.Hash())), nil
 }
 
 // BlockMaxGasFromConsensusParams returns the gas limit for the current block from the chain consensus params.

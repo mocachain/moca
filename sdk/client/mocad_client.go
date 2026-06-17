@@ -35,6 +35,21 @@ import (
 	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
+// newMocaTxConfig builds a TxConfig threading the SigningContext from the
+// codec's InterfaceRegistry. The bare authtx.NewTxConfig path (used in this
+// package before the v0.53 upgrade) falls back to an empty signing.Options
+// and panics with "address codec is required" on v0.53.
+func newMocaTxConfig(cdc *codec.ProtoCodec, modes []signing.SignMode) sdkclient.TxConfig {
+	txConfig, err := authtx.NewTxConfigWithOptions(cdc, authtx.ConfigOptions{
+		EnabledSignModes: modes,
+		SigningContext:   cdc.InterfaceRegistry().SigningContext(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	return txConfig
+}
+
 // AuthQueryClient is a type to define the auth types Query Client
 type AuthQueryClient = authtypes.QueryClient
 
@@ -183,7 +198,7 @@ func newMocaClient(rpcAddr, chainID string, rpcClient *rpchttp.HTTP, evmRpcClien
 		// override the tendermintClient with wsClient and use it in the cosmos context
 		client.tendermintClient = wsClient
 	}
-	txConfig := authtx.NewTxConfig(cdc, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
+	txConfig := newMocaTxConfig(cdc, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	clientCtx := sdkclient.Context{}.
 		WithCodec(cdc).
 		WithInterfaceRegistry(cdc.InterfaceRegistry()).

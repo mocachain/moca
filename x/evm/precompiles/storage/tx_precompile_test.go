@@ -39,5 +39,3 @@ func TestCancelUpdateObjectContent_ABI_And_Args(t *testing.T) {
 	require.Equal(t, args.BucketName, decoded.BucketName)
 	require.Equal(t, args.ObjectName, decoded.ObjectName)
 }
-
-

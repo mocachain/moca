@@ -1,18 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
 package tx
 
 import (
@@ -66,12 +51,12 @@ type legacyWeb3ExtensionArgs struct {
 // It returns the signed transaction and an error
 func CreateEIP712CosmosTx(
 	ctx sdk.Context,
-	appEvmos *app.Evmos,
+	appMoca *app.Moca,
 	args EIP712TxArgs,
 ) (sdk.Tx, error) {
 	builder, err := PrepareEIP712CosmosTx(
 		ctx,
-		appEvmos,
+		appMoca,
 		args,
 	)
 	if err != nil {
@@ -86,7 +71,7 @@ func CreateEIP712CosmosTx(
 // It returns the tx builder with the signed transaction and an error
 func PrepareEIP712CosmosTx(
 	ctx sdk.Context,
-	appEvmos *app.Evmos,
+	appMoca *app.Moca,
 	args EIP712TxArgs,
 ) (client.TxBuilder, error) {
 	txArgs := args.CosmosTxArgs
@@ -102,9 +87,9 @@ func PrepareEIP712CosmosTx(
 	chainIDNum := pc.Uint64()
 
 	from := sdk.AccAddress(txArgs.Priv.PubKey().Address().Bytes())
-	accNumber := appEvmos.AccountKeeper.GetAccount(ctx, from).GetAccountNumber()
+	accNumber := appMoca.AccountKeeper.GetAccount(ctx, from).GetAccountNumber()
 
-	nonce, err := appEvmos.AccountKeeper.GetSequence(ctx, from)
+	nonce, err := appMoca.AccountKeeper.GetSequence(ctx, from)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +104,7 @@ func PrepareEIP712CosmosTx(
 		data:           data,
 		legacyFeePayer: from,
 		legacyMsg:      msgs[0],
-		unpacker:       appEvmos.AppCodec(),
+		unpacker:       appMoca.AppCodec(),
 	}
 	typedData, err := createTypedData(typedDataArgs, args.UseLegacyTypedData)
 	if err != nil {
@@ -142,7 +127,7 @@ func PrepareEIP712CosmosTx(
 
 	return signCosmosEIP712Tx(
 		ctx,
-		appEvmos,
+		appMoca,
 		args,
 		builder,
 		chainIDNum,
@@ -154,7 +139,7 @@ func PrepareEIP712CosmosTx(
 // the provided private key and the typed data
 func signCosmosEIP712Tx(
 	ctx sdk.Context,
-	appEvmos *app.Evmos,
+	appMoca *app.Moca,
 	args EIP712TxArgs,
 	builder authtx.ExtensionOptionsTxBuilder,
 	chainID uint64,
@@ -163,7 +148,7 @@ func signCosmosEIP712Tx(
 	priv := args.CosmosTxArgs.Priv
 
 	from := sdk.AccAddress(priv.PubKey().Address().Bytes())
-	nonce, err := appEvmos.AccountKeeper.GetSequence(ctx, from)
+	nonce, err := appMoca.AccountKeeper.GetSequence(ctx, from)
 	if err != nil {
 		return nil, err
 	}

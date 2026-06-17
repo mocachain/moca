@@ -12,7 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/spf13/cobra"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/x/storage/types"
 )
 
@@ -339,7 +339,7 @@ Examples:
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			grnStr := args[0]
-			var grn evmostypes.GRN
+			var grn mocatypes.GRN
 			err = grn.ParseFromString(grnStr, false)
 			if err != nil {
 				return err
@@ -385,7 +385,7 @@ Examples:
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			grnStr := args[0]
-			var grn evmostypes.GRN
+			var grn mocatypes.GRN
 			err = grn.ParseFromString(grnStr, false)
 			if err != nil {
 				return err

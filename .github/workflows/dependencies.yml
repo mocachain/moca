@@ -10,19 +10,18 @@ jobs:
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23.x"
+          go-version: "1.26.4"
           check-latest: true
       - name: "Checkout Repository"
         uses: actions/checkout@v6
       - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
-            **/**.go
             go.mod
             go.sum
       - name: "Dependency Review"
-        uses: actions/dependency-review-action@v3
+        uses: actions/dependency-review-action@v5
         if: env.GIT_DIFF
       - name: "Go vulnerability check"
-        run: make vulncheck
+        run: make vulncheck VULNCHECK_GO_TOOLCHAIN=go1.26.4
         if: env.GIT_DIFF

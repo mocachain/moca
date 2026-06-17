@@ -1,4 +1,4 @@
-FROM golang:1.23.6-bullseye AS builder
+FROM golang:1.26.4-bookworm AS builder
 
 ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
@@ -23,8 +23,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     make build
 
 
-FROM golang:1.23.6-bullseye
-RUN apt-get update -y && apt-get install ca-certificates jq -y
+FROM golang:1.26.4-bookworm
+RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates jq && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /workspace/build/mocad /usr/local/bin/mocad
 

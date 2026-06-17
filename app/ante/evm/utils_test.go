@@ -46,7 +46,7 @@ import (
 	"github.com/mocachain/moca/v2/e2e/core"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
@@ -505,13 +505,13 @@ func (suite *AnteTestSuite) generateSingleSignature(signMode signing.SignMode, p
 	msgBytes = signDocBytes
 
 	if signType == "EIP-712" {
-		parsedChainID, err := evmostypes.ParseChainID(chainID)
+		parsedChainID, err := mocatypes.ParseChainID(chainID)
 		suite.Require().NoError(err)
 
 		registry := codectypes.NewInterfaceRegistry()
-		evmostypes.RegisterInterfaces(registry)
+		mocatypes.RegisterInterfaces(registry)
 		cryptocodec.RegisterInterfaces(registry)
-		evmosCodec := codec.NewProtoCodec(registry)
+		mocaCodec := codec.NewProtoCodec(registry)
 
 		feeDelegation := &eip712.FeeDelegationOptions{
 			FeePayer: sdk.AccAddress(privKey.PubKey().Address()),
@@ -539,7 +539,7 @@ func (suite *AnteTestSuite) generateSingleSignature(signMode signing.SignMode, p
 		)
 
 		typedData, err := eip712.LegacyWrapTxToTypedData(
-			evmosCodec,
+			mocaCodec,
 			parsedChainID.Uint64(),
 			msg,
 			stdSignBytes,
@@ -627,9 +627,9 @@ func (suite *AnteTestSuite) createSignerBytes(chainID string, signMode signing.S
 
 	// For EIP-712, we need to ensure the ExtensionOptionsWeb3Tx is set correctly with Hex FeePayer
 	if signMode == signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON {
-		parsedChainID, err := evmostypes.ParseChainID(chainID)
+		parsedChainID, err := mocatypes.ParseChainID(chainID)
 		if err == nil {
-			option, err := codectypes.NewAnyWithValue(&evmostypes.ExtensionOptionsWeb3Tx{
+			option, err := codectypes.NewAnyWithValue(&mocatypes.ExtensionOptionsWeb3Tx{
 				FeePayer:         common.BytesToAddress(pubKey.Address()).Hex(),
 				TypedDataChainID: parsedChainID.Uint64(),
 				FeePayerSig:      nil,
@@ -753,7 +753,7 @@ func (suite *AnteTestSuite) CreateTestSingleSignedTx(privKey cryptotypes.PrivKey
 		opts := txWithExtensions.GetExtensionOptions()
 		// We expect one option which is ExtensionOptionsWeb3Tx
 		if len(opts) > 0 {
-			if extOpt, ok := opts[0].GetCachedValue().(*evmostypes.ExtensionOptionsWeb3Tx); ok {
+			if extOpt, ok := opts[0].GetCachedValue().(*mocatypes.ExtensionOptionsWeb3Tx); ok {
 				extOpt.FeePayerSig = sigData.Data.(*signing.SingleSignatureData).Signature
 
 				// Update the extension option
