@@ -676,8 +676,8 @@ github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee h
 github.com/mocachain/go-ethereum v1.10.27-moca.2.0.20260318105122-e849a5b4edee/go.mod h1:I5j+rJP+h5ZruTJ+fu1nVWkd4XmuodZ3pzYjAzTreeg=
 github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260525065257-182cd579d91b h1:p+VKfY5zvtrYHFAd2qzdithny/b8dLjM7hl+KGxfyhA=
 github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260525065257-182cd579d91b/go.mod h1:ph+97FbAyRFZLjXBqG7bK7RdwdsdS8SMyISLekuVYhI=
-github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260529081045-8275063d3215 h1:6ABc3ZC3Mv03DLIpiPpEJZKN8CLl43HJEYbmrch+tis=
-github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260529081045-8275063d3215/go.mod h1:KWPVcH4Q8kMv1uma3xc3wkFI7g+hqdKFaKC3xz/4HNA=
+github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260616114853-adb2284241e1 h1:pIE27fUFr9POYirPnX7wVx7zfQgAIvF5bhY8O0dynoc=
+github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260616114853-adb2284241e1/go.mod h1:KWPVcH4Q8kMv1uma3xc3wkFI7g+hqdKFaKC3xz/4HNA=
 github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2.0.20260529081045-8275063d3215 h1:opVIkOqLPXkwSunmnc5HK12jV9fa4F1uDJl9NttdlYs=
 github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2.0.20260529081045-8275063d3215/go.mod h1:VIH3FLXQ2KWCkzkqXSThA9npvg0LgSBxBRzVSRoJWeg=
 github.com/mocachain/moca-cosmos-sdk/client/v2 v2.2.0-rc2.0.20260529081045-8275063d3215 h1:rauetEkEfq6UZxvNCOMglhkwd62yiR/01+r5Axg36u0=
