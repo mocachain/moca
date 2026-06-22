@@ -23,7 +23,7 @@ exec_mocad keys add upgrade-acct --keyring-backend test 2>/dev/null || true
 UPGRADE_TEST_ADDR=$(exec_mocad keys show upgrade-acct -a --keyring-backend test)
 log_info "Test account: ${UPGRADE_TEST_ADDR}"
 
-fw_tx_send validator0 "$UPGRADE_TEST_ADDR" "5000000000000000000amoca"
+fw_tx_send validator0 "$UPGRADE_TEST_ADDR" "5000000000000000000amoca" "$FEES"
 
 PRE_UPGRADE_HEIGHT=$(get_block_height "http://localhost:26657")
 PRE_UPGRADE_BALANCE=$(exec_mocad query bank balances "$UPGRADE_TEST_ADDR" \
@@ -79,7 +79,7 @@ test_send_tokens_post_upgrade() {
     local recv
     recv=$(exec_mocad keys show post-hf-user -a --keyring-backend test)
 
-    fw_tx_send validator0 "$recv" "1000000000000000000amoca"
+    fw_tx_send validator0 "$recv" "1000000000000000000amoca" "$FEES"
 
     local bal
     bal=$(exec_mocad query bank balances "$recv" \
