@@ -68,6 +68,7 @@ cosmos_tx() {
         --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 --fees 200000000000000amoca \
+        --gas auto --gas-adjustment 1.3 \
         --broadcast-mode sync -y --output json 2>&1) || {
         log_error "  cosmos_tx broadcast failed: $out"
         return 1
@@ -88,6 +89,7 @@ cosmos_tx_on() {
         --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 --fees 200000000000000amoca \
+        --gas auto --gas-adjustment 1.3 \
         --broadcast-mode sync -y --output json 2>&1) || {
         log_error "  cosmos_tx_on broadcast failed: $out"
         return 1
