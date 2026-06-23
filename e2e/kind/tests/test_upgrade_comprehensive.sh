@@ -67,13 +67,13 @@ cosmos_tx() {
         mocad tx "$@" \
         --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 --fees 200000000000000amoca \
-        --gas auto --gas-adjustment 1.3 \
+        --node tcp://localhost:26657 \
+        --gas auto --gas-adjustment 1.3 --gas-prices 5000000000amoca \
         --broadcast-mode sync -y --output json 2>&1) || {
         log_error "  cosmos_tx broadcast failed: $out"
         return 1
     }
-    hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
+    hash=$(echo "$out" | jq -Rr 'fromjson? | .txhash // empty' 2>/dev/null)
     if [ -z "$hash" ]; then
         log_error "  cosmos_tx returned no txhash: $out"
         return 1
@@ -88,13 +88,13 @@ cosmos_tx_on() {
         mocad tx "$@" \
         --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 --fees 200000000000000amoca \
-        --gas auto --gas-adjustment 1.3 \
+        --node tcp://localhost:26657 \
+        --gas auto --gas-adjustment 1.3 --gas-prices 5000000000amoca \
         --broadcast-mode sync -y --output json 2>&1) || {
         log_error "  cosmos_tx_on broadcast failed: $out"
         return 1
     }
-    hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
+    hash=$(echo "$out" | jq -Rr 'fromjson? | .txhash // empty' 2>/dev/null)
     if [ -z "$hash" ]; then
         log_error "  cosmos_tx_on returned no txhash: $out"
         return 1
