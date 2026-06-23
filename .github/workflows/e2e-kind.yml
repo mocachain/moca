@@ -12,7 +12,7 @@ on:
         type: string
 
 env:
-  OLD_VERSION: ${{ inputs.old_version || 'v1.1.2' }}
+  OLD_VERSION: ${{ inputs.old_version || 'v1.3.0' }}
   DOCKER_IMAGE: mocachain/moca
   DOCKER_TAG: e2e-local
   CGO_CFLAGS: "-O -D__BLST_PORTABLE__"

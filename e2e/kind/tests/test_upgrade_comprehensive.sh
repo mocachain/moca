@@ -21,7 +21,7 @@
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
-OLD_VERSION="${OLD_VERSION:-v1.2.0}"
+OLD_VERSION="${OLD_VERSION:-v1.3.0}"
 UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
 UPGRADE_MODE="${UPGRADE_MODE:-governance}"
 TX_ROUNDS="${TX_ROUNDS:-3}"
@@ -67,8 +67,9 @@ cosmos_tx() {
         mocad tx "$@" \
         --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 --fees 200000000000000amoca \
-        --broadcast-mode sync -y --output json 2>&1) || {
+        --node tcp://localhost:26657 \
+        --gas auto --gas-adjustment 1.3 --fees 2000000000000000amoca \
+        --broadcast-mode sync -y --output json) || {
         log_error "  cosmos_tx broadcast failed: $out"
         return 1
     }
@@ -87,8 +88,9 @@ cosmos_tx_on() {
         mocad tx "$@" \
         --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 --fees 200000000000000amoca \
-        --broadcast-mode sync -y --output json 2>&1) || {
+        --node tcp://localhost:26657 \
+        --gas auto --gas-adjustment 1.3 --fees 2000000000000000amoca \
+        --broadcast-mode sync -y --output json) || {
         log_error "  cosmos_tx_on broadcast failed: $out"
         return 1
     }
