@@ -69,11 +69,11 @@ cosmos_tx() {
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 \
         --gas auto --gas-adjustment 1.3 --fees 2000000000000000amoca \
-        --broadcast-mode sync -y --output json 2>&1) || {
+        --broadcast-mode sync -y --output json) || {
         log_error "  cosmos_tx broadcast failed: $out"
         return 1
     }
-    hash=$(echo "$out" | jq -Rr 'fromjson? | .txhash // empty' 2>/dev/null)
+    hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
     if [ -z "$hash" ]; then
         log_error "  cosmos_tx returned no txhash: $out"
         return 1
@@ -90,11 +90,11 @@ cosmos_tx_on() {
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 \
         --gas auto --gas-adjustment 1.3 --fees 2000000000000000amoca \
-        --broadcast-mode sync -y --output json 2>&1) || {
+        --broadcast-mode sync -y --output json) || {
         log_error "  cosmos_tx_on broadcast failed: $out"
         return 1
     }
-    hash=$(echo "$out" | jq -Rr 'fromjson? | .txhash // empty' 2>/dev/null)
+    hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
     if [ -z "$hash" ]; then
         log_error "  cosmos_tx_on returned no txhash: $out"
         return 1
