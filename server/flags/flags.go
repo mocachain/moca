@@ -61,6 +61,14 @@ const (
 const (
 	EVMTracer         = "evm.tracer"
 	EVMMaxTxGasWanted = "evm.max-tx-gas-wanted"
+	// EVMChainID is the EIP-155 chain ID baked into the cosmos/evm keeper at
+	// construction. When unset (0), cosmos/evm falls back to its default
+	// (262144). The throwaway app built by the root command leaves this
+	// unset, so the keeper's one-time SetChainConfig transitions default ->
+	// configured value on the real app without tripping the "already set"
+	// guard. Configure per-network in app.toml (devnet 5151 / testnet
+	// 222888 / mainnet 2288).
+	EVMChainID = "evm.evm-chain-id"
 )
 
 // TLS flags

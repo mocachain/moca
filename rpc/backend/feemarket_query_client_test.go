@@ -4,7 +4,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpc "github.com/mocachain/moca/v2/rpc/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 )
 
 var _ feemarkettypes.QueryClient = &mocks.FeeMarketQueryClient{}

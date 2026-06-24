@@ -10,13 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	spkeeper "github.com/mocachain/moca/v2/x/sp/keeper"
 
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type (
 	precompiledContractFunc func(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error)
 	Contract                struct {
-		ctx       sdk.Context
 		spKeeper  spkeeper.Keeper
 		handlers  map[string]precompiledContractFunc
 		gasMeters map[string]uint64
@@ -24,9 +24,12 @@ type (
 	}
 )
 
-func NewPrecompiledContract(ctx sdk.Context, spKeeper spkeeper.Keeper) *Contract {
+// NewPrecompiledContract builds a context-free static precompile instance.
+// cosmos/evm v0.6.0 registers precompiles once (WithStaticPrecompiles) rather
+// than rebuilding them per-tx, so the sdk.Context is no longer bound at
+// construction; Run pulls the live context from the EVM StateDB instead.
+func NewPrecompiledContract(spKeeper spkeeper.Keeper) *Contract {
 	c := &Contract{
-		ctx:       ctx,
 		spKeeper:  spKeeper,
 		handlers:  make(map[string]precompiledContractFunc),
 		gasMeters: make(map[string]uint64),
@@ -53,7 +56,15 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
-	ctx, commit := c.ctx.CacheContext()
+	stateDB, ok := evm.StateDB.(*statedb.StateDB)
+	if !ok {
+		return types.PackRetError("storageprovider precompile must run within the cosmos/evm StateDB")
+	}
+	cacheCtx, err := stateDB.GetCacheContext()
+	if err != nil {
+		return types.PackRetError(err.Error())
+	}
+	ctx, commit := cacheCtx.CacheContext()
 	snapshot := evm.StateDB.Snapshot()
 	defer func() {
 		if err != nil {

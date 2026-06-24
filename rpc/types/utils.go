@@ -15,12 +15,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -47,7 +46,8 @@ func RawTxToEthTx(clientCtx client.Context, txBz tmtypes.Tx) ([]*evmtypes.MsgEth
 		if !ok {
 			return nil, fmt.Errorf("invalid message type %T, expected %T", msg, &evmtypes.MsgEthereumTx{})
 		}
-		ethTx.Hash = ethTx.AsTransaction().Hash().Hex()
+		// cosmos/evm v0.6.0 MsgEthereumTx.Hash is a getter (computed from
+		// AsTransaction()); the field is no longer assignable.
 		ethTxs[i] = ethTx
 	}
 	return ethTxs, nil
@@ -255,8 +255,12 @@ func NewRPCTransaction(
 		result.GasTipCap = (*hexutil.Big)(tx.GasTipCap())
 		// if the transaction has been mined, compute the effective gas price
 		if baseFee != nil && blockHash != (common.Hash{}) {
-			// price = min(tip, gasFeeCap - baseFee) + baseFee
-			price := math.BigMin(new(big.Int).Add(tx.GasTipCap(), baseFee), tx.GasFeeCap())
+			// price = min(tip + baseFee, gasFeeCap). geth v1.15 removed
+			// math.BigMin so we inline the comparison.
+			price := new(big.Int).Add(tx.GasTipCap(), baseFee)
+			if price.Cmp(tx.GasFeeCap()) > 0 {
+				price = tx.GasFeeCap()
+			}
 			result.GasPrice = (*hexutil.Big)(price)
 		} else {
 			result.GasPrice = (*hexutil.Big)(tx.GasFeeCap())

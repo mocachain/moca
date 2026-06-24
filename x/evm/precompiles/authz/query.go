@@ -15,10 +15,10 @@ import (
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 

@@ -9,7 +9,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
-	ethlog "github.com/ethereum/go-ethereum/log"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/mocachain/moca/v2/rpc"
 
@@ -27,18 +26,14 @@ func StartJSONRPC(ctx *server.Context,
 ) (*http.Server, chan struct{}, error) {
 	tmWsClient := ConnectTmWS(tmRPCAddr, tmEndpoint, ctx.Logger)
 
-	logger := ctx.Logger.With("module", "geth")
-	ethlog.Root().SetHandler(ethlog.FuncHandler(func(r *ethlog.Record) error {
-		switch r.Lvl {
-		case ethlog.LvlTrace, ethlog.LvlDebug:
-			logger.Debug(r.Msg, r.Ctx...)
-		case ethlog.LvlInfo, ethlog.LvlWarn:
-			logger.Info(r.Msg, r.Ctx...)
-		case ethlog.LvlError, ethlog.LvlCrit:
-			logger.Error(r.Msg, r.Ctx...)
-		}
-		return nil
-	}))
+	// TODO(cosmos-evm migration): geth v1.15 rewrote its logger on top of
+	// log/slog and removed the legacy SetHandler / FuncHandler / Record API
+	// that this block used to bridge geth library logs into moca's
+	// structured logger. Re-routing now requires implementing an
+	// slog.Handler that delegates to ctx.Logger. Until that lands, geth
+	// library logs go to geth's default sink instead of merging into
+	// moca's log output.
+	_ = ctx.Logger.With("module", "geth")
 
 	rpcServer := ethrpc.NewServer()
 

@@ -13,7 +13,7 @@ import (
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -351,7 +351,7 @@ func (suite *BackendTestSuite) TestSendRawTransaction() {
 				RegisterBroadcastTxError(client, txBytes)
 			},
 			rlpEncodedBz,
-			common.HexToHash(ethTx.Hash),
+			ethTx.Hash(),
 			false,
 		},
 		{
@@ -364,7 +364,7 @@ func (suite *BackendTestSuite) TestSendRawTransaction() {
 				RegisterBroadcastTx(client, txBytes)
 			},
 			rlpEncodedBz,
-			common.HexToHash(ethTx.Hash),
+			ethTx.Hash(),
 			true,
 		},
 	}

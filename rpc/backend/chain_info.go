@@ -10,13 +10,14 @@ import (
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethmath "github.com/ethereum/go-ethereum/common/math"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	"github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/pkg/errors"
 )
 
@@ -42,12 +43,11 @@ func (b *Backend) ChainID() (*hexutil.Big, error) {
 
 // ChainConfig returns the latest ethereum chain configuration
 func (b *Backend) ChainConfig() *params.ChainConfig {
-	params, err := b.queryClient.Params(b.ctx, &evmtypes.QueryParamsRequest{})
-	if err != nil {
-		return nil
-	}
-
-	return params.Params.ChainConfig.EthereumConfig(b.chainID)
+	// cosmos/evm v0.6.0 dropped the ChainConfig field from x/vm Params; the
+	// canonical chain config is now a static, always-available value owned by
+	// the package configurator (set at keeper construction). It does not depend
+	// on a Params query, so return it directly (matches upstream cosmos/evm).
+	return evmtypes.GetEthChainConfig()
 }
 
 // GlobalMinGasPrice returns MinGasPrice param from FeeMarket
@@ -148,8 +148,11 @@ func (b *Backend) GetCoinbase() (sdk.AccAddress, error) {
 }
 
 // FeeHistory returns data relevant for fee estimation based on the specified range of blocks.
+//
+// geth v1.15 retired the rpc.DecimalOrHex shorthand; cosmos/evm's RPC
+// backend uses common/math.HexOrDecimal64 for the same purpose.
 func (b *Backend) FeeHistory(
-	userBlockCount rpc.DecimalOrHex, // number blocks to fetch, maximum is 100
+	userBlockCount ethmath.HexOrDecimal64, // number blocks to fetch, maximum is 100
 	lastBlock rpc.BlockNumber, // the block to start search , to oldest
 	rewardPercentiles []float64, // percentiles to fetch reward
 ) (*rpctypes.FeeHistoryResult, error) {

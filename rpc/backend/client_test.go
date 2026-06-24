@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpc "github.com/mocachain/moca/v2/rpc/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -183,7 +183,7 @@ func RegisterBlockResultsWithEventLog(client *mocks.Client, height int64) (*tmrp
 		Height: height,
 		TxsResults: []*abci.ExecTxResult{
 			{GasUsed: 0, Events: []abci.Event{{
-				Type: evmtypes.EventTypeTxLog,
+				Type: evmtypes.EventTypeEthereumTx,
 				Attributes: []abci.EventAttribute{{
 					Key:   evmtypes.AttributeKeyTxLog,
 					Value: "{\"test\": \"hello\"}", // TODO refactor the value to unmarshall to a evmtypes.Log struct successfully

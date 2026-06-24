@@ -4,15 +4,16 @@ import (
 	"context"
 	time "time"
 
+	"math/big"
+
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/mocachain/moca/v2/types/resource"
-	"github.com/mocachain/moca/v2/x/evm/statedb"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	permtypes "github.com/mocachain/moca/v2/x/permission/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
@@ -136,10 +137,18 @@ type StorageMsgServer interface {
 	SetBucketFlowRateLimit(context.Context, *MsgSetBucketFlowRateLimit) (*MsgSetBucketFlowRateLimitResponse, error)
 }
 
-// EVMKeeper defines the expected EVM keeper interface used on erc20
+// EVMKeeper defines the expected EVM keeper interface used by moca's storage
+// module to call into the ERC-721 NFT contracts that mirror buckets/objects/
+// groups. It embeds cosmos/evm's statedb.Keeper surface so storage can build a
+// *statedb.StateDB (statedb.New) to feed cosmos/evm's CallEVM/CallEVMWithData,
+// which in v0.6.0 require an explicit StateDB. The concrete *evmkeeper.Keeper
+// satisfies all of this.
 type EVMKeeper interface {
+	statedb.Keeper
+
 	GetParams(ctx sdktypes.Context) evmtypes.Params
 	GetAccountWithoutBalance(ctx sdktypes.Context, addr common.Address) *statedb.Account
 	EstimateGas(c context.Context, req *evmtypes.EthCallRequest) (*evmtypes.EstimateGasResponse, error)
-	ApplyMessage(ctx sdktypes.Context, msg core.Message, tracer vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error)
+	CallEVM(ctx sdktypes.Context, stateDB *statedb.StateDB, abi abi.ABI, from, contract common.Address, commit, callFromPrecompile bool, gasCap *big.Int, method string, args ...interface{}) (*evmtypes.MsgEthereumTxResponse, error)
+	CallEVMWithData(ctx sdktypes.Context, stateDB *statedb.StateDB, from common.Address, contract *common.Address, data []byte, commit, callFromPrecompile bool, gasCap *big.Int) (*evmtypes.MsgEthereumTxResponse, error)
 }

@@ -28,7 +28,7 @@ import (
 	testutil "github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func TestAuthzLimiterDecorator(t *testing.T) {
@@ -61,7 +61,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 		Input:     nil,
 		Accesses:  &ethtypes.AccessList{},
 	})
-	msgEthereumTx.From = common.BytesToAddress(testAddresses[0].Bytes()).Hex()
+	msgEthereumTx.From = common.BytesToAddress(testAddresses[0].Bytes()).Bytes()
 	require.NoError(t, msgEthereumTx.Sign(
 		ethtypes.LatestSignerForChainID(chainID),
 		utiltx.NewSigner(testPrivKeys[0]),
@@ -293,7 +293,11 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("Case %s", tc.name), func(t *testing.T) {
 			ctx := sdk.Context{}.WithIsCheckTx(tc.checkTx)
-			tx, err := createTx(testPrivKeys[0], tc.msgs...)
+			// The AuthzLimiterDecorator only inspects tx.GetMsgs(); it never
+			// verifies signatures. Build an unsigned tx so the top-level
+			// MsgEthereumTx case (which cannot be EIP-712 signed via the moca
+			// SDK fork) exercises the same decorator path as every other case.
+			tx, err := createUnsignedTx(tc.msgs...)
 			require.NoError(t, err)
 
 			_, err = decorator.AnteHandle(ctx, tx, false, testutil.NextFn)
@@ -319,7 +323,7 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 		ChainID:   big.NewInt(9000),
 		Nonce:     0,
 		GasLimit:  1000000,
-		GasFeeCap: suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx),
+		GasFeeCap: suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx).TruncateInt().BigInt(),
 		GasTipCap: big.NewInt(1),
 		Input:     nil,
 		Accesses:  &ethtypes.AccessList{},
@@ -396,9 +400,17 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 			expectedCode: sdkerrors.ErrUnauthorized.ABCICode(),
 		},
 		{
-			name:         "a MsgGrant with MsgEthereumTx typeURL on the authorization field included on EIP712 tx is blocked",
-			msgs:         []sdk.Msg{newMsgGrant(sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}))},
-			expectedCode: sdkerrors.ErrUnauthorized.ABCICode(),
+			name: "a MsgGrant with MsgEthereumTx typeURL on the authorization field included on EIP712 tx is blocked",
+			msgs: []sdk.Msg{newMsgGrant(sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}))},
+			// cosmos/evm v0.6.0 migration: moca's ante (app/ante/ante.go) no
+			// longer supports the legacy ExtensionOptionsWeb3Tx EIP712 flow. The
+			// only accepted extension options are now
+			// ExtensionOptionsEthereumTx and ExtensionOptionDynamicFeeTx, so an
+			// EIP712 shell tx carrying ExtensionOptionsWeb3Tx is rejected at the
+			// extension-options decorator with ErrUnknownExtensionOptions (31)
+			// before the AuthzLimiter can run. The dangerous grant is still
+			// blocked, just one decorator earlier.
+			expectedCode: sdkerrors.ErrUnknownExtensionOptions.ABCICode(),
 			isEIP712:     true,
 		},
 		{

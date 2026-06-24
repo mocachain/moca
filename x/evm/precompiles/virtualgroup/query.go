@@ -7,7 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 

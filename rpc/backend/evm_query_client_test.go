@@ -1,7 +1,7 @@
 package backend
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -14,11 +14,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpc "github.com/mocachain/moca/v2/rpc/types"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -34,22 +35,57 @@ import (
 // To use a mock method it has to be registered in a given test.
 var _ evmtypes.QueryClient = &mocks.EVMQueryClient{}
 
+// traceTxRequestMatcher matches a *QueryTraceTxRequest by its serialized proto
+// bytes rather than reflect.DeepEqual. cosmos/evm v0.6.0 wraps a geth
+// *ethtypes.Transaction inside MsgEthereumTx.Raw; that struct carries
+// lazily-populated, unexported atomic cache fields (hash/size/from) so two
+// semantically-identical messages are neither reflect.DeepEqual nor proto.Equal
+// (proto.Equal falls back to reflection for the custom-typed Raw field). The
+// wire-encoded bytes are deterministic and reflect only the semantic content.
+func traceTxRequestMatcher(want *evmtypes.QueryTraceTxRequest) interface{} {
+	wantBz, err := proto.Marshal(want)
+	if err != nil {
+		panic(err)
+	}
+	return mock.MatchedBy(func(got *evmtypes.QueryTraceTxRequest) bool {
+		gotBz, err := proto.Marshal(got)
+		if err != nil {
+			return false
+		}
+		return bytes.Equal(gotBz, wantBz)
+	})
+}
+
+func traceBlockRequestMatcher(want *evmtypes.QueryTraceBlockRequest) interface{} {
+	wantBz, err := proto.Marshal(want)
+	if err != nil {
+		panic(err)
+	}
+	return mock.MatchedBy(func(got *evmtypes.QueryTraceBlockRequest) bool {
+		gotBz, err := proto.Marshal(got)
+		if err != nil {
+			return false
+		}
+		return bytes.Equal(gotBz, wantBz)
+	})
+}
+
 // TraceTransaction
 func RegisterTraceTransactionWithPredecessors(queryClient *mocks.EVMQueryClient, msgEthTx *evmtypes.MsgEthereumTx, predecessors []*evmtypes.MsgEthereumTx) {
 	data := []byte{0x7b, 0x22, 0x74, 0x65, 0x73, 0x74, 0x22, 0x3a, 0x20, 0x22, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x22, 0x7d}
 	queryClient.On("TraceTx", rpc.ContextWithHeight(1),
-		&evmtypes.QueryTraceTxRequest{Msg: msgEthTx, BlockNumber: 1, Predecessors: predecessors, ChainId: 222888}).
+		traceTxRequestMatcher(&evmtypes.QueryTraceTxRequest{Msg: msgEthTx, BlockNumber: 1, Predecessors: predecessors, ChainId: 222888})).
 		Return(&evmtypes.QueryTraceTxResponse{Data: data}, nil)
 }
 
 func RegisterTraceTransaction(queryClient *mocks.EVMQueryClient, msgEthTx *evmtypes.MsgEthereumTx) {
 	data := []byte{0x7b, 0x22, 0x74, 0x65, 0x73, 0x74, 0x22, 0x3a, 0x20, 0x22, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x22, 0x7d}
-	queryClient.On("TraceTx", rpc.ContextWithHeight(1), &evmtypes.QueryTraceTxRequest{Msg: msgEthTx, BlockNumber: 1, ChainId: 222888}).
+	queryClient.On("TraceTx", rpc.ContextWithHeight(1), traceTxRequestMatcher(&evmtypes.QueryTraceTxRequest{Msg: msgEthTx, BlockNumber: 1, ChainId: 222888})).
 		Return(&evmtypes.QueryTraceTxResponse{Data: data}, nil)
 }
 
 func RegisterTraceTransactionError(queryClient *mocks.EVMQueryClient, msgEthTx *evmtypes.MsgEthereumTx) {
-	queryClient.On("TraceTx", rpc.ContextWithHeight(1), &evmtypes.QueryTraceTxRequest{Msg: msgEthTx, BlockNumber: 1, ChainId: 222888}).
+	queryClient.On("TraceTx", rpc.ContextWithHeight(1), traceTxRequestMatcher(&evmtypes.QueryTraceTxRequest{Msg: msgEthTx, BlockNumber: 1, ChainId: 222888})).
 		Return(nil, errortypes.ErrInvalidRequest)
 }
 
@@ -57,7 +93,7 @@ func RegisterTraceTransactionError(queryClient *mocks.EVMQueryClient, msgEthTx *
 func RegisterTraceBlock(queryClient *mocks.EVMQueryClient, txs []*evmtypes.MsgEthereumTx) {
 	data := []byte{0x7b, 0x22, 0x74, 0x65, 0x73, 0x74, 0x22, 0x3a, 0x20, 0x22, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x22, 0x7d}
 	queryClient.On("TraceBlock", rpc.ContextWithHeight(1),
-		&evmtypes.QueryTraceBlockRequest{Txs: txs, BlockNumber: 1, TraceConfig: &evmtypes.TraceConfig{}, ChainId: 222888}).
+		traceBlockRequestMatcher(&evmtypes.QueryTraceBlockRequest{Txs: txs, BlockNumber: 1, TraceConfig: &evmtypes.TraceConfig{}, ChainId: 222888})).
 		Return(&evmtypes.QueryTraceBlockResponse{Data: data}, nil)
 }
 
@@ -68,6 +104,10 @@ func RegisterTraceBlockError(queryClient *mocks.EVMQueryClient) {
 
 // Params
 func RegisterParams(queryClient *mocks.EVMQueryClient, header *metadata.MD, height int64) {
+	// Marked Maybe(): cosmos/evm v0.6.0 made Backend.ChainConfig() a static
+	// lookup (it no longer queries x/vm Params), so paths that previously hit
+	// Params via ChainConfig may not anymore. The Params stub is incidental
+	// infra here — used when a path still calls it, not required when it doesn't.
 	queryClient.On("Params", rpc.ContextWithHeight(height), &evmtypes.QueryParamsRequest{}, grpc.Header(header)).
 		Return(&evmtypes.QueryParamsResponse{}, nil).
 		Run(func(args mock.Arguments) {
@@ -76,12 +116,19 @@ func RegisterParams(queryClient *mocks.EVMQueryClient, header *metadata.MD, heig
 			h := metadata.MD{}
 			h.Set(grpctypes.GRPCBlockHeightHeader, fmt.Sprint(height))
 			*arg.HeaderAddr = h
-		})
+		}).
+		Maybe()
 }
 
 func RegisterParamsWithoutHeader(queryClient *mocks.EVMQueryClient, height int64) {
+	// Marked Maybe(): cosmos/evm v0.6.0 made Backend.ChainConfig() a static
+	// lookup (it no longer queries x/vm Params), so success paths that
+	// previously hit Params via ChainConfig may not anymore. This stub is
+	// incidental infra — used when a path still calls it, not required when it
+	// doesn't. Error/negative-path Params registrations remain strict.
 	queryClient.On("Params", rpc.ContextWithHeight(height), &evmtypes.QueryParamsRequest{}).
-		Return(&evmtypes.QueryParamsResponse{Params: evmtypes.DefaultParams()}, nil)
+		Return(&evmtypes.QueryParamsResponse{Params: evmtypes.DefaultParams()}, nil).
+		Maybe()
 }
 
 func RegisterParamsInvalidHeader(queryClient *mocks.EVMQueryClient, header *metadata.MD, height int64) {
@@ -142,14 +189,15 @@ func TestRegisterParamsError(t *testing.T) {
 
 // ETH Call
 func RegisterEthCall(queryClient *mocks.EVMQueryClient, request *evmtypes.EthCallRequest) {
-	ctx, _ := context.WithCancel(rpc.ContextWithHeight(1)) //nolint
-	queryClient.On("EthCall", ctx, request).
+	// DoCall wraps the query context with context.WithCancel before invoking
+	// EthCall (see rpc/backend/call_tx.go); match on the request argument and
+	// stay lenient on the (cancel-wrapped) context.
+	queryClient.On("EthCall", mock.Anything, request).
 		Return(&evmtypes.MsgEthereumTxResponse{}, nil)
 }
 
 func RegisterEthCallError(queryClient *mocks.EVMQueryClient, request *evmtypes.EthCallRequest) {
-	ctx, _ := context.WithCancel(rpc.ContextWithHeight(1)) //nolint
-	queryClient.On("EthCall", ctx, request).
+	queryClient.On("EthCall", mock.Anything, request).
 		Return(nil, errortypes.ErrInvalidRequest)
 }
 

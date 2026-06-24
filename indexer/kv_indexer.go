@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 const (
@@ -78,7 +78,9 @@ func (kv *KVIndexer) IndexBlock(block *cmttypes.Block, txResults []*abci.ExecTxR
 		var cumulativeGasUsed uint64
 		for msgIndex, msg := range tx.GetMsgs() {
 			ethMsg := msg.(*evmtypes.MsgEthereumTx)
-			txHash := common.HexToHash(ethMsg.Hash)
+			// cosmos/evm v0.6.0: MsgEthereumTx.Hash is a method that computes
+			// the eth tx hash on demand, not a precomputed string field.
+			txHash := ethMsg.Hash()
 
 			txResult := mocatypes.TxResult{
 				Height:     height,
@@ -202,7 +204,7 @@ func isEthTx(tx sdk.Tx) bool {
 		return false
 	}
 	opts := extTx.GetExtensionOptions()
-	if len(opts) != 1 || opts[0].GetTypeUrl() != "/ethermint.evm.v1.ExtensionOptionsEthereumTx" {
+	if len(opts) != 1 || opts[0].GetTypeUrl() != "/cosmos.evm.vm.v1.ExtensionOptionsEthereumTx" {
 		return false
 	}
 	return true

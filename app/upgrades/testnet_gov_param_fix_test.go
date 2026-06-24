@@ -9,11 +9,11 @@ import (
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/app/upgrades"
 	"github.com/mocachain/moca/v2/utils"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTestnetGovParamFix_UpdatesGovAndEvmParams(t *testing.T) {
+func TestTestnetGovParamFix_UpdatesGovParams(t *testing.T) {
 	mocaApp := app.Setup(false, feemarkettypes.DefaultGenesisState(), utils.TestnetChainID+"-1")
 	sdkCtx := mocaApp.BaseApp.NewContext(false)
 	ctx := sdk.WrapSDKContext(sdkCtx)
@@ -25,10 +25,10 @@ func TestTestnetGovParamFix_UpdatesGovAndEvmParams(t *testing.T) {
 	require.NoError(t, govParams.ValidateBasic())
 	require.NoError(t, mocaApp.GovKeeper.Params.Set(ctx, govParams))
 
-	// Force EVM param away from the desired value to prove the upgrade changes it.
-	evmParams := mocaApp.EvmKeeper.GetParams(sdkCtx)
-	evmParams.AllowUnprotectedTxs = false
-	require.NoError(t, mocaApp.EvmKeeper.SetParams(sdkCtx, evmParams))
+	// NOTE(cosmos/evm v0.6.0 migration): the EVM AllowUnprotectedTxs param was
+	// dropped from evmtypes.Params, and TestnetGovParamFix no longer touches EVM
+	// params (see app/upgrades/testnet_gov_param_fix.go). The upgrade now only
+	// fixes the gov MinDepositRatio, so this test asserts that surviving behavior.
 
 	mm := module.NewManager()
 	configurator := module.NewConfigurator(mocaApp.AppCodec(), mocaApp.MsgServiceRouter(), mocaApp.GRPCQueryRouter())
@@ -40,7 +40,4 @@ func TestTestnetGovParamFix_UpdatesGovAndEvmParams(t *testing.T) {
 	updatedGovParams, err := mocaApp.GovKeeper.Params.Get(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "0.010000000000000000", updatedGovParams.MinDepositRatio)
-
-	updatedEvmParams := mocaApp.EvmKeeper.GetParams(sdkCtx)
-	require.True(t, updatedEvmParams.AllowUnprotectedTxs)
 }

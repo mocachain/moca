@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	dbm "github.com/cosmos/cosmos-db"
@@ -18,13 +19,15 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/suite"
 
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/indexer"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmmodule "github.com/cosmos/evm/x/vm"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 type BackendTestSuite struct {
@@ -42,8 +45,37 @@ func TestBackendTestSuite(t *testing.T) {
 
 const ChainID = utils.TestnetChainID + "-1"
 
+// setEVMChainConfigOnce seeds the global EVM chain config that ChainConfig()
+// reads via evmtypes.GetEthChainConfig(). Unlike the keeper/app test suites,
+// this suite never constructs a full app (it wires a Backend with mocked query
+// clients), so evmkeeper.NewKeeper -> evmtypes.SetChainConfig never runs and the
+// global config stays nil, panicking on first ChainConfig() call. Seed it once
+// here with the cosmos/evm default, matching what NewKeeper does internally.
+var setEVMChainConfigOnce sync.Once
+
+func seedEVMChainConfig() {
+	setEVMChainConfigOnce.Do(func() {
+		// Seed the EVM coin info (denom/decimals) that BuildTx reads via
+		// evmtypes.GetEVMCoinExtendedDenom; mirrors app.go's one-time
+		// evmmodule.SetGlobalConfigVariables call.
+		evmmodule.SetGlobalConfigVariables(evmtypes.EvmCoinInfo{
+			Denom:         cmdcfg.BaseDenom,
+			ExtendedDenom: cmdcfg.BaseDenom,
+			DisplayDenom:  cmdcfg.DisplayDenom,
+			Decimals:      uint32(evmtypes.EighteenDecimals),
+		})
+		// Seed the global chain config that ChainConfig() reads via
+		// evmtypes.GetEthChainConfig; mirrors what evmkeeper.NewKeeper does.
+		if err := evmtypes.SetChainConfig(evmtypes.DefaultChainConfig(evmtypes.DefaultEVMChainID)); err != nil {
+			panic(err)
+		}
+	})
+}
+
 // SetupTest is executed before every BackendTestSuite test
 func (suite *BackendTestSuite) SetupTest() {
+	seedEVMChainConfig()
+
 	ctx := server.NewDefaultContext()
 	ctx.Viper.Set("telemetry.global-labels", []interface{}{})
 
@@ -106,7 +138,7 @@ func (suite *BackendTestSuite) buildEthereumTx() (*evmtypes.MsgEthereumTx, []byt
 	msgEthereumTx := evmtypes.NewTx(&ethTxParams)
 
 	// A valid msg should have empty `From`
-	msgEthereumTx.From = suite.from.Hex()
+	msgEthereumTx.From = suite.from.Bytes()
 
 	txBuilder := suite.backend.clientCtx.TxConfig.NewTxBuilder()
 	err := txBuilder.SetMsgs(msgEthereumTx)
@@ -114,7 +146,18 @@ func (suite *BackendTestSuite) buildEthereumTx() (*evmtypes.MsgEthereumTx, []byt
 
 	bz, err := suite.backend.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
 	suite.Require().NoError(err)
-	return msgEthereumTx, bz
+
+	// Return the msg as it round-trips through encode/decode rather than the
+	// in-memory original. In cosmos/evm v0.6.0 the decoded MsgEthereumTx carries
+	// a freshly-built *ethtypes.Transaction whose empty calldata is normalized to
+	// an empty (non-nil) slice and whose cached creation timestamp differs from
+	// the original. The backend always serves the decoded form, so expectations
+	// derived from this msg must use the decoded form too for deep equality.
+	decoded, err := suite.backend.clientCtx.TxConfig.TxDecoder()(bz)
+	suite.Require().NoError(err)
+	decodedMsg, ok := decoded.GetMsgs()[0].(*evmtypes.MsgEthereumTx)
+	suite.Require().True(ok)
+	return decodedMsg, bz
 }
 
 // buildFormattedBlock returns a formatted block for testing
@@ -132,7 +175,7 @@ func (suite *BackendTestSuite) buildFormattedBlock(
 
 	root := common.Hash{}.Bytes()
 	receipt := ethtypes.NewReceipt(root, false, gasUsed.Uint64())
-	bloom := ethtypes.CreateBloom(ethtypes.Receipts{receipt})
+	bloom := ethtypes.CreateBloom(receipt)
 
 	ethRPCTxs := []interface{}{}
 	if tx != nil {
@@ -148,7 +191,7 @@ func (suite *BackendTestSuite) buildFormattedBlock(
 			suite.Require().NoError(err)
 			ethRPCTxs = []interface{}{rpcTx}
 		} else {
-			ethRPCTxs = []interface{}{common.HexToHash(tx.Hash)}
+			ethRPCTxs = []interface{}{tx.Hash()}
 		}
 	}
 
@@ -178,7 +221,7 @@ func (suite *BackendTestSuite) signAndEncodeEthTx(msgEthereumTx *evmtypes.MsgEth
 	RegisterParamsWithoutHeader(queryClient, 1)
 
 	ethSigner := ethtypes.LatestSigner(suite.backend.ChainConfig())
-	msgEthereumTx.From = from.String()
+	msgEthereumTx.From = from.Bytes()
 	err := msgEthereumTx.Sign(ethSigner, signer)
 	suite.Require().NoError(err)
 
