@@ -122,5 +122,4 @@ e2e/kind/contracts/out/
 e2e/kind/contracts/cache/
 .env
 
-# stray root build artifact (use `make build` -> build/)
 /mocad
