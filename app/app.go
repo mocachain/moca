@@ -1196,6 +1196,12 @@ func (app *Moca) setupUpgradeHandlers() {
 	})
 
 	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		// Remove fee-grant expiration-queue entries orphaned by the pre-fix
+		// x/feegrant revokeAllowance (swapped queue key). Requires the
+		// moca-cosmos-sdk feegrant fix to also be vendored so no new orphans form.
+		if _, err := upgrades.CleanupFeegrantQueueOrphans(ctx, app.FeeGrantKeeper, app.GetKey(feegrant.StoreKey)); err != nil {
+			return nil, err
+		}
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
