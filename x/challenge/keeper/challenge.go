@@ -56,6 +56,12 @@ func (k Keeper) RemoveChallengeUntil(ctx sdk.Context, height uint64) {
 	}
 }
 
+// RemoveChallenge retires an attested challenge from the active set, making re-attestation idempotent.
+func (k Keeper) RemoveChallenge(ctx sdk.Context, challengeID uint64) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeKeyPrefix)
+	store.Delete(getChallengeKeyBytes(challengeID))
+}
+
 // ExistsChallenge check whether there exists ongoing challenge for an id
 func (k Keeper) ExistsChallenge(ctx sdk.Context, challengeID uint64) bool {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeKeyPrefix)
