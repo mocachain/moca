@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -824,6 +825,185 @@ func TestSettleStreamRecord(t *testing.T) {
 	require.Equal(t, userStreamRecord2.BufferBalance, streamRecord.BufferBalance)
 	require.Equal(t, userStreamRecord2.NetflowRate, streamRecord.NetflowRate)
 	require.Equal(t, userStreamRecord2.CrudTimestamp, streamRecord.CrudTimestamp+seconds)
+}
+
+// TestUpdateStreamRecord_SettleTimestampOverflow_ForcedSaturates reproduces the
+// original chain-halt: a forced EndBlocker update (ForceDeleteObject during
+// discontinue) decreases the netflow rate on a large-balance account, pushing
+// payDuration past MaxInt64. The EndBlocker cannot surface an error (abci.go
+// panics on any error from DeleteDiscontinueObjectsUntil), so the settle
+// timestamp must saturate to MaxInt64 instead of overflowing.
+func TestUpdateStreamRecord_SettleTimestampOverflow_ForcedSaturates(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(1000, 0))
+	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
+
+	params := k.GetParams(ctx)
+	// Buffer reserved for the starting rate (-2); after the rate drops to -1 the
+	// buffer recomputes to 1×ReserveTime. payDuration overflows either way.
+	bufferBalance := sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime).MulRaw(2)
+
+	user := sample.RandAccAddress()
+	sr := &types.StreamRecord{
+		Account:           user.String(),
+		Status:            types.STREAM_ACCOUNT_STATUS_ACTIVE,
+		StaticBalance:     sdkmath.NewIntFromUint64(math.MaxUint64),
+		BufferBalance:     bufferBalance,
+		LockBalance:       sdkmath.ZeroInt(),
+		NetflowRate:       sdkmath.NewInt(-2),
+		FrozenNetflowRate: sdkmath.ZeroInt(),
+		CrudTimestamp:     ctx.BlockTime().Unix(),
+	}
+
+	// Forced rate decrease (-2 → -1), as when an object is force-deleted.
+	change := types.NewDefaultStreamRecordChangeWithAddr(user).WithRateChange(sdkmath.NewInt(1))
+	require.NotPanics(t, func() {
+		err := k.UpdateStreamRecord(ctx, sr, change)
+		require.NoError(t, err, "forced path must not return an error (would panic EndBlocker)")
+	})
+	require.Equal(t, int64(math.MaxInt64), sr.SettleTimestamp,
+		"forced overflow must saturate to MaxInt64, not panic")
+}
+
+// TestUpdateStreamRecord_SettleTimestampOverflow_UserDepositRejected covers the
+// user-initiated deposit path: a positive static-balance change with no rate
+// change that pushes payDuration past MaxInt64 is rejected with
+// ErrSettleTimestampOverflow, so the depositor can simply deposit less. This is
+// the one path where the degenerate state is genuinely user-created.
+func TestUpdateStreamRecord_SettleTimestampOverflow_UserDepositRejected(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(1000, 0))
+	// No ForceUpdateStreamRecordKey → forced=false (user-initiated path).
+
+	params := k.GetParams(ctx)
+	bufferBalance := sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime)
+
+	user := sample.RandAccAddress()
+	sr := &types.StreamRecord{
+		Account:           user.String(),
+		Status:            types.STREAM_ACCOUNT_STATUS_ACTIVE,
+		StaticBalance:     sdkmath.NewIntFromUint64(math.MaxUint64),
+		BufferBalance:     bufferBalance,
+		LockBalance:       sdkmath.ZeroInt(),
+		NetflowRate:       sdkmath.NewInt(-1),
+		FrozenNetflowRate: sdkmath.ZeroInt(),
+		CrudTimestamp:     ctx.BlockTime().Unix(),
+	}
+
+	// A real deposit: positive static-balance change, no rate change.
+	change := types.NewDefaultStreamRecordChangeWithAddr(user).
+		WithStaticBalanceChange(sdkmath.NewInt(1_000))
+	err := k.UpdateStreamRecord(ctx, sr, change)
+	require.ErrorIs(t, err, types.ErrSettleTimestampOverflow,
+		"a deposit that overflows the settle timestamp must be rejected")
+}
+
+// TestUpdateStreamRecord_SettleTimestampOverflow_RateDecreaseSaturates covers a
+// non-forced rate decrease — a user MsgDeleteObject, or lazy re-pricing when the
+// SP price falls. Removing rate increases payDuration and can overflow int64, but
+// this is a legitimate action (not over-funding), so it must NOT be rejected: the
+// settle timestamp saturates to MaxInt64 and the operation succeeds. This is the
+// asymmetry B fixes — a user can always delete their own object.
+func TestUpdateStreamRecord_SettleTimestampOverflow_RateDecreaseSaturates(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(1000, 0))
+	// No ForceUpdateStreamRecordKey → forced=false (user-initiated path).
+
+	params := k.GetParams(ctx)
+	bufferBalance := sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime).MulRaw(2)
+
+	user := sample.RandAccAddress()
+	sr := &types.StreamRecord{
+		Account:           user.String(),
+		Status:            types.STREAM_ACCOUNT_STATUS_ACTIVE,
+		StaticBalance:     sdkmath.NewIntFromUint64(math.MaxUint64),
+		BufferBalance:     bufferBalance,
+		LockBalance:       sdkmath.ZeroInt(),
+		NetflowRate:       sdkmath.NewInt(-2),
+		FrozenNetflowRate: sdkmath.ZeroInt(),
+		CrudTimestamp:     ctx.BlockTime().Unix(),
+	}
+
+	// Rate decrease (-2 → -1), as when a user deletes an object. No static-balance
+	// change, so this is not a user deposit and must not be rejected.
+	change := types.NewDefaultStreamRecordChangeWithAddr(user).WithRateChange(sdkmath.NewInt(1))
+	require.NotPanics(t, func() {
+		err := k.UpdateStreamRecord(ctx, sr, change)
+		require.NoError(t, err, "a legitimate rate decrease must not be rejected")
+	})
+	require.Equal(t, int64(math.MaxInt64), sr.SettleTimestamp,
+		"rate-decrease overflow must saturate to MaxInt64, not reject")
+}
+
+// TestTryResumeStreamRecord_SettleTimestampInt64Overflow covers the Deposit
+// path to a frozen account. TryResumeStreamRecord is only reachable from
+// MsgDeposit (never from an EndBlocker), so an overflow must be rejected with
+// ErrSettleTimestampOverflow; the user should reduce their deposit amount.
+func TestTryResumeStreamRecord_SettleTimestampInt64Overflow(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(1000, 0))
+
+	user := sample.RandAccAddress()
+	sr := &types.StreamRecord{
+		Account:           user.String(),
+		Status:            types.STREAM_ACCOUNT_STATUS_FROZEN,
+		StaticBalance:     sdkmath.ZeroInt(),
+		BufferBalance:     sdkmath.ZeroInt(),
+		LockBalance:       sdkmath.ZeroInt(),
+		NetflowRate:       sdkmath.ZeroInt(),
+		FrozenNetflowRate: sdkmath.NewInt(-1),
+		OutFlowCount:      1,
+	}
+	k.SetStreamRecord(ctx, sr)
+
+	deposit := sdkmath.NewIntFromUint64(math.MaxUint64)
+	err := k.TryResumeStreamRecord(ctx, sr, deposit)
+	require.ErrorIs(t, err, types.ErrSettleTimestampOverflow,
+		"deposit that overflows settle timestamp must be rejected, not silently absorbed")
+}
+
+// TestUpdateStreamRecord_SettleTimestampSilentWrap catches the secondary overflow:
+// even when payDuration < MaxInt64 (so Int64() would not have panicked), the full
+// expression currentTimestamp - forcedSettleTime + payDuration can itself overflow
+// int64 and silently wrap to a large negative value. A negative settle timestamp
+// makes the account look overdue and drives repeated force-settle attempts.
+func TestUpdateStreamRecord_SettleTimestampSilentWrap(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	params := k.GetParams(ctx)
+	reserveTime := sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime)
+
+	timestamp := int64(1_000_000_000)
+	ctx = ctx.WithBlockTime(time.Unix(timestamp, 0))
+	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
+
+	// payDuration = MaxInt64 - 500 fits in int64, so Int64() would not panic
+	// pre-fix. But timestamp + payDuration - forcedSettleTime overflows int64.
+	payDuration := sdkmath.NewInt(math.MaxInt64).SubRaw(500)
+	// With |rate|=1 and bufferBal=reserveTime: staticBal = payDuration - reserveTime.
+	staticBal := payDuration.Sub(reserveTime)
+	bufferBal := reserveTime
+
+	user := sample.RandAccAddress()
+	sr := &types.StreamRecord{
+		Account:           user.String(),
+		Status:            types.STREAM_ACCOUNT_STATUS_ACTIVE,
+		StaticBalance:     staticBal,
+		BufferBalance:     bufferBal,
+		LockBalance:       sdkmath.ZeroInt(),
+		NetflowRate:       sdkmath.NewInt(-1),
+		FrozenNetflowRate: sdkmath.ZeroInt(),
+		CrudTimestamp:     timestamp,
+	}
+
+	change := types.NewDefaultStreamRecordChangeWithAddr(user)
+	require.NotPanics(t, func() {
+		err := k.UpdateStreamRecord(ctx, sr, change)
+		require.NoError(t, err)
+	})
+	require.Equal(t, int64(math.MaxInt64), sr.SettleTimestamp,
+		"settle timestamp must saturate to MaxInt64 when full expression overflows int64")
+	require.Greater(t, sr.SettleTimestamp, int64(0),
+		"settle timestamp must not silently wrap to negative")
 }
 
 func TestAutoForceSettle(t *testing.T) {
