@@ -337,7 +337,7 @@ func NewMoca(
 	)
 
 	// Add the EVM transient store key
-	tkeys := storetypes.NewTransientStoreKeys(evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey, storagemoduletypes.TStoreKey)
+	tkeys := storetypes.NewTransientStoreKeys(evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey, storagemoduletypes.TStoreKey, virtualgroupmoduletypes.TStoreKey)
 	memKeys := storetypes.NewMemoryStoreKeys(challengemoduletypes.MemStoreKey)
 
 	app := &Moca{
