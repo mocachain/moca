@@ -52,8 +52,8 @@ require (
 	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
 	golang.org/x/time v0.15.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20260203192932-546029d2fa20
-	google.golang.org/grpc v1.79.3
+	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171
+	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 	sigs.k8s.io/yaml v1.6.0
@@ -78,7 +78,7 @@ require (
 	github.com/99designs/keyring v1.2.2 // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.30.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.55.0 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
@@ -114,7 +114,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
-	github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 // indirect
+	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
 	github.com/cockroachdb/errors v1.12.0 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240616162244-4768e80dfb9a // indirect
@@ -143,8 +143,8 @@ require (
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/emicklei/dot v1.10.0 // indirect
-	github.com/envoyproxy/go-control-plane/envoy v1.36.0 // indirect
-	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
+	github.com/envoyproxy/go-control-plane/envoy v1.37.0 // indirect
+	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/ferranbt/fastssz v0.1.3 // indirect
@@ -267,7 +267,7 @@ require (
 	github.com/zondax/ledger-go v1.0.1 // indirect
 	go.etcd.io/bbolt v1.4.0-alpha.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/detectors/gcp v1.39.0 // indirect
+	go.opentelemetry.io/contrib/detectors/gcp v1.42.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.64.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect
@@ -330,4 +330,4 @@ replace (
 
 replace github.com/confio/ics23/go => github.com/cosmos/ics23/go v0.10.0
 
-replace cosmossdk.io/x/feegrant => github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260529081045-8275063d3215
+replace cosmossdk.io/x/feegrant => github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260626051438-46a91620f7c3
