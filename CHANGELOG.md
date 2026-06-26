@@ -63,6 +63,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (x/challenge) [#286](https://github.com/mocachain/moca/pull/286) Retire a challenge from the active set once it is attested, making attestation idempotent so duplicate submissions (e.g. redundant relayers or resubmissions by the in-turn submitter) are rejected instead of re-running heartbeat rewards and re-emitting attestation events.
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
 - (audit) [#63](https://github.com/mocachain/moca/pull/63) Apply audit fixes
 

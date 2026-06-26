@@ -197,6 +197,93 @@ func (s *TestSuite) TestAttest_Heartbeat() {
 	s.Require().True(found)
 }
 
+// TestAttest_DuplicateRejected reproduces the multi-relayer scenario: the same
+// valid heartbeat attestation is submitted twice (e.g. by redundant relayers or
+// a resubmission by the in-turn submitter). The first attestation must succeed
+// and retire the challenge; the second must be rejected by the ExistsChallenge
+// gate instead of re-running doHeartbeatAndRewards and re-emitting events.
+func (s *TestSuite) TestAttest_DuplicateRejected() {
+	challengeID := s.challengeKeeper.GetParams(s.ctx).HeartbeatInterval
+	s.challengeKeeper.SaveChallenge(s.ctx, types.Challenge{
+		Id: challengeID,
+	})
+
+	validSubmitter := sample.RandAccAddress()
+
+	blsKey, _ := bls.GenerateBlsKey()
+	historicalInfo := stakingtypes.HistoricalInfo{
+		Header: tmproto.Header{},
+		Valset: []stakingtypes.Validator{{
+			BlsKey:            blsKey.PublicKey().Marshal(),
+			ChallengerAddress: validSubmitter.String(),
+		}},
+	}
+	s.stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).
+		Return(historicalInfo, nil).AnyTimes()
+
+	existBucket := &storagetypes.BucketInfo{
+		Id:                         math.NewUint(10),
+		GlobalVirtualGroupFamilyId: 10,
+		BucketName:                 "existbucket",
+	}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Eq(existBucket.BucketName)).
+		Return(existBucket, true).AnyTimes()
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(10),
+		ObjectName:   "existobject",
+		BucketName:   existBucket.BucketName,
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Eq(math.NewUint(10))).
+		Return(existObject, true).AnyTimes()
+
+	// QueryDynamicBalance is the first line of doHeartbeatAndRewards, so asserting
+	// it runs exactly once proves the duplicate attestation never reaches the
+	// payout path (a single heartbeat itself issues two Withdraws: validator + submitter).
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).
+		Return(math.NewInt(1000000), nil).Times(1)
+	s.paymentKeeper.EXPECT().Withdraw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	spOperatorAcc := sample.RandAccAddress()
+	sp := &sptypes.StorageProvider{Id: 10, OperatorAddress: spOperatorAcc.String()}
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).
+		Return(sp, true).AnyTimes()
+	s.storageKeeper.EXPECT().MustGetPrimarySPForBucket(gomock.Any(), gomock.Any()).Return(sp).AnyTimes()
+
+	gvg := &virtualgrouptypes.GlobalVirtualGroup{
+		SecondarySpIds: []uint32{10},
+	}
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Eq(existBucket.Id), gomock.Any()).
+		Return(gvg, true).AnyTimes()
+
+	attestMsg := &types.MsgAttest{
+		Submitter:         validSubmitter.String(),
+		ChallengeId:       challengeID,
+		ObjectId:          math.NewUint(10),
+		SpOperatorAddress: sp.OperatorAddress,
+		VoteResult:        types.CHALLENGE_FAILED,
+		ChallengerAddress: "",
+		VoteValidatorSet:  []uint64{1},
+	}
+	toSign := attestMsg.GetBlsSignBytes(s.ctx.ChainID())
+	voteAggSignature, _ := blsKey.Sign(toSign[:], votepool.DST)
+	attestMsg.VoteAggSignature, _ = voteAggSignature.Marshal()
+
+	// First (legitimate) attestation succeeds and retires the challenge.
+	s.Require().True(s.challengeKeeper.ExistsChallenge(s.ctx, challengeID))
+	_, err := s.msgServer.Attest(s.ctx, attestMsg)
+	s.Require().NoError(err)
+	s.Require().False(s.challengeKeeper.ExistsChallenge(s.ctx, challengeID))
+
+	// Second (duplicate) attestation with the very same signature is rejected.
+	dupMsg := *attestMsg
+	_, err = s.msgServer.Attest(s.ctx, &dupMsg)
+	s.Require().ErrorIs(err, types.ErrInvalidChallengeID)
+}
+
 func (s *TestSuite) TestAttest_Normal() {
 	// prepare challenge
 	challenge1Id := uint64(99)
