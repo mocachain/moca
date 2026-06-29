@@ -10,11 +10,11 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/crypto"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/mocachain/moca/v2/indexer"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func (suite *BackendTestSuite) TestTraceTransaction() {

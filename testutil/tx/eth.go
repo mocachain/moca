@@ -16,10 +16,10 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/server/config"
 	"github.com/mocachain/moca/v2/utils"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 // PrepareEthTx creates an ethereum tx and signs it with the provided messages and private key.

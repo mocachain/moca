@@ -19,6 +19,8 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/suite"
 
+	evmmodule "github.com/cosmos/evm/x/vm"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/indexer"
@@ -26,8 +28,6 @@ import (
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	evmmodule "github.com/cosmos/evm/x/vm"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 type BackendTestSuite struct {

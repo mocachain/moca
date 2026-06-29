@@ -1,10 +1,11 @@
 package backend
 
 import (
-	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"math/big"
 	"path/filepath"
+
+	sdkmath "cosmossdk.io/math"
 
 	tmrpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"

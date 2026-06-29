@@ -18,7 +18,6 @@ import (
 //   - Allow unprotected (non EIP155 signed) txs at the protocol level
 func TestnetGovParamFix(govKeeper *govkeeper.Keeper, evmKeeper *evmkeeper.Keeper, mm *module.Manager, configurator module.Configurator) upgradetypes.UpgradeHandler {
 	return func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-
 		// Set minimum deposit ratio to 0.01
 		govParams, err := govKeeper.Params.Get(ctx)
 		if err != nil {

@@ -1,9 +1,10 @@
 package backend
 
 import (
-	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"math/big"
+
+	sdkmath "cosmossdk.io/math"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethmath "github.com/ethereum/go-ethereum/common/math"
@@ -16,12 +17,12 @@ import (
 	"github.com/cometbft/cometbft/abci/types"
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpc "github.com/mocachain/moca/v2/rpc/types"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
-	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 )
 
 func (suite *BackendTestSuite) TestBaseFee() {

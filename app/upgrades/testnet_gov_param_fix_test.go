@@ -6,10 +6,10 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/app/upgrades"
 	"github.com/mocachain/moca/v2/utils"
-	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/stretchr/testify/require"
 )
 

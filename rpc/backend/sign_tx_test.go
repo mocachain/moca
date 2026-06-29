@@ -1,8 +1,9 @@
 package backend
 
 import (
-	sdkmath "cosmossdk.io/math"
 	"fmt"
+
+	sdkmath "cosmossdk.io/math"
 
 	"cosmossdk.io/math"
 

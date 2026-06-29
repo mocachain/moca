@@ -25,11 +25,11 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/mocachain/moca/v2/cmd/config"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
-	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 )
 
 func init() {

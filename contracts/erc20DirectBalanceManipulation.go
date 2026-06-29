@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/ethereum/go-ethereum/common"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // This is an evil token. Whenever an A -> B transfer is called,

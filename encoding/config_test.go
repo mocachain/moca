@@ -8,9 +8,9 @@ import (
 
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/encoding"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
 func TestTxEncoding(t *testing.T) {

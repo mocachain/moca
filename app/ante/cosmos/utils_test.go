@@ -1,9 +1,9 @@
 package cosmos_test
 
 import (
+	"context"
 	"time"
 
-	"context"
 	sdkmath "cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/client"

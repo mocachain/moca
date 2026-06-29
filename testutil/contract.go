@@ -15,9 +15,9 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
+	evm "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/testutil/tx"
-	evm "github.com/cosmos/evm/x/vm/types"
 )
 
 // DeployContract deploys a contract with the provided private key,

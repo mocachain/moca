@@ -4,8 +4,8 @@ import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
-	"github.com/mocachain/moca/v2/utils"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
+	"github.com/mocachain/moca/v2/utils"
 )
 
 // FundAccount is a utility function that funds an account by minting and

@@ -7,8 +7,8 @@ import (
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mocachain/moca/v2/encoding"
 	v2 "github.com/mocachain/moca/v2/app/upgrades/v2"
+	"github.com/mocachain/moca/v2/encoding"
 )
 
 // TestNetworkForChainID verifies the chain-id -> network map, including the

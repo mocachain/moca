@@ -274,6 +274,7 @@ func DefaultEVMConfig() *EVMConfig {
 		EVMChainID:     0,
 	}
 }
+
 func (c EVMConfig) Validate() error {
 	if c.Tracer != "" && !strings.StringInSlice(c.Tracer, evmTracers) {
 	}
