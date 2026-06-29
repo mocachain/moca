@@ -243,8 +243,8 @@ github.com/cosmos/gogogateway v1.2.0/go.mod h1:iQpLkGWxYcnCdz5iAdLcRBSw3h7NXeOkZ
 github.com/cosmos/gogoproto v1.4.2/go.mod h1:cLxOsn1ljAHSV527CHOtaIP91kK6cCrZETRBrkzItWU=
 github.com/cosmos/gogoproto v1.7.2 h1:5G25McIraOC0mRFv9TVO139Uh3OklV2hczr13KKVHCA=
 github.com/cosmos/gogoproto v1.7.2/go.mod h1:8S7w53P1Y1cHwND64o0BnArT6RmdgIvsBuco6uTllsk=
-github.com/cosmos/iavl v1.2.2 h1:qHhKW3I70w+04g5KdsdVSHRbFLgt3yY3qTMd4Xa4rC8=
-github.com/cosmos/iavl v1.2.2/go.mod h1:GiM43q0pB+uG53mLxLDzimxM9l/5N9UuSY3/D0huuVw=
+github.com/cosmos/iavl v1.2.8 h1:55F96BGUJ7KT7h+Ky/cEqS+pEvhFqsU4O8Th3F0N1js=
+github.com/cosmos/iavl v1.2.8/go.mod h1:FRHN4tO+6crf0p2zsqye+nAbsMgiwdkxpWm18DyP6+Y=
 github.com/cosmos/ics23/go v0.11.0 h1:jk5skjT0TqX5e5QJbEnwXIS2yI2vnmLOgpQPeM5RtnU=
 github.com/cosmos/ics23/go v0.11.0/go.mod h1:A8OjxPE67hHST4Icw94hOxxFEJMBG031xIGF/JHNIY0=
 github.com/cosmos/keyring v1.2.0 h1:8C1lBP9xhImmIabyXW4c3vFjjLiBdGCmfLUfeZlV1Yo=
@@ -672,8 +672,8 @@ github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2.0.20260529081045-8275063d3
 github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2.0.20260529081045-8275063d3215/go.mod h1:v/M/ebXEDAorBFXfu9HY10SEgv4ZQHygeeE5bCE/dLI=
 github.com/mocachain/moca-cosmos-sdk/x/circuit v1.2.0-rc2.0.20260529081045-8275063d3215 h1:yGe4T17V7+nwrkQ0znIxNlUA1XrOBzqQ7Vguue9SJTQ=
 github.com/mocachain/moca-cosmos-sdk/x/circuit v1.2.0-rc2.0.20260529081045-8275063d3215/go.mod h1:G70XeShy3XO/yIN21FoV5wszLF3Wzl6wpdyiy1L+lNQ=
-github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260626051438-46a91620f7c3 h1:XjlF1rQ6Wt6Tuy6j5fjsCSMI5eLIPTgb0JcsIabMM30=
-github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260626051438-46a91620f7c3/go.mod h1:U/q1goLB0OVW+Ih8bEzofqfeLJqYvtypfH1RmWbqvpU=
+github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260627064440-06ad3faf98e2 h1:ot1haskaZL8OgibLAcIR1gxYzk2PjDEWy894lyzmPXA=
+github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260627064440-06ad3faf98e2/go.mod h1:voAP4oxKUOVm2RXwGWxBpC4O0W711yLcs9SkIJgCyUc=
 github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2.0.20260529081045-8275063d3215 h1:SaDimWnvizN77dvh4Cwlbh6q+qtVBv6TQpV4yKCua1s=
 github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2.0.20260529081045-8275063d3215/go.mod h1:tXFiv2C+RJZMdGW0sEAX5gnQ/DxY1EYtlwcnpWntnws=
 github.com/mocachain/moca-cosmos-sdk/x/tx v1.2.0-rc2.0.20260529081045-8275063d3215 h1:n3u+H9MMfr7clGVwvXXtQEwkoB0GQjIiPVTg3gN6W34=
