@@ -6,17 +6,11 @@ import (
 	"testing"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
-
 	abci "github.com/cometbft/cometbft/abci/types"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -27,7 +21,6 @@ import (
 	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
 	testutil "github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	mocatypes "github.com/mocachain/moca/v2/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
@@ -342,52 +335,10 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 		return msg
 	}
 
-	createEIP712ShellTx := func(priv cryptotypes.PrivKey, msgs ...sdk.Msg) (sdk.Tx, error) {
-		txBuilder := suite.clientCtx.TxConfig.NewTxBuilder()
-		txBuilder.SetGasLimit(200000)
-		txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewInt(20))))
-		if err := txBuilder.SetMsgs(msgs...); err != nil {
-			return nil, err
-		}
-
-		builder, ok := txBuilder.(authtx.ExtensionOptionsTxBuilder)
-		if !ok {
-			return nil, fmt.Errorf("txBuilder does not support extension options")
-		}
-
-		parsedChainID, err := mocatypes.ParseChainID(suite.ctx.ChainID())
-		if err != nil {
-			return nil, err
-		}
-
-		option, err := codectypes.NewAnyWithValue(&mocatypes.ExtensionOptionsWeb3Tx{
-			FeePayer:         common.BytesToAddress(priv.PubKey().Address()).Hex(),
-			TypedDataChainID: parsedChainID.Uint64(),
-		})
-		if err != nil {
-			return nil, err
-		}
-		builder.SetExtensionOptions(option)
-
-		err = txBuilder.SetSignatures(signing.SignatureV2{
-			PubKey: priv.PubKey(),
-			Data: &signing.SingleSignatureData{
-				SignMode: signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
-			},
-			Sequence: 0,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return txBuilder.GetTx(), nil
-	}
-
 	testcases := []struct {
 		name         string
 		msgs         []sdk.Msg
 		expectedCode uint32
-		isEIP712     bool
 	}{
 		{
 			name:         "a MsgGrant with MsgEthereumTx typeURL on the authorization field is blocked",
@@ -398,20 +349,6 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 			name:         "a MsgGrant with MsgCreateVestingAccount typeURL on the authorization field is blocked",
 			msgs:         []sdk.Msg{newMsgGrant(sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}))},
 			expectedCode: sdkerrors.ErrUnauthorized.ABCICode(),
-		},
-		{
-			name: "a MsgGrant with MsgEthereumTx typeURL on the authorization field included on EIP712 tx is blocked",
-			msgs: []sdk.Msg{newMsgGrant(sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}))},
-			// cosmos/evm v0.6.0 migration: moca's ante (app/ante/ante.go) no
-			// longer supports the legacy ExtensionOptionsWeb3Tx EIP712 flow. The
-			// only accepted extension options are now
-			// ExtensionOptionsEthereumTx and ExtensionOptionDynamicFeeTx, so an
-			// EIP712 shell tx carrying ExtensionOptionsWeb3Tx is rejected at the
-			// extension-options decorator with ErrUnknownExtensionOptions (31)
-			// before the AuthzLimiter can run. The dangerous grant is still
-			// blocked, just one decorator earlier.
-			expectedCode: sdkerrors.ErrUnknownExtensionOptions.ABCICode(),
-			isEIP712:     true,
 		},
 		{
 			name: "a MsgExec with nested messages (valid: MsgSend and invalid: MsgEthereumTx) is blocked",
@@ -493,16 +430,8 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 	for _, tc := range testcases {
 		suite.Run(fmt.Sprintf("Case %s", tc.name), func() {
 			suite.SetupTest()
-			var (
-				tx  sdk.Tx
-				err error
-			)
 
-			if tc.isEIP712 {
-				tx, err = createEIP712ShellTx(suite.priv, tc.msgs...)
-			} else {
-				tx, err = createTx(suite.priv, tc.msgs...)
-			}
+			tx, err := createTx(suite.priv, tc.msgs...)
 			suite.Require().NoError(err)
 
 			txEncoder := suite.clientCtx.TxConfig.TxEncoder()
