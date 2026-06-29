@@ -350,12 +350,15 @@ generate_genesis() {
     sed -i "s/minimum-gas-prices = \"0amoca\"/minimum-gas-prices = \"5000000000${BASIC_DENOM}\"/g" "$app"
     # cosmos/evm reads the EIP-155 EVM chain id from app.toml [evm] evm-chain-id;
     # if unset it defaults to 262144, so EVM clients (which derive chainId from
-    # the cosmos chain-id, e.g. moca_5151-1 -> 5151) mismatch the node. moca's
-    # app.toml template now ships `evm-chain-id = 0` under [evm], so overwrite
-    # its value (appending a second key makes mocad's TOML decoder reject the
-    # file with "key evm-chain-id is already defined"), derived from CHAIN_ID.
+    # the cosmos chain-id, e.g. moca_5151-1 -> 5151) mismatch the node. The v2
+    # binary's template ships `evm-chain-id = 0` under [evm]; the pre-v2 binary
+    # (used by the upgrade tests) omits it. Delete any existing key, then insert
+    # the right one: a plain append dup-keys under v2 (mocad rejects "key
+    # evm-chain-id is already defined"); a plain replace no-ops under pre-v2,
+    # leaving the 262144 default. Derived from CHAIN_ID.
     evm_chain_id=$(echo "${CHAIN_ID}" | sed -E 's/.*_([0-9]+)-.*/\1/')
-    sed -i "s/^evm-chain-id = .*/evm-chain-id = ${evm_chain_id}/" "$app"
+    sed -i "/^evm-chain-id = /d" "$app"
+    sed -i "/^\[evm\]$/a evm-chain-id = ${evm_chain_id}" "$app"
     sed -i "s/snapshot-interval = [0-9][0-9]*/snapshot-interval = ${SNAPSHOT_INTERVAL}/g" "$app"
     sed -i "s/snapshot-keep-recent = 2/snapshot-keep-recent = ${SNAPSHOT_KEEP_RECENT}/g" "$app"
     sed -i "s/src-chain-id = 1/src-chain-id = ${SRC_CHAIN_ID}/g" "$app"
