@@ -76,6 +76,9 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
@@ -94,7 +97,6 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 
 	method, err := GetMethodByID(contract.Input)
 	if err == nil {
-		// parse input
 		switch method.Name {
 		case LegacySubmitProposalMethodName:
 			ret, err = c.LegacySubmitProposal(ctx, evm, contract, readonly)
@@ -128,12 +130,10 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 	}
 
 	if err != nil {
-		// revert evm state
 		evm.StateDB.RevertToSnapshot(snapshot)
 		return types.PackRetError(err.Error())
 	}
 
-	// commit and append events
 	commit()
 	return ret, nil
 }
@@ -152,7 +152,6 @@ func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, ar
 	return nil
 }
 
-// calculateSubmitProposalGas calculates gas cost based on number of messages and payload size
 func (c *Contract) calculateSubmitProposalGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return SubmitProposalBaseGas
@@ -169,20 +168,17 @@ func (c *Contract) calculateSubmitProposalGas(input []byte) uint64 {
 		return SubmitProposalBaseGas
 	}
 
-	// Parse messages to count them
 	var messages []json.RawMessage
 	err = json.Unmarshal([]byte(args.Messages), &messages)
 	if err != nil {
 		return SubmitProposalBaseGas
 	}
 
-	// Calculate number of messages (capped at max)
 	numMsgs := uint64(len(messages))
 	if numMsgs > MaxSubmitProposalMsgs {
 		numMsgs = MaxSubmitProposalMsgs
 	}
 
-	// Calculate payload size (capped at max)
 	// Convert []json.RawMessage to []string to reuse authz.CalcPerMsgBytes
 	msgStrings := make([]string, len(messages))
 	for i, msg := range messages {
@@ -193,6 +189,5 @@ func (c *Contract) calculateSubmitProposalGas(input []byte) uint64 {
 		payloadSize = MaxSubmitProposalPayloadBytes
 	}
 
-	// Gas formula: Base + PerMsg * num + PerByte * size
 	return SubmitProposalBaseGas + (numMsgs * SubmitProposalPerMsgGas) + (payloadSize * SubmitProposalPerByteGas)
 }

@@ -72,6 +72,9 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
@@ -90,7 +93,6 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 
 	method, err := GetMethodByID(contract.Input)
 	if err == nil {
-		// parse input
 		switch method.Name {
 		case SetWithdrawAddressMethodName:
 			ret, err = c.SetWithdrawAddress(ctx, evm, contract, readonly)
@@ -128,12 +130,10 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 	}
 
 	if err != nil {
-		// revert evm state
 		evm.StateDB.RevertToSnapshot(snapshot)
 		return types.PackRetError(err.Error())
 	}
 
-	// commit and append events
 	commit()
 	return ret, nil
 }

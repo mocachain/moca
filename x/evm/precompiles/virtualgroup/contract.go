@@ -65,6 +65,9 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
@@ -114,12 +117,10 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 	}
 
 	if err != nil {
-		// revert evm state
 		evm.StateDB.RevertToSnapshot(snapshot)
 		return types.PackRetError(err.Error())
 	}
 
-	// commit and append events
 	commit()
 	return ret, nil
 }
@@ -138,7 +139,6 @@ func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, ar
 	return nil
 }
 
-// calculateSwapOutGas calculates gas cost based on number of GVG IDs
 func (c *Contract) calculateSwapOutGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return SwapOutBaseGas
@@ -155,7 +155,6 @@ func (c *Contract) calculateSwapOutGas(input []byte) uint64 {
 		return SwapOutBaseGas
 	}
 
-	// Calculate dynamic gas: base + per_gvg * num_gvgs
 	numGvgIds := uint64(len(args.GvgIds))
 	if numGvgIds > MaxSwapOutGvgIds {
 		numGvgIds = MaxSwapOutGvgIds
@@ -164,7 +163,6 @@ func (c *Contract) calculateSwapOutGas(input []byte) uint64 {
 	return SwapOutBaseGas + (numGvgIds * SwapOutPerGvgIdGas)
 }
 
-// calculateCompleteSwapOutGas calculates gas cost based on number of GVG IDs
 func (c *Contract) calculateCompleteSwapOutGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return CompleteSwapOutBaseGas
@@ -181,7 +179,6 @@ func (c *Contract) calculateCompleteSwapOutGas(input []byte) uint64 {
 		return CompleteSwapOutBaseGas
 	}
 
-	// Calculate dynamic gas: base + per_gvg * num_gvgs
 	numGvgIds := uint64(len(args.GvgIds))
 	if numGvgIds > MaxCompleteSwapOutGvgIds {
 		numGvgIds = MaxCompleteSwapOutGvgIds

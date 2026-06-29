@@ -27,7 +27,6 @@ func NewPrecompiledContract(bankKeeper bankkeeper.Keeper, paymentKeeper paymentk
 	}
 }
 
-// calculateMultiSendGas calculates gas cost based on number of outputs and total coins
 func (c *Contract) calculateMultiSendGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return MultiSendBaseGas
@@ -44,13 +43,11 @@ func (c *Contract) calculateMultiSendGas(input []byte) uint64 {
 		return MultiSendBaseGas
 	}
 
-	// Calculate dynamic gas: base + per_output * num_outputs + per_coin * total_coins
 	numOutputs := uint64(len(args.Outputs))
 	if numOutputs > MaxMultiSendOutputs {
 		numOutputs = MaxMultiSendOutputs
 	}
 
-	// Count total coins across all outputs
 	totalCoins := uint64(0)
 	for i, output := range args.Outputs {
 		if i >= MaxMultiSendOutputs {
@@ -105,6 +102,9 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
@@ -123,7 +123,6 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 
 	method, err := GetMethodByID(contract.Input)
 	if err == nil {
-		// parse input
 		switch method.Name {
 		case SendMethodName:
 			ret, err = c.Send(ctx, evm, contract, readonly)
@@ -157,12 +156,10 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 	}
 
 	if err != nil {
-		// revert evm state
 		evm.StateDB.RevertToSnapshot(snapshot)
 		return types.PackRetError(err.Error())
 	}
 
-	// commit and append events
 	commit()
 	return ret, nil
 }
