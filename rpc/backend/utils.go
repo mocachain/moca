@@ -3,6 +3,7 @@ package backend
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"strings"
@@ -22,8 +23,8 @@ import (
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 
 	"github.com/cometbft/cometbft/proto/tendermint/crypto"
-	"github.com/mocachain/moca/v2/rpc/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
+	"github.com/mocachain/moca/v2/rpc/types"
 )
 
 type txGasAndReward struct {
@@ -78,6 +79,13 @@ func (b *Backend) getAccountNonce(accAddr common.Address, pending bool, height i
 		return nonce, nil
 	}
 
+	chainID, err := b.ChainID()
+	if err != nil {
+		logger.Error("failed to fetch chain id for pending nonce", "error", err.Error())
+		return nonce, nil
+	}
+	signer := ethtypes.LatestSignerForChainID(chainID.ToInt())
+
 	// add the uncommitted txs to the nonce counter
 	// only supports `MsgEthereumTx` style tx
 	for _, tx := range pendingTxs {
@@ -88,12 +96,17 @@ func (b *Backend) getAccountNonce(accAddr common.Address, pending bool, height i
 				break
 			}
 
-			// cosmos/evm v0.6.0: GetSender takes no args and returns just
-			// the recovered sender (no error); chain-id is no longer
-			// needed at the call site.
-			sender := ethMsg.GetSender()
+			// Recover the sender from the signature; pending mempool txs (raw eth)
+			// carry an empty From, so GetSender() would return the zero address.
+			sender, err := ethMsg.GetSenderLegacy(signer)
+			if err != nil {
+				continue
+			}
 			if sender == accAddr {
-				nonce++
+				// saturate - never overflow beyond 2^64-1 when counting pending txs
+				if nonce < math.MaxUint64 {
+					nonce++
+				}
 			}
 		}
 	}
