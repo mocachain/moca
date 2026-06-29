@@ -71,8 +71,11 @@ func TestMigrateToV2_ContractSurvivesInPlace(t *testing.T) {
 	require.Equal(t, cmdcfg.BaseDenom, coinInfo.Denom)
 	require.Equal(t, uint32(evmtypes.EighteenDecimals), coinInfo.Decimals)
 
-	// feemarket params migrated (moca's configured min gas price).
-	require.False(t, mocaApp.FeeMarketKeeper.GetParams(ctx).MinGasPrice.IsNegative())
+	// feemarket min_gas_price must match the 20 gwei floor (MainnetMinGasPrices), not the cosmos/evm default.
+	require.Equal(t,
+		MainnetMinGasPrices,
+		mocaApp.FeeMarketKeeper.GetParams(ctx).MinGasPrice,
+		"post-upgrade feemarket MinGasPrice must equal MainnetMinGasPrices (20 gwei)")
 }
 
 // TestMigrateToV2_MultipleContractsAndExecution strengthens the survival proof:

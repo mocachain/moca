@@ -3,6 +3,7 @@ package v2_test
 import (
 	"testing"
 
+	sdkmath "cosmossdk.io/math"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/stretchr/testify/require"
@@ -42,5 +43,10 @@ func TestEmbeddedParamsRoundTrip(t *testing.T) {
 		var feeParams feemarkettypes.Params
 		require.NoError(t, cdc.UnmarshalJSON(feeJSON, &feeParams), "%s feemarket unmarshal", n)
 		require.NoError(t, feeParams.Validate(), "%s feemarket params valid", n)
+		// min_gas_price must be moca's 20 gwei floor (MainnetMinGasPrices), not the cosmos/evm default.
+		require.Equal(t,
+			sdkmath.LegacyNewDec(20_000_000_000),
+			feeParams.MinGasPrice,
+			"%s feemarket min_gas_price must be 20 gwei (MainnetMinGasPrices)", n)
 	}
 }
