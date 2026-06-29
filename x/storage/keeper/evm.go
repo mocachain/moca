@@ -10,10 +10,7 @@ import (
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
-// CallEVM performs a smart-contract method call (the ERC-721 mint/burn that
-// mirrors buckets/objects/groups as non-transferable NFTs) by packing the
-// calldata and delegating to CallEVMWithData. It is a thin wrapper over
-// cosmos/evm v0.6.0's keeper EVM execution.
+// CallEVM packs calldata for the named ABI method and delegates to CallEVMWithData.
 func (k Keeper) CallEVM(
 	ctx sdk.Context,
 	contractABI abi.ABI,
@@ -30,20 +27,14 @@ func (k Keeper) CallEVM(
 		)
 	}
 
-	return k.CallEVMWithData(ctx, from, &contract, data, commit)
+	resp, err := k.CallEVMWithData(ctx, from, &contract, data, commit)
+	if err != nil {
+		return nil, errorsmod.Wrapf(err, "contract call failed: method '%s', contract '%s'", method, contract)
+	}
+	return resp, nil
 }
 
-// CallEVMWithData routes a raw-calldata EVM call through cosmos/evm's keeper.
-//
-// cosmos/evm v0.6.0 requires the caller to supply an explicit *statedb.StateDB
-// (the geth-v1.15-era keeper no longer builds the core.Message via
-// ethtypes.NewMessage). A fresh StateDB is created per call, so the execution
-// is fully isolated from any in-flight EVM frame's StateDB — including when this
-// is reached via the storageprovider precompile. callFromPrecompile is false
-// because there is no caller StateDB to share or double-apply into; gasCap is
-// nil because cosmos/evm's CallEVMWithData hardcodes the message gas limit to
-// config.DefaultGasCap. When commit is true (mint/burn) the fresh StateDB's
-// writes are committed to ctx.
+// CallEVMWithData routes a raw-calldata EVM call through cosmos/evm's keeper using a fresh StateDB per call.
 func (k Keeper) CallEVMWithData(
 	ctx sdk.Context,
 	from common.Address,

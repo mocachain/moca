@@ -9,9 +9,7 @@ import (
 	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/holiman/uint256"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
@@ -102,12 +100,6 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 		return nil, err
 	}
 
-	if evm.Origin != contract.Caller() {
-		// ensure that the funds of the contract account in the EVM are consistent with the funds recorded in the bank module account.
-		// geth v1.15: StateDB.AddBalance now takes (*uint256.Int, BalanceChangeReason).
-		evm.StateDB.AddBalance(contract.Caller(), uint256.MustFromBig(res.Amount[0].Amount.BigInt()), tracing.BalanceChangeUnspecified)
-	}
-
 	// topic[1] must be withdrawAddress, not validatorAddress
 	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
 	withdrawRes, err := querier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
@@ -177,11 +169,6 @@ func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, con
 		res, err := server.WithdrawDelegatorReward(ctx, msg)
 		if err != nil {
 			return nil, err
-		}
-		if evm.Origin != contract.Caller() {
-			// ensure that the funds of the contract account in the EVM are consistent with the funds recorded in the bank module account.
-			// geth v1.15: StateDB.AddBalance now takes (*uint256.Int, BalanceChangeReason).
-			evm.StateDB.AddBalance(contract.Caller(), uint256.MustFromBig(res.Amount[0].Amount.BigInt()), tracing.BalanceChangeUnspecified)
 		}
 		if err := c.AddLog(
 			evm,

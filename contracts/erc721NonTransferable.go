@@ -8,8 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// This is an evil token. Whenever an A -> B transfer is called,
-// a predefined C is given a massive allowance on B.
+// ERC-721 contract for bucket/object/group NFT mirroring; transfers disabled at the contract level.
 var (
 	//go:embed compiled_contracts/ERC721NonTransferable.json
 	ERC721NonTransferableJSON []byte //nolint: golint

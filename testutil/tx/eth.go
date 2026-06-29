@@ -32,10 +32,7 @@ func PrepareEthTx(
 ) (authsigning.Tx, error) {
 	txBuilder := txCfg.NewTxBuilder()
 
-	// TODO(cosmos-evm migration): EvmKeeper.ChainID() was removed in
-	// cosmos/evm v0.6.0; chainID should come from ctx.ChainID() once the
-	// keeper is fully rewired. Falling back to nil here yields an
-	// unprotected signer that's still acceptable for unit-test fixtures.
+	// TODO(cosmos-evm): ChainID() removed in v0.6.0; nil yields unprotected signer, OK for test fixtures.
 	_ = appMoca
 	signer := ethtypes.LatestSignerForChainID(nil)
 	txFee := sdk.Coins{}
@@ -104,13 +101,7 @@ func CreateEthTx(
 ) (*evmtypes.MsgEthereumTx, error) {
 	toAddr := common.BytesToAddress(dest.Bytes())
 	fromAddr := common.BytesToAddress(from.Bytes())
-	// TODO(cosmos-evm migration): cosmos/evm v0.6.0 dropped
-	// EvmKeeper.ChainID() and the FeeMarketKeeper.GetBaseFee return type
-	// changed from *big.Int to sdkmath.LegacyDec. ChainID should be parsed
-	// from ctx.ChainID() once the keeper is fully wired; for now the test
-	// helper passes nil chainID (unprotected signer, OK for fixtures) and
-	// truncates the dec base fee.
-	_ = ctx
+	// TODO(cosmos-evm): ChainID() and GetBaseFee (*big.Int→Dec) changed in v0.6.0; nil chainID OK for fixtures.
 	var chainID *big.Int
 
 	// When we send multiple Ethereum Tx's in one Cosmos Tx, we need to increment the nonce for each one.
