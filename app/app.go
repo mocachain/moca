@@ -1409,6 +1409,12 @@ func (app *Moca) setupUpgradeHandlers() {
 		// both to the new modules' ConsensusVersion before running the rest.
 		fromVM[evmtypes.ModuleName] = evmmodule.AppModule{}.ConsensusVersion()
 		fromVM[feemarkettypes.ModuleName] = feemarketmodule.AppModule{}.ConsensusVersion()
+		// Remove fee-grant expiration-queue entries orphaned by the pre-fix
+		// x/feegrant revokeAllowance (swapped queue key). Requires the
+		// moca-cosmos-sdk feegrant fix to also be vendored so no new orphans form.
+		if _, err := upgrades.CleanupFeegrantQueueOrphans(ctx, app.FeeGrantKeeper, app.GetKey(feegrant.StoreKey)); err != nil {
+			return fromVM, err
+		}
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
