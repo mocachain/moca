@@ -63,6 +63,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (storage) [#298](https://github.com/mocachain/moca/pull/298) Close the object iterator in `isNonEmptyBucket` to fix a per-call store-iterator leak (MOCA-413)
 - (app/upgrades) [#289](https://github.com/mocachain/moca/pull/289) Pin v2 feemarket `min_gas_price` to 20 gwei (moca's intended floor) so upgraded chains match genesis.
 - (x/challenge) [#286](https://github.com/mocachain/moca/pull/286) Retire a challenge from the active set once it is attested, making attestation idempotent so duplicate submissions (e.g. redundant relayers or resubmissions by the in-turn submitter) are rejected instead of re-running heartbeat rewards and re-emitting attestation events.
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
