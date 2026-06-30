@@ -92,6 +92,31 @@ func (s *KeeperTestSuite) TestStorageProviderBasics() {
 	require.EqualValues(s.T(), found, true)
 }
 
+func (s *KeeperTestSuite) TestGetAllStorageProviders() {
+	k := s.spKeeper
+	ctx := s.ctx
+
+	ids := []uint32{100, 200, 300}
+	for _, id := range ids {
+		sp := &types.StorageProvider{
+			Id:              id,
+			OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		}
+		k.SetStorageProvider(ctx, sp)
+	}
+
+	sps := k.GetAllStorageProviders(ctx)
+	require.Len(s.T(), sps, len(ids))
+
+	got := make(map[uint32]bool, len(sps))
+	for _, sp := range sps {
+		got[sp.Id] = true
+	}
+	for _, id := range ids {
+		require.True(s.T(), got[id], "storage provider %d not returned", id)
+	}
+}
+
 func (s *KeeperTestSuite) TestSlashBasic() {
 	// mock
 	s.bankKeeper.EXPECT().SendCoinsFromModuleToAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
