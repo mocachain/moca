@@ -198,6 +198,7 @@ which accepts a path for the resulting pprof file.
 
 	cmd.Flags().String(srvflags.EVMTracer, config.DefaultEVMTracer, "the EVM tracer type to collect execution traces from the EVM transaction execution (json|struct|access_list|markdown)")
 	cmd.Flags().Uint64(srvflags.EVMMaxTxGasWanted, config.DefaultMaxTxGasWanted, "the gas wanted for each eth tx returned in ante handler in check tx mode")
+	cmd.Flags().Uint64(srvflags.EVMChainID, config.DefaultEVMConfig().EVMChainID, "EIP-155 EVM chain ID for the cosmos/evm keeper (per network: devnet 5151 / testnet 222888 / mainnet 2288; 0 falls back to cosmos/evm default 262144)")
 
 	cmd.Flags().String(srvflags.TLSCertPath, "", "the cert.pem file path for the server TLS configuration")
 	cmd.Flags().String(srvflags.TLSKeyPath, "", "the key.pem file path for the server TLS configuration")

@@ -18,8 +18,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 
 	mocakr "github.com/mocachain/moca/v2/crypto/keyring"
 )

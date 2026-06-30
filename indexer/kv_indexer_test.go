@@ -11,17 +11,34 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	evmmodule "github.com/cosmos/evm/x/vm"
+	"github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	evmenc "github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/indexer"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/x/evm/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestKVIndexer(t *testing.T) {
+	// cosmos/evm v0.6.0 reads a global EVM coin-info / chain-config (set by
+	// evmkeeper.NewKeeper in a real app) when building/encoding an EVM tx.
+	// This standalone test never constructs an app, so seed the defaults here
+	// (mirrors app.go and rpc/backend's test setup) to avoid a nil deref in
+	// MsgEthereumTx.BuildTx.
+	evmmodule.SetGlobalConfigVariables(types.EvmCoinInfo{
+		Denom:         cmdcfg.BaseDenom,
+		ExtendedDenom: cmdcfg.BaseDenom,
+		DisplayDenom:  cmdcfg.DisplayDenom,
+		Decimals:      uint32(types.EighteenDecimals),
+	})
+	if err := types.SetChainConfig(types.DefaultChainConfig(types.DefaultEVMChainID)); err != nil {
+		require.NoError(t, err)
+	}
+
 	priv, err := ethsecp256k1.GenPrivKey()
 	require.NoError(t, err)
 	from := common.BytesToAddress(priv.PubKey().Address().Bytes())
@@ -36,7 +53,7 @@ func TestKVIndexer(t *testing.T) {
 		GasLimit: 21000,
 	}
 	tx := types.NewTx(&ethTxParams)
-	tx.From = from.Hex()
+	tx.From = from.Bytes()
 	require.NoError(t, tx.Sign(ethSigner, signer))
 	txHash := tx.AsTransaction().Hash()
 

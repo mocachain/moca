@@ -116,6 +116,8 @@ type EVMConfig struct {
 	Tracer string `mapstructure:"tracer"`
 	// MaxTxGasWanted defines the gas wanted for each eth tx returned in ante handler in check tx mode.
 	MaxTxGasWanted uint64 `mapstructure:"max-tx-gas-wanted"`
+	// EVMChainID is the EIP-155 EVM chain ID baked into the cosmos/evm keeper.
+	EVMChainID uint64 `mapstructure:"evm-chain-id"`
 }
 
 // JSONRPCConfig defines configuration for the EVM RPC server.
@@ -269,8 +271,10 @@ func DefaultEVMConfig() *EVMConfig {
 	return &EVMConfig{
 		Tracer:         DefaultEVMTracer,
 		MaxTxGasWanted: DefaultMaxTxGasWanted,
+		EVMChainID:     0,
 	}
 }
+
 func (c EVMConfig) Validate() error {
 	if c.Tracer != "" && !strings.StringInSlice(c.Tracer, evmTracers) {
 	}
@@ -427,6 +431,7 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 		EVM: EVMConfig{
 			Tracer:         v.GetString("evm.tracer"),
 			MaxTxGasWanted: v.GetUint64("evm.max-tx-gas-wanted"),
+			EVMChainID:     v.GetUint64("evm.evm-chain-id"),
 		},
 		JSONRPC: JSONRPCConfig{
 			Enable:                   v.GetBool("json-rpc.enable"),

@@ -16,23 +16,26 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
-// SendTransaction sends transaction based on received args using Node's key to sign it
+// SendTransaction builds a transaction from args, signs it with the node's key
+// for args.From, and broadcasts it as a Cosmos tx — the same submission path as
+// SendRawTransaction. Node-side signing requires the from account to be present
+// in the node's keyring; clients that hold their own keys should sign locally
+// and use eth_sendRawTransaction instead.
 func (b *Backend) SendTransaction(args evmtypes.TransactionArgs) (common.Hash, error) {
-	// Look up the wallet containing the requested signer
-	_, err := b.clientCtx.Keyring.KeyByAddress(sdk.AccAddress(args.GetFrom().Bytes()))
-	if err != nil {
+	// Look up the wallet containing the requested signer.
+	if _, err := b.clientCtx.Keyring.KeyByAddress(sdk.AccAddress(args.GetFrom().Bytes())); err != nil {
 		b.logger.Error("failed to find key in keyring", "address", args.GetFrom(), "error", err.Error())
 		return common.Hash{}, fmt.Errorf("failed to find key in the node's keyring; %s; %s", keystore.ErrNoMatch, err.Error())
 	}
 
-	if args.ChainID != nil && (b.chainID).Cmp((*big.Int)(args.ChainID)) != 0 {
+	if args.ChainID != nil && b.chainID.Cmp((*big.Int)(args.ChainID)) != 0 {
 		return common.Hash{}, fmt.Errorf("chainId does not match node's (have=%v, want=%v)", args.ChainID, (*hexutil.Big)(b.chainID))
 	}
 
-	args, err = b.SetTxDefaults(args)
+	args, err := b.SetTxDefaults(args)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -43,40 +46,41 @@ func (b *Backend) SendTransaction(args evmtypes.TransactionArgs) (common.Hash, e
 		return common.Hash{}, err
 	}
 
-	signer := ethtypes.MakeSigner(b.ChainConfig(), new(big.Int).SetUint64(uint64(bn)))
+	header, err := b.CurrentHeader()
+	if err != nil {
+		return common.Hash{}, err
+	}
 
-	// LegacyTx derives chainID from the signature. To make sure the msg.ValidateBasic makes
-	// the corresponding chainID validation, we need to sign the transaction before calling it
+	// cosmos/go-ethereum v1.16+ MakeSigner takes the block time as a third arg.
+	// LegacyTx derives its chain id from the signature, so sign before
+	// ValidateBasic runs the corresponding chain-id check.
+	signer := ethtypes.MakeSigner(b.ChainConfig(), new(big.Int).SetUint64(uint64(bn)), header.Time)
 
-	// Sign transaction
-	msg := args.ToTransaction()
+	msg := evmtypes.NewTxFromArgs(&args)
 	if err := msg.Sign(signer, b.clientCtx.Keyring); err != nil {
 		b.logger.Debug("failed to sign tx", "error", err.Error())
 		return common.Hash{}, err
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		b.logger.Debug("tx failed basic validation", "error", err.Error())
 		return common.Hash{}, err
 	}
 
-	// Query params to use the EVM denomination
+	// Query params for the EVM denom (mirrors SendRawTransaction).
 	res, err := b.queryClient.QueryClient.Params(b.ctx, &evmtypes.QueryParamsRequest{})
 	if err != nil {
 		b.logger.Error("failed to query evm params", "error", err.Error())
 		return common.Hash{}, err
 	}
 
-	// Assemble transaction from fields
-	tx, err := msg.BuildTx(b.clientCtx.TxConfig.NewTxBuilder(), res.Params.EvmDenom)
+	cosmosTx, err := msg.BuildTx(b.clientCtx.TxConfig.NewTxBuilder(), res.Params.EvmDenom)
 	if err != nil {
-		b.logger.Error("build cosmos tx failed", "error", err.Error())
+		b.logger.Error("failed to build cosmos tx", "error", err.Error())
 		return common.Hash{}, err
 	}
 
 	// Encode transaction by default Tx encoder
-	txEncoder := b.clientCtx.TxConfig.TxEncoder()
-	txBytes, err := txEncoder(tx)
+	txBytes, err := b.clientCtx.TxConfig.TxEncoder()(cosmosTx)
 	if err != nil {
 		b.logger.Error("failed to encode eth tx using default encoder", "error", err.Error())
 		return common.Hash{}, err
@@ -84,16 +88,14 @@ func (b *Backend) SendTransaction(args evmtypes.TransactionArgs) (common.Hash, e
 
 	ethTx := msg.AsTransaction()
 
-	// check the local node config in case unprotected txs are disabled
+	// Honor the node's unprotected-tx policy (mirrors SendRawTransaction).
 	if !b.UnprotectedAllowed() && !ethTx.Protected() {
-		// Ensure only eip155 signed transactions are submitted if EIP155Required is set.
 		return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
 	}
 
 	txHash := ethTx.Hash()
 
-	// Broadcast transaction in sync mode (default)
-	// NOTE: If error is encountered on the node, the broadcast will not return an error
+	// Broadcast transaction in sync mode (default).
 	syncCtx := b.clientCtx.WithBroadcastMode(flags.BroadcastSync)
 	rsp, err := syncCtx.BroadcastTx(txBytes)
 	if rsp != nil && rsp.Code != 0 {
@@ -104,7 +106,6 @@ func (b *Backend) SendTransaction(args evmtypes.TransactionArgs) (common.Hash, e
 		return txHash, err
 	}
 
-	// Return transaction hash
 	return txHash, nil
 }
 

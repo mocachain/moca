@@ -2,21 +2,19 @@ package ante_test
 
 import (
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint
 
+	simapp "cosmossdk.io/simapp"
 	storetypes "cosmossdk.io/store/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/encoding"
-	"github.com/mocachain/moca/v2/testutil"
 	"github.com/mocachain/moca/v2/utils"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -31,21 +29,58 @@ type AnteTestSuite struct {
 	denom     string
 }
 
+// sharedApp is built (and InitChain'd) exactly once for the whole package.
+//
+// cosmos/evm v0.6.0 seals a PROCESS-GLOBAL EVM coin info. The x/vm module does
+// so under a per-app sync.Once in BOTH InitGenesis and PreBlock
+// (SetGlobalConfigVariables -> "EVM coin info already set"); the non-test build
+// provides no reset hook. Every spec here calls testutil.Commit, which runs
+// FinalizeBlock -> the EVM module's PreBlock -> seals the global config. The
+// first app seals fine, but a SECOND fully-initialised *app.Moca built in the
+// same process panics on its first PreBlock. Ginkgo runs many specs (each
+// BeforeEach calls s.SetupTest), so we build ONE app, seal the global config
+// once, and reuse it across all specs. Each SetupTest still derives a fresh
+// per-test context. Specs keep account-level isolation by generating their own
+// fresh keys/addresses, so shared-app state accumulation is harmless.
+var sharedApp *app.Moca
+
 func (suite *AnteTestSuite) SetupTest() {
-	t := suite.T()
-	privCons, err := ethsecp256k1.GenPrivKey()
-	require.NoError(t, err)
-	consAddress := sdk.ConsAddress(privCons.PubKey().Address())
-
 	isCheckTx := false
-	chainID := "moca_5151-1"
-	suite.app = app.Setup(isCheckTx, feemarkettypes.DefaultGenesisState(), chainID)
-	suite.Require().NotNil(suite.app.AppCodec())
+	chainID := utils.TestnetChainID + "-1"
 
-	header := testutil.NewHeader(
-		1, time.Now().UTC(), chainID, consAddress, nil, nil)
+	if sharedApp == nil {
+		// Use EthSetup (not Setup): its NewTestGenesisState does not run the EVM
+		// module's InitGenesis with the cosmos/evm default denom; we register the
+		// feemarket genesis explicitly. The EVM global config is sealed exactly
+		// once here (and again, harmlessly, by the first testutil.Commit's
+		// PreBlock under the same sync.Once).
+		sharedApp = app.EthSetup(isCheckTx, func(a *app.Moca, genesis simapp.GenesisState) simapp.GenesisState {
+			genesis[feemarkettypes.ModuleName] = a.AppCodec().MustMarshalJSON(feemarkettypes.DefaultGenesisState())
+			return genesis
+		})
+		suite.Require().NotNil(sharedApp.AppCodec())
+	}
+
+	suite.app = sharedApp
+
+	// On a reused app the previous spec already committed its block, which nils
+	// baseapp.finalizeBlockState. NewContext(false) dereferences that state, so
+	// open a fresh block before deriving the per-test context. The trailing
+	// testutil.Commit run by each spec's BeforeEach reuses this same
+	// finalizeBlockState and commits it. On the very first run InitChain has
+	// already established finalizeBlockState, so skip the extra FinalizeBlock.
+	if suite.app.LastBlockHeight() > 0 {
+		_, err := suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+			Height: suite.app.LastBlockHeight() + 1,
+		})
+		suite.Require().NoError(err)
+	}
+
 	suite.ctx = suite.app.BaseApp.NewContext(isCheckTx)
-	suite.ctx = suite.ctx.WithBlockHeader(header).WithBlockGasMeter(storetypes.NewInfiniteGasMeter()).WithChainID(chainID)
+	suite.ctx = suite.ctx.
+		WithBlockHeight(suite.app.LastBlockHeight() + 1).
+		WithBlockGasMeter(storetypes.NewInfiniteGasMeter()).
+		WithChainID(chainID)
 
 	suite.denom = utils.BaseDenom
 	evmParams := suite.app.EvmKeeper.GetParams(suite.ctx)

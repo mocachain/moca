@@ -7,9 +7,9 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // EventFormat is the format version of the events.

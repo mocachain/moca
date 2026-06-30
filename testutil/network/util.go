@@ -33,8 +33,8 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/server"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func startInProcess(cfg Config, val *Validator) error {

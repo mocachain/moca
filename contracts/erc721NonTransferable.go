@@ -4,8 +4,8 @@ import (
 	_ "embed" // embed compiled smart contract
 	"encoding/json"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // This is an evil token. Whenever an A -> B transfer is called,

@@ -16,6 +16,11 @@ tracer = "{{ .EVM.Tracer }}"
 # MaxTxGasWanted defines the gas wanted for each eth tx returned in ante handler in check tx mode.
 max-tx-gas-wanted = {{ .EVM.MaxTxGasWanted }}
 
+# EVMChainID is the EIP-155 EVM chain ID baked into the cosmos/evm keeper.
+# Set it per network: devnet 5151, testnet 222888, mainnet 2288.
+# Leaving it 0 makes cosmos/evm fall back to its default (262144), which is wrong for a live network.
+evm-chain-id = {{ .EVM.EVMChainID }}
+
 ###############################################################################
 ###                           JSON RPC Configuration                        ###
 ###############################################################################

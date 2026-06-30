@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 var (

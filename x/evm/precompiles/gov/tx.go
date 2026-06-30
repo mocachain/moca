@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"cosmossdk.io/math"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/mocachain/moca/v2/utils"
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
-	"github.com/mocachain/moca/v2/x/evm/types"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"

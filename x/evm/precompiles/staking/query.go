@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 const (

@@ -1,30 +1,35 @@
 package backend
 
 import (
-	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"math/big"
+
+	sdkmath "cosmossdk.io/math"
 
 	tmlog "cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mocachain/moca/v2/indexer"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	"google.golang.org/grpc/metadata"
 )
 
 func (suite *BackendTestSuite) TestGetTransactionByHash() {
 	msgEthereumTx, _ := suite.buildEthereumTx()
-	txHash := msgEthereumTx.AsTransaction().Hash()
 
+	// signAndEncodeEthTx re-signs msgEthereumTx in place with a fresh key, which
+	// changes its signature and therefore its ethereum tx hash. Capture the hash
+	// after signing so the indexed EventTypeEthereumTx hash matches the hash the
+	// test later looks up via tc.tx.Hash().
 	txBz := suite.signAndEncodeEthTx(msgEthereumTx)
+	txHash := msgEthereumTx.AsTransaction().Hash()
 	block := &types.Block{Header: types.Header{Height: 1, ChainID: "test"}, Data: types.Data{Txs: []types.Tx{txBz}}}
 	responseDeliver := []*abci.ExecTxResult{
 		{
@@ -115,7 +120,7 @@ func (suite *BackendTestSuite) TestGetTransactionByHash() {
 			err := suite.backend.indexer.IndexBlock(block, responseDeliver)
 			suite.Require().NoError(err)
 
-			rpcTx, err := suite.backend.GetTransactionByHash(common.HexToHash(tc.tx.Hash))
+			rpcTx, err := suite.backend.GetTransactionByHash(tc.tx.Hash())
 
 			if tc.expPass {
 				suite.Require().NoError(err)
@@ -175,7 +180,7 @@ func (suite *BackendTestSuite) TestGetTransactionsByHashPending() {
 			suite.SetupTest() // reset
 			tc.registerMock()
 
-			rpcTx, err := suite.backend.getTransactionByHashPending(common.HexToHash(tc.tx.Hash))
+			rpcTx, err := suite.backend.getTransactionByHashPending(tc.tx.Hash())
 
 			if tc.expPass {
 				suite.Require().NoError(err)
@@ -203,7 +208,7 @@ func (suite *BackendTestSuite) TestGetTxByEthHash() {
 			func() {
 				suite.backend.indexer = nil
 				client := suite.backend.clientCtx.Client.(*mocks.Client)
-				query := fmt.Sprintf("%s.%s='%s'", evmtypes.TypeMsgEthereumTx, evmtypes.AttributeKeyEthereumTxHash, common.HexToHash(msgEthereumTx.Hash).Hex())
+				query := fmt.Sprintf("%s.%s='%s'", evmtypes.TypeMsgEthereumTx, evmtypes.AttributeKeyEthereumTxHash, msgEthereumTx.Hash().Hex())
 				RegisterTxSearch(client, query, bz)
 			},
 			msgEthereumTx,
@@ -217,7 +222,7 @@ func (suite *BackendTestSuite) TestGetTxByEthHash() {
 			suite.SetupTest() // reset
 			tc.registerMock()
 
-			rpcTx, err := suite.backend.GetTxByEthHash(common.HexToHash(tc.tx.Hash))
+			rpcTx, err := suite.backend.GetTxByEthHash(tc.tx.Hash())
 
 			if tc.expPass {
 				suite.Require().NoError(err)
@@ -289,7 +294,7 @@ func (suite *BackendTestSuite) TestGetTransactionByBlockAndIndex() {
 			Code: 0,
 			Events: []abci.Event{
 				{Type: evmtypes.EventTypeEthereumTx, Attributes: []abci.EventAttribute{
-					{Key: "ethereumTxHash", Value: common.HexToHash(msgEthTx.Hash).Hex()},
+					{Key: "ethereumTxHash", Value: msgEthTx.Hash().Hex()},
 					{Key: "txIndex", Value: "0"},
 					{Key: "amount", Value: "1000"},
 					{Key: "txGasUsed", Value: "21000"},
@@ -544,9 +549,12 @@ func (suite *BackendTestSuite) TestQueryTendermintTxIndexer() {
 
 func (suite *BackendTestSuite) TestGetTransactionReceipt() {
 	msgEthereumTx, _ := suite.buildEthereumTx()
-	txHash := msgEthereumTx.AsTransaction().Hash()
 
+	// signAndEncodeEthTx re-signs msgEthereumTx in place with a fresh key, which
+	// changes its signature and therefore its ethereum tx hash. Capture the hash
+	// after signing so the indexed EventTypeEthereumTx hash matches the lookups.
 	txBz := suite.signAndEncodeEthTx(msgEthereumTx)
+	txHash := msgEthereumTx.AsTransaction().Hash()
 
 	testCases := []struct {
 		name         string
@@ -602,7 +610,7 @@ func (suite *BackendTestSuite) TestGetTransactionReceipt() {
 			err := suite.backend.indexer.IndexBlock(tc.block, tc.blockResult)
 			suite.Require().NoError(err)
 
-			txReceipt, err := suite.backend.GetTransactionReceipt(common.HexToHash(tc.tx.Hash))
+			txReceipt, err := suite.backend.GetTransactionReceipt(tc.tx.Hash())
 			if tc.expPass {
 				suite.Require().NoError(err)
 				suite.Require().Equal(txReceipt, tc.expTxReceipt)

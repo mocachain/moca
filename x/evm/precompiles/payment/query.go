@@ -4,7 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 

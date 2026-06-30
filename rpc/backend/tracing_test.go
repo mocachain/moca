@@ -10,11 +10,11 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/crypto"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/mocachain/moca/v2/indexer"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func (suite *BackendTestSuite) TestTraceTransaction() {
@@ -37,13 +37,13 @@ func (suite *BackendTestSuite) TestTraceTransaction() {
 
 	txEncoder := suite.backend.clientCtx.TxConfig.TxEncoder()
 
-	msgEthereumTx.From = from.String()
+	msgEthereumTx.From = from.Bytes()
 	_ = msgEthereumTx.Sign(ethSigner, suite.signer)
 
 	tx, _ := msgEthereumTx.BuildTx(suite.backend.clientCtx.TxConfig.NewTxBuilder(), evmtypes.DefaultEVMDenom)
 	txBz, _ := txEncoder(tx)
 
-	msgEthereumTx2.From = from.String()
+	msgEthereumTx2.From = from.Bytes()
 	_ = msgEthereumTx2.Sign(ethSigner, suite.signer)
 
 	tx2, _ := msgEthereumTx.BuildTx(suite.backend.clientCtx.TxConfig.NewTxBuilder(), evmtypes.DefaultEVMDenom)

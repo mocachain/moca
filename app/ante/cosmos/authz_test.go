@@ -6,29 +6,22 @@ import (
 	"testing"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
-
 	abci "github.com/cometbft/cometbft/abci/types"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
 	testutil "github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	mocatypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func TestAuthzLimiterDecorator(t *testing.T) {
@@ -61,7 +54,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 		Input:     nil,
 		Accesses:  &ethtypes.AccessList{},
 	})
-	msgEthereumTx.From = common.BytesToAddress(testAddresses[0].Bytes()).Hex()
+	msgEthereumTx.From = common.BytesToAddress(testAddresses[0].Bytes()).Bytes()
 	require.NoError(t, msgEthereumTx.Sign(
 		ethtypes.LatestSignerForChainID(chainID),
 		utiltx.NewSigner(testPrivKeys[0]),
@@ -293,7 +286,11 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("Case %s", tc.name), func(t *testing.T) {
 			ctx := sdk.Context{}.WithIsCheckTx(tc.checkTx)
-			tx, err := createTx(testPrivKeys[0], tc.msgs...)
+			// The AuthzLimiterDecorator only inspects tx.GetMsgs(); it never
+			// verifies signatures. Build an unsigned tx so the top-level
+			// MsgEthereumTx case (which cannot be EIP-712 signed via the moca
+			// SDK fork) exercises the same decorator path as every other case.
+			tx, err := createUnsignedTx(tc.msgs...)
 			require.NoError(t, err)
 
 			_, err = decorator.AnteHandle(ctx, tx, false, testutil.NextFn)
@@ -319,7 +316,7 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 		ChainID:   big.NewInt(9000),
 		Nonce:     0,
 		GasLimit:  1000000,
-		GasFeeCap: suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx),
+		GasFeeCap: suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx).TruncateInt().BigInt(),
 		GasTipCap: big.NewInt(1),
 		Input:     nil,
 		Accesses:  &ethtypes.AccessList{},
@@ -338,52 +335,10 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 		return msg
 	}
 
-	createEIP712ShellTx := func(priv cryptotypes.PrivKey, msgs ...sdk.Msg) (sdk.Tx, error) {
-		txBuilder := suite.clientCtx.TxConfig.NewTxBuilder()
-		txBuilder.SetGasLimit(200000)
-		txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewInt(20))))
-		if err := txBuilder.SetMsgs(msgs...); err != nil {
-			return nil, err
-		}
-
-		builder, ok := txBuilder.(authtx.ExtensionOptionsTxBuilder)
-		if !ok {
-			return nil, fmt.Errorf("txBuilder does not support extension options")
-		}
-
-		parsedChainID, err := mocatypes.ParseChainID(suite.ctx.ChainID())
-		if err != nil {
-			return nil, err
-		}
-
-		option, err := codectypes.NewAnyWithValue(&mocatypes.ExtensionOptionsWeb3Tx{
-			FeePayer:         common.BytesToAddress(priv.PubKey().Address()).Hex(),
-			TypedDataChainID: parsedChainID.Uint64(),
-		})
-		if err != nil {
-			return nil, err
-		}
-		builder.SetExtensionOptions(option)
-
-		err = txBuilder.SetSignatures(signing.SignatureV2{
-			PubKey: priv.PubKey(),
-			Data: &signing.SingleSignatureData{
-				SignMode: signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
-			},
-			Sequence: 0,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return txBuilder.GetTx(), nil
-	}
-
 	testcases := []struct {
 		name         string
 		msgs         []sdk.Msg
 		expectedCode uint32
-		isEIP712     bool
 	}{
 		{
 			name:         "a MsgGrant with MsgEthereumTx typeURL on the authorization field is blocked",
@@ -394,12 +349,6 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 			name:         "a MsgGrant with MsgCreateVestingAccount typeURL on the authorization field is blocked",
 			msgs:         []sdk.Msg{newMsgGrant(sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}))},
 			expectedCode: sdkerrors.ErrUnauthorized.ABCICode(),
-		},
-		{
-			name:         "a MsgGrant with MsgEthereumTx typeURL on the authorization field included on EIP712 tx is blocked",
-			msgs:         []sdk.Msg{newMsgGrant(sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}))},
-			expectedCode: sdkerrors.ErrUnauthorized.ABCICode(),
-			isEIP712:     true,
 		},
 		{
 			name: "a MsgExec with nested messages (valid: MsgSend and invalid: MsgEthereumTx) is blocked",
@@ -481,16 +430,8 @@ func (suite *AnteTestSuite) TestRejectMsgsInAuthz() {
 	for _, tc := range testcases {
 		suite.Run(fmt.Sprintf("Case %s", tc.name), func() {
 			suite.SetupTest()
-			var (
-				tx  sdk.Tx
-				err error
-			)
 
-			if tc.isEIP712 {
-				tx, err = createEIP712ShellTx(suite.priv, tc.msgs...)
-			} else {
-				tx, err = createTx(suite.priv, tc.msgs...)
-			}
+			tx, err := createTx(suite.priv, tc.msgs...)
 			suite.Require().NoError(err)
 
 			txEncoder := suite.clientCtx.TxConfig.TxEncoder()

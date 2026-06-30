@@ -1,9 +1,11 @@
 package backend
 
 import (
-	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"math/big"
+	"path/filepath"
+
+	sdkmath "cosmossdk.io/math"
 
 	tmrpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
@@ -68,21 +70,35 @@ func (suite *BackendTestSuite) TestSetGasPrice() {
 		expOutput    bool
 	}{
 		{
-			"pass - cannot get server config",
+			"fail - cannot get server config",
 			func() {
-				suite.backend.clientCtx.Viper = viper.New()
+				// Make config.GetConfig fail: an empty viper now resolves to a
+				// valid default config (and the base denom is registered
+				// process-globally via cmd/config since the cosmos/evm
+				// migration), so the previous "cannot find coin denom" path is
+				// no longer reachable. Inject an unparsable config value so
+				// GetConfig returns an error and SetGasPrice short-circuits.
+				v := viper.New()
+				v.Set("grpc.historical-grpc-address-block-range", "not-json")
+				suite.backend.clientCtx.Viper = v
 			},
 			*defaultGasPrice,
 			false,
 		},
 		{
-			"pass - cannot find coin denom",
+			"pass - writes the min gas price to the node config file",
 			func() {
-				suite.backend.clientCtx.Viper = viper.New()
-				suite.backend.clientCtx.Viper.Set("telemetry.global-labels", []interface{}{})
+				// Point the client at a real (temp) config file so the
+				// WriteConfigFile call at the end of SetGasPrice succeeds. The
+				// base denom resolves to amoca via the globally-registered sdk
+				// config, so production now reaches the write and returns true.
+				v := viper.New()
+				cfgFile := filepath.Join(suite.T().TempDir(), "app.toml")
+				v.SetConfigFile(cfgFile)
+				suite.backend.clientCtx.Viper = v
 			},
 			*defaultGasPrice,
-			false,
+			true,
 		},
 	}
 

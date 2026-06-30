@@ -10,13 +10,13 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
 	"github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -43,12 +43,18 @@ func (b *Backend) Resend(args evmtypes.TransactionArgs, gasPrice *hexutil.Big, g
 
 	cfg := b.ChainConfig()
 	if cfg == nil {
-		cfg = evmtypes.DefaultChainConfig().EthereumConfig(eip155ChainID)
+		// cosmos/evm v0.6.0: DefaultChainConfig now requires the EVM chain
+		// ID. Pull it from the eip155 chain ID derived from the cosmos-sdk
+		// chain-id string.
+		cfg = evmtypes.DefaultChainConfig(eip155ChainID.Uint64()).EthereumConfig(eip155ChainID)
 	}
 
 	signer := ethtypes.LatestSigner(cfg)
 
-	matchTx := args.ToTransaction().AsTransaction()
+	// cosmos/evm v0.6.0: TransactionArgs.ToTransaction takes a default tx
+	// type and returns *ethtypes.Transaction directly (no .AsTransaction()
+	// wrapper).
+	matchTx := args.ToTransaction(ethtypes.LegacyTxType)
 
 	// Before replacing the old transaction, ensure the _new_ transaction fee is reasonable.
 	price := matchTx.GasPrice()
@@ -115,9 +121,14 @@ func (b *Backend) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 		return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
 	}
 
+	// cosmos/evm v0.6.0: FromSignedEthereumTx recovers the sender from the
+	// signature (using the chain's latest signer) and populates the MsgEthereumTx,
+	// including the From field that ValidateBasic / BuildTx require. Matches
+	// upstream cosmos/evm rpc/backend.
+	ethSigner := ethtypes.LatestSigner(b.ChainConfig())
 	ethereumTx := &evmtypes.MsgEthereumTx{}
-	if err := ethereumTx.FromEthereumTx(tx); err != nil {
-		b.logger.Error("transaction converting failed", "error", err.Error())
+	if err := ethereumTx.FromSignedEthereumTx(tx, ethSigner); err != nil {
+		b.logger.Error("failed to convert signed ethereum tx", "error", err.Error())
 		return common.Hash{}, err
 	}
 

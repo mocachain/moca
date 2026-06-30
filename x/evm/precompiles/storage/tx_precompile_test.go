@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/mocachain/moca/v2/x/evm/precompiles/types"
 	"github.com/stretchr/testify/require"
 )
 

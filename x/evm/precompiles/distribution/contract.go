@@ -1,7 +1,8 @@
 package distribution
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -9,17 +10,20 @@ import (
 
 	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
-	ctx                sdk.Context
 	distributionKeeper distributionkeeper.Keeper
 }
 
-func NewPrecompiledContract(ctx sdk.Context, distributionKeeper distributionkeeper.Keeper) *Contract {
+// NewPrecompiledContract builds a context-free static precompile instance.
+// cosmos/evm v0.6.0 registers precompiles once (WithStaticPrecompiles) rather
+// than rebuilding them per-tx, so the sdk.Context is no longer bound at
+// construction; Run pulls the live context from the EVM StateDB instead.
+func NewPrecompiledContract(distributionKeeper distributionkeeper.Keeper) *Contract {
 	return &Contract{
-		ctx:                ctx,
 		distributionKeeper: distributionKeeper,
 	}
 }
@@ -75,7 +79,19 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 		return types.PackRetError("invalid input")
 	}
 
-	ctx, commit := c.ctx.CacheContext()
+	// cosmos/evm static precompiles are built once, so the live SDK context is
+	// sourced from the EVM StateDB's cache context per call (not bound at
+	// construction). We branch a writable cache off it and only commit on
+	// success; the StateDB flushes that cache when the EVM tx commits.
+	stateDB, ok := evm.StateDB.(*statedb.StateDB)
+	if !ok {
+		return types.PackRetError("distribution precompile must run within the cosmos/evm StateDB")
+	}
+	cacheCtx, err := stateDB.GetCacheContext()
+	if err != nil {
+		return types.PackRetError(err.Error())
+	}
+	ctx, commit := cacheCtx.CacheContext()
 	snapshot := evm.StateDB.Snapshot()
 
 	method, err := GetMethodByID(contract.Input)
@@ -112,6 +128,8 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 			ret, err = c.DelegatorValidators(ctx, evm, contract, readonly)
 		case delegatorWithdrawAddressMethodName:
 			ret, err = c.DelegatorWithdrawAddress(ctx, evm, contract, readonly)
+		default:
+			err = fmt.Errorf("method %s is not handle", method.Name)
 		}
 	}
 

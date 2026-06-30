@@ -3,6 +3,7 @@ package backend
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"strings"
@@ -14,7 +15,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	"cosmossdk.io/log"
@@ -22,8 +23,8 @@ import (
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 
 	"github.com/cometbft/cometbft/proto/tendermint/crypto"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/rpc/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 type txGasAndReward struct {
@@ -78,6 +79,13 @@ func (b *Backend) getAccountNonce(accAddr common.Address, pending bool, height i
 		return nonce, nil
 	}
 
+	chainID, err := b.ChainID()
+	if err != nil {
+		logger.Error("failed to fetch chain id for pending nonce", "error", err.Error())
+		return nonce, nil
+	}
+	signer := ethtypes.LatestSignerForChainID(chainID.ToInt())
+
 	// add the uncommitted txs to the nonce counter
 	// only supports `MsgEthereumTx` style tx
 	for _, tx := range pendingTxs {
@@ -88,12 +96,17 @@ func (b *Backend) getAccountNonce(accAddr common.Address, pending bool, height i
 				break
 			}
 
-			sender, err := ethMsg.GetSender(b.chainID)
+			// Recover the sender from the signature; pending mempool txs (raw eth)
+			// carry an empty From, so GetSender() would return the zero address.
+			sender, err := ethMsg.GetSenderLegacy(signer)
 			if err != nil {
 				continue
 			}
 			if sender == accAddr {
-				nonce++
+				// saturate - never overflow beyond 2^64-1 when counting pending txs
+				if nonce < math.MaxUint64 {
+					nonce++
+				}
 			}
 		}
 	}
@@ -123,7 +136,8 @@ func (b *Backend) processBlock(
 		if err != nil {
 			return err
 		}
-		targetOneFeeHistory.NextBaseFee = misc.CalcBaseFee(cfg, header)
+		// geth v1.15 moved CalcBaseFee from consensus/misc to consensus/misc/eip1559.
+		targetOneFeeHistory.NextBaseFee = eip1559.CalcBaseFee(cfg, header)
 	} else {
 		targetOneFeeHistory.NextBaseFee = new(big.Int)
 	}
@@ -177,7 +191,11 @@ func (b *Backend) processBlock(
 				continue
 			}
 			tx := ethMsg.AsTransaction()
-			reward := tx.EffectiveGasTipValue(blockBaseFee)
+			// geth v1.15: EffectiveGasTipValue was replaced by
+			// EffectiveGasTip, which returns (*big.Int, error). Treat the
+			// error case (under-priced tx) as a zero reward, mirroring the
+			// old helper's nil-coerce behavior.
+			reward, _ := tx.EffectiveGasTip(blockBaseFee)
 			if reward == nil {
 				reward = big.NewInt(0)
 			}
@@ -212,7 +230,9 @@ func (b *Backend) processBlock(
 func AllTxLogsFromEvents(events []abci.Event) ([][]*ethtypes.Log, error) {
 	allLogs := make([][]*ethtypes.Log, 0, 4)
 	for _, event := range events {
-		if event.Type != evmtypes.EventTypeTxLog {
+		// cosmos/evm v0.6.0 collapsed EventTypeTxLog into EventTypeEthereumTx;
+		// log attributes (AttributeKeyTxLog) hang off the EthereumTx event.
+		if event.Type != evmtypes.EventTypeEthereumTx {
 			continue
 		}
 
@@ -229,7 +249,9 @@ func AllTxLogsFromEvents(events []abci.Event) ([][]*ethtypes.Log, error) {
 // TxLogsFromEvents parses ethereum logs from cosmos events for specific msg index
 func TxLogsFromEvents(events []abci.Event, msgIndex int) ([]*ethtypes.Log, error) {
 	for _, event := range events {
-		if event.Type != evmtypes.EventTypeTxLog {
+		// cosmos/evm v0.6.0 collapsed EventTypeTxLog into EventTypeEthereumTx;
+		// log attributes (AttributeKeyTxLog) hang off the EthereumTx event.
+		if event.Type != evmtypes.EventTypeEthereumTx {
 			continue
 		}
 

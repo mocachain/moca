@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,7 +56,11 @@ func TestParseTxResult(t *testing.T) {
 						{Key: "recipient", Value: "0x775b87ef5D82ca211811C1a02CE0fE0CA3a455d7"},
 						{Key: "ethereumTxFailed", Value: "contract everted"},
 					}},
-					{Type: evmtypes.EventTypeTxLog, Attributes: []abci.EventAttribute{}},
+					// non-ethereum_tx event must be ignored by the parser.
+					// cosmos/evm v0.6.0 removed the dedicated tx_log event type
+					// (logs are now the txLog attribute on ethereum_tx); use
+					// block_bloom as a representative separate event type here.
+					{Type: evmtypes.EventTypeBlockBloom, Attributes: []abci.EventAttribute{}},
 				},
 			},
 			[]*ParsedTx{
@@ -141,7 +145,11 @@ func TestParseTxResult(t *testing.T) {
 						{Key: "recipient", Value: "0x775b87ef5D82ca211811C1a02CE0fE0CA3a455d7"},
 						{Key: "ethereumTxFailed", Value: "contract everted"},
 					}},
-					{Type: evmtypes.EventTypeTxLog, Attributes: []abci.EventAttribute{}},
+					// non-ethereum_tx event must be ignored by the parser.
+					// cosmos/evm v0.6.0 removed the dedicated tx_log event type
+					// (logs are now the txLog attribute on ethereum_tx); use
+					// block_bloom as a representative separate event type here.
+					{Type: evmtypes.EventTypeBlockBloom, Attributes: []abci.EventAttribute{}},
 				},
 			},
 			nil,

@@ -16,7 +16,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
 
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
@@ -1092,7 +1092,7 @@ func (suite *BackendTestSuite) TestGetEthBlockFromTendermint() {
 
 			root := common.Hash{}.Bytes()
 			receipt := ethtypes.NewReceipt(root, false, gasUsed.Uint64())
-			bloom := ethtypes.CreateBloom(ethtypes.Receipts{receipt})
+			bloom := ethtypes.CreateBloom(receipt)
 
 			ethRPCTxs := []interface{}{}
 
@@ -1109,7 +1109,7 @@ func (suite *BackendTestSuite) TestGetEthBlockFromTendermint() {
 					suite.Require().NoError(err)
 					ethRPCTxs = []interface{}{rpcTx}
 				} else {
-					ethRPCTxs = []interface{}{common.HexToHash(msgEthereumTx.Hash)}
+					ethRPCTxs = []interface{}{msgEthereumTx.Hash()}
 				}
 			}
 
@@ -1193,7 +1193,16 @@ func (suite *BackendTestSuite) TestEthMsgsFromTendermintBlock() {
 			suite.SetupTest() // reset test and queries
 
 			msgs := suite.backend.EthMsgsFromTendermintBlock(tc.resBlock, tc.blockRes)
-			suite.Require().Equal(tc.expMsgs, msgs)
+			// In cosmos/evm v0.6.0 the MsgEthereumTx carries a cached
+			// *ethtypes.Transaction (with a creation timestamp and a
+			// possibly-normalized empty Data slice), so a deep-equal of the
+			// decoded msg against the in-memory original spuriously fails.
+			// Compare the canonical ethereum tx hashes instead, which uniquely
+			// identify the transactions.
+			suite.Require().Len(msgs, len(tc.expMsgs))
+			for i := range tc.expMsgs {
+				suite.Require().Equal(tc.expMsgs[i].Hash(), msgs[i].Hash())
+			}
 		})
 	}
 }
@@ -1476,10 +1485,9 @@ func (suite *BackendTestSuite) TestEthBlockByNumber() {
 					ethtypes.Bloom{},
 					sdkmath.NewInt(1).BigInt(),
 				),
-				[]*ethtypes.Transaction{},
+				&ethtypes.Body{Transactions: []*ethtypes.Transaction{}},
 				nil,
-				nil,
-				nil,
+				trie.NewStackTrie(nil),
 			),
 			true,
 		},
@@ -1503,8 +1511,7 @@ func (suite *BackendTestSuite) TestEthBlockByNumber() {
 					ethtypes.Bloom{},
 					sdkmath.NewInt(1).BigInt(),
 				),
-				[]*ethtypes.Transaction{msgEthereumTx.AsTransaction()},
-				nil,
+				&ethtypes.Body{Transactions: []*ethtypes.Transaction{msgEthereumTx.AsTransaction()}},
 				nil,
 				trie.NewStackTrie(nil),
 			),
@@ -1524,7 +1531,10 @@ func (suite *BackendTestSuite) TestEthBlockByNumber() {
 				suite.Require().Equal(tc.expEthBlock.Uncles(), ethBlock.Uncles())
 				suite.Require().Equal(tc.expEthBlock.ReceiptHash(), ethBlock.ReceiptHash())
 				for i, tx := range tc.expEthBlock.Transactions() {
-					suite.Require().Equal(tx.Data(), ethBlock.Transactions()[i].Data())
+					// geth v1.15 RLP round-trips empty calldata as []byte{}, while the
+					// in-memory expected tx has Data() == nil; compare via hex so nil and
+					// empty are treated as equal while real calldata diffs still surface.
+					suite.Require().Equal(common.Bytes2Hex(tx.Data()), common.Bytes2Hex(ethBlock.Transactions()[i].Data()))
 				}
 
 			} else {
@@ -1567,10 +1577,9 @@ func (suite *BackendTestSuite) TestEthBlockFromTendermintBlock() {
 					ethtypes.Bloom{},
 					sdkmath.NewInt(1).BigInt(),
 				),
-				[]*ethtypes.Transaction{},
+				&ethtypes.Body{Transactions: []*ethtypes.Transaction{}},
 				nil,
-				nil,
-				nil,
+				trie.NewStackTrie(nil),
 			),
 			true,
 		},
@@ -1602,8 +1611,7 @@ func (suite *BackendTestSuite) TestEthBlockFromTendermintBlock() {
 					ethtypes.Bloom{},
 					sdkmath.NewInt(1).BigInt(),
 				),
-				[]*ethtypes.Transaction{msgEthereumTx.AsTransaction()},
-				nil,
+				&ethtypes.Body{Transactions: []*ethtypes.Transaction{msgEthereumTx.AsTransaction()}},
 				nil,
 				trie.NewStackTrie(nil),
 			),
@@ -1623,7 +1631,10 @@ func (suite *BackendTestSuite) TestEthBlockFromTendermintBlock() {
 				suite.Require().Equal(tc.expEthBlock.Uncles(), ethBlock.Uncles())
 				suite.Require().Equal(tc.expEthBlock.ReceiptHash(), ethBlock.ReceiptHash())
 				for i, tx := range tc.expEthBlock.Transactions() {
-					suite.Require().Equal(tx.Data(), ethBlock.Transactions()[i].Data())
+					// geth v1.15 RLP round-trips empty calldata as []byte{}, while the
+					// in-memory expected tx has Data() == nil; compare via hex so nil and
+					// empty are treated as equal while real calldata diffs still surface.
+					suite.Require().Equal(common.Bytes2Hex(tx.Data()), common.Bytes2Hex(ethBlock.Transactions()[i].Data()))
 				}
 
 			} else {
