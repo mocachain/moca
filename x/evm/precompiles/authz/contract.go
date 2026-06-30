@@ -17,10 +17,7 @@ type Contract struct {
 	authzKeeper authzkeeper.Keeper
 }
 
-// NewPrecompiledContract builds a context-free static precompile instance.
-// cosmos/evm v0.6.0 registers precompiles once (WithStaticPrecompiles) rather
-// than rebuilding them per-tx, so the sdk.Context is no longer bound at
-// construction; Run pulls the live context from the EVM StateDB instead.
+// NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
 func NewPrecompiledContract(authzKeeper authzkeeper.Keeper) *Contract {
 	return &Contract{
 		authzKeeper: authzKeeper,
@@ -60,10 +57,7 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 		return types.PackRetError("invalid input")
 	}
 
-	// cosmos/evm static precompiles are built once, so the live SDK context is
-	// sourced from the EVM StateDB's cache context per call (not bound at
-	// construction). We branch a writable cache off it and only commit on
-	// success; the StateDB flushes that cache when the EVM tx commits.
+	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
 	stateDB, ok := evm.StateDB.(*statedb.StateDB)
 	if !ok {
 		return types.PackRetError("authz precompile must run within the cosmos/evm StateDB")
@@ -92,7 +86,7 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 		case GranteeGrantsMethodName:
 			ret, err = c.GranteeGrants(ctx, evm, contract, readonly)
 		default:
-			err = fmt.Errorf("method %s is not handle", method.Name)
+			err = fmt.Errorf("method %s is not handled", method.Name)
 		}
 	}
 

@@ -192,7 +192,7 @@ func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 		return nil, err
 	}
 	msg := &storagetypes.MsgUpdateBucketInfo{
-		// geth v1.15: vm.Contract.CallerAddress field was replaced by Caller().
+		// geth v1.16: vm.Contract.CallerAddress field was replaced by Caller().
 		Operator:       contract.Caller().String(),
 		BucketName:     args.BucketName,
 		Visibility:     storagetypes.VisibilityType(args.Visibility),
