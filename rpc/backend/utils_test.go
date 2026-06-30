@@ -13,6 +13,7 @@ import (
 	proto "github.com/cosmos/gogoproto/proto"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,8 +23,12 @@ var (
 	logData    = []byte{0xde, 0xad, 0xbe, 0xef}
 )
 
-// buildLogTxResultData returns marshalled ExecTxResult.Data with one log and the expected decoded logs.
+// buildLogTxResultData returns marshaled ExecTxResult.Data with one log and the expected decoded logs.
 func buildLogTxResultData(height int64) (data []byte, expLogs []*ethtypes.Log) {
+	blockNumber, err := mocatypes.SafeUint64(height)
+	if err != nil {
+		panic(err)
+	}
 	resp := &evmtypes.MsgEthereumTxResponse{
 		Hash: common.BytesToHash([]byte("eth_tx_hash")).Hex(),
 		Logs: []*evmtypes.Log{
@@ -31,7 +36,7 @@ func buildLogTxResultData(height int64) (data []byte, expLogs []*ethtypes.Log) {
 				Address:     logAddress.String(),
 				Topics:      []string{common.BytesToHash([]byte("topic0")).Hex()},
 				Data:        logData,
-				BlockNumber: uint64(height),
+				BlockNumber: blockNumber,
 			},
 		},
 	}
@@ -44,7 +49,7 @@ func buildLogTxResultData(height int64) (data []byte, expLogs []*ethtypes.Log) {
 
 	expLog := resp.Logs[0].ToEthereum()
 	expLog.TxHash = common.HexToHash(resp.Hash)
-	expLog.BlockNumber = uint64(height)
+	expLog.BlockNumber = blockNumber
 	return bz, []*ethtypes.Log{expLog}
 }
 
