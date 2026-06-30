@@ -65,6 +65,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 - (storage) [#298](https://github.com/mocachain/moca/pull/298) Close the object iterator in `isNonEmptyBucket` to fix a per-call store-iterator leak (MOCA-413)
 - (sp) [#299](https://github.com/mocachain/moca/pull/299) Close the iterator in `GetAllStorageProviders` to fix a store-iterator leak
+- (sp) [#302](https://github.com/mocachain/moca/pull/302) Close the iterator in `ForceUpdateMaintenanceRecords` to fix a store-iterator leak
 - (app/upgrades) [#289](https://github.com/mocachain/moca/pull/289) Pin v2 feemarket `min_gas_price` to 20 gwei (moca's intended floor) so upgraded chains match genesis.
 - (evm) [#290](https://github.com/mocachain/moca/pull/290) Restore `CallEVM` error-context wrap (method + contract in error message), fix copy-pasted "evil token" comment in `erc721NonTransferable.go`, update stale geth v1.15→v1.16 comments, remove unreachable `AddBalance` blocks in distribution precompile, fix grammar in precompile Run() default cases, and drop dead test-helper expressions.
 - (evm) [#291](https://github.com/mocachain/moca/pull/291) Reject native value sent to precompiles to prevent a balance-reconciliation mint.
