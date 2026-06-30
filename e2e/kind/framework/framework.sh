@@ -246,7 +246,7 @@ fw_run_test() {
 
 fw_tx_send() {
     local from="$1" to="$2" amount="$3"
-    local fees="${4:-200000000000000amoca}"
+    local fees="${4:-5000000000000000amoca}"
 
     local out hash
     # Direct kubectl exec so mocad's stderr (errors) reaches our 2>&1.

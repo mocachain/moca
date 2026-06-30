@@ -30,7 +30,7 @@ log_info "  Image:  ${NEW_DOCKER_IMAGE}"
 
 # ── Governance mode ──────────────────────────────────────────────────────────
 _upgrade_governance() {
-    local fees="200000000000000amoca"
+    local fees="5000000000000000amoca"
 
     log_info "Submitting software-upgrade proposal..."
 

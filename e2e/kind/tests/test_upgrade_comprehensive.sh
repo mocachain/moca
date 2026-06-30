@@ -68,11 +68,15 @@ cosmos_tx() {
         --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 \
-        --gas auto --gas-adjustment 1.3 --fees 2000000000000000amoca \
+        --gas 1000000 --fees 30000000000000000amoca \
         --broadcast-mode sync -y --output json) || {
         log_error "  cosmos_tx broadcast failed: $out"
         return 1
     }
+    if [ "$(echo "$out" | jq -r '.code // 0')" != "0" ]; then
+        log_error "  cosmos_tx CheckTx rejected: $out"
+        return 1
+    fi
     hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
     if [ -z "$hash" ]; then
         log_error "  cosmos_tx returned no txhash: $out"
@@ -89,11 +93,15 @@ cosmos_tx_on() {
         --home /root/.mocad \
         --keyring-backend test --chain-id "${CHAIN_ID}" \
         --node tcp://localhost:26657 \
-        --gas auto --gas-adjustment 1.3 --fees 2000000000000000amoca \
+        --gas 1000000 --fees 30000000000000000amoca \
         --broadcast-mode sync -y --output json) || {
         log_error "  cosmos_tx_on broadcast failed: $out"
         return 1
     }
+    if [ "$(echo "$out" | jq -r '.code // 0')" != "0" ]; then
+        log_error "  cosmos_tx_on CheckTx rejected: $out"
+        return 1
+    fi
     hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
     if [ -z "$hash" ]; then
         log_error "  cosmos_tx_on returned no txhash: $out"
@@ -109,25 +117,25 @@ evm_transfer() {
     local out hash
     out=$(cast send "$1" --value "$2" \
         --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
+        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json 2>&1) || {
         log_error "  evm_transfer broadcast failed: $out"
         return 1
     }
     hash=$(echo "$out" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  evm_transfer returned no hash: $out"; return 1; }
-    fw_wait_evm_tx "$hash" 10 "$EVM_RPC"
+    fw_wait_evm_tx "$hash" 30 "$EVM_RPC" || { log_error "  evm_transfer wait timeout: $hash ($out)"; return 1; }
 }
 
 evm_send() {
     local out hash
     out=$(cast send "$@" --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
+        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json 2>&1) || {
         log_error "  evm_send broadcast failed: $out"
         return 1
     }
     hash=$(echo "$out" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  evm_send returned no hash: $out"; return 1; }
-    fw_wait_evm_tx "$hash" 10 "$EVM_RPC"
+    fw_wait_evm_tx "$hash" 30 "$EVM_RPC" || { log_error "  evm_send wait timeout: $hash ($out)"; return 1; }
 }
 
 evm_call() {
@@ -138,15 +146,15 @@ evm_deploy() {
     local bytecode="$1"
     local output hash
     output=$(cast send --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" --json --create "$bytecode" 2>&1) || {
+        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json --create "$bytecode" 2>&1) || {
         log_error "  evm_deploy broadcast failed: $output"
         return 1
     }
     hash=$(echo "$output" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  evm_deploy returned no hash: $output"; return 1; }
-    fw_wait_evm_tx "$hash" 10 "$EVM_RPC" || return 1
-    cast receipt "$hash" --rpc-url "$EVM_RPC" --json 2>/dev/null \
-        | jq -r '.contractAddress // empty' 2>/dev/null
+    fw_wait_evm_tx "$hash" 30 "$EVM_RPC" || { log_error "  evm_deploy wait timeout: $hash ($output)"; return 1; }
+    local rcpt; rcpt=$(cast receipt "$hash" --rpc-url "$EVM_RPC" --json 2>&1) || { log_error "  evm_deploy receipt failed: $rcpt"; return 1; }
+    echo "$rcpt" | jq -r '.contractAddress // empty' 2>/dev/null
 }
 
 # Shuffle an array (Fisher-Yates). Usage: shuffle_array array_name

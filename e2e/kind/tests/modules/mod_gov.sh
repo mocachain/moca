@@ -11,7 +11,7 @@ _GOV_PROP_IDX=0
 _gov_submit_proposal() {
     local proposal_json="$1"
     local tmpfile="$2"
-    local fees="200000000000000amoca"
+    local fees="5000000000000000amoca"
 
     # Count proposals before submission
     local before_count

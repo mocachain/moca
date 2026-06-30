@@ -15,7 +15,7 @@ fw_init
 
 OLD_VERSION="${OLD_VERSION:-v1.3.0}"
 UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
-FEES="200000000000000amoca"
+FEES="5000000000000000amoca"
 
 # ── Setup: deploy old version ────────────────────────────────────────────────
 fw_start_chain_from_version "$OLD_VERSION"
