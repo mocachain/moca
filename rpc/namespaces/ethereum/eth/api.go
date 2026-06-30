@@ -438,6 +438,9 @@ func (e *PublicAPI) GetTransactionLogs(txHash common.Hash) ([]*ethtypes.Log, err
 	if err != nil {
 		return nil, err
 	}
+	// res.MsgIndex indexes the MsgEthereumTxResponse slice directly: a MsgEthereumTx is
+	// only ever included in an all-EVM tx, so its Cosmos message position equals its
+	// position among the EVM responses. Mirrors cosmos/evm v0.6.0 rpc/backend.
 	index := int(res.MsgIndex) // #nosec G701
 	return evmtypes.DecodeMsgLogs(resBlockResult.TxsResults[res.TxIndex].Data, index, height)
 }

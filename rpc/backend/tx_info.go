@@ -194,6 +194,11 @@ func (b *Backend) GetTransactionReceipt(hash common.Hash) (map[string]interface{
 	if err != nil {
 		return nil, err
 	}
+	// res.MsgIndex is the EVM message's position within the tx. A MsgEthereumTx is
+	// only ever included in an all-EVM tx (the EVM ante rejects any non-EVM message
+	// and the cosmos ante's RejectMessagesDecorator rejects MsgEthereumTx elsewhere),
+	// so this index also matches the position in the MsgEthereumTxResponse slice that
+	// DecodeMsgLogs indexes into. Mirrors cosmos/evm v0.6.0 rpc/backend.
 	msgIndex := int(res.MsgIndex) // #nosec G701 -- checked for int overflow already
 	logs, err := evmtypes.DecodeMsgLogs(blockRes.TxsResults[res.TxIndex].Data, msgIndex, height)
 	if err != nil {
