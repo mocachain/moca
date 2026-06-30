@@ -294,51 +294,10 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 			continue // skip the one if the stream account is in resuming
 		}
 
-		activeFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_ACTIVE, nil)
-		flowStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.OutFlowKeyPrefix)
-		flowIterator := flowStore.Iterator(activeFlowKey, nil)
-		defer flowIterator.Close()
+		settled, totalRate, fullySettled, newCount := k.settleActiveOutFlows(ctx, addr, count, max)
+		count = newCount
 
-		finished := false
-		totalRate := sdkmath.ZeroInt()
-		toUpdate := make([]types.OutFlow, 0)
-		for ; flowIterator.Valid(); flowIterator.Next() {
-			if count >= max {
-				break
-			}
-			addrInKey, outFlow := types.ParseOutFlowKey(flowIterator.Key())
-			if !addrInKey.Equals(addr) {
-				finished = true
-				break
-			}
-			if outFlow.Status == types.OUT_FLOW_STATUS_FROZEN {
-				finished = true
-				break
-			}
-			outFlow.Rate = types.ParseOutFlowValue(flowIterator.Value())
-			ctx.Logger().Debug("auto settling record", "height", ctx.BlockHeight(),
-				"address", addr.String(),
-				"to address", outFlow.ToAddress,
-				"rate", outFlow.Rate.String())
-
-			toAddr := sdk.MustAccAddressFromHex(outFlow.ToAddress)
-			flowChange := types.NewDefaultStreamRecordChangeWithAddr(toAddr).WithRateChange(outFlow.Rate.Neg())
-			_, err := k.UpdateStreamRecordByAddr(ctx, flowChange)
-			if err != nil {
-				ctx.Logger().Error("auto settle, update stream record failed", "address", outFlow.ToAddress, "rate", outFlow.Rate.Neg())
-				panic("should not happen")
-			}
-
-			flowStore.Delete(flowIterator.Key())
-
-			outFlow.Status = types.OUT_FLOW_STATUS_FROZEN
-			toUpdate = append(toUpdate, outFlow)
-
-			totalRate = totalRate.Add(outFlow.Rate)
-			count++
-		}
-
-		for _, o := range toUpdate {
+		for _, o := range settled {
 			outFlow := o
 			k.SetOutFlow(ctx, addr, &outFlow)
 		}
@@ -346,7 +305,7 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 		streamRecord.NetflowRate = streamRecord.NetflowRate.Add(totalRate)
 		streamRecord.FrozenNetflowRate = streamRecord.FrozenNetflowRate.Add(totalRate.Neg())
 
-		if !flowIterator.Valid() || finished {
+		if fullySettled {
 			if !streamRecord.NetflowRate.IsZero() {
 				ctx.Logger().Error("should not happen, stream netflow rate is not zero", "address", streamRecord.Account)
 				panic("should not happen")
@@ -356,6 +315,56 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 
 		k.SetStreamRecord(ctx, streamRecord)
 	}
+}
+
+// settleActiveOutFlows freezes an account's active out-flows (bounded by max),
+// scoping the out-flow iterator's defer Close to a single account.
+func (k Keeper) settleActiveOutFlows(ctx sdk.Context, addr sdk.AccAddress, count, max uint64) ([]types.OutFlow, sdkmath.Int, bool, uint64) {
+	activeFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_ACTIVE, nil)
+	flowStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.OutFlowKeyPrefix)
+	flowIterator := flowStore.Iterator(activeFlowKey, nil)
+	defer flowIterator.Close()
+
+	finished := false
+	totalRate := sdkmath.ZeroInt()
+	toUpdate := make([]types.OutFlow, 0)
+	for ; flowIterator.Valid(); flowIterator.Next() {
+		if count >= max {
+			break
+		}
+		addrInKey, outFlow := types.ParseOutFlowKey(flowIterator.Key())
+		if !addrInKey.Equals(addr) {
+			finished = true
+			break
+		}
+		if outFlow.Status == types.OUT_FLOW_STATUS_FROZEN {
+			finished = true
+			break
+		}
+		outFlow.Rate = types.ParseOutFlowValue(flowIterator.Value())
+		ctx.Logger().Debug("auto settling record", "height", ctx.BlockHeight(),
+			"address", addr.String(),
+			"to address", outFlow.ToAddress,
+			"rate", outFlow.Rate.String())
+
+		toAddr := sdk.MustAccAddressFromHex(outFlow.ToAddress)
+		flowChange := types.NewDefaultStreamRecordChangeWithAddr(toAddr).WithRateChange(outFlow.Rate.Neg())
+		_, err := k.UpdateStreamRecordByAddr(ctx, flowChange)
+		if err != nil {
+			ctx.Logger().Error("auto settle, update stream record failed", "address", outFlow.ToAddress, "rate", outFlow.Rate.Neg())
+			panic("should not happen")
+		}
+
+		flowStore.Delete(flowIterator.Key())
+
+		outFlow.Status = types.OUT_FLOW_STATUS_FROZEN
+		toUpdate = append(toUpdate, outFlow)
+
+		totalRate = totalRate.Add(outFlow.Rate)
+		count++
+	}
+
+	return toUpdate, totalRate, !flowIterator.Valid() || finished, count
 }
 
 func (k Keeper) TryResumeStreamRecord(ctx sdk.Context, streamRecord *types.StreamRecord, depositBalance sdkmath.Int) error {
