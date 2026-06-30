@@ -1281,15 +1281,7 @@ func (app *Moca) migrateToV2(ctx sdk.Context) error {
 	app.BankKeeper.SetDenomMetaData(ctx, mocaDenomMetadata())
 
 	// 2. Overwrite x/vm + x/feemarket params with fresh cosmos/evm-format params.
-	//    The values are read from the per-network JSON snapshot committed under
-	//    app/upgrades/v2/params/<network>/, selected by chain-id, so a single
-	//    binary serves devnet/testnet/mainnet and each network's params are
-	//    reviewable in version control. Unknown chain-ids (local/test chains)
-	//    fall back to the devnet snapshot. The snapshots capture exactly what
-	//    this handler used to construct in code: evmtypes.DefaultParams() with
-	//    EvmDenom=cmdcfg.BaseDenom, ExtendedDenomOptions=nil and
-	//    ActiveStaticPrecompiles=MocaActiveStaticPrecompiles(); and
-	//    feemarkettypes.DefaultParams().
+	// min_gas_price pinned to moca's 20 gwei floor (MainnetMinGasPrices), not the cosmos/evm default.
 	network := upgradev2.NetworkForChainID(ctx.ChainID())
 
 	evmParamsJSON, err := upgradev2.EVMParamsJSON(network)
