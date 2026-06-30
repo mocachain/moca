@@ -24,10 +24,7 @@ type (
 	}
 )
 
-// NewPrecompiledContract builds a context-free static precompile instance.
-// cosmos/evm v0.6.0 registers precompiles once (WithStaticPrecompiles) rather
-// than rebuilding them per-tx, so the sdk.Context is no longer bound at
-// construction; Run pulls the live context from the EVM StateDB instead.
+// NewPrecompiledContract returns a new static precompile instance.
 func NewPrecompiledContract(spKeeper spkeeper.Keeper) *Contract {
 	c := &Contract{
 		spKeeper:  spKeeper,
@@ -53,6 +50,9 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}

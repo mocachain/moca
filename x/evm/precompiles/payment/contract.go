@@ -24,10 +24,7 @@ type (
 	}
 )
 
-// NewPrecompiledContract builds a context-free static precompile instance.
-// cosmos/evm v0.6.0 registers precompiles once (WithStaticPrecompiles) rather
-// than rebuilding them per-tx, so the sdk.Context is no longer bound at
-// construction; Run pulls the live context from the EVM StateDB instead.
+// NewPrecompiledContract returns a new static precompile instance.
 func NewPrecompiledContract(paymentKeeper paymentkeeper.Keeper) *Contract {
 	c := &Contract{
 		paymentKeeper: paymentKeeper,
@@ -53,13 +50,12 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
-	// cosmos/evm static precompiles are built once, so the live SDK context is
-	// sourced from the EVM StateDB's cache context per call (not bound at
-	// construction). We branch a writable cache off it and only commit on
-	// success; the StateDB flushes that cache when the EVM tx commits.
 	stateDB, ok := evm.StateDB.(*statedb.StateDB)
 	if !ok {
 		return types.PackRetError("payment precompile must run within the cosmos/evm StateDB")
