@@ -865,6 +865,49 @@ func TestUpdateStreamRecord_SettleTimestampOverflow_ForcedSaturates(t *testing.T
 		"forced overflow must saturate to MaxInt64, not panic")
 }
 
+// TestUpdateStreamRecord_SettleTimestampUnderflow_ForcedSaturates covers the low
+// side: a forced update on a deeply indebted active account (a large rate that
+// collapsed to a tiny one while the balance was negative) makes payDuration
+// hugely negative, so currentTimestamp - forcedSettleTime + payDuration underflows
+// int64. Int64() would panic inside the EndBlocker and halt the chain; instead the
+// settle timestamp must saturate to MinInt64. This is reachable only when forced —
+// a non-forced update returns early once payDuration drops below ForcedSettleTime.
+func TestUpdateStreamRecord_SettleTimestampUnderflow_ForcedSaturates(t *testing.T) {
+	k, ctx, dep := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(1_000_000_000, 0))
+	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
+
+	// No bank account, so the negative-balance auto-transfer (for the user and for
+	// the governance account inside ForceSettle) is skipped.
+	dep.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+
+	params := k.GetParams(ctx)
+	// Buffer matches |rate|=1 so the buffer recompute does not adjust staticBalance.
+	bufferBalance := sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime)
+	// staticBalance far below MinInt64 → payDuration (÷1) underflows int64.
+	staticBalance := sdkmath.NewInt(math.MinInt64).MulRaw(2)
+
+	user := sample.RandAccAddress()
+	sr := &types.StreamRecord{
+		Account:           user.String(),
+		Status:            types.STREAM_ACCOUNT_STATUS_ACTIVE,
+		StaticBalance:     staticBalance,
+		BufferBalance:     bufferBalance,
+		LockBalance:       sdkmath.ZeroInt(),
+		NetflowRate:       sdkmath.NewInt(-1),
+		FrozenNetflowRate: sdkmath.ZeroInt(),
+		CrudTimestamp:     ctx.BlockTime().Unix(),
+	}
+
+	change := types.NewDefaultStreamRecordChangeWithAddr(user)
+	require.NotPanics(t, func() {
+		err := k.UpdateStreamRecord(ctx, sr, change)
+		require.NoError(t, err, "forced path must not return an error (would panic EndBlocker)")
+	})
+	require.Equal(t, int64(math.MinInt64), sr.SettleTimestamp,
+		"forced underflow must saturate to MinInt64, not panic")
+}
+
 // TestUpdateStreamRecord_SettleTimestampOverflow_UserDepositRejected covers the
 // user-initiated deposit path: a positive static-balance change with no rate
 // change that pushes payDuration past MaxInt64 is rejected with
