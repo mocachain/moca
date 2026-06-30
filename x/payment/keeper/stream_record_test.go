@@ -753,6 +753,107 @@ func TestAutoSettle_SettleInMultipleBlocks_AutoResumeExists(t *testing.T) {
 	require.Equal(t, gvg3StreamRecord.FrozenNetflowRate, sdkmath.ZeroInt())
 }
 
+func TestAutoResume_MultipleAccounts(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Now())
+
+	params := keeper.GetParams(ctx)
+	reserveTime := int64(params.VersionedParams.ReserveTime)
+	now := ctx.BlockTime().Unix()
+
+	// Set up several frozen accounts, each with its own frozen out-flows and an
+	// auto-resume record queued for the current block. AutoResume opens a
+	// frozen-flow iterator per account in its outer loop, so iterating multiple
+	// accounts in a single call exercises the per-iteration iterator close.
+	type account struct {
+		addr      sdk.AccAddress
+		outFlows  []*types.OutFlow
+		totalRate sdkmath.Int
+	}
+
+	numAccounts := 3
+	accounts := make([]account, 0, numAccounts)
+	for i := 0; i < numAccounts; i++ {
+		user := sample.RandAccAddress()
+
+		gvg1 := sample.RandAccAddress()
+		gvg2 := sample.RandAccAddress()
+		rate1 := sdkmath.NewInt(int64(50 * (i + 1)))
+		rate2 := sdkmath.NewInt(int64(70 * (i + 1)))
+		totalRate := rate1.Add(rate2)
+
+		outFlow1 := &types.OutFlow{ToAddress: gvg1.String(), Rate: rate1, Status: types.OUT_FLOW_STATUS_FROZEN}
+		outFlow2 := &types.OutFlow{ToAddress: gvg2.String(), Rate: rate2, Status: types.OUT_FLOW_STATUS_FROZEN}
+		keeper.SetOutFlow(ctx, user, outFlow1)
+		keeper.SetOutFlow(ctx, user, outFlow2)
+
+		// extra static balance beyond the buffer so the resumed account is not force-settled
+		bufferBalance := totalRate.MulRaw(reserveTime)
+		streamRecord := &types.StreamRecord{
+			StaticBalance:     bufferBalance,
+			BufferBalance:     bufferBalance,
+			LockBalance:       sdkmath.ZeroInt(),
+			Account:           user.String(),
+			Status:            types.STREAM_ACCOUNT_STATUS_FROZEN,
+			NetflowRate:       sdkmath.ZeroInt(),
+			FrozenNetflowRate: totalRate.Neg(),
+			OutFlowCount:      2,
+			CrudTimestamp:     now,
+		}
+		keeper.SetStreamRecord(ctx, streamRecord)
+
+		keeper.SetAutoResumeRecord(ctx, &types.AutoResumeRecord{
+			Timestamp: now,
+			Addr:      user.String(),
+		})
+
+		accounts = append(accounts, account{
+			addr:      user,
+			outFlows:  []*types.OutFlow{outFlow1, outFlow2},
+			totalRate: totalRate,
+		})
+	}
+
+	// every account is queued for resume before the call
+	for _, acc := range accounts {
+		_, found := keeper.GetAutoResumeRecord(ctx, now, acc.addr)
+		require.True(t, found)
+	}
+
+	// a single AutoResume call resumes every queued account
+	keeper.AutoResume(ctx)
+
+	for _, acc := range accounts {
+		userStreamRecord, found := keeper.GetStreamRecord(ctx, acc.addr)
+		require.True(t, found)
+		require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, userStreamRecord.Status)
+		require.Equal(t, acc.totalRate.Neg(), userStreamRecord.NetflowRate)
+		require.Equal(t, sdkmath.ZeroInt(), userStreamRecord.FrozenNetflowRate)
+
+		// the queued resume record has been consumed
+		_, found = keeper.GetAutoResumeRecord(ctx, now, acc.addr)
+		require.False(t, found)
+
+		for _, outFlow := range acc.outFlows {
+			toAddr := sdk.MustAccAddressFromHex(outFlow.ToAddress)
+
+			// the out-flow is now active and no frozen out-flow remains
+			activeOutFlow := keeper.GetOutFlow(ctx, acc.addr, types.OUT_FLOW_STATUS_ACTIVE, toAddr)
+			require.NotNil(t, activeOutFlow)
+			require.Equal(t, types.OUT_FLOW_STATUS_ACTIVE, activeOutFlow.Status)
+			require.Equal(t, outFlow.Rate, activeOutFlow.Rate)
+			require.Nil(t, keeper.GetOutFlow(ctx, acc.addr, types.OUT_FLOW_STATUS_FROZEN, toAddr))
+
+			// the receiver stream record is active with the restored rate
+			gvgStreamRecord, found := keeper.GetStreamRecord(ctx, toAddr)
+			require.True(t, found)
+			require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, gvgStreamRecord.Status)
+			require.Equal(t, outFlow.Rate, gvgStreamRecord.NetflowRate)
+			require.Equal(t, sdkmath.ZeroInt(), gvgStreamRecord.FrozenNetflowRate)
+		}
+	}
+}
+
 func TestUpdateStreamRecord_FrozenAccountLockBalance(t *testing.T) {
 	keeper, ctx, _ := makePaymentKeeper(t)
 	ctx = ctx.WithBlockTime(time.Now())

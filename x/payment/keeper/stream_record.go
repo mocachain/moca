@@ -478,7 +478,6 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 		frozenFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_FROZEN, nil)
 		flowStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.OutFlowKeyPrefix)
 		flowIterator := flowStore.Iterator(frozenFlowKey, nil)
-		defer flowIterator.Close()
 
 		finished := false
 		toUpdate := make([]types.OutFlow, 0)
@@ -537,5 +536,6 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 			k.RemoveAutoResumeRecord(ctx, record.Timestamp, addr)
 		}
 		k.SetStreamRecord(ctx, streamRecord)
+		flowIterator.Close()
 	}
 }
