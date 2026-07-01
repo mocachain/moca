@@ -215,27 +215,16 @@ func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRe
 				return fmt.Errorf("check and force settle failed, err: %w", err)
 			}
 		}
-		// The settle timestamp is stored as int64; the full expression
-		// (currentTimestamp - forcedSettleTime + payDuration) can land outside the
-		// int64 range in either direction. Calling Int64() on an out-of-range value
-		// panics ("Int64() out of bound"); inside the no-recover EndBlocker that
-		// halts the chain. Saturate instead — the settle timestamp is only a
-		// scheduling hint for the auto-settle queue and is recomputed on the next
-		// balance change or bucket touch, so capping it is loss-free.
+		// The full expression can exceed int64 range, where Int64() panics — fatal in
+		// the no-recover EndBlocker. SettleTimestamp is only an auto-settle queue hint,
+		// recomputed on the next change, so saturate instead of overflowing.
 		settleTimestampFull := sdkmath.NewInt(currentTimestamp).
 			Sub(sdkmath.NewIntFromUint64(params.ForcedSettleTime)).
 			Add(payDuration)
 		switch {
 		case settleTimestampFull.GT(sdkmath.NewInt(math.MaxInt64)):
-			// Over-funded: pay duration beyond MaxInt64 seconds (~2.9e11 years),
-			// from a huge balance or a collapsed netflow rate.
-			//
-			// Reject only a user-initiated deposit — a positive static-balance
-			// change with no rate change. That depositor is over-funding past what
-			// we can represent and can simply deposit less. Forced EndBlocker
-			// updates (an error would panic the chain in abci.go "should not
-			// happen") and legitimate rate decreases (object deletion/discontinue,
-			// lazy SP re-pricing) must not error, so they saturate to MaxInt64.
+			// Over-funded. Reject a user deposit (they can deposit less); saturate on
+			// forced/system paths and rate decreases, where an error would panic the EndBlocker.
 			isUserDeposit := !forced && change.StaticBalanceChange.IsPositive() && change.RateChange.IsZero()
 			if isUserDeposit {
 				return types.ErrSettleTimestampOverflow.Wrapf(
@@ -247,12 +236,8 @@ func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRe
 				"forced", forced, "height", ctx.BlockHeight())
 			settleTimestamp = math.MaxInt64
 		case settleTimestampFull.LT(sdkmath.NewInt(math.MinInt64)):
-			// Deeply indebted: a large netflow rate collapsed to a tiny one while
-			// the balance was negative makes payDuration hugely negative. Only
-			// reachable in a forced update (a non-forced one returns above once
-			// payDuration is below ForcedSettleTime). Never a deposit, so always
-			// saturate — to MinInt64, so the auto-settle queue treats it as overdue
-			// (the account is already force-settled above).
+			// Deeply indebted; only reachable on a forced path (account already
+			// force-settled above), never a deposit — saturate.
 			ctx.Logger().Error("settle timestamp underflow, capping at MinInt64",
 				"account", streamRecord.Account, "payDuration", payDuration.String(),
 				"forced", forced, "height", ctx.BlockHeight())
@@ -450,9 +435,8 @@ func (k Keeper) TryResumeStreamRecord(ctx sdk.Context, streamRecord *types.Strea
 		Add(streamRecord.StaticBalance.Quo(totalRate.Abs())).
 		Sub(sdkmath.NewIntFromUint64(forcedSettleTime))
 	if settleTimestampFull.GT(sdkmath.NewInt(math.MaxInt64)) {
-		// TryResumeStreamRecord is only reachable from MsgDeposit, never from an
-		// EndBlocker path. Reject the deposit so the caller can choose a smaller
-		// amount rather than silently creating an unrepresentable settle timestamp.
+		// Deposit-only path (never an EndBlocker), so reject rather than saturate.
+		// StaticBalance ≥ 0 after the resume guard above, so underflow can't happen.
 		return types.ErrSettleTimestampOverflow.Wrapf(
 			"account %s: deposit would fund account beyond the representable future; reduce deposit",
 			streamRecord.Account)
