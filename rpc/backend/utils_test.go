@@ -72,7 +72,7 @@ func TestGetLogsFromBlockResults(t *testing.T) {
 	got := blockLogs[0][0]
 	require.Equal(t, logAddress, got.Address)
 	require.Equal(t, logData, got.Data)
-	require.Equal(t, uint64(height), got.BlockNumber)
+	require.Equal(t, expLogs[0].BlockNumber, got.BlockNumber)
 	require.NotEqual(t, common.Hash{}, got.TxHash)
 
 	// A tx with empty Data yields empty logs without error (DecodeTxLogs(nil)).
