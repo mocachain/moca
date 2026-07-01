@@ -27,7 +27,7 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	tmtypes "github.com/cometbft/cometbft/types"
 
-	evmtypes "github.com/cosmos/evm/x/vm/types"
+	"github.com/mocachain/moca/v2/rpc/backend"
 	"github.com/mocachain/moca/v2/rpc/ethereum/pubsub"
 	rpcfilters "github.com/mocachain/moca/v2/rpc/namespaces/ethereum/eth/filters"
 	"github.com/mocachain/moca/v2/rpc/types"
@@ -579,13 +579,27 @@ func (api *pubSubAPI) subscribeLogs(wsConn *wsConn, subID rpc.ID, extra interfac
 					continue
 				}
 
-				txResponse, err := evmtypes.DecodeTxResponse(dataTx.TxResult.Result.Data)
+				// The live tx event's Data does not carry the tx/block context
+				// (TxHash, BlockHash, BlockTimestamp); those are backfilled into the
+				// finalized block result. Source this tx's logs from the block result
+				// so subscribers get fully-populated logs, matching eth_getLogs.
+				height := dataTx.TxResult.Height
+				blockRes, err := api.clientCtx.Client.BlockResults(context.Background(), &height)
 				if err != nil {
-					api.logger.Error("failed to decode tx response", "error", err.Error())
-					return
+					api.logger.Debug("failed to fetch block results for logs subscription", "height", height, "error", err.Error())
+					continue
+				}
+				logsByTx, err := backend.GetLogsFromBlockResults(blockRes)
+				if err != nil {
+					api.logger.Error("failed to decode logs from block results", "error", err.Error())
+					continue
+				}
+				var ethLogs []*ethtypes.Log
+				if idx := int(dataTx.TxResult.Index); idx < len(logsByTx) {
+					ethLogs = logsByTx[idx]
 				}
 
-				logs := rpcfilters.FilterLogs(evmtypes.LogsToEthereum(txResponse.Logs), crit.FromBlock, crit.ToBlock, crit.Addresses, crit.Topics)
+				logs := rpcfilters.FilterLogs(ethLogs, crit.FromBlock, crit.ToBlock, crit.Addresses, crit.Topics)
 				if len(logs) == 0 {
 					continue
 				}
