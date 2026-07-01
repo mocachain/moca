@@ -1864,6 +1864,7 @@ func (k Keeper) isNonEmptyBucket(ctx sdk.Context, bucketName string) bool {
 	objectStore := prefix.NewStore(store, storagetypes.GetObjectKeyOnlyBucketPrefix(bucketName))
 
 	iter := objectStore.Iterator(nil, nil)
+	defer iter.Close()
 	return iter.Valid()
 }
 
