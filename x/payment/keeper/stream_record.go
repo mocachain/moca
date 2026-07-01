@@ -13,6 +13,13 @@ import (
 	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
+// int64 bounds as sdkmath.Int, hoisted so the settle-timestamp range checks in
+// UpdateStreamRecord / TryResumeStreamRecord don't re-allocate on every call.
+var (
+	settleTimestampMax = sdkmath.NewInt(math.MaxInt64)
+	settleTimestampMin = sdkmath.NewInt(math.MinInt64)
+)
+
 func (k Keeper) CheckStreamRecord(streamRecord *types.StreamRecord) {
 	if streamRecord == nil {
 		panic("streamRecord is nil")
@@ -222,9 +229,9 @@ func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRe
 			Sub(sdkmath.NewIntFromUint64(params.ForcedSettleTime)).
 			Add(payDuration)
 		switch {
-		case settleTimestampFull.GT(sdkmath.NewInt(math.MaxInt64)):
-			// Over-funded. Reject a user deposit (they can deposit less); saturate on
-			// forced/system paths and rate decreases, where an error would panic the EndBlocker.
+		case settleTimestampFull.GT(settleTimestampMax):
+			// A real user deposit = non-forced, positive-static-only change (forced is set on
+			// every EndBlocker path); reject it. Saturate elsewhere — an error on a forced path re-panics.
 			isUserDeposit := !forced && change.StaticBalanceChange.IsPositive() && change.RateChange.IsZero()
 			if isUserDeposit {
 				return types.ErrSettleTimestampOverflow.Wrapf(
@@ -235,7 +242,7 @@ func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRe
 				"account", streamRecord.Account, "payDuration", payDuration.String(),
 				"forced", forced, "height", ctx.BlockHeight())
 			settleTimestamp = math.MaxInt64
-		case settleTimestampFull.LT(sdkmath.NewInt(math.MinInt64)):
+		case settleTimestampFull.LT(settleTimestampMin):
 			// Deeply indebted; only reachable on a forced path (account already
 			// force-settled above), never a deposit — saturate.
 			ctx.Logger().Error("settle timestamp underflow, capping at MinInt64",
@@ -434,12 +441,16 @@ func (k Keeper) TryResumeStreamRecord(ctx sdk.Context, streamRecord *types.Strea
 	settleTimestampFull := sdkmath.NewInt(now).
 		Add(streamRecord.StaticBalance.Quo(totalRate.Abs())).
 		Sub(sdkmath.NewIntFromUint64(forcedSettleTime))
-	if settleTimestampFull.GT(sdkmath.NewInt(math.MaxInt64)) {
-		// Deposit-only path (never an EndBlocker), so reject rather than saturate.
-		// StaticBalance ≥ 0 after the resume guard above, so underflow can't happen.
+	switch {
+	case settleTimestampFull.GT(settleTimestampMax):
+		// Deposit-only path (runTx, not the no-recover EndBlocker): reject over-funding.
 		return types.ErrSettleTimestampOverflow.Wrapf(
 			"account %s: deposit would fund account beyond the representable future; reduce deposit",
 			streamRecord.Account)
+	case settleTimestampFull.LT(settleTimestampMin):
+		// Unreachable (the resume guard above bounds StaticBalance from below); clamped for
+		// parity with UpdateStreamRecord so the Int64() cast is provably in range.
+		settleTimestampFull = settleTimestampMin
 	}
 	streamRecord.SettleTimestamp = settleTimestampFull.Int64()
 	streamRecord.BufferBalance = expectedBalanceToResume
