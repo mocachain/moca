@@ -476,6 +476,12 @@ func (k Keeper) StorageProviderExitable(ctx sdk.Context, spID uint32) error {
 			return types.ErrSPCanNotExit.Wrapf("not swap out from all the gvgs, stat: %s", stat.String())
 		}
 	}
+
+	// An SP that is still the primary of a GVG family must not be allowed to exit:
+	// downstream resolution of that family assumes the SP still exists.
+	if familyStats, found := k.GetGVGFamilyStatisticsWithinSP(ctx, spID); found && len(familyStats.GlobalVirtualGroupFamilyIds) != 0 {
+		return types.ErrSPCanNotExit.Wrapf("not swap out from all the families, count: %d", len(familyStats.GlobalVirtualGroupFamilyIds))
+	}
 	return nil
 }
 

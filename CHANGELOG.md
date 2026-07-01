@@ -63,6 +63,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (virtualgroup,storage) [#305](https://github.com/mocachain/moca/pull/305) Tighten storage provider exit preconditions and make discontinued-resource cleanup resolve its primary SP defensively.
 - (storage) [#298](https://github.com/mocachain/moca/pull/298) Close the object iterator in `isNonEmptyBucket` to fix a per-call store-iterator leak (MOCA-413)
 - (sp) [#299](https://github.com/mocachain/moca/pull/299) Close the iterator in `GetAllStorageProviders` to fix a store-iterator leak
 - (sp) [#302](https://github.com/mocachain/moca/pull/302) Close the iterator in `ForceUpdateMaintenanceRecords` to fix a store-iterator leak

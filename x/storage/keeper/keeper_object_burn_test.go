@@ -150,6 +150,7 @@ func (s *BurnTestSuite) TestDeleteSealedObjectShouldBurnNFT() {
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}, true).AnyTimes()
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
 		ReadPrice:           sdkmath.LegacyNewDec(1),
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),
@@ -222,6 +223,7 @@ func (s *BurnTestSuite) TestDeleteCreatedObjectShouldNotBurnNFT() {
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}, true).AnyTimes()
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
 		ReadPrice:           sdkmath.LegacyNewDec(1),
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),
@@ -291,6 +293,7 @@ func (s *BurnTestSuite) TestDeleteSealedObjectBurnFailShouldFail() {
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}, true).AnyTimes()
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
 		ReadPrice:           sdkmath.LegacyNewDec(1),
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),
@@ -668,6 +671,7 @@ func (s *BurnTestSuite) TestDeleteEmptySealedObjectShouldNotBurnNFT() {
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}, true).AnyTimes()
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
 		ReadPrice:           sdkmath.LegacyNewDec(1),
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),

@@ -347,7 +347,11 @@ func (k Keeper) GetPrimarySPForBucket(ctx sdk.Context, bucketInfo *storagetypes.
 	if !found {
 		return nil, virtualgroupmoduletypes.ErrGVGFamilyNotExist.Wrapf("gvg family (%d) not found.", bucketInfo.GlobalVirtualGroupFamilyId)
 	}
-	sp := k.spKeeper.MustGetStorageProvider(ctx, gvgFamily.PrimarySpId)
+	// Resolve without panicking so callers can handle a missing primary SP.
+	sp, found := k.spKeeper.GetStorageProvider(ctx, gvgFamily.PrimarySpId)
+	if !found {
+		return nil, sptypes.ErrStorageProviderNotFound.Wrapf("primary sp (%d) of gvg family (%d) not found", gvgFamily.PrimarySpId, gvgFamily.Id)
+	}
 	return sp, nil
 }
 
@@ -370,7 +374,13 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 
 	bucketDeleted := false
 
-	sp := k.MustGetPrimarySPForBucket(ctx, bucketInfo)
+	// Resolve the primary SP defensively; skip this entry if it can no longer be resolved.
+	sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo)
+	if spErr != nil {
+		ctx.Logger().Error("skip force-deleting bucket: primary SP unresolvable, dropping from queue",
+			"bucket", bucketInfo.BucketName, "bucket_id", bucketID.String(), "err", spErr)
+		return true, 0, nil
+	}
 	spOperatorAddr := sdk.MustAccAddressFromHex(sp.OperatorAddress)
 
 	store := ctx.KVStore(k.storeKey)
@@ -1205,7 +1215,13 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		return err
 	}
 
-	spInState := k.MustGetPrimarySPForBucket(ctx, bucketInfo)
+	// Resolve the primary SP defensively; skip this entry if it can no longer be resolved.
+	spInState, err := k.GetPrimarySPForBucket(ctx, bucketInfo)
+	if err != nil {
+		ctx.Logger().Error("skip force-deleting object: primary SP unresolvable, dropping from queue",
+			"object", objectInfo.ObjectName, "bucket", bucketInfo.BucketName, "err", err)
+		return nil
+	}
 	if objectStatus == storagetypes.OBJECT_STATUS_CREATED {
 		err := k.UnlockObjectStoreFee(ctx, bucketInfo, objectInfo)
 		if err != nil {
