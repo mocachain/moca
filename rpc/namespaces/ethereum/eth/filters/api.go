@@ -422,13 +422,22 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit filters.FilterCriteri
 					continue
 				}
 
-				txResponse, err := evmtypes.DecodeTxResponse(dataTx.TxResult.Result.Data)
+				// The live tx event's Data does not carry the tx/block context
+				// (TxHash, BlockHash, BlockTimestamp); those are backfilled into the
+				// finalized block result. Source this tx's logs from the block result
+				// so subscribers get fully-populated logs, matching eth_getLogs.
+				height := dataTx.Height
+				logsByTx, err := api.backend.GetLogsByHeight(&height)
 				if err != nil {
-					api.logger.Error("fail to decode tx response", "error", err)
-					return
+					api.logger.Error("fail to get logs by height for logs subscription", "error", err)
+					continue
+				}
+				var txLogs []*ethtypes.Log
+				if idx := int(dataTx.Index); idx < len(logsByTx) {
+					txLogs = logsByTx[idx]
 				}
 
-				logs := FilterLogs(evmtypes.LogsToEthereum(txResponse.Logs), crit.FromBlock, crit.ToBlock, crit.Addresses, crit.Topics)
+				logs := FilterLogs(txLogs, crit.FromBlock, crit.ToBlock, crit.Addresses, crit.Topics)
 
 				for _, log := range logs {
 					_ = notifier.Notify(rpcSub.ID, log) // #nosec G703
@@ -502,13 +511,23 @@ func (api *PublicFilterAPI) NewFilter(criteria filters.FilterCriteria) (rpc.ID, 
 					continue
 				}
 
-				txResponse, err := evmtypes.DecodeTxResponse(dataTx.TxResult.Result.Data)
+				// The live tx event's Data does not carry the tx/block context
+				// (TxHash, BlockHash, BlockTimestamp); those are backfilled into the
+				// finalized block result. Source this tx's logs from the block result
+				// so eth_getFilterChanges returns fully-populated logs, matching
+				// eth_getLogs.
+				height := dataTx.Height
+				logsByTx, err := api.backend.GetLogsByHeight(&height)
 				if err != nil {
-					api.logger.Error("fail to decode tx response", "error", err)
-					return
+					api.logger.Error("fail to get logs by height for logs filter", "error", err)
+					continue
+				}
+				var txLogs []*ethtypes.Log
+				if idx := int(dataTx.Index); idx < len(logsByTx) {
+					txLogs = logsByTx[idx]
 				}
 
-				logs := FilterLogs(evmtypes.LogsToEthereum(txResponse.Logs), criteria.FromBlock, criteria.ToBlock, criteria.Addresses, criteria.Topics)
+				logs := FilterLogs(txLogs, criteria.FromBlock, criteria.ToBlock, criteria.Addresses, criteria.Topics)
 
 				api.filtersMu.Lock()
 				if f, found := api.filters[filterID]; found {

@@ -53,8 +53,6 @@ func (b *Backend) GetTransactionByHash(txHash common.Hash) (*rpctypes.RPCTransac
 
 	if res.EthTxIndex == -1 {
 		// Fallback to find tx index by iterating all valid eth transactions.
-		// cosmos/evm v0.6.0: MsgEthereumTx.Hash is a method (common.Hash);
-		// compare its hex against the lookup key.
 		msgs := b.EthMsgsFromTendermintBlock(block, blockRes)
 		for i := range msgs {
 			if msgs[i].Hash().Hex() == hexTx {
@@ -106,7 +104,6 @@ func (b *Backend) getTransactionByHashPending(txHash common.Hash) (*rpctypes.RPC
 			continue
 		}
 
-		// cosmos/evm v0.6.0: Hash is a method now.
 		if msg.Hash().Hex() == hexTx {
 			// use zero block values since it's not included in a block yet
 			rpcTx, err := rpctypes.NewTransactionFromMsg(
@@ -161,9 +158,6 @@ func (b *Backend) GetTransactionReceipt(hash common.Hash) (map[string]interface{
 	}
 	ethMsg := tx.GetMsgs()[res.MsgIndex].(*evmtypes.MsgEthereumTx)
 
-	// cosmos/evm v0.6.0 retired evmtypes.UnpackTxData and the MsgEthereumTx.Data
-	// field; the raw tx is now accessed via MsgEthereumTx.AsTransaction() which
-	// exposes equivalent accessors (GasPrice, Gas, To, Nonce, Type).
 	ethTx := ethMsg.AsTransaction()
 
 	cumulativeGasUsed := uint64(0)
@@ -183,31 +177,36 @@ func (b *Backend) GetTransactionReceipt(hash common.Hash) (map[string]interface{
 	} else {
 		status = hexutil.Uint(ethtypes.ReceiptStatusSuccessful)
 	}
-	chainID, err := b.ChainID()
-	if err != nil {
-		return nil, err
+	// GetSenderLegacy recovers sender from sig; historical txs have empty From.
+	var signer ethtypes.Signer
+	if ethTx.Protected() {
+		signer = ethtypes.LatestSignerForChainID(ethTx.ChainId())
+	} else {
+		signer = ethtypes.FrontierSigner{}
 	}
-
-	// cosmos/evm v0.6.0: use GetSenderLegacy for txs loaded back from state —
-	// GetSender() returns the cached From, which is empty for a historical tx
-	// read from the store, whereas GetSenderLegacy recovers the sender from the
-	// signature via the signer when From is unset. Matches upstream rpc.
-	signer := ethtypes.LatestSignerForChainID(chainID.ToInt())
 	from, err := ethMsg.GetSenderLegacy(signer)
 	if err != nil {
 		return nil, err
 	}
 
-	// parse tx logs from events
+	// Decode logs from tx response Data; v0.6.0 dropped per-log cosmos events.
+	height, err := types.SafeUint64(blockRes.Height)
+	if err != nil {
+		return nil, err
+	}
+	// res.MsgIndex is the EVM message's position within the tx. A MsgEthereumTx is
+	// only ever included in an all-EVM tx (the EVM ante rejects any non-EVM message
+	// and the cosmos ante's RejectMessagesDecorator rejects MsgEthereumTx elsewhere),
+	// so this index also matches the position in the MsgEthereumTxResponse slice that
+	// DecodeMsgLogs indexes into. Mirrors cosmos/evm v0.6.0 rpc/backend.
 	msgIndex := int(res.MsgIndex) // #nosec G701 -- checked for int overflow already
-	logs, err := TxLogsFromEvents(blockRes.TxsResults[res.TxIndex].Events, msgIndex)
+	logs, err := evmtypes.DecodeMsgLogs(blockRes.TxsResults[res.TxIndex].Data, msgIndex, height)
 	if err != nil {
 		b.logger.Debug("failed to parse logs", "hash", hexTx, "error", err.Error())
 	}
 
 	if res.EthTxIndex == -1 {
 		// Fallback to find tx index by iterating all valid eth transactions.
-		// cosmos/evm v0.6.0: MsgEthereumTx.Hash is a method.
 		msgs := b.EthMsgsFromTendermintBlock(resBlock, blockRes)
 		for i := range msgs {
 			if msgs[i].Hash().Hex() == hexTx {
@@ -225,9 +224,7 @@ func (b *Backend) GetTransactionReceipt(hash common.Hash) (map[string]interface{
 		// Consensus fields: These fields are defined by the Yellow Paper
 		"status":            status,
 		"cumulativeGasUsed": hexutil.Uint64(cumulativeGasUsed),
-		// geth v1.15 removed ethtypes.LogsBloom([]*Log); the modern API
-		// computes bloom from a single *Receipt. Wrap our logs in a transient
-		// receipt so we get the same bytes as before.
+		// geth v1.15: CreateBloom takes *Receipt; wrap logs accordingly.
 		"logsBloom": ethtypes.CreateBloom(&ethtypes.Receipt{Logs: logs}),
 		"logs":      logs,
 
@@ -250,38 +247,31 @@ func (b *Backend) GetTransactionReceipt(hash common.Hash) (map[string]interface{
 	}
 
 	if logs == nil {
-		receipt["logs"] = [][]*ethtypes.Log{}
+		receipt["logs"] = []*ethtypes.Log{}
 	}
 
-	// If the To address is nil it's a contract creation; the contract
-	// address is deterministic from sender + nonce.
+	// nil To = contract creation.
 	if ethTx.To() == nil {
 		receipt["contractAddress"] = crypto.CreateAddress(from, ethTx.Nonce())
 	}
 
-	// cosmos/evm v0.6.0 retired the *evmtypes.DynamicFeeTx wrapper; identify
-	// dynamic-fee txs via the underlying tx type and compute the effective
-	// gas price directly from the geth tx accessors.
+	// effectiveGasPrice is required for all tx types (JSON-RPC spec).
+	effectiveGasPrice := ethTx.GasPrice()
 	if ethTx.Type() == ethtypes.DynamicFeeTxType {
 		baseFee, err := b.BaseFee(blockRes)
 		if err != nil {
-			// tolerate the error for pruned node.
+			// tolerate the error for pruned node; fall back to the gas price.
 			b.logger.Error("fetch baseFee failed, node is pruned?", "height", res.Height, "error", err)
 		} else {
-			// effective gas price = baseFee + min(gasTipCap, gasFeeCap - baseFee)
-			// geth v1.15: EffectiveGasTipValue was renamed EffectiveGasTip
-			// and returns (*big.Int, error). The error covers the underpriced
-			// case (basefee > gasFeeCap) which we already filtered upstream
-			// in the antehandler, so it's safe to ignore for receipt
-			// formatting.
+			// underpriced error ignored; antehandler already rejects these txs.
 			tip, _ := ethTx.EffectiveGasTip(baseFee)
 			if tip == nil {
 				tip = new(big.Int)
 			}
-			effective := new(big.Int).Add(baseFee, tip)
-			receipt["effectiveGasPrice"] = hexutil.Big(*effective)
+			effectiveGasPrice = new(big.Int).Add(baseFee, tip)
 		}
 	}
+	receipt["effectiveGasPrice"] = hexutil.Big(*effectiveGasPrice)
 
 	return receipt, nil
 }

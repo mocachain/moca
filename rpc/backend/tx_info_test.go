@@ -14,6 +14,7 @@ import (
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/mocachain/moca/v2/indexer"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpctypes "github.com/mocachain/moca/v2/rpc/types"
@@ -619,6 +620,91 @@ func (suite *BackendTestSuite) TestGetTransactionReceipt() {
 			}
 		})
 	}
+}
+
+// TestGetTransactionReceiptFields directly asserts the receipt fields reworked in the
+// cosmos/evm v0.6.0 RPC migration, which were previously only lightly guarded: logs
+// decoded from the tx response Data (not per-tx cosmos events), the derived logsBloom,
+// sender recovery via GetSenderLegacy, effectiveGasPrice (now set on every tx type — a
+// legacy tx returns its gas price), and status.
+func (suite *BackendTestSuite) TestGetTransactionReceiptFields() {
+	msgEthereumTx, _ := suite.buildEthereumTx()
+	txBz := suite.signAndEncodeEthTx(msgEthereumTx)
+	txHash := msgEthereumTx.AsTransaction().Hash()
+	// GetSenderLegacy recovers this from the signature; it must equal receipt["from"].
+	expFrom := common.BytesToAddress(msgEthereumTx.From)
+	// The log carried in ExecTxResult.Data (buildLogTxResultData, shared with the
+	// eth_getLogs test); height 1 matches the block the receipt is read from.
+	_, expLogs := buildLogTxResultData(1)
+
+	suite.SetupTest() // reset
+	var header metadata.MD
+	queryClient := suite.backend.queryClient.QueryClient.(*mocks.EVMQueryClient)
+	client := suite.backend.clientCtx.Client.(*mocks.Client)
+	RegisterParams(queryClient, &header, 1)
+	RegisterParamsWithoutHeader(queryClient, 1)
+	_, err := RegisterBlock(client, 1, txBz)
+	suite.Require().NoError(err)
+	// Block result carries the emitted log in ExecTxResult.Data (the v0.6.0 form).
+	_, err = RegisterBlockResultsWithEventLog(client, 1)
+	suite.Require().NoError(err)
+
+	// Index the block so GetTxByEthHash resolves the tx to (txIndex 0, msgIndex 0).
+	block := &types.Block{Header: types.Header{Height: 1}, Data: types.Data{Txs: []types.Tx{txBz}}}
+	blockResult := []*abci.ExecTxResult{
+		{
+			Code: 0,
+			Events: []abci.Event{
+				{Type: evmtypes.EventTypeEthereumTx, Attributes: []abci.EventAttribute{
+					{Key: "ethereumTxHash", Value: txHash.Hex()},
+					{Key: "txIndex", Value: "0"},
+					{Key: "amount", Value: "1000"},
+					{Key: "txGasUsed", Value: "21000"},
+					{Key: "txHash", Value: ""},
+					{Key: "recipient", Value: ""},
+				}},
+			},
+		},
+	}
+	db := dbm.NewMemDB()
+	suite.backend.indexer = indexer.NewKVIndexer(db, tmlog.NewNopLogger(), suite.backend.clientCtx)
+	suite.Require().NoError(suite.backend.indexer.IndexBlock(block, blockResult))
+
+	receipt, err := suite.backend.GetTransactionReceipt(txHash)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(receipt)
+
+	// status: successful (ExecTxResult Code 0).
+	suite.Require().Equal(hexutil.Uint(ethtypes.ReceiptStatusSuccessful), receipt["status"])
+
+	// logs: decoded from the tx response Data, not from cosmos events.
+	logs, ok := receipt["logs"].([]*ethtypes.Log)
+	suite.Require().True(ok, "logs should be []*ethtypes.Log")
+	suite.Require().Len(logs, 1, "receipt must carry the emitted log")
+	suite.Require().Equal(logAddress, logs[0].Address)
+	suite.Require().Equal(logData, logs[0].Data)
+	suite.Require().Equal(expLogs[0].Topics, logs[0].Topics)
+	suite.Require().Equal(uint64(1), logs[0].BlockNumber)
+	suite.Require().NotEqual(common.Hash{}, logs[0].TxHash)
+
+	// logsBloom: derived from the decoded logs — populated and matching CreateBloom.
+	bloom, ok := receipt["logsBloom"].(ethtypes.Bloom)
+	suite.Require().True(ok, "logsBloom should be ethtypes.Bloom")
+	suite.Require().Equal(ethtypes.CreateBloom(&ethtypes.Receipt{Logs: logs}), bloom)
+	suite.Require().NotEqual(ethtypes.Bloom{}, bloom, "logsBloom must be populated for a tx with logs")
+
+	// from: recovered from the signature (GetSenderLegacy), not the empty cached From.
+	suite.Require().Equal(expFrom, receipt["from"])
+	suite.Require().NotEqual(common.Address{}, receipt["from"])
+
+	// effectiveGasPrice: now set on all receipt types; a legacy tx returns its gas price.
+	egp, ok := receipt["effectiveGasPrice"].(hexutil.Big)
+	suite.Require().True(ok, "effectiveGasPrice should be hexutil.Big")
+	suite.Require().Equal(0, (*big.Int)(&egp).Cmp(big.NewInt(1)), "legacy effectiveGasPrice = gas price")
+
+	// legacy tx, not a contract creation.
+	suite.Require().Equal(hexutil.Uint(ethtypes.LegacyTxType), receipt["type"])
+	suite.Require().Nil(receipt["contractAddress"])
 }
 
 func (suite *BackendTestSuite) TestGetGasUsed() {
