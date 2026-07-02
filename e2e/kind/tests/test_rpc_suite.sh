@@ -189,6 +189,110 @@ test_evm_erc20() {
     return 0
 }
 
+# Exercises the log-rehydration path introduced with cosmos/evm v0.6.0: EVM logs are
+# now decoded from finalized block results (backend GetLogsByHeight /
+# GetLogsFromBlockResults) rather than from per-tx cosmos events. Deploys TestERC20,
+# opens a logs filter, emits a Transfer, and asserts the log surfaces through the
+# receipt, eth_getFilterChanges (the live NewFilter poller) and eth_getLogs.
+test_evm_log_subscription() {
+    local artifact bytecode enc full deploy_out addr deploy_hash
+    local val0_addr transfer_topic filter_id mint_out mint_hash mint_block recv_logs
+    local changes changes_len log_addr log_topic get_len i
+    (cd "$CONTRACTS_DIR" && forge build --quiet) || {
+        log_error "forge build TestERC20 failed"
+        return 1
+    }
+    artifact="${CONTRACTS_DIR}/out/TestERC20.sol/TestERC20.json"
+    if [ ! -f "$artifact" ]; then
+        log_error "missing forge artifact: ${artifact}"
+        return 1
+    fi
+    bytecode=$(jq -r '.bytecode.object' "$artifact" 2>/dev/null) || true
+    if [ -z "$bytecode" ] || [ "$bytecode" = "null" ]; then
+        log_error "could not read bytecode from ${artifact}"
+        return 1
+    fi
+    enc=$(cast abi-encode "constructor(string,string,uint8)" "MocaLogToken" "MLT" 18 2>/dev/null) || true
+    if [ -z "$enc" ]; then
+        log_error "cast abi-encode constructor args failed"
+        return 1
+    fi
+    full="0x${bytecode#0x}${enc#0x}"
+    deploy_out=$(cast send --json \
+        --private-key "$VAL0_PRIVKEY" \
+        --rpc-url "$EVM_RPC" \
+        --chain-id "$EVM_CHAIN_ID" \
+        --create "$full" 2>&1) || {
+        log_error "cast send --create broadcast failed: $(echo "$deploy_out" | head -c 1200)"
+        return 1
+    }
+    deploy_hash=$(echo "$deploy_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
+    if [ -n "$deploy_hash" ]; then fw_wait_evm_tx "$deploy_hash" 10 "$EVM_RPC" || return 1; fi
+    addr=$(echo "$deploy_out" | jq -r '.contractAddress // empty' 2>/dev/null) || true
+    if [ -z "$addr" ]; then
+        log_error "cast send --create returned no contract address; output: $(echo "$deploy_out" | head -c 1200)"
+        return 1
+    fi
+
+    val0_addr=$(cast wallet address "$VAL0_PRIVKEY" 2>/dev/null) || true
+    assert_not_empty "$val0_addr" "val0 address"
+
+    transfer_topic=$(cast keccak "Transfer(address,address,uint256)" 2>/dev/null) || true
+    assert_not_empty "$transfer_topic" "Transfer event topic"
+
+    # Open a logs filter BEFORE emitting so the NewFilter poller captures the new log.
+    # eth_getFilterChanges is fed by the same finalized-block-result rehydration
+    # (backend GetLogsByHeight / GetLogsFromBlockResults) as eth_subscribe("logs"):
+    # filters/api.go NewFilter()+Logs() and websockets.go subscribeLogs all source logs
+    # from the block result, not the live tx events. Asserting getFilterChanges here
+    # exercises the reviewer's concern without needing a WS client (websocat/wscat).
+    filter_id=$(cast rpc eth_newFilter "{\"address\":\"${addr}\"}" --rpc-url "$EVM_RPC" 2>/dev/null | tr -d '"' | tr -d '\n') || true
+    assert_not_empty "$filter_id" "eth_newFilter filter id"
+
+    # Emit a Transfer(0x0 -> val0) by minting; val0 is the contract owner/deployer.
+    mint_out=$(cast send "$addr" "mint(address,uint256)" "$val0_addr" "1000000000000000000000" \
+        --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) \
+        || { log_error "mint failed: $mint_out"; return 1; }
+    mint_hash=$(echo "$mint_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
+    if [ -n "$mint_hash" ]; then fw_wait_evm_tx "$mint_hash" 10 "$EVM_RPC" || return 1; fi
+
+    # Receipt logs must be populated (tx_info.go GetTransactionReceipt DecodeMsgLogs path).
+    recv_logs=$(cast receipt "$mint_hash" --rpc-url "$EVM_RPC" --json 2>/dev/null | jq -r '.logs | length' 2>/dev/null) || true
+    assert_not_empty "$recv_logs" "mint receipt logs length"
+    assert_gt "$recv_logs" "0" "mint receipt should contain logs"
+
+    mint_block=$(cast receipt "$mint_hash" --rpc-url "$EVM_RPC" --json 2>/dev/null | jq -r '.blockNumber // empty' 2>/dev/null) || true
+    assert_not_empty "$mint_block" "mint block number"
+
+    # Poll eth_getFilterChanges: the poller ingests block results asynchronously, so give
+    # it a few seconds to surface the rehydrated log.
+    changes="[]"
+    changes_len="0"
+    for ((i = 0; i < 12; i++)); do
+        changes=$(cast rpc eth_getFilterChanges "$filter_id" --rpc-url "$EVM_RPC" 2>/dev/null) || changes="[]"
+        changes_len=$(echo "$changes" | jq -r 'length' 2>/dev/null) || changes_len="0"
+        if [ -n "$changes_len" ] && [ "$changes_len" != "0" ]; then break; fi
+        sleep 1
+    done
+    assert_gt "$changes_len" "0" "eth_getFilterChanges should surface the rehydrated log"
+
+    log_addr=$(echo "$changes" | jq -r '.[0].address // empty' 2>/dev/null | tr 'A-F' 'a-f') || true
+    log_topic=$(echo "$changes" | jq -r '.[0].topics[0] // empty' 2>/dev/null | tr 'A-F' 'a-f') || true
+    assert_eq "$log_addr" "$(echo "$addr" | tr 'A-F' 'a-f')" "filter log address matches contract"
+    assert_eq "$log_topic" "$(echo "$transfer_topic" | tr 'A-F' 'a-f')" "filter log topic0 is Transfer"
+
+    # eth_getLogs must also return the historical log from the finalized block result
+    # (backend GetLogsByHeight). Pin the range to the mint block so the query is
+    # deterministic (default fromBlock/toBlock = latest would race block production).
+    get_len=$(cast rpc eth_getLogs "{\"fromBlock\":\"${mint_block}\",\"toBlock\":\"${mint_block}\",\"address\":\"${addr}\",\"topics\":[\"${transfer_topic}\"]}" --rpc-url "$EVM_RPC" 2>/dev/null | jq -r 'length' 2>/dev/null) || true
+    assert_not_empty "$get_len" "eth_getLogs length"
+    assert_gt "$get_len" "0" "eth_getLogs should return the Transfer log"
+
+    # Clean up the filter.
+    cast rpc eth_uninstallFilter "$filter_id" --rpc-url "$EVM_RPC" >/dev/null 2>&1 || true
+    return 0
+}
+
 test_validator_balances() {
     local validators_json op amoca
     validators_json=$(exec_mocad query staking validators \
@@ -235,6 +339,7 @@ fw_run_test "CometBFT /health" test_cometbft_health
 fw_run_test "EVM eth_blockNumber JSON-RPC 2.0" test_evm_jsonrpc
 fw_run_test "EVM block timestamp freshness + monotonic height" test_evm_block_production
 fw_run_test "EVM TestERC20 deploy + transfer" test_evm_erc20
+fw_run_test "EVM log subscription + getFilterChanges rehydration" test_evm_log_subscription
 fw_run_test "Validator operator bank balances" test_validator_balances
 fw_run_test "Staking validators list + monikers" test_validator_info
 
