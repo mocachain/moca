@@ -374,14 +374,16 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 
 	bucketDeleted := false
 
-	// Resolve the primary SP defensively; skip this entry if it can no longer be resolved.
-	sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo)
-	if spErr != nil {
-		ctx.Logger().Error("skip force-deleting bucket: primary SP unresolvable, dropping from queue",
+	// Defense in depth: the primary SP is unresolvable only if the bucket is orphaned
+	// (exits are gated on residual families). Garbage-collect the bucket anyway instead of
+	// panicking in EndBlock; the SP is only the deletion-event operator, so fall back to the owner.
+	spOperatorAddr := sdk.MustAccAddressFromHex(bucketInfo.Owner)
+	if sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo); spErr == nil {
+		spOperatorAddr = sdk.MustAccAddressFromHex(sp.OperatorAddress)
+	} else {
+		ctx.Logger().Error("primary SP unresolvable; garbage-collecting orphaned bucket",
 			"bucket", bucketInfo.BucketName, "bucket_id", bucketID.String(), "err", spErr)
-		return true, 0, nil
 	}
-	spOperatorAddr := sdk.MustAccAddressFromHex(sp.OperatorAddress)
 
 	store := ctx.KVStore(k.storeKey)
 	objectPrefixStore := prefix.NewStore(store, storagetypes.GetObjectKeyOnlyBucketPrefix(bucketInfo.BucketName))
@@ -1215,12 +1217,15 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		return err
 	}
 
-	// Resolve the primary SP defensively; skip this entry if it can no longer be resolved.
-	spInState, err := k.GetPrimarySPForBucket(ctx, bucketInfo)
-	if err != nil {
-		ctx.Logger().Error("skip force-deleting object: primary SP unresolvable, dropping from queue",
-			"object", objectInfo.ObjectName, "bucket", bucketInfo.BucketName, "err", err)
-		return nil
+	// Defense in depth: the primary SP is unresolvable only if the object is orphaned
+	// (exits are gated on residual families). Garbage-collect the object anyway instead of
+	// panicking in EndBlock; the SP is only the deletion-event operator, so fall back to the owner.
+	deleteOperator := sdk.MustAccAddressFromHex(bucketInfo.Owner)
+	if sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo); spErr == nil {
+		deleteOperator = sdk.MustAccAddressFromHex(sp.OperatorAddress)
+	} else {
+		ctx.Logger().Error("primary SP unresolvable; garbage-collecting orphaned object",
+			"object", objectInfo.ObjectName, "bucket", bucketInfo.BucketName, "err", spErr)
 	}
 	if objectStatus == storagetypes.OBJECT_STATUS_CREATED {
 		err := k.UnlockObjectStoreFee(ctx, bucketInfo, objectInfo)
@@ -1249,7 +1254,7 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		}
 	}
 
-	err = k.doDeleteObject(ctx, sdk.MustAccAddressFromHex(spInState.OperatorAddress), bucketInfo, objectInfo, objectStatus)
+	err = k.doDeleteObject(ctx, deleteOperator, bucketInfo, objectInfo, objectStatus)
 	if err != nil {
 		ctx.Logger().Error("do delete object err", "err", err)
 		return err
