@@ -374,15 +374,16 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 
 	bucketDeleted := false
 
-	// Defense in depth: the primary SP is unresolvable only if the bucket is orphaned
-	// (exits are gated on residual families). Garbage-collect the bucket anyway instead of
-	// panicking in EndBlock; the SP is only the deletion-event operator, so fall back to the owner.
-	spOperatorAddr := sdk.MustAccAddressFromHex(bucketInfo.Owner)
+	var spOperatorAddr sdk.AccAddress
 	if sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo); spErr == nil {
 		spOperatorAddr = sdk.MustAccAddressFromHex(sp.OperatorAddress)
 	} else {
+		// Defense in depth: the primary SP is unresolvable only if the bucket is orphaned
+		// (exits are gated on residual families). GC it anyway instead of panicking in
+		// EndBlock; the SP is only the deletion-event operator, so fall back to the owner.
 		ctx.Logger().Error("primary SP unresolvable; garbage-collecting orphaned bucket",
 			"bucket", bucketInfo.BucketName, "bucket_id", bucketID.String(), "err", spErr)
+		spOperatorAddr = sdk.MustAccAddressFromHex(bucketInfo.Owner)
 	}
 
 	store := ctx.KVStore(k.storeKey)
@@ -1217,15 +1218,16 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		return err
 	}
 
-	// Defense in depth: the primary SP is unresolvable only if the object is orphaned
-	// (exits are gated on residual families). Garbage-collect the object anyway instead of
-	// panicking in EndBlock; the SP is only the deletion-event operator, so fall back to the owner.
-	deleteOperator := sdk.MustAccAddressFromHex(bucketInfo.Owner)
+	var deleteOperator sdk.AccAddress
 	if sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo); spErr == nil {
 		deleteOperator = sdk.MustAccAddressFromHex(sp.OperatorAddress)
 	} else {
+		// Defense in depth: the primary SP is unresolvable only if the object is orphaned
+		// (exits are gated on residual families). GC it anyway instead of panicking in
+		// EndBlock; the SP is only the deletion-event operator, so fall back to the owner.
 		ctx.Logger().Error("primary SP unresolvable; garbage-collecting orphaned object",
 			"object", objectInfo.ObjectName, "bucket", bucketInfo.BucketName, "err", spErr)
+		deleteOperator = sdk.MustAccAddressFromHex(bucketInfo.Owner)
 	}
 	if objectStatus == storagetypes.OBJECT_STATUS_CREATED {
 		err := k.UnlockObjectStoreFee(ctx, bucketInfo, objectInfo)
