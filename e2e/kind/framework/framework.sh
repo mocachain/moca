@@ -134,15 +134,17 @@ fw_start_chain() {
         fi
     else
         log_info "FW_SKIP_BUILD=true, loading pre-built images into Kind..."
-        kind load docker-image "${DOCKER_IMAGE}:${DOCKER_TAG}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
+        kind_load_image "${DOCKER_IMAGE}:${DOCKER_TAG}" || true
     fi
 
     # Deploy chain
     local deploy_image="${image:-${DOCKER_IMAGE}:${DOCKER_TAG}}"
     DEPLOY_IMAGE="${deploy_image}" bash "${SCRIPTS_DIR}/deploy.sh"
 
-    # Wait for chain
+    # Wait for chain — three layers, each catches a different not-quite-ready window
     wait_for_chain_ready "http://localhost:26657" 120
+    wait_for_all_validator_rpcs "$NUM_VALIDATORS" 60
+    wait_for_evm_rpc_ready "http://localhost:8545" 60
 }
 
 # Deploy chain with an old version (for upgrade tests).
@@ -160,15 +162,17 @@ fw_start_chain_from_version() {
         OLD_VERSION="${old_version}" bash "${SCRIPTS_DIR}/build-images.sh"
     else
         log_info "FW_SKIP_BUILD=true, loading pre-built images into Kind..."
-        kind load docker-image "${DOCKER_IMAGE}:${DOCKER_TAG}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
-        kind load docker-image "${DOCKER_IMAGE}:${old_version}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
+        kind_load_image "${DOCKER_IMAGE}:${DOCKER_TAG}" || true
+        kind_load_image "${DOCKER_IMAGE}:${old_version}" || true
     fi
 
     # Deploy with old version
     DEPLOY_IMAGE="${DOCKER_IMAGE}:${old_version}" bash "${SCRIPTS_DIR}/deploy.sh"
 
-    # Wait for chain
+    # Wait for chain — three layers, each catches a different not-quite-ready window
     wait_for_chain_ready "http://localhost:26657" 120
+    wait_for_all_validator_rpcs "$NUM_VALIDATORS" 60
+    wait_for_evm_rpc_ready "http://localhost:8545" 60
 
     # Verify version
     local running_version

@@ -209,8 +209,9 @@ _wait_for_upgrade_halt() {
 _update_validator_images() {
     log_info "Updating validator images to ${NEW_DOCKER_IMAGE}..."
 
-    # Load new image into Kind if not already loaded
-    kind load docker-image "${NEW_DOCKER_IMAGE}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
+    # Load new image into Kind if not already loaded (docker save | ctr import
+    # — see kind_load_image in lib.sh; avoids buildx desktop-linux quirks)
+    kind_load_image "${NEW_DOCKER_IMAGE}" || true
 
     # Patch each validator StatefulSet with the new image
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
@@ -243,8 +244,15 @@ _update_validator_images() {
 
     log_success "All validators restarted with new image"
 
-    # Wait for chain to resume producing blocks
+    # Wait for chain to resume producing blocks (NodePort RPC, fast signal)
     wait_for_chain_ready "http://localhost:26657" 180
+    # Then poll EACH validator's RPC — wait_for_chain_ready is satisfied by a
+    # single healthy pod, but a tx broadcast routed via kubectl exec to a pod
+    # whose RPC isn't yet serving will fail with empty stderr. Belt-and-braces.
+    wait_for_all_validator_rpcs "$NUM_VALIDATORS" 60
+    # And the EVM JSON-RPC, which can lag the cosmos /status by several seconds
+    # after a rolling restart, leading to "null response" on first cast send.
+    wait_for_evm_rpc_ready "http://localhost:8545" 60
     log_success "Chain resumed after upgrade"
 }
 
