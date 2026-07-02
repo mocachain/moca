@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"math"
 
 	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/store/prefix"
@@ -10,6 +11,13 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/mocachain/moca/v2/x/payment/types"
+)
+
+// int64 bounds as sdkmath.Int, hoisted so the settle-timestamp range checks in
+// UpdateStreamRecord / TryResumeStreamRecord don't re-allocate on every call.
+var (
+	settleTimestampMax = sdkmath.NewInt(math.MaxInt64)
+	settleTimestampMin = sdkmath.NewInt(math.MinInt64)
 )
 
 func (k Keeper) CheckStreamRecord(streamRecord *types.StreamRecord) {
@@ -214,7 +222,36 @@ func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRe
 				return fmt.Errorf("check and force settle failed, err: %w", err)
 			}
 		}
-		settleTimestamp = currentTimestamp - int64(params.ForcedSettleTime) + payDuration.Int64()
+		// The full expression can exceed int64 range, where Int64() panics — fatal in
+		// the no-recover EndBlocker. SettleTimestamp is only an auto-settle queue hint,
+		// recomputed on the next change, so saturate instead of overflowing.
+		settleTimestampFull := sdkmath.NewInt(currentTimestamp).
+			Sub(sdkmath.NewIntFromUint64(params.ForcedSettleTime)).
+			Add(payDuration)
+		switch {
+		case settleTimestampFull.GT(settleTimestampMax):
+			// A real user deposit = non-forced, positive-static-only change (forced is set on
+			// every EndBlocker path); reject it. Saturate elsewhere — an error on a forced path re-panics.
+			isUserDeposit := !forced && change.StaticBalanceChange.IsPositive() && change.RateChange.IsZero()
+			if isUserDeposit {
+				return types.ErrSettleTimestampOverflow.Wrapf(
+					"account %s pay duration %s exceeds int64 range; reduce deposit",
+					streamRecord.Account, payDuration.String())
+			}
+			ctx.Logger().Error("settle timestamp overflow, capping at MaxInt64",
+				"account", streamRecord.Account, "payDuration", payDuration.String(),
+				"forced", forced, "height", ctx.BlockHeight())
+			settleTimestamp = math.MaxInt64
+		case settleTimestampFull.LT(settleTimestampMin):
+			// Deeply indebted; only reachable on a forced path (account already
+			// force-settled above), never a deposit — saturate.
+			ctx.Logger().Error("settle timestamp underflow, capping at MinInt64",
+				"account", streamRecord.Account, "payDuration", payDuration.String(),
+				"forced", forced, "height", ctx.BlockHeight())
+			settleTimestamp = math.MinInt64
+		default:
+			settleTimestamp = settleTimestampFull.Int64()
+		}
 	}
 	k.UpdateAutoSettleRecord(ctx, sdk.MustAccAddressFromHex(streamRecord.Account), streamRecord.SettleTimestamp, settleTimestamp)
 	streamRecord.SettleTimestamp = settleTimestamp
@@ -401,7 +438,21 @@ func (k Keeper) TryResumeStreamRecord(ctx sdk.Context, streamRecord *types.Strea
 	}
 
 	prevSettleTime := streamRecord.SettleTimestamp
-	streamRecord.SettleTimestamp = now + streamRecord.StaticBalance.Quo(totalRate.Abs()).Int64() - int64(forcedSettleTime)
+	settleTimestampFull := sdkmath.NewInt(now).
+		Add(streamRecord.StaticBalance.Quo(totalRate.Abs())).
+		Sub(sdkmath.NewIntFromUint64(forcedSettleTime))
+	switch {
+	case settleTimestampFull.GT(settleTimestampMax):
+		// Deposit-only path (runTx, not the no-recover EndBlocker): reject over-funding.
+		return types.ErrSettleTimestampOverflow.Wrapf(
+			"account %s: deposit would fund account beyond the representable future; reduce deposit",
+			streamRecord.Account)
+	case settleTimestampFull.LT(settleTimestampMin):
+		// Unreachable (the resume guard above bounds StaticBalance from below); clamped for
+		// parity with UpdateStreamRecord so the Int64() cast is provably in range.
+		settleTimestampFull = settleTimestampMin
+	}
+	streamRecord.SettleTimestamp = settleTimestampFull.Int64()
 	streamRecord.BufferBalance = expectedBalanceToResume
 	streamRecord.StaticBalance = streamRecord.StaticBalance.Sub(expectedBalanceToResume)
 	streamRecord.CrudTimestamp = now
