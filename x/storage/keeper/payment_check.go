@@ -105,36 +105,45 @@ Exit:
 		}
 
 		// get lock balance
-		objectPrefixStore := prefix.NewStore(store, types.GetObjectKeyOnlyBucketPrefix(bucket.BucketName))
-		it := objectPrefixStore.Iterator(nil, nil)
-		defer it.Close()
+		// Computed in a closure so the per-bucket object iterator is released via
+		// defer on every exit path (including the abort/continue-Exit cases below),
+		// rather than leaking one iterator per bucket until RunPaymentCheck returns.
+		expectedLockBalance, abort := func() (sdkmath.Int, bool) {
+			objectPrefixStore := prefix.NewStore(store, types.GetObjectKeyOnlyBucketPrefix(bucket.BucketName))
+			it := objectPrefixStore.Iterator(nil, nil)
+			defer it.Close()
 
-		expectedLockBalance := sdkmath.ZeroInt()
-		for ; it.Valid(); it.Next() {
-			u256Seq := sequence.Sequence[sdkmath.Uint]{}
-			objectInfo, found := k.GetObjectInfoById(ctx, u256Seq.DecodeSequence(it.Value()))
-			if found && (objectInfo.ObjectStatus == types.OBJECT_STATUS_CREATED || objectInfo.IsUpdating) {
-				priceTime := objectInfo.GetLatestUpdatedTime()
-				payloadSize := objectInfo.PayloadSize
-				if objectInfo.IsUpdating {
-					shadowObject, found := k.GetShadowObjectInfo(ctx, bucket.BucketName, objectInfo.ObjectName)
-					if !found {
-						result = errors.New("shadow object not found")
-						ctx.Logger().Error("shadow object not found", "bucket", bucket.BucketName, "object", objectInfo.ObjectName)
-						continue Exit
+			expectedLockBalance := sdkmath.ZeroInt()
+			for ; it.Valid(); it.Next() {
+				u256Seq := sequence.Sequence[sdkmath.Uint]{}
+				objectInfo, found := k.GetObjectInfoById(ctx, u256Seq.DecodeSequence(it.Value()))
+				if found && (objectInfo.ObjectStatus == types.OBJECT_STATUS_CREATED || objectInfo.IsUpdating) {
+					priceTime := objectInfo.GetLatestUpdatedTime()
+					payloadSize := objectInfo.PayloadSize
+					if objectInfo.IsUpdating {
+						shadowObject, found := k.GetShadowObjectInfo(ctx, bucket.BucketName, objectInfo.ObjectName)
+						if !found {
+							result = errors.New("shadow object not found")
+							ctx.Logger().Error("shadow object not found", "bucket", bucket.BucketName, "object", objectInfo.ObjectName)
+							return expectedLockBalance, true
+						}
+						priceTime = shadowObject.UpdatedAt
+						payloadSize = shadowObject.PayloadSize
 					}
-					priceTime = shadowObject.UpdatedAt
-					payloadSize = shadowObject.PayloadSize
-				}
 
-				lockAmount, _, err := k.GetObjectLockFee(ctx, priceTime, payloadSize)
-				if err != nil {
-					result = errors.New("get object lock fee failed")
-					ctx.Logger().Error("get object lock fee failed", "bucket", bucket.BucketName, "object", objectInfo.ObjectName, "error", err)
-					continue Exit
+					lockAmount, _, err := k.GetObjectLockFee(ctx, priceTime, payloadSize)
+					if err != nil {
+						result = errors.New("get object lock fee failed")
+						ctx.Logger().Error("get object lock fee failed", "bucket", bucket.BucketName, "object", objectInfo.ObjectName, "error", err)
+						return expectedLockBalance, true
+					}
+					expectedLockBalance = expectedLockBalance.Add(lockAmount)
 				}
-				expectedLockBalance = expectedLockBalance.Add(lockAmount)
 			}
+			return expectedLockBalance, false
+		}()
+		if abort {
+			continue Exit
 		}
 
 		if expectedLockBalance.IsPositive() {
