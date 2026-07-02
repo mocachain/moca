@@ -36,6 +36,11 @@ address = "{{ .JSONRPC.Address }}"
 # Address defines the EVM WebSocket server address to bind to.
 ws-address = "{{ .JSONRPC.WsAddress }}"
 
+# ws-origins defines the allowed Origin headers for WebSocket (eth_subscribe)
+# connections. Non-browser clients (empty Origin) are always allowed; browser
+# clients served from other origins must be listed here. An empty list rejects all.
+ws-origins = ["127.0.0.1", "localhost"]
+
 # API defines a list of JSON-RPC namespaces that should be enabled
 # Example: "eth,txpool,personal,net,debug,web3"
 api = "{{range $index, $elmt := .JSONRPC.API}}{{if $index}},{{$elmt}}{{else}}{{$elmt}}{{end}}{{end}}"
@@ -67,18 +72,6 @@ http-timeout = "{{ .JSONRPC.HTTPTimeout }}"
 # HTTPIdleTimeout is the idle timeout of http json-rpc server.
 http-idle-timeout = "{{ .JSONRPC.HTTPIdleTimeout }}"
 
-# QueryTimeout is the timeout for eth_getLogs and similar query operations.
-# This helps prevent long-running queries from blocking resources.
-query-timeout = "{{ .JSONRPC.QueryTimeout }}"
-
-# GetLogsRateLimit is the rate limit for eth_getLogs queries (requests per second).
-# Adjust based on your service load. Default: 50 req/s
-getlogs-rate-limit = {{ .JSONRPC.GetLogsRateLimit }}
-
-# GetLogsBurstLimit is the burst limit for eth_getLogs queries.
-# Allows short bursts above the rate limit. Default: 100
-getlogs-burst-limit = {{ .JSONRPC.GetLogsBurstLimit }}
-
 # AllowUnprotectedTxs restricts unprotected (non EIP155 signed) transactions to be submitted via
 # the node's RPC when the global parameter is disabled.
 allow-unprotected-txs = {{ .JSONRPC.AllowUnprotectedTxs }}
@@ -93,9 +86,6 @@ enable-indexer = {{ .JSONRPC.EnableIndexer }}
 # MetricsAddress defines the EVM Metrics server address to bind to. Pass --metrics in CLI to enable
 # Prometheus metrics path: /debug/metrics/prometheus
 metrics-address = "{{ .JSONRPC.MetricsAddress }}"
-
-# Upgrade height for fix of revert gas refund logic when transaction reverted.
-fix-revert-gas-refund-height = {{ .JSONRPC.FixRevertGasRefundHeight }}
 
 ###############################################################################
 ###                             TLS Configuration                           ###
