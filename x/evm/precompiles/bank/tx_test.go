@@ -41,7 +41,7 @@ func (s *PrecompileTestSuite) SetupTest() {
 	chainID := utils.TestnetChainID + "-1"
 
 	s.app = app.EthSetup(checkTx, nil)
-	s.ctx = s.app.BaseApp.NewContext(checkTx)
+	s.ctx = s.app.NewContext(checkTx)
 	s.address = common.HexToAddress("0x1111111111111111111111111111111111111111")
 
 	valConsAddr, privkey := utiltx.NewAddrKey()
@@ -51,7 +51,8 @@ func (s *PrecompileTestSuite) SetupTest() {
 		OperatorAddress: sdk.AccAddress(s.address.Bytes()).String(),
 		ConsensusPubkey: pkAny,
 	}
-	s.app.StakingKeeper.SetValidator(s.ctx, validator)
+	err = s.app.StakingKeeper.SetValidator(s.ctx, validator)
+	s.Require().NoError(err)
 	err = s.app.StakingKeeper.SetValidatorByConsAddr(s.ctx, validator)
 	s.Require().NoError(err)
 
