@@ -47,11 +47,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 
+	ethdebug "github.com/cosmos/evm/rpc/namespaces/ethereum/debug"
+	servertypes "github.com/cosmos/evm/server/types"
+
 	"github.com/mocachain/moca/v2/indexer"
-	ethdebug "github.com/mocachain/moca/v2/rpc/namespaces/ethereum/debug"
 	"github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
-	mocatypes "github.com/mocachain/moca/v2/types"
 )
 
 // DBOpener is a function to open `application.db`, potentially with customized options.
@@ -415,7 +416,7 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 		ethmetricsexp.Setup(config.JSONRPC.MetricsAddress)
 	}
 
-	var idxer mocatypes.EVMTxIndexer
+	var idxer servertypes.EVMTxIndexer
 	if config.JSONRPC.EnableIndexer {
 		idxDB, err := OpenIndexerDB(home, server.GetAppDBBackend(svrCtx.Viper))
 		if err != nil {
@@ -457,7 +458,7 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 		defer apiSrv.Close()
 	}
 
-	clientCtx, httpSrv, httpSrvDone, err := startJSONRPCServer(svrCtx, clientCtx, g, config, genDocProvider, cfg.RPC.ListenAddress, idxer)
+	clientCtx, httpSrv, httpSrvDone, err := startJSONRPCServer(svrCtx, clientCtx, g, config, genDocProvider, cfg.RPC.ListenAddress, idxer, app)
 	if httpSrv != nil {
 		defer func() {
 			shutdownCtx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
@@ -641,11 +642,19 @@ func startJSONRPCServer(
 	config config.AppConfig,
 	genDocProvider node.GenesisDocProvider,
 	cmtRPCAddr string,
-	idxer mocatypes.EVMTxIndexer,
+	idxer servertypes.EVMTxIndexer,
+	app types.Application,
 ) (ctx client.Context, httpSrv *http.Server, httpSrvDone chan struct{}, err error) {
 	ctx = clientCtx
 	if !config.JSONRPC.Enable {
 		return
+	}
+
+	// The pending-tx subscription stream registers itself on the app (see
+	// (*app.Moca).RegisterPendingTxListener); the app must expose that hook.
+	pendingTxApp, ok := app.(AppWithPendingTxStream)
+	if !ok {
+		return ctx, httpSrv, httpSrvDone, fmt.Errorf("app %T does not implement AppWithPendingTxStream", app)
 	}
 
 	genDoc, err := genDocProvider()
@@ -654,9 +663,8 @@ func startJSONRPCServer(
 	}
 
 	ctx = clientCtx.WithChainID(genDoc.ChainID)
-	cmtEndpoint := "/websocket"
 	g.Go(func() error {
-		httpSrv, httpSrvDone, err = StartJSONRPC(svrCtx, clientCtx, cmtRPCAddr, cmtEndpoint, &config, idxer)
+		httpSrv, httpSrvDone, err = StartJSONRPC(svrCtx, clientCtx, &config, idxer, pendingTxApp)
 		return err
 	})
 	return
