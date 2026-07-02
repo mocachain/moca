@@ -12,10 +12,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
+	rpctypes "github.com/cosmos/evm/rpc/types"
+	servertypes "github.com/cosmos/evm/server/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
-	rpctypes "github.com/mocachain/moca/v2/rpc/types"
-	mocatypes "github.com/mocachain/moca/v2/types"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 	TxIndexKeyLength = 1 + 8 + 8
 )
 
-var _ mocatypes.EVMTxIndexer = &KVIndexer{}
+var _ servertypes.EVMTxIndexer = &KVIndexer{}
 
 // KVIndexer implements a eth tx indexer on a KV db.
 type KVIndexer struct {
@@ -55,7 +55,7 @@ func (kv *KVIndexer) IndexBlock(block *cmttypes.Block, txResults []*abci.ExecTxR
 	var ethTxIndex int32
 	for txIndex, tx := range block.Txs {
 		result := txResults[txIndex]
-		if !rpctypes.TxSuccessOrExceedsBlockGasLimit(result) {
+		if !rpctypes.TxSucessOrExpectedFailure(result) {
 			continue
 		}
 
@@ -82,7 +82,7 @@ func (kv *KVIndexer) IndexBlock(block *cmttypes.Block, txResults []*abci.ExecTxR
 			// the eth tx hash on demand, not a precomputed string field.
 			txHash := ethMsg.Hash()
 
-			txResult := mocatypes.TxResult{
+			txResult := servertypes.TxResult{
 				Height:     height,
 				TxIndex:    uint32(txIndex),
 				MsgIndex:   uint32(msgIndex),
@@ -132,7 +132,7 @@ func (kv *KVIndexer) FirstIndexedBlock() (int64, error) {
 }
 
 // GetByTxHash finds eth tx by eth tx hash
-func (kv *KVIndexer) GetByTxHash(hash common.Hash) (*mocatypes.TxResult, error) {
+func (kv *KVIndexer) GetByTxHash(hash common.Hash) (*servertypes.TxResult, error) {
 	bz, err := kv.db.Get(TxHashKey(hash))
 	if err != nil {
 		return nil, errorsmod.Wrapf(err, "GetByTxHash %s", hash.Hex())
@@ -140,7 +140,7 @@ func (kv *KVIndexer) GetByTxHash(hash common.Hash) (*mocatypes.TxResult, error) 
 	if len(bz) == 0 {
 		return nil, fmt.Errorf("tx not found, hash: %s", hash.Hex())
 	}
-	var txKey mocatypes.TxResult
+	var txKey servertypes.TxResult
 	if err := kv.clientCtx.Codec.Unmarshal(bz, &txKey); err != nil {
 		return nil, errorsmod.Wrapf(err, "GetByTxHash %s", hash.Hex())
 	}
@@ -148,7 +148,7 @@ func (kv *KVIndexer) GetByTxHash(hash common.Hash) (*mocatypes.TxResult, error) 
 }
 
 // GetByBlockAndIndex finds eth tx by block number and eth tx index
-func (kv *KVIndexer) GetByBlockAndIndex(blockNumber int64, txIndex int32) (*mocatypes.TxResult, error) {
+func (kv *KVIndexer) GetByBlockAndIndex(blockNumber int64, txIndex int32) (*servertypes.TxResult, error) {
 	bz, err := kv.db.Get(TxIndexKey(blockNumber, txIndex))
 	if err != nil {
 		return nil, errorsmod.Wrapf(err, "GetByBlockAndIndex %d %d", blockNumber, txIndex)
@@ -211,7 +211,7 @@ func isEthTx(tx sdk.Tx) bool {
 }
 
 // saveTxResult index the txResult into the kv db batch
-func saveTxResult(codec codec.Codec, batch dbm.Batch, txHash common.Hash, txResult *mocatypes.TxResult) error {
+func saveTxResult(codec codec.Codec, batch dbm.Batch, txHash common.Hash, txResult *servertypes.TxResult) error {
 	bz := codec.MustMarshal(txResult)
 	if err := batch.Set(TxHashKey(txHash), bz); err != nil {
 		return errorsmod.Wrap(err, "set tx-hash key")

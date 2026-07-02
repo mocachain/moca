@@ -7,8 +7,7 @@ import (
 	"github.com/cometbft/cometbft/libs/service"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cometbft/cometbft/types"
-
-	mocatypes "github.com/mocachain/moca/v2/types"
+	servertypes "github.com/cosmos/evm/server/types"
 )
 
 const (
@@ -21,13 +20,13 @@ const (
 type EVMIndexerService struct {
 	service.BaseService
 
-	txIdxr mocatypes.EVMTxIndexer
+	txIdxr servertypes.EVMTxIndexer
 	client rpcclient.Client
 }
 
 // NewEVMIndexerService returns a new service instance.
 func NewEVMIndexerService(
-	txIdxr mocatypes.EVMTxIndexer,
+	txIdxr servertypes.EVMTxIndexer,
 	client rpcclient.Client,
 ) *EVMIndexerService {
 	is := &EVMIndexerService{txIdxr: txIdxr, client: client}
