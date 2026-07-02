@@ -293,6 +293,151 @@ test_evm_log_subscription() {
     return 0
 }
 
+# Exercises the eth_subscribe("logs") WEBSOCKET transport end-to-end. The HTTP
+# test above covers eth_getFilterChanges/eth_getLogs; this one drives the real WS
+# push path in rpc/websockets.go subscribeLogs (which rehydrates logs from the
+# finalized block result). It uses a small first-party go-ethereum client
+# (e2e/kind/tools/wslogs, SubscribeFilterLogs) rather than an external ws CLI:
+# deploy TestERC20, open a WS logs subscription, then — only once the sub is live
+# (subscriptions are future-only) — mint to emit a Transfer and assert the pushed
+# log carries the contract address and the Transfer topic.
+test_evm_ws_log_subscription() {
+    local ws_url host repo_root work_dir tool_bin out_file err_file
+    local artifact bytecode enc full deploy_out addr deploy_hash
+    local val0_addr transfer_topic mint_out mint_hash
+    local tool_pid ws_timeout subscribed exited rc i log_addr log_topic
+
+    ws_timeout=40
+
+    # ── Resolve the WS URL: explicit EVM_WS, else derive ws://HOST:8546 from the
+    #    HTTP EVM_RPC. Port 8546 is the EVM WS nodePort (see manifests/base
+    #    kind-config.yaml + validator-services.yaml), reachable on the host the
+    #    same way :8545 is.
+    if [ -n "${EVM_WS:-}" ]; then
+        ws_url="$EVM_WS"
+    else
+        host=$(printf '%s' "$EVM_RPC" | sed -E 's#^[a-zA-Z]+://##; s#/.*$##; s#:[0-9]+$##')
+        [ -z "$host" ] && host="localhost"
+        ws_url="ws://${host}:8546"
+    fi
+    log_info "  WS endpoint: ${ws_url}"
+
+    # ── Build the wslogs helper to a temp binary. Building (vs. `go run`) gives a
+    #    single PID we can reliably kill and surfaces compile errors up front.
+    if ! command -v go >/dev/null 2>&1; then
+        log_error "go toolchain not found on host; required to build the WS logs helper"
+        return 1
+    fi
+    repo_root=$(cd -- "${E2E_DIR}/../.." && pwd)
+    work_dir=$(mktemp -d "${TMPDIR:-/tmp}/moca-wslogs.XXXXXX") || {
+        log_error "mktemp -d failed"
+        return 1
+    }
+    tool_bin="${work_dir}/wslogs"
+    out_file="${work_dir}/out.json"
+    err_file="${work_dir}/err.log"
+    # Kill the bg tool (if launched) and drop the temp dir on any explicit return.
+    # `trap - RETURN` first so this fires exactly once (for this function) and does
+    # not re-fire — with its locals out of scope — when fw_run_test later returns.
+    trap 'trap - RETURN; if [ -n "${tool_pid:-}" ]; then kill "${tool_pid}" 2>/dev/null || true; fi; rm -rf "${work_dir:-}" 2>/dev/null || true' RETURN
+    if ! (cd "$repo_root" &&
+        CGO_CFLAGS="-O -D__BLST_PORTABLE__" CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__" \
+            go build -o "$tool_bin" ./e2e/kind/tools/wslogs) 2>"${work_dir}/build.log"; then
+        log_error "failed to build wslogs helper: $(head -c 800 "${work_dir}/build.log" 2>/dev/null)"
+        return 1
+    fi
+
+    # ── Deploy a fresh TestERC20 (same pattern as the HTTP test above).
+    (cd "$CONTRACTS_DIR" && forge build --quiet) || {
+        log_error "forge build TestERC20 failed"
+        return 1
+    }
+    artifact="${CONTRACTS_DIR}/out/TestERC20.sol/TestERC20.json"
+    if [ ! -f "$artifact" ]; then
+        log_error "missing forge artifact: ${artifact}"
+        return 1
+    fi
+    bytecode=$(jq -r '.bytecode.object' "$artifact" 2>/dev/null) || true
+    if [ -z "$bytecode" ] || [ "$bytecode" = "null" ]; then
+        log_error "could not read bytecode from ${artifact}"
+        return 1
+    fi
+    enc=$(cast abi-encode "constructor(string,string,uint8)" "MocaWsToken" "MWS" 18 2>/dev/null) || true
+    if [ -z "$enc" ]; then
+        log_error "cast abi-encode constructor args failed"
+        return 1
+    fi
+    full="0x${bytecode#0x}${enc#0x}"
+    deploy_out=$(cast send --json \
+        --private-key "$VAL0_PRIVKEY" \
+        --rpc-url "$EVM_RPC" \
+        --chain-id "$EVM_CHAIN_ID" \
+        --create "$full" 2>&1) || {
+        log_error "cast send --create broadcast failed: $(echo "$deploy_out" | head -c 1200)"
+        return 1
+    }
+    deploy_hash=$(echo "$deploy_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
+    if [ -n "$deploy_hash" ]; then fw_wait_evm_tx "$deploy_hash" 10 "$EVM_RPC" || return 1; fi
+    addr=$(echo "$deploy_out" | jq -r '.contractAddress // empty' 2>/dev/null) || true
+    if [ -z "$addr" ]; then
+        log_error "cast send --create returned no contract address; output: $(echo "$deploy_out" | head -c 1200)"
+        return 1
+    fi
+
+    val0_addr=$(cast wallet address "$VAL0_PRIVKEY" 2>/dev/null) || true
+    assert_not_empty "$val0_addr" "val0 address"
+    transfer_topic=$(cast keccak "Transfer(address,address,uint256)" 2>/dev/null) || true
+    assert_not_empty "$transfer_topic" "Transfer event topic"
+
+    # ── Open the WS subscription in the background BEFORE emitting the tx.
+    "$tool_bin" "$ws_url" "$addr" "$ws_timeout" >"$out_file" 2>"$err_file" &
+    tool_pid=$!
+
+    # ── Wait for the helper to report SUBSCRIBED (up to ~15s), so the tx below is
+    #    emitted only after the subscription is live (eth_subscribe is future-only).
+    subscribed=false
+    for ((i = 0; i < 30; i++)); do
+        if grep -q "SUBSCRIBED" "$err_file" 2>/dev/null; then subscribed=true; break; fi
+        if ! kill -0 "$tool_pid" 2>/dev/null; then break; fi # helper exited early
+        sleep 0.5
+    done
+    if [ "$subscribed" != "true" ]; then
+        log_error "wslogs never reported SUBSCRIBED (ws=${ws_url}); stderr: $(head -c 800 "$err_file" 2>/dev/null)"
+        return 1
+    fi
+
+    # ── Emit a Transfer(0x0 -> val0) by minting; val0 is the contract deployer.
+    mint_out=$(cast send "$addr" "mint(address,uint256)" "$val0_addr" "1000000000000000000000" \
+        --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) \
+        || { log_error "mint failed: $mint_out"; return 1; }
+    mint_hash=$(echo "$mint_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
+    if [ -n "$mint_hash" ]; then fw_wait_evm_tx "$mint_hash" 15 "$EVM_RPC" || return 1; fi
+
+    # ── Wait for the helper to exit (it self-times-out at ${ws_timeout}s; give slack).
+    exited=false
+    for ((i = 0; i < ws_timeout + 15; i++)); do
+        if ! kill -0 "$tool_pid" 2>/dev/null; then exited=true; break; fi
+        sleep 1
+    done
+    if [ "$exited" != "true" ]; then
+        log_error "wslogs did not exit within $((ws_timeout + 15))s; stderr: $(head -c 800 "$err_file" 2>/dev/null)"
+        return 1
+    fi
+    rc=0
+    wait "$tool_pid" || rc=$?
+    if [ "$rc" != "0" ]; then
+        log_error "wslogs exited non-zero (rc=${rc}); stderr: $(head -c 800 "$err_file" 2>/dev/null)"
+        return 1
+    fi
+
+    # ── Assert the pushed log matches the contract + Transfer topic (case-insensitive).
+    log_addr=$(jq -r '.address // empty' "$out_file" 2>/dev/null | tr 'A-F' 'a-f') || true
+    log_topic=$(jq -r '.topics[0] // empty' "$out_file" 2>/dev/null | tr 'A-F' 'a-f') || true
+    assert_eq "$log_addr" "$(echo "$addr" | tr 'A-F' 'a-f')" "WS pushed log address matches contract"
+    assert_eq "$log_topic" "$(echo "$transfer_topic" | tr 'A-F' 'a-f')" "WS pushed log topic0 is Transfer"
+    return 0
+}
+
 test_validator_balances() {
     local validators_json op amoca
     validators_json=$(exec_mocad query staking validators \
@@ -340,6 +485,7 @@ fw_run_test "EVM eth_blockNumber JSON-RPC 2.0" test_evm_jsonrpc
 fw_run_test "EVM block timestamp freshness + monotonic height" test_evm_block_production
 fw_run_test "EVM TestERC20 deploy + transfer" test_evm_erc20
 fw_run_test "EVM log subscription + getFilterChanges rehydration" test_evm_log_subscription
+fw_run_test "EVM eth_subscribe(logs) WebSocket transport" test_evm_ws_log_subscription
 fw_run_test "Validator operator bank balances" test_validator_balances
 fw_run_test "Staking validators list + monikers" test_validator_info
 

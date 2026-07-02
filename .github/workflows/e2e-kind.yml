@@ -87,6 +87,7 @@ jobs:
           - name: RPC suite
             script: test_rpc_suite.sh
             foundry: true
+            go: true
 
     steps:
       - uses: actions/checkout@v7
@@ -109,6 +110,14 @@ jobs:
       - name: Install Foundry
         if: matrix.foundry
         uses: foundry-rs/foundry-toolchain@v1
+
+      # The RPC suite's WS log-subscription test builds a small go-ethereum
+      # client (e2e/kind/tools/wslogs) on the host to drive eth_subscribe("logs").
+      - name: Set up Go
+        if: matrix.go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.10"
 
       - name: Run ${{ matrix.name }}
         env:
