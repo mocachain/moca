@@ -583,7 +583,7 @@ func (api *pubSubAPI) subscribeLogs(wsConn *wsConn, subID rpc.ID, extra interfac
 				// (TxHash, BlockHash, BlockTimestamp); those are backfilled into the
 				// finalized block result. Source this tx's logs from the block result
 				// so subscribers get fully-populated logs, matching eth_getLogs.
-				height := dataTx.TxResult.Height
+				height := dataTx.Height
 				blockRes, err := api.clientCtx.Client.BlockResults(context.Background(), &height)
 				if err != nil {
 					api.logger.Debug("failed to fetch block results for logs subscription", "height", height, "error", err.Error())
@@ -595,7 +595,7 @@ func (api *pubSubAPI) subscribeLogs(wsConn *wsConn, subID rpc.ID, extra interfac
 					continue
 				}
 				var ethLogs []*ethtypes.Log
-				if idx := int(dataTx.TxResult.Index); idx < len(logsByTx) {
+				if idx := int(dataTx.Index); idx < len(logsByTx) {
 					ethLogs = logsByTx[idx]
 				}
 

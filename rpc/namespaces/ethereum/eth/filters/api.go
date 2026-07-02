@@ -426,14 +426,14 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit filters.FilterCriteri
 				// (TxHash, BlockHash, BlockTimestamp); those are backfilled into the
 				// finalized block result. Source this tx's logs from the block result
 				// so subscribers get fully-populated logs, matching eth_getLogs.
-				height := dataTx.TxResult.Height
+				height := dataTx.Height
 				logsByTx, err := api.backend.GetLogsByHeight(&height)
 				if err != nil {
 					api.logger.Error("fail to get logs by height for logs subscription", "error", err)
 					continue
 				}
 				var txLogs []*ethtypes.Log
-				if idx := int(dataTx.TxResult.Index); idx < len(logsByTx) {
+				if idx := int(dataTx.Index); idx < len(logsByTx) {
 					txLogs = logsByTx[idx]
 				}
 
@@ -516,14 +516,14 @@ func (api *PublicFilterAPI) NewFilter(criteria filters.FilterCriteria) (rpc.ID, 
 				// finalized block result. Source this tx's logs from the block result
 				// so eth_getFilterChanges returns fully-populated logs, matching
 				// eth_getLogs.
-				height := dataTx.TxResult.Height
+				height := dataTx.Height
 				logsByTx, err := api.backend.GetLogsByHeight(&height)
 				if err != nil {
 					api.logger.Error("fail to get logs by height for logs filter", "error", err)
 					continue
 				}
 				var txLogs []*ethtypes.Log
-				if idx := int(dataTx.TxResult.Index); idx < len(logsByTx) {
+				if idx := int(dataTx.Index); idx < len(logsByTx) {
 					txLogs = logsByTx[idx]
 				}
 
