@@ -897,3 +897,41 @@ func (s *BurnTestSuite) TestForceDeleteBucketOrphanedSPIsGarbageCollected() {
 	_, found := s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
 	s.Require().False(found, "orphaned bucket should be removed")
 }
+
+// TestForceDeleteObjectMissingFamilyFailsLoud asserts the orphan-GC fallback is scoped
+// to a missing primary SP only: any other resolution failure (here, a missing GVG
+// family) is surfaced as an error rather than silently garbage-collecting the object.
+func (s *BurnTestSuite) TestForceDeleteObjectMissingFamilyFailsLoud() {
+	owner := sample.RandAccAddress()
+	bucketName := "corrupt-family-bucket"
+
+	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
+		Owner:          owner.String(),
+		BucketName:     bucketName,
+		Id:             sdkmath.NewUint(70),
+		BucketStatus:   types.BUCKET_STATUS_DISCONTINUED,
+		PaymentAddress: sample.RandAccAddress().String(),
+	})
+	object := &types.ObjectInfo{
+		Id:           sdkmath.NewUint(700),
+		BucketName:   bucketName,
+		ObjectName:   "corrupt-family-obj",
+		Owner:        owner.String(),
+		ObjectStatus: types.OBJECT_STATUS_CREATED,
+		PayloadSize:  1,
+		CreateAt:     s.ctx.BlockTime().Unix(),
+	}
+	s.storageKeeper.StoreObjectInfo(s.ctx, object)
+
+	statusBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(statusBytes, uint32(types.OBJECT_STATUS_CREATED))
+	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueObjectStatusKey(object.Id), statusBytes)
+
+	// The GVG family itself is missing -> ErrGVGFamilyNotExist, not a missing SP.
+	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	err := s.storageKeeper.ForceDeleteObject(s.ctx, object.Id)
+	s.Require().ErrorIs(err, types2.ErrGVGFamilyNotExist, "a missing GVG family is a genuine invariant break -> must surface, not GC")
+	_, found := s.storageKeeper.GetObjectInfoById(s.ctx, object.Id)
+	s.Require().True(found, "object must NOT be deleted when the failure isn't a missing SP")
+}

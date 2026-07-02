@@ -11,6 +11,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/gogoproto/proto"
 	ecommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -374,16 +375,23 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 
 	bucketDeleted := false
 
+	// Resolve the primary SP for the deletion-event operator. If it is specifically gone
+	// (ErrStorageProviderNotFound), the bucket is orphaned -- exits are gated on residual
+	// families, so this is defense in depth -- and we GC it instead of panicking in
+	// EndBlock, attributing the delete to the storage module rather than impersonating a
+	// user. Any other resolution error (e.g. a missing GVG family) is a genuine invariant
+	// break, so surface it.
+	sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo)
 	var spOperatorAddr sdk.AccAddress
-	if sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo); spErr == nil {
+	switch {
+	case spErr == nil:
 		spOperatorAddr = sdk.MustAccAddressFromHex(sp.OperatorAddress)
-	} else {
-		// Defense in depth: the primary SP is unresolvable only if the bucket is orphaned
-		// (exits are gated on residual families). GC it anyway instead of panicking in
-		// EndBlock; the SP is only the deletion-event operator, so fall back to the owner.
-		ctx.Logger().Error("primary SP unresolvable; garbage-collecting orphaned bucket",
+	case errors.IsOf(spErr, sptypes.ErrStorageProviderNotFound):
+		ctx.Logger().Error("primary SP not found; garbage-collecting orphaned bucket",
 			"bucket", bucketInfo.BucketName, "bucket_id", bucketID.String(), "err", spErr)
-		spOperatorAddr = sdk.MustAccAddressFromHex(bucketInfo.Owner)
+		spOperatorAddr = authtypes.NewModuleAddress(storagetypes.ModuleName)
+	default:
+		return false, 0, spErr
 	}
 
 	store := ctx.KVStore(k.storeKey)
@@ -1218,16 +1226,23 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		return err
 	}
 
+	// Resolve the primary SP for the deletion-event operator. If it is specifically gone
+	// (ErrStorageProviderNotFound), the object is orphaned -- exits are gated on residual
+	// families, so this is defense in depth -- and we GC it instead of panicking in
+	// EndBlock, attributing the delete to the storage module rather than impersonating a
+	// user. Any other resolution error (e.g. a missing GVG family) is a genuine invariant
+	// break, so surface it.
+	sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo)
 	var deleteOperator sdk.AccAddress
-	if sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo); spErr == nil {
+	switch {
+	case spErr == nil:
 		deleteOperator = sdk.MustAccAddressFromHex(sp.OperatorAddress)
-	} else {
-		// Defense in depth: the primary SP is unresolvable only if the object is orphaned
-		// (exits are gated on residual families). GC it anyway instead of panicking in
-		// EndBlock; the SP is only the deletion-event operator, so fall back to the owner.
-		ctx.Logger().Error("primary SP unresolvable; garbage-collecting orphaned object",
+	case errors.IsOf(spErr, sptypes.ErrStorageProviderNotFound):
+		ctx.Logger().Error("primary SP not found; garbage-collecting orphaned object",
 			"object", objectInfo.ObjectName, "bucket", bucketInfo.BucketName, "err", spErr)
-		deleteOperator = sdk.MustAccAddressFromHex(bucketInfo.Owner)
+		deleteOperator = authtypes.NewModuleAddress(storagetypes.ModuleName)
+	default:
+		return spErr
 	}
 	if objectStatus == storagetypes.OBJECT_STATUS_CREATED {
 		err := k.UnlockObjectStoreFee(ctx, bucketInfo, objectInfo)
