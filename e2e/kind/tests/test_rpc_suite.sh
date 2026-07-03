@@ -198,6 +198,7 @@ test_evm_log_subscription() {
     local artifact bytecode enc full deploy_out addr deploy_hash
     local val0_addr transfer_topic filter_id mint_out mint_hash mint_block recv_logs
     local changes changes_len log_addr log_topic get_len i
+    local log_txhash log_blockhash log_blocktime mint_blockhash
     (cd "$CONTRACTS_DIR" && forge build --quiet) || {
         log_error "forge build TestERC20 failed"
         return 1
@@ -281,6 +282,22 @@ test_evm_log_subscription() {
     assert_eq "$log_addr" "$(echo "$addr" | tr 'A-F' 'a-f')" "filter log address matches contract"
     assert_eq "$log_topic" "$(echo "$transfer_topic" | tr 'A-F' 'a-f')" "filter log topic0 is Transfer"
 
+    # Regression guard for the actual fix: the rehydrated log must carry finalized
+    # block context (transactionHash / blockHash / blockTimestamp) sourced from the
+    # block result. Pre-fix these came from the live tx event and were empty/zero,
+    # yet address + topics still matched — so those assertions alone did not guard it.
+    mint_blockhash=$(cast receipt "$mint_hash" --rpc-url "$EVM_RPC" --json 2>/dev/null | jq -r '.blockHash // empty') || true
+    log_txhash=$(echo "$changes" | jq -r '.[0].transactionHash // empty' 2>/dev/null | tr 'A-F' 'a-f') || true
+    log_blockhash=$(echo "$changes" | jq -r '.[0].blockHash // empty' 2>/dev/null | tr 'A-F' 'a-f') || true
+    log_blocktime=$(echo "$changes" | jq -r '.[0].blockTimestamp // empty' 2>/dev/null) || true
+    assert_eq "$log_txhash" "$(echo "$mint_hash" | tr 'A-F' 'a-f')" "filter log transactionHash matches mint tx"
+    assert_eq "$log_blockhash" "$(echo "$mint_blockhash" | tr 'A-F' 'a-f')" "filter log blockHash matches finalized block"
+    assert_not_empty "$log_blocktime" "filter log blockTimestamp is populated"
+    if [ "$log_blocktime" = "0x0" ] || [ "$log_blocktime" = "0x" ] || [ "$log_blocktime" = "0" ]; then
+        log_error "filter log blockTimestamp is zero (finalized context missing)"
+        return 1
+    fi
+
     # eth_getLogs must also return the historical log from the finalized block result
     # (backend GetLogsByHeight). Pin the range to the mint block so the query is
     # deterministic (default fromBlock/toBlock = latest would race block production).
@@ -306,6 +323,7 @@ test_evm_ws_log_subscription() {
     local artifact bytecode enc full deploy_out addr deploy_hash
     local val0_addr transfer_topic mint_out mint_hash
     local tool_pid ws_timeout subscribed exited rc i log_addr log_topic
+    local log_txhash log_blockhash log_blocktime mint_blockhash
 
     ws_timeout=40
 
@@ -435,6 +453,21 @@ test_evm_ws_log_subscription() {
     log_topic=$(jq -r '.topics[0] // empty' "$out_file" 2>/dev/null | tr 'A-F' 'a-f') || true
     assert_eq "$log_addr" "$(echo "$addr" | tr 'A-F' 'a-f')" "WS pushed log address matches contract"
     assert_eq "$log_topic" "$(echo "$transfer_topic" | tr 'A-F' 'a-f')" "WS pushed log topic0 is Transfer"
+
+    # ── Regression guard: the pushed log must carry finalized block context
+    #    (transactionHash / blockHash / blockTimestamp) from the block result, not
+    #    the live tx event — pre-fix these were empty/zero while address+topics matched.
+    mint_blockhash=$(cast receipt "$mint_hash" --rpc-url "$EVM_RPC" --json 2>/dev/null | jq -r '.blockHash // empty') || true
+    log_txhash=$(jq -r '.transactionHash // empty' "$out_file" 2>/dev/null | tr 'A-F' 'a-f') || true
+    log_blockhash=$(jq -r '.blockHash // empty' "$out_file" 2>/dev/null | tr 'A-F' 'a-f') || true
+    log_blocktime=$(jq -r '.blockTimestamp // empty' "$out_file" 2>/dev/null) || true
+    assert_eq "$log_txhash" "$(echo "$mint_hash" | tr 'A-F' 'a-f')" "WS pushed log transactionHash matches mint tx"
+    assert_eq "$log_blockhash" "$(echo "$mint_blockhash" | tr 'A-F' 'a-f')" "WS pushed log blockHash matches finalized block"
+    assert_not_empty "$log_blocktime" "WS pushed log blockTimestamp is populated"
+    if [ "$log_blocktime" = "0x0" ] || [ "$log_blocktime" = "0x" ] || [ "$log_blocktime" = "0" ]; then
+        log_error "WS pushed log blockTimestamp is zero (finalized context missing)"
+        return 1
+    fi
     return 0
 }
 
