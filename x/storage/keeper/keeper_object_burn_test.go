@@ -935,3 +935,17 @@ func (s *BurnTestSuite) TestForceDeleteObjectMissingFamilyFailsLoud() {
 	_, found := s.storageKeeper.GetObjectInfoById(s.ctx, object.Id)
 	s.Require().True(found, "object must NOT be deleted when the failure isn't a missing SP")
 }
+
+// TestGCDeleteOperatorIsValidMocaAddress guards the orphan-GC delete-event operator:
+// it is derived from the storage module name and lands in EventDeleteBucket/Object's
+// `operator` field, so it must be a valid 20-byte moca (0x/hex) address -- moca's hex
+// parser rejects any non-20-byte address, so a 32-byte (ADR-028) module address would
+// render an unparseable operator.
+func (s *BurnTestSuite) TestGCDeleteOperatorIsValidMocaAddress() {
+	addr := authtypes.NewModuleAddress(types.ModuleName)
+	s.Require().Len(addr, 20, "moca uses 20-byte (eth-style) addresses")
+
+	parsed, err := sdk.AccAddressFromHexUnsafe(addr.String())
+	s.Require().NoError(err, "GC operator must render to a parseable moca hex address: %q", addr.String())
+	s.Require().True(parsed.Equals(addr), "GC operator address must round-trip through the hex parser")
+}
