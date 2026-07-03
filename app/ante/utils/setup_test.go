@@ -121,7 +121,7 @@ func (suite *AnteTestSuite) SetupTest() {
 	suite.anteHandler = anteHandler
 	// cosmos/evm v0.6.0 migration: EvmKeeper.ChainID() was removed; the EVM
 	// chain ID now lives in the global chain config. Mirror production
-	// (app.go / rpc/backend/chain_info.go), which reads it via
+	// (app.go / cosmos/evm rpc/backend/chain_info.go), which reads it via
 	// evmtypes.GetEthChainConfig().
 	suite.ethSigner = types.LatestSignerForChainID(evmtypes.GetEthChainConfig().ChainID)
 

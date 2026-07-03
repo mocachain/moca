@@ -27,7 +27,7 @@ func TestKVIndexer(t *testing.T) {
 	// cosmos/evm v0.6.0 reads a global EVM coin-info / chain-config (set by
 	// evmkeeper.NewKeeper in a real app) when building/encoding an EVM tx.
 	// This standalone test never constructs an app, so seed the defaults here
-	// (mirrors app.go and rpc/backend's test setup) to avoid a nil deref in
+	// (mirrors app.go and cosmos/evm's rpc/backend test setup) to avoid a nil deref in
 	// MsgEthereumTx.BuildTx.
 	evmmodule.SetGlobalConfigVariables(types.EvmCoinInfo{
 		Denom:         cmdcfg.BaseDenom,

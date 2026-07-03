@@ -312,7 +312,7 @@ test_evm_log_subscription() {
 
 # Exercises the eth_subscribe("logs") WEBSOCKET transport end-to-end. The HTTP
 # test above covers eth_getFilterChanges/eth_getLogs; this one drives the real WS
-# push path in rpc/websockets.go subscribeLogs (which rehydrates logs from the
+# push path in server/websockets.go subscribeLogs (which rehydrates logs from the
 # finalized block result). It uses a small first-party go-ethereum client
 # (e2e/kind/tools/wslogs, SubscribeFilterLogs) rather than an external ws CLI:
 # deploy TestERC20, open a WS logs subscription, then — only once the sub is live

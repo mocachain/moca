@@ -2,7 +2,7 @@
 // end-to-end. It dials an EVM JSON-RPC WebSocket endpoint, subscribes to the
 // logs of a single contract address, and prints the first matching log as JSON.
 //
-// It exists so the e2e suite can drive rpc/websockets.go subscribeLogs (which
+// It exists so the e2e suite can drive server/websockets.go subscribeLogs (which
 // rehydrates logs from the finalized block result) over the real WS push path,
 // using only the go-ethereum client that moca already depends on — no external
 // websocket CLI (websocat/wscat) is installed or required.
