@@ -114,7 +114,7 @@ func (s *TestSuite) TestCreateObject() {
 		VirtualPaymentAddress: "",
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
-	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&types3.StorageProvider{
+	mockSP := &types3.StorageProvider{
 		Id:              0,
 		OperatorAddress: spAddress.String(),
 		FundingAddress:  "",
@@ -126,7 +126,9 @@ func (s *TestSuite) TestCreateObject() {
 		Endpoint:        "",
 		Description:     types3.Description{},
 		BlsKey:          nil,
-	}).AnyTimes()
+	}
+	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(mockSP).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(mockSP, true).AnyTimes()
 	s.ctx = s.ctx.WithBlockHeight(100)
 	_, err = s.storageKeeper.CreateObject(s.ctx, operatorAddress, bucketInfo.BucketName,
 		objectName, 100, types.CreateObjectOptions{

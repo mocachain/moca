@@ -11,6 +11,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/gogoproto/proto"
 	ecommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -347,7 +348,11 @@ func (k Keeper) GetPrimarySPForBucket(ctx sdk.Context, bucketInfo *storagetypes.
 	if !found {
 		return nil, virtualgroupmoduletypes.ErrGVGFamilyNotExist.Wrapf("gvg family (%d) not found.", bucketInfo.GlobalVirtualGroupFamilyId)
 	}
-	sp := k.spKeeper.MustGetStorageProvider(ctx, gvgFamily.PrimarySpId)
+	// Resolve without panicking so callers can handle a missing primary SP.
+	sp, found := k.spKeeper.GetStorageProvider(ctx, gvgFamily.PrimarySpId)
+	if !found {
+		return nil, sptypes.ErrStorageProviderNotFound.Wrapf("primary sp (%d) of gvg family (%d) not found", gvgFamily.PrimarySpId, gvgFamily.Id)
+	}
 	return sp, nil
 }
 
@@ -370,8 +375,24 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 
 	bucketDeleted := false
 
-	sp := k.MustGetPrimarySPForBucket(ctx, bucketInfo)
-	spOperatorAddr := sdk.MustAccAddressFromHex(sp.OperatorAddress)
+	// Resolve the primary SP for the deletion-event operator. If it is specifically gone
+	// (ErrStorageProviderNotFound), the bucket is orphaned -- exits are gated on residual
+	// families, so this is defense in depth -- and we GC it instead of panicking in
+	// EndBlock, attributing the delete to the storage module rather than impersonating a
+	// user. Any other resolution error (e.g. a missing GVG family) is a genuine invariant
+	// break, so surface it.
+	sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo)
+	var spOperatorAddr sdk.AccAddress
+	switch {
+	case spErr == nil:
+		spOperatorAddr = sdk.MustAccAddressFromHex(sp.OperatorAddress)
+	case errors.IsOf(spErr, sptypes.ErrStorageProviderNotFound):
+		ctx.Logger().Error("primary SP not found; garbage-collecting orphaned bucket",
+			"bucket", bucketInfo.BucketName, "bucket_id", bucketID.String(), "err", spErr)
+		spOperatorAddr = authtypes.NewModuleAddress(storagetypes.ModuleName)
+	default:
+		return false, 0, spErr
+	}
 
 	store := ctx.KVStore(k.storeKey)
 	objectPrefixStore := prefix.NewStore(store, storagetypes.GetObjectKeyOnlyBucketPrefix(bucketInfo.BucketName))
@@ -1205,7 +1226,24 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		return err
 	}
 
-	spInState := k.MustGetPrimarySPForBucket(ctx, bucketInfo)
+	// Resolve the primary SP for the deletion-event operator. If it is specifically gone
+	// (ErrStorageProviderNotFound), the object is orphaned -- exits are gated on residual
+	// families, so this is defense in depth -- and we GC it instead of panicking in
+	// EndBlock, attributing the delete to the storage module rather than impersonating a
+	// user. Any other resolution error (e.g. a missing GVG family) is a genuine invariant
+	// break, so surface it.
+	sp, spErr := k.GetPrimarySPForBucket(ctx, bucketInfo)
+	var deleteOperator sdk.AccAddress
+	switch {
+	case spErr == nil:
+		deleteOperator = sdk.MustAccAddressFromHex(sp.OperatorAddress)
+	case errors.IsOf(spErr, sptypes.ErrStorageProviderNotFound):
+		ctx.Logger().Error("primary SP not found; garbage-collecting orphaned object",
+			"object", objectInfo.ObjectName, "bucket", bucketInfo.BucketName, "err", spErr)
+		deleteOperator = authtypes.NewModuleAddress(storagetypes.ModuleName)
+	default:
+		return spErr
+	}
 	if objectStatus == storagetypes.OBJECT_STATUS_CREATED {
 		err := k.UnlockObjectStoreFee(ctx, bucketInfo, objectInfo)
 		if err != nil {
@@ -1233,7 +1271,7 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		}
 	}
 
-	err = k.doDeleteObject(ctx, sdk.MustAccAddressFromHex(spInState.OperatorAddress), bucketInfo, objectInfo, objectStatus)
+	err = k.doDeleteObject(ctx, deleteOperator, bucketInfo, objectInfo, objectStatus)
 	if err != nil {
 		ctx.Logger().Error("do delete object err", "err", err)
 		return err
