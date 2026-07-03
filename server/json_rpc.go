@@ -19,8 +19,10 @@ import (
 	"github.com/cosmos/evm/rpc/stream"
 	serverconfig "github.com/cosmos/evm/server/config"
 	servertypes "github.com/cosmos/evm/server/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	svrconfig "github.com/mocachain/moca/v2/server/config"
+	srvflags "github.com/mocachain/moca/v2/server/flags"
 )
 
 // AppWithPendingTxStream is implemented by *app.Moca. cosmos/evm's JSON-RPC
@@ -38,6 +40,18 @@ func StartJSONRPC(ctx *server.Context,
 	app AppWithPendingTxStream,
 ) (*http.Server, chan struct{}, error) {
 	logger := ctx.Logger.With("module", "geth")
+
+	// cosmos/evm's rpc backend and net namespace source the EVM chain id from
+	// evm.evm-chain-id (viper). moca's flag/template default is 0: the keeper
+	// maps 0 -> the cosmos/evm default at app construction (app/app.go), but
+	// the rpc backend does not — it would run with chain id 0 and reject every
+	// eth_sendRawTransaction. Mirror the keeper: when unset, pin viper to the
+	// keeper's actual chain config so the RPC layer always matches consensus.
+	if ctx.Viper.GetUint64(srvflags.EVMChainID) == 0 {
+		if ethCfg := evmtypes.GetEthChainConfig(); ethCfg != nil && ethCfg.ChainID != nil {
+			ctx.Viper.Set(srvflags.EVMChainID, ethCfg.ChainID.Uint64())
+		}
+	}
 
 	// cosmos/evm's RPC layer is driven by its own server config.Config,
 	// populated from the same viper instance moca's AppConfig reads
@@ -81,6 +95,19 @@ func StartJSONRPC(ctx *server.Context,
 				"service", api.Service,
 			)
 			return nil, nil, err
+		}
+	}
+
+	// Override personal_importRawKey / personal_newAccount with fork-typed
+	// implementations (see personalForkAPI). go-ethereum's RegisterName
+	// replaces same-named methods registered earlier, so this must come after
+	// the cosmos/evm services above.
+	for _, namespace := range rpcAPIArr {
+		if namespace == "personal" {
+			if err := rpcServer.RegisterName("personal", newPersonalForkAPI(ctx.Logger, clientCtx)); err != nil {
+				return nil, nil, err
+			}
+			break
 		}
 	}
 
