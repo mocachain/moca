@@ -39,7 +39,7 @@ ws-address = "{{ .JSONRPC.WsAddress }}"
 # ws-origins defines the allowed Origin headers for WebSocket (eth_subscribe)
 # connections. Non-browser clients (empty Origin) are always allowed; browser
 # clients served from other origins must be listed here. An empty list rejects all.
-ws-origins = ["127.0.0.1", "localhost"]
+ws-origins = [{{range $index, $elmt := .JSONRPC.WSOrigins}}{{if $index}}, {{end}}"{{$elmt}}"{{end}}]
 
 # API defines a list of JSON-RPC namespaces that should be enabled
 # Example: "eth,txpool,personal,net,debug,web3"
@@ -76,6 +76,16 @@ http-idle-timeout = "{{ .JSONRPC.HTTPIdleTimeout }}"
 # the node's RPC when the global parameter is disabled.
 allow-unprotected-txs = {{ .JSONRPC.AllowUnprotectedTxs }}
 
+# AllowInsecureUnlock enables keyring-backed account RPCs
+# (eth_accounts, eth_sendTransaction, personal_*). Public nodes SHOULD set this to false.
+allow-insecure-unlock = {{ .JSONRPC.AllowInsecureUnlock }}
+
+# BatchRequestLimit is the maximum number of calls in a single JSON-RPC batch request (0 = unlimited).
+batch-request-limit = {{ .JSONRPC.BatchRequestLimit }}
+
+# BatchResponseMaxSize is the maximum size in bytes of a JSON-RPC batch response (0 = unlimited).
+batch-response-max-size = {{ .JSONRPC.BatchResponseMaxSize }}
+
 # MaxOpenConnections sets the maximum number of simultaneous connections
 # for the server listener.
 max-open-connections = {{ .JSONRPC.MaxOpenConnections }}
@@ -86,6 +96,11 @@ enable-indexer = {{ .JSONRPC.EnableIndexer }}
 # MetricsAddress defines the EVM Metrics server address to bind to. Pass --metrics in CLI to enable
 # Prometheus metrics path: /debug/metrics/prometheus
 metrics-address = "{{ .JSONRPC.MetricsAddress }}"
+
+# EnableProfiling enables the profiling endpoints in the 'debug' JSON-RPC namespace
+# (debug_startCPUProfile, debug_blockProfile, ...). SHOULD NOT be enabled on
+# publicly exposed nodes.
+enable-profiling = {{ .JSONRPC.EnableProfiling }}
 
 ###############################################################################
 ###                             TLS Configuration                           ###

@@ -184,6 +184,7 @@ which accepts a path for the resulting pprof file.
 	cmd.Flags().StringSlice(srvflags.JSONRPCAPI, config.GetDefaultAPINamespaces(), "Defines a list of JSON-RPC namespaces that should be enabled")
 	cmd.Flags().String(srvflags.JSONRPCAddress, config.DefaultJSONRPCAddress, "the JSON-RPC server address to listen on")
 	cmd.Flags().String(srvflags.JSONWsAddress, config.DefaultJSONRPCWsAddress, "the JSON-RPC WS server address to listen on")
+	cmd.Flags().StringSlice(srvflags.JSONWsOrigins, config.GetDefaultWSOrigins(), "Comma-separated list of allowed Origin headers for JSON-RPC WS (eth_subscribe) connections; non-browser clients (no Origin) are always allowed")
 	cmd.Flags().Uint64(srvflags.JSONRPCGasCap, config.DefaultGasCap, "Sets a cap on gas that can be used in eth_call/estimateGas unit is amoca (0=infinite)")
 	cmd.Flags().Float64(srvflags.JSONRPCTxFeeCap, config.DefaultTxFeeCap, "Sets a cap on transaction fee that can be sent via the RPC APIs (1 = default 1 moca)")
 	cmd.Flags().Int32(srvflags.JSONRPCFilterCap, config.DefaultFilterCap, "Sets the global cap for total number of filters that can be created")
@@ -195,6 +196,10 @@ which accepts a path for the resulting pprof file.
 	cmd.Flags().Int32(srvflags.JSONRPCBlockRangeCap, config.DefaultBlockRangeCap, "Sets the max block range allowed for `eth_getLogs` query")
 	cmd.Flags().Int(srvflags.JSONRPCMaxOpenConnections, config.DefaultMaxOpenConnections, "Sets the maximum number of simultaneous connections for the server listener")
 	cmd.Flags().Bool(srvflags.JSONRPCEnableIndexer, false, "Enable the custom tx indexer for json-rpc")
+	cmd.Flags().Bool(srvflags.JSONRPCEnableProfiling, config.DefaultEnableProfiling, "Enable the profiling endpoints in the debug JSON-RPC namespace (do NOT enable on publicly exposed nodes)")
+	cmd.Flags().Bool(srvflags.JSONRPCAllowInsecureUnlock, config.DefaultAllowInsecureUnlock, "Allow keyring-backed account RPCs (eth_accounts, eth_sendTransaction, personal_*); public nodes should set this to false")
+	cmd.Flags().Int(srvflags.JSONRPCBatchRequestLimit, config.DefaultBatchRequestLimit, "Maximum number of calls in a single JSON-RPC batch request (0=unlimited)")
+	cmd.Flags().Int(srvflags.JSONRPCBatchResponseMaxSize, config.DefaultBatchResponseMaxSize, "Maximum size in bytes of a JSON-RPC batch response (0=unlimited)")
 	cmd.Flags().Bool(srvflags.JSONRPCEnableMetrics, false, "Define if EVM rpc metrics server should be enabled")
 
 	cmd.Flags().String(srvflags.EVMTracer, config.DefaultEVMTracer, "the EVM tracer type to collect execution traces from the EVM transaction execution (json|struct|access_list|markdown)")
