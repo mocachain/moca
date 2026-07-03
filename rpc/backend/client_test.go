@@ -14,7 +14,6 @@ import (
 	tmrpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
 	rpc "github.com/mocachain/moca/v2/rpc/types"
@@ -178,18 +177,13 @@ func TestRegisterConsensusParams(t *testing.T) {
 
 // BlockResults
 
+// RegisterBlockResultsWithEventLog mocks a block result with one tx log in ExecTxResult.Data.
 func RegisterBlockResultsWithEventLog(client *mocks.Client, height int64) (*tmrpctypes.ResultBlockResults, error) {
+	data, _ := buildLogTxResultData(height)
 	res := &tmrpctypes.ResultBlockResults{
 		Height: height,
 		TxsResults: []*abci.ExecTxResult{
-			{GasUsed: 0, Events: []abci.Event{{
-				Type: evmtypes.EventTypeEthereumTx,
-				Attributes: []abci.EventAttribute{{
-					Key:   evmtypes.AttributeKeyTxLog,
-					Value: "{\"test\": \"hello\"}", // TODO refactor the value to unmarshall to a evmtypes.Log struct successfully
-					Index: true,
-				}},
-			}}},
+			{GasUsed: 0, Data: data},
 		},
 	}
 	client.On("BlockResults", rpc.ContextWithHeight(height), mock.AnythingOfType("*int64")).

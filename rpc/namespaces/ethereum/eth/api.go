@@ -78,7 +78,6 @@ type EthereumAPI interface {
 	ProtocolVersion() hexutil.Uint
 	GasPrice() (*hexutil.Big, error)
 	EstimateGas(args evmtypes.TransactionArgs, blockNrOptional *rpctypes.BlockNumber) (hexutil.Uint64, error)
-	// geth v1.15 retired rpc.DecimalOrHex; use common/math.HexOrDecimal64.
 	FeeHistory(blockCount ethmath.HexOrDecimal64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*rpctypes.FeeHistoryResult, error)
 	MaxPriorityFeePerGas() (*hexutil.Big, error)
 	ChainId() (*hexutil.Big, error)
@@ -434,9 +433,16 @@ func (e *PublicAPI) GetTransactionLogs(txHash common.Hash) ([]*ethtypes.Log, err
 		return nil, nil
 	}
 
-	// parse tx logs from events
+	// Decode logs from tx response Data; v0.6.0 dropped per-log cosmos events.
+	height, err := types.SafeUint64(resBlockResult.Height)
+	if err != nil {
+		return nil, err
+	}
+	// res.MsgIndex indexes the MsgEthereumTxResponse slice directly: a MsgEthereumTx is
+	// only ever included in an all-EVM tx, so its Cosmos message position equals its
+	// position among the EVM responses. Mirrors cosmos/evm v0.6.0 rpc/backend.
 	index := int(res.MsgIndex) // #nosec G701
-	return backend.TxLogsFromEvents(resBlockResult.TxsResults[res.TxIndex].Events, index)
+	return evmtypes.DecodeMsgLogs(resBlockResult.TxsResults[res.TxIndex].Data, index, height)
 }
 
 // SignTypedData signs EIP-712 conformant typed data
@@ -456,9 +462,6 @@ func (e *PublicAPI) FillTransaction(args evmtypes.TransactionArgs) (*rpctypes.Si
 	}
 
 	// Assemble the transaction and obtain rlp.
-	// cosmos/evm v0.6.0: TransactionArgs.ToTransaction(defaultType) returns
-	// *ethtypes.Transaction directly; the legacy .AsTransaction() wrapper
-	// is gone.
 	tx := args.ToTransaction(ethtypes.LegacyTxType)
 
 	data, err := tx.MarshalBinary()

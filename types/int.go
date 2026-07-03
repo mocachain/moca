@@ -21,6 +21,15 @@ func SafeInt64(value uint64) (int64, error) {
 	return int64(value), nil // #nosec G701 -- checked for int overflow already
 }
 
+// SafeUint64 checks for underflows while casting an int64 to uint64 value.
+func SafeUint64(value int64) (uint64, error) {
+	if value < 0 {
+		return 0, errorsmod.Wrapf(errortypes.ErrInvalidHeight, "int64 value %v cannot be negative", value)
+	}
+
+	return uint64(value), nil // #nosec G701 -- checked for underflow already
+}
+
 // SafeNewIntFromBigInt constructs Int from big.Int, return error if more than 256bits
 func SafeNewIntFromBigInt(i *big.Int) (sdkmath.Int, error) {
 	if !IsValidInt256(i) {
