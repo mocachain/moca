@@ -1,10 +1,7 @@
 package backend
 
 import (
-	"encoding/json"
-
 	tmtypes "github.com/cometbft/cometbft/types"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/mocachain/moca/v2/rpc/backend/mocks"
@@ -14,12 +11,9 @@ import (
 func (suite *BackendTestSuite) TestGetLogs() {
 	_, bz := suite.buildEthereumTx()
 	block := tmtypes.MakeBlock(1, []tmtypes.Tx{bz}, nil, nil)
-	logs := make([]*evmtypes.Log, 0, 1)
-	var log evmtypes.Log
-	err := json.Unmarshal([]byte("{\"test\": \"hello\"}"), &log) // TODO refactor this to unmarshall to a log struct successfully
-	suite.Require().NoError(err)
 
-	logs = append(logs, &log)
+	// logs come from tx response Data; see buildLogTxResultData.
+	_, expLogs := buildLogTxResultData(ethrpc.BlockNumber(1).Int64())
 
 	testCases := []struct {
 		name         string
@@ -70,7 +64,7 @@ func (suite *BackendTestSuite) TestGetLogs() {
 				suite.Require().NoError(err)
 			},
 			common.BytesToHash(block.Hash()),
-			[][]*ethtypes.Log{evmtypes.LogsToEthereum(logs)},
+			[][]*ethtypes.Log{expLogs},
 			true,
 		},
 	}

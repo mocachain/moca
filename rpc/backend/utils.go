@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -25,6 +24,7 @@ import (
 	"github.com/cometbft/cometbft/proto/tendermint/crypto"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/rpc/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 )
 
 type txGasAndReward struct {
@@ -79,12 +79,8 @@ func (b *Backend) getAccountNonce(accAddr common.Address, pending bool, height i
 		return nonce, nil
 	}
 
-	chainID, err := b.ChainID()
-	if err != nil {
-		logger.Error("failed to fetch chain id for pending nonce", "error", err.Error())
-		return nonce, nil
-	}
-	signer := ethtypes.LatestSignerForChainID(chainID.ToInt())
+	// use precomputed chainID; b.ChainID() RPCs and fails before EIP-155.
+	signer := ethtypes.LatestSignerForChainID(b.chainID)
 
 	// add the uncommitted txs to the nonce counter
 	// only supports `MsgEthereumTx` style tx
@@ -96,8 +92,7 @@ func (b *Backend) getAccountNonce(accAddr common.Address, pending bool, height i
 				break
 			}
 
-			// Recover the sender from the signature; pending mempool txs (raw eth)
-			// carry an empty From, so GetSender() would return the zero address.
+			// pending txs have empty From; recover sender from signature.
 			sender, err := ethMsg.GetSenderLegacy(signer)
 			if err != nil {
 				continue
@@ -136,7 +131,6 @@ func (b *Backend) processBlock(
 		if err != nil {
 			return err
 		}
-		// geth v1.15 moved CalcBaseFee from consensus/misc to consensus/misc/eip1559.
 		targetOneFeeHistory.NextBaseFee = eip1559.CalcBaseFee(cfg, header)
 	} else {
 		targetOneFeeHistory.NextBaseFee = new(big.Int)
@@ -191,10 +185,7 @@ func (b *Backend) processBlock(
 				continue
 			}
 			tx := ethMsg.AsTransaction()
-			// geth v1.15: EffectiveGasTipValue was replaced by
-			// EffectiveGasTip, which returns (*big.Int, error). Treat the
-			// error case (under-priced tx) as a zero reward, mirroring the
-			// old helper's nil-coerce behavior.
+			// underpriced error treated as zero reward.
 			reward, _ := tx.EffectiveGasTip(blockBaseFee)
 			if reward == nil {
 				reward = big.NewInt(0)
@@ -226,80 +217,26 @@ func (b *Backend) processBlock(
 	return nil
 }
 
-// AllTxLogsFromEvents parses all ethereum logs from cosmos events
-func AllTxLogsFromEvents(events []abci.Event) ([][]*ethtypes.Log, error) {
-	allLogs := make([][]*ethtypes.Log, 0, 4)
-	for _, event := range events {
-		// cosmos/evm v0.6.0 collapsed EventTypeTxLog into EventTypeEthereumTx;
-		// log attributes (AttributeKeyTxLog) hang off the EthereumTx event.
-		if event.Type != evmtypes.EventTypeEthereumTx {
-			continue
-		}
-
-		logs, err := ParseTxLogsFromEvent(event)
-		if err != nil {
-			return nil, err
-		}
-
-		allLogs = append(allLogs, logs)
-	}
-	return allLogs, nil
-}
-
-// TxLogsFromEvents parses ethereum logs from cosmos events for specific msg index
-func TxLogsFromEvents(events []abci.Event, msgIndex int) ([]*ethtypes.Log, error) {
-	for _, event := range events {
-		// cosmos/evm v0.6.0 collapsed EventTypeTxLog into EventTypeEthereumTx;
-		// log attributes (AttributeKeyTxLog) hang off the EthereumTx event.
-		if event.Type != evmtypes.EventTypeEthereumTx {
-			continue
-		}
-
-		if msgIndex > 0 {
-			// not the eth tx we want
-			msgIndex--
-			continue
-		}
-
-		return ParseTxLogsFromEvent(event)
-	}
-	return nil, fmt.Errorf("eth tx logs not found for message index %d", msgIndex)
-}
-
-// ParseTxLogsFromEvent parse tx logs from one event
-func ParseTxLogsFromEvent(event abci.Event) ([]*ethtypes.Log, error) {
-	logs := make([]*evmtypes.Log, 0, len(event.Attributes))
-	for _, attr := range event.Attributes {
-		if attr.Key != evmtypes.AttributeKeyTxLog {
-			continue
-		}
-
-		var log evmtypes.Log
-		if err := json.Unmarshal([]byte(attr.Value), &log); err != nil {
-			return nil, err
-		}
-
-		logs = append(logs, &log)
-	}
-	return evmtypes.LogsToEthereum(logs), nil
-}
-
 // ShouldIgnoreGasUsed returns true if the gasUsed in result should be ignored
 // workaround for issue: https://github.com/cosmos/cosmos-sdk/issues/10832
 func ShouldIgnoreGasUsed(res *abci.ExecTxResult) bool {
 	return res.GetCode() == 11 && strings.Contains(res.GetLog(), "no block gas left to run tx: out of gas")
 }
 
-// GetLogsFromBlockResults returns the list of event logs from the tendermint block result response
+// GetLogsFromBlockResults decodes EVM logs from tx response Data for each tx in the block result.
 func GetLogsFromBlockResults(blockRes *tmrpctypes.ResultBlockResults) ([][]*ethtypes.Log, error) {
+	height, err := mocatypes.SafeUint64(blockRes.Height)
+	if err != nil {
+		return nil, err
+	}
 	blockLogs := [][]*ethtypes.Log{}
 	for _, txResult := range blockRes.TxsResults {
-		logs, err := AllTxLogsFromEvents(txResult.Events)
+		logs, err := evmtypes.DecodeTxLogs(txResult.Data, height)
 		if err != nil {
 			return nil, err
 		}
 
-		blockLogs = append(blockLogs, logs...)
+		blockLogs = append(blockLogs, logs)
 	}
 	return blockLogs, nil
 }
