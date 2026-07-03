@@ -10,7 +10,7 @@ import (
 	cmtstore "github.com/cometbft/cometbft/store"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/mocachain/moca/v2/indexer"
+	"github.com/cosmos/evm/indexer"
 )
 
 func NewIndexTxCmd() *cobra.Command {
