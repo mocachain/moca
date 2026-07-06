@@ -471,6 +471,53 @@ test_evm_ws_log_subscription() {
     return 0
 }
 
+# ── EVM tx indexer (cosmos/evm KV indexer) ───────────────────────────────────
+# Validators run with enable-indexer=true (init-chain.sh). The assertion must
+# be indexer-specific: with the indexer off/broken, receipt/tx-hash lookups
+# silently fall back to CometBFT tx_search, so a green RPC suite alone proves
+# nothing about the indexer. Assert the indexed artifact itself: the tx-hash
+# key is written to validator-0's evmindexer.db only by KVIndexer.IndexBlock.
+test_evm_tx_indexer() {
+    local val0_addr send_out tx_hash hash_hex found i err_count
+
+    if ! command -v kubectl >/dev/null 2>&1; then
+        log_error "kubectl not available; cannot assert the tx indexer"
+        return 1
+    fi
+
+    val0_addr=$(cast wallet address "$VAL0_PRIVKEY" 2>/dev/null) || true
+    assert_not_empty "$val0_addr" "val0 address"
+
+    # Emit a fresh EVM tx to index (self-transfer).
+    send_out=$(cast send "$val0_addr" --value 1 \
+        --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) \
+        || { log_error "indexer probe tx failed: $(echo "$send_out" | head -c 800)"; return 1; }
+    tx_hash=$(echo "$send_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
+    assert_not_empty "$tx_hash" "indexer probe tx hash"
+    fw_wait_evm_tx "$tx_hash" 15 "$EVM_RPC" || return 1
+    hash_hex=$(echo "$tx_hash" | tr 'A-F' 'a-f' | sed 's/^0x//')
+
+    # The EVMIndexerService indexes asynchronously on new blocks; poll briefly.
+    # Entries live in the LevelDB WAL (*.log) until compaction (*.ldb).
+    found=0
+    for ((i = 0; i < 15; i++)); do
+        if kubectl exec -n "${K8S_NAMESPACE:-moca-e2e}" validator-0-0 -c mocad -- \
+            sh -c 'cat /root/.mocad/data/evmindexer.db/*.log /root/.mocad/data/evmindexer.db/*.ldb 2>/dev/null | od -An -v -t x1 | tr -d " \n"' 2>/dev/null \
+            | grep -q "$hash_hex"; then
+            found=1
+            break
+        fi
+        sleep 1
+    done
+    assert_eq "$found" "1" "tx hash indexed into validator-0's evmindexer.db"
+
+    # And the indexer produced no errors on any indexed block.
+    err_count=$(kubectl logs -n "${K8S_NAMESPACE:-moca-e2e}" validator-0-0 -c mocad --tail=-1 2>/dev/null \
+        | grep -cE 'failed to index block|Fail to decode tx|Fail to parse event' || true)
+    assert_eq "$err_count" "0" "no EVM indexer errors in validator-0 logs"
+    return 0
+}
+
 test_validator_balances() {
     local validators_json op amoca
     validators_json=$(exec_mocad query staking validators \
@@ -519,6 +566,7 @@ fw_run_test "EVM block timestamp freshness + monotonic height" test_evm_block_pr
 fw_run_test "EVM TestERC20 deploy + transfer" test_evm_erc20
 fw_run_test "EVM log subscription + getFilterChanges rehydration" test_evm_log_subscription
 fw_run_test "EVM eth_subscribe(logs) WebSocket transport" test_evm_ws_log_subscription
+fw_run_test "EVM tx indexer (cosmos/evm KV indexer)" test_evm_tx_indexer
 fw_run_test "Validator operator bank balances" test_validator_balances
 fw_run_test "Staking validators list + monikers" test_validator_info
 
