@@ -36,9 +36,6 @@ const (
 	// DefaultEVMTracer is the default vm.Tracer type
 	DefaultEVMTracer = ""
 
-	// DefaultFixRevertGasRefundHeight is the default height at which to overwrite gas refund
-	DefaultFixRevertGasRefundHeight = 0
-
 	// DefaultMaxTxGasWanted is the default gas wanted for each eth tx returned in ante handler in check tx mode
 	DefaultMaxTxGasWanted = 0
 
@@ -71,23 +68,38 @@ const (
 	// DefaultHTTPIdleTimeout is the default idle timeout of the http json-rpc server
 	DefaultHTTPIdleTimeout = 120 * time.Second
 
-	// DefaultQueryTimeout is the default timeout for eth_getLogs queries
-	DefaultQueryTimeout = 30 * time.Second
-
-	// DefaultGetLogsRateLimit is the default rate limit for eth_getLogs (requests per second)
-	DefaultGetLogsRateLimit = 50
-
-	// DefaultGetLogsBurstLimit is the default burst limit for eth_getLogs
-	DefaultGetLogsBurstLimit = 100
-
 	// DefaultAllowUnprotectedTxs value is false
 	DefaultAllowUnprotectedTxs = false
 
 	// DefaultMaxOpenConnections represents the amount of open connections (unlimited = 0)
 	DefaultMaxOpenConnections = 0
+
+	// DefaultEnableProfiling is the default for the profiling endpoints in the
+	// debug JSON-RPC namespace; SHOULD NOT be enabled on publicly exposed nodes
+	DefaultEnableProfiling = false
+
+	// DefaultAllowInsecureUnlock is the default for keyring-backed account RPCs
+	// (eth_accounts, eth_sendTransaction, personal_*); mirrors cosmos/evm.
+	// Public nodes SHOULD set this to false.
+	DefaultAllowInsecureUnlock = true
+
+	// DefaultBatchRequestLimit is the default maximum number of calls in a
+	// single JSON-RPC batch request (0 = unlimited); mirrors cosmos/evm & geth
+	DefaultBatchRequestLimit = 1000
+
+	// DefaultBatchResponseMaxSize is the default maximum size in bytes of a
+	// JSON-RPC batch response (0 = unlimited); mirrors cosmos/evm & geth
+	DefaultBatchResponseMaxSize = 25 * 1000 * 1000
 )
 
 var evmTracers = []string{"json", "markdown", "struct", "access_list"}
+
+// GetDefaultWSOrigins returns the default allowed Origin headers for WebSocket
+// (eth_subscribe) connections. Non-browser clients (no Origin header) are always
+// allowed; browser clients served from other origins must be listed explicitly.
+func GetDefaultWSOrigins() []string {
+	return []string{"127.0.0.1", "localhost"}
+}
 
 // Config defines the server's top level configuration. It includes the default app config
 // from the SDK as well as the EVM configuration to enable the JSON-RPC APIs.
@@ -148,12 +160,6 @@ type JSONRPCConfig struct {
 	HTTPTimeout time.Duration `mapstructure:"http-timeout"`
 	// HTTPIdleTimeout is the idle timeout of http json-rpc server.
 	HTTPIdleTimeout time.Duration `mapstructure:"http-idle-timeout"`
-	// QueryTimeout is the timeout for eth_getLogs and similar query operations.
-	QueryTimeout time.Duration `mapstructure:"query-timeout"`
-	// GetLogsRateLimit is the rate limit for eth_getLogs queries (requests per second).
-	GetLogsRateLimit int `mapstructure:"getlogs-rate-limit"`
-	// GetLogsBurstLimit is the burst limit for eth_getLogs queries.
-	GetLogsBurstLimit int `mapstructure:"getlogs-burst-limit"`
 	// AllowUnprotectedTxs restricts unprotected (non EIP155 signed) transactions to be submitted via
 	// the node's RPC when global parameter is disabled.
 	AllowUnprotectedTxs bool `mapstructure:"allow-unprotected-txs"`
@@ -164,8 +170,22 @@ type JSONRPCConfig struct {
 	EnableIndexer bool `mapstructure:"enable-indexer"`
 	// MetricsAddress defines the metrics server to listen on
 	MetricsAddress string `mapstructure:"metrics-address"`
-	// FixRevertGasRefundHeight defines the upgrade height for fix of revert gas refund logic when transaction reverted
-	FixRevertGasRefundHeight int64 `mapstructure:"fix-revert-gas-refund-height"`
+	// WSOrigins defines the allowed Origin headers for WebSocket (eth_subscribe)
+	// connections; non-browser clients (no Origin header) are always allowed.
+	WSOrigins []string `mapstructure:"ws-origins"`
+	// EnableProfiling enables the profiling endpoints in the debug JSON-RPC
+	// namespace. SHOULD NOT be enabled on publicly exposed nodes.
+	EnableProfiling bool `mapstructure:"enable-profiling"`
+	// AllowInsecureUnlock enables keyring-backed account RPCs
+	// (eth_accounts, eth_sendTransaction, personal_*). Public nodes SHOULD
+	// set this to false.
+	AllowInsecureUnlock bool `mapstructure:"allow-insecure-unlock"`
+	// BatchRequestLimit is the maximum number of calls in a single JSON-RPC
+	// batch request (0 = unlimited).
+	BatchRequestLimit int `mapstructure:"batch-request-limit"`
+	// BatchResponseMaxSize is the maximum size in bytes of a JSON-RPC batch
+	// response (0 = unlimited).
+	BatchResponseMaxSize int `mapstructure:"batch-response-max-size"`
 }
 
 // TLSConfig defines the certificate and matching private key for the server.
@@ -295,27 +315,28 @@ func GetAPINamespaces() []string {
 // DefaultJSONRPCConfig returns an EVM config with the JSON-RPC API enabled by default
 func DefaultJSONRPCConfig() *JSONRPCConfig {
 	return &JSONRPCConfig{
-		Enable:                   true,
-		API:                      GetDefaultAPINamespaces(),
-		Address:                  DefaultJSONRPCAddress,
-		WsAddress:                DefaultJSONRPCWsAddress,
-		GasCap:                   DefaultGasCap,
-		EVMTimeout:               DefaultEVMTimeout,
-		TxFeeCap:                 DefaultTxFeeCap,
-		FilterCap:                DefaultFilterCap,
-		FeeHistoryCap:            DefaultFeeHistoryCap,
-		BlockRangeCap:            DefaultBlockRangeCap,
-		LogsCap:                  DefaultLogsCap,
-		HTTPTimeout:              DefaultHTTPTimeout,
-		HTTPIdleTimeout:          DefaultHTTPIdleTimeout,
-		QueryTimeout:             DefaultQueryTimeout,
-		GetLogsRateLimit:         DefaultGetLogsRateLimit,
-		GetLogsBurstLimit:        DefaultGetLogsBurstLimit,
-		AllowUnprotectedTxs:      DefaultAllowUnprotectedTxs,
-		MaxOpenConnections:       DefaultMaxOpenConnections,
-		EnableIndexer:            false,
-		MetricsAddress:           DefaultJSONRPCMetricsAddress,
-		FixRevertGasRefundHeight: DefaultFixRevertGasRefundHeight,
+		Enable:               true,
+		API:                  GetDefaultAPINamespaces(),
+		Address:              DefaultJSONRPCAddress,
+		WsAddress:            DefaultJSONRPCWsAddress,
+		GasCap:               DefaultGasCap,
+		EVMTimeout:           DefaultEVMTimeout,
+		TxFeeCap:             DefaultTxFeeCap,
+		FilterCap:            DefaultFilterCap,
+		FeeHistoryCap:        DefaultFeeHistoryCap,
+		BlockRangeCap:        DefaultBlockRangeCap,
+		LogsCap:              DefaultLogsCap,
+		HTTPTimeout:          DefaultHTTPTimeout,
+		HTTPIdleTimeout:      DefaultHTTPIdleTimeout,
+		AllowUnprotectedTxs:  DefaultAllowUnprotectedTxs,
+		MaxOpenConnections:   DefaultMaxOpenConnections,
+		EnableIndexer:        false,
+		MetricsAddress:       DefaultJSONRPCMetricsAddress,
+		WSOrigins:            GetDefaultWSOrigins(),
+		EnableProfiling:      DefaultEnableProfiling,
+		AllowInsecureUnlock:  DefaultAllowInsecureUnlock,
+		BatchRequestLimit:    DefaultBatchRequestLimit,
+		BatchResponseMaxSize: DefaultBatchResponseMaxSize,
 	}
 }
 
@@ -355,18 +376,6 @@ func (c JSONRPCConfig) Validate() error {
 
 	if c.HTTPIdleTimeout < 0 {
 		return errors.New("JSON-RPC HTTP idle timeout duration cannot be negative")
-	}
-
-	if c.QueryTimeout < 0 {
-		return errors.New("JSON-RPC query timeout duration cannot be negative")
-	}
-
-	if c.GetLogsRateLimit < 0 {
-		return errors.New("JSON-RPC eth_getLogs rate limit cannot be negative")
-	}
-
-	if c.GetLogsBurstLimit < 0 {
-		return errors.New("JSON-RPC eth_getLogs burst limit cannot be negative")
 	}
 
 	// check for duplicates
@@ -434,27 +443,28 @@ func GetConfig(v *viper.Viper) (AppConfig, error) {
 			EVMChainID:     v.GetUint64("evm.evm-chain-id"),
 		},
 		JSONRPC: JSONRPCConfig{
-			Enable:                   v.GetBool("json-rpc.enable"),
-			API:                      v.GetStringSlice("json-rpc.api"),
-			Address:                  v.GetString("json-rpc.address"),
-			WsAddress:                v.GetString("json-rpc.ws-address"),
-			GasCap:                   v.GetUint64("json-rpc.gas-cap"),
-			FilterCap:                v.GetInt32("json-rpc.filter-cap"),
-			FeeHistoryCap:            v.GetInt32("json-rpc.feehistory-cap"),
-			TxFeeCap:                 v.GetFloat64("json-rpc.txfee-cap"),
-			EVMTimeout:               v.GetDuration("json-rpc.evm-timeout"),
-			LogsCap:                  v.GetInt32("json-rpc.logs-cap"),
-			BlockRangeCap:            v.GetInt32("json-rpc.block-range-cap"),
-			HTTPTimeout:              v.GetDuration("json-rpc.http-timeout"),
-			HTTPIdleTimeout:          v.GetDuration("json-rpc.http-idle-timeout"),
-			QueryTimeout:             v.GetDuration("json-rpc.query-timeout"),
-			GetLogsRateLimit:         v.GetInt("json-rpc.getlogs-rate-limit"),
-			GetLogsBurstLimit:        v.GetInt("json-rpc.getlogs-burst-limit"),
-			MaxOpenConnections:       v.GetInt("json-rpc.max-open-connections"),
-			EnableIndexer:            v.GetBool("json-rpc.enable-indexer"),
-			AllowUnprotectedTxs:      v.GetBool("json-rpc.allow-unprotected-txs"),
-			MetricsAddress:           v.GetString("json-rpc.metrics-address"),
-			FixRevertGasRefundHeight: v.GetInt64("json-rpc.fix-revert-gas-refund-height"),
+			Enable:               v.GetBool("json-rpc.enable"),
+			API:                  v.GetStringSlice("json-rpc.api"),
+			Address:              v.GetString("json-rpc.address"),
+			WsAddress:            v.GetString("json-rpc.ws-address"),
+			GasCap:               v.GetUint64("json-rpc.gas-cap"),
+			FilterCap:            v.GetInt32("json-rpc.filter-cap"),
+			FeeHistoryCap:        v.GetInt32("json-rpc.feehistory-cap"),
+			TxFeeCap:             v.GetFloat64("json-rpc.txfee-cap"),
+			EVMTimeout:           v.GetDuration("json-rpc.evm-timeout"),
+			LogsCap:              v.GetInt32("json-rpc.logs-cap"),
+			BlockRangeCap:        v.GetInt32("json-rpc.block-range-cap"),
+			HTTPTimeout:          v.GetDuration("json-rpc.http-timeout"),
+			HTTPIdleTimeout:      v.GetDuration("json-rpc.http-idle-timeout"),
+			MaxOpenConnections:   v.GetInt("json-rpc.max-open-connections"),
+			EnableIndexer:        v.GetBool("json-rpc.enable-indexer"),
+			AllowUnprotectedTxs:  v.GetBool("json-rpc.allow-unprotected-txs"),
+			MetricsAddress:       v.GetString("json-rpc.metrics-address"),
+			WSOrigins:            v.GetStringSlice("json-rpc.ws-origins"),
+			EnableProfiling:      v.GetBool("json-rpc.enable-profiling"),
+			AllowInsecureUnlock:  v.GetBool("json-rpc.allow-insecure-unlock"),
+			BatchRequestLimit:    v.GetInt("json-rpc.batch-request-limit"),
+			BatchResponseMaxSize: v.GetInt("json-rpc.batch-response-max-size"),
 		},
 		TLS: TLSConfig{
 			CertificatePath: v.GetString("tls.certificate-path"),

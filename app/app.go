@@ -103,6 +103,7 @@ import (
 	mocatypes "github.com/mocachain/moca/v2/types"
 	// cosmos/evm v0.6.0 EVM keeper + moca's chain-specific precompiles, registered
 	// into the EVM via WithStaticPrecompiles in EvmPrecompiled().
+	evmante "github.com/cosmos/evm/ante"
 	feemarketmodule "github.com/cosmos/evm/x/feemarket"
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
@@ -273,6 +274,12 @@ type Moca struct {
 	tpsCounter *tpsCounter
 	// app config
 	appConfig *servercfg.AppConfig
+
+	// pendingTxListeners are invoked (in CheckTx, via the ante
+	// TxListenerDecorator) for every pending EVM tx hash. The JSON-RPC
+	// newPendingTransactions subscription registers cosmos/evm's stream here
+	// through RegisterPendingTxListener at server startup.
+	pendingTxListeners []evmante.PendingTxListener
 }
 
 // SimulationManager implements runtime.AppI
@@ -856,6 +863,22 @@ func (app *Moca) initStorage() {
 // Name returns the name of the App
 func (app *Moca) Name() string { return app.BaseApp.Name() }
 
+// RegisterPendingTxListener registers a listener that is invoked with every
+// pending EVM tx hash observed in CheckTx. cosmos/evm's JSON-RPC server calls
+// this at startup to feed its newPendingTransactions subscription stream.
+func (app *Moca) RegisterPendingTxListener(listener func(common.Hash)) {
+	app.pendingTxListeners = append(app.pendingTxListeners, listener)
+}
+
+// onPendingTx fans a pending EVM tx hash out to every registered listener. It
+// is wired into the EVM ante chain via HandlerOptions.PendingTxListener, so it
+// is always non-nil; it is a no-op until a listener is registered.
+func (app *Moca) onPendingTx(hash common.Hash) {
+	for _, listener := range app.pendingTxListeners {
+		listener(hash)
+	}
+}
+
 func (app *Moca) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 	options := ante.HandlerOptions{
 		Cdc:                    app.appCodec,
@@ -869,6 +892,9 @@ func (app *Moca) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 		SignModeHandler:        txConfig.SignModeHandler(),
 		SigGasConsumer:         ante.SigVerificationGasConsumer,
 		MaxTxGasWanted:         maxGasWanted,
+		// PendingTxListener feeds the JSON-RPC newPendingTransactions stream
+		// from CheckTx; the decorator is appended in newEVMAnteHandler.
+		PendingTxListener: app.onPendingTx,
 		// TxFeeChecker is left nil; moca's NewDeductFeeDecorator falls back to
 		// checkTxFeeWithValidatorMinGasPrices. cosmos/evm v0.6.0's
 		// NewDynamicFeeChecker takes per-call feemarket params and is wired

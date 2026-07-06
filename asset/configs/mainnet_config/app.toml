@@ -268,6 +268,10 @@ tracer = ""
 # MaxTxGasWanted defines the gas wanted for each eth tx returned in ante handler in check tx mode.
 max-tx-gas-wanted = 0
 
+# EVMChainID is the EIP-155 EVM chain ID (mainnet: 2288). The JSON-RPC layer
+# sources net_version and transaction chain-id checks from this value.
+evm-chain-id = 2288
+
 ###############################################################################
 ###                           JSON RPC Configuration                        ###
 ###############################################################################
@@ -282,6 +286,11 @@ address = "127.0.0.1:8545"
 
 # Address defines the EVM WebSocket server address to bind to.
 ws-address = "127.0.0.1:8546"
+
+# ws-origins defines the allowed Origin headers for WebSocket (eth_subscribe)
+# connections. Non-browser clients (empty Origin) are always allowed; browser
+# clients served from other origins must be listed here. An empty list rejects all.
+ws-origins = ["127.0.0.1", "localhost"]
 
 # API defines a list of JSON-RPC namespaces that should be enabled
 # Example: "eth,txpool,personal,net,debug,web3"
@@ -318,6 +327,16 @@ http-idle-timeout = "2m0s"
 # the node's RPC when the global parameter is disabled.
 allow-unprotected-txs = false
 
+# AllowInsecureUnlock enables keyring-backed account RPCs
+# (eth_accounts, eth_sendTransaction, personal_*). Public nodes SHOULD set this to false.
+allow-insecure-unlock = true
+
+# BatchRequestLimit is the maximum number of calls in a single JSON-RPC batch request (0 = unlimited).
+batch-request-limit = 1000
+
+# BatchResponseMaxSize is the maximum size in bytes of a JSON-RPC batch response (0 = unlimited).
+batch-response-max-size = 25000000
+
 # MaxOpenConnections sets the maximum number of simultaneous connections
 # for the server listener.
 max-open-connections = 0
@@ -329,8 +348,10 @@ enable-indexer = false
 # Prometheus metrics path: /debug/metrics/prometheus
 metrics-address = "127.0.0.1:6065"
 
-# Upgrade height for fix of revert gas refund logic when transaction reverted.
-fix-revert-gas-refund-height = 0
+# EnableProfiling enables the profiling endpoints in the 'debug' JSON-RPC namespace
+# (debug_startCPUProfile, debug_blockProfile, ...). SHOULD NOT be enabled on
+# publicly exposed nodes.
+enable-profiling = false
 
 ###############################################################################
 ###                             TLS Configuration                           ###
