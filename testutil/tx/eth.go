@@ -2,7 +2,6 @@ package tx
 
 import (
 	"encoding/json"
-	"math/big"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
@@ -81,56 +80,6 @@ func PrepareEthTx(
 	txBuilder.SetFeeAmount(txFee)
 
 	return txBuilder.GetTx(), nil
-}
-
-// CreateEthTx is a helper function to create and sign an Ethereum transaction.
-//
-// If the given private key is not nil, it will be used to sign the transaction.
-//
-// It offers the ability to increment the nonce by a given amount in case one wants to set up
-// multiple transactions that are supposed to be executed one after another.
-// Should this not be the case, just pass in zero.
-func CreateEthTx(
-	ctx sdk.Context,
-	appMoca *app.Moca,
-	privKey cryptotypes.PrivKey,
-	from sdk.AccAddress,
-	dest sdk.AccAddress,
-	amount *big.Int,
-	nonceIncrement int,
-) (*evmtypes.MsgEthereumTx, error) {
-	toAddr := common.BytesToAddress(dest.Bytes())
-	fromAddr := common.BytesToAddress(from.Bytes())
-	// TODO(cosmos-evm): ChainID() and GetBaseFee (*big.Int→Dec) changed in v0.6.0; nil chainID OK for fixtures.
-	var chainID *big.Int
-
-	// When we send multiple Ethereum Tx's in one Cosmos Tx, we need to increment the nonce for each one.
-	nonce := appMoca.EvmKeeper.GetNonce(ctx, fromAddr) + uint64(nonceIncrement)
-	baseFee := appMoca.FeeMarketKeeper.GetBaseFee(ctx)
-	evmTxParams := &evmtypes.EvmTxArgs{
-		ChainID:   chainID,
-		Nonce:     nonce,
-		To:        &toAddr,
-		Amount:    amount,
-		GasLimit:  100000,
-		GasFeeCap: baseFee.TruncateInt().BigInt(),
-		GasTipCap: big.NewInt(1),
-		Accesses:  &ethtypes.AccessList{},
-	}
-	msgEthereumTx := evmtypes.NewTx(evmTxParams)
-	// cosmos/evm v0.6.0: MsgEthereumTx.From is now []byte, not string.
-	msgEthereumTx.From = fromAddr.Bytes()
-
-	// If we are creating multiple eth Tx's with different senders, we need to sign here rather than later.
-	if privKey != nil {
-		signer := ethtypes.LatestSignerForChainID(chainID)
-		err := msgEthereumTx.Sign(signer, NewSigner(privKey))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return msgEthereumTx, nil
 }
 
 // GasLimit estimates the gas limit for the provided parameters. To achieve

@@ -14,6 +14,7 @@ import (
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	evmtestutil "github.com/cosmos/evm/testutil"
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/testutil"
@@ -68,7 +69,7 @@ func (s *PrecompileTestSuite) SetupTest() {
 	s.Require().NoError(err)
 
 	safeTime := time.Date(2025, time.January, 10, 0, 0, 0, 0, time.UTC)
-	header := testutil.NewHeader(1, safeTime, chainID, sdk.ConsAddress(valConsAddr.Bytes()), tmhash.Sum([]byte("app")), tmhash.Sum([]byte("validators")))
+	header := evmtestutil.NewHeader(1, safeTime, chainID, sdk.ConsAddress(valConsAddr.Bytes()), tmhash.Sum([]byte("app")), tmhash.Sum([]byte("validators")))
 	s.ctx = s.ctx.WithBlockHeader(header).WithChainID(chainID)
 
 	accAddr := sdk.AccAddress(s.address.Bytes())
