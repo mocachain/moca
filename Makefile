@@ -466,6 +466,17 @@ proto-download-deps:
 	mv ./proto/* ..
 	rm -rf "$(THIRD_PARTY_DIR)/cosmos_proto_tmp"
 
+	mkdir -p "$(THIRD_PARTY_DIR)/cosmos_evm_tmp" && \
+	cd "$(THIRD_PARTY_DIR)/cosmos_evm_tmp" && \
+	git init && \
+	git remote add origin "https://github.com/cosmos/evm.git" && \
+	git config core.sparseCheckout true && \
+	printf "proto\n" > .git/info/sparse-checkout && \
+	git pull origin v0.6.0 && \
+	mkdir -p ../cosmos && \
+	cp -r ./proto/cosmos/evm ../cosmos/
+	rm -rf "$(THIRD_PARTY_DIR)/cosmos_evm_tmp"
+
 	mkdir -p "$(THIRD_PARTY_DIR)/gogoproto" && \
 	curl -SSL https://raw.githubusercontent.com/cosmos/gogoproto/main/gogoproto/gogo.proto > "$(THIRD_PARTY_DIR)/gogoproto/gogo.proto"
 

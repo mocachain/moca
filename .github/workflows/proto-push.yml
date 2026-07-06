@@ -1,0 +1,21 @@
+name: Protobuf Push
+# Publishes proto/ to the Buf Schema Registry (buf.build/moca/moca) on merge to main.
+# Requires a BUF_TOKEN repo secret with push access to the moca BSR module.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "proto/**"
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: bufbuild/buf-setup-action@v1.15.1
+      - uses: bufbuild/buf-push-action@v1
+        with:
+          input: proto
+          buf_token: ${{ secrets.BUF_TOKEN }}
