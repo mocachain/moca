@@ -47,6 +47,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (proto) [#313](https://github.com/mocachain/moca/pull/313) Align the gRPC-gateway swagger and Buf Schema Registry tooling with what moca actually runs: drop the stale `evmos/*`, `ethermint/*`, and `ibc/*` entries in `client/docs/config.json` (modules moca deleted) and add cosmos/evm `x/vm`+`x/feemarket` plus moca's own gateway-served modules (challenge, payment, permission, sp, storage, virtualgroup); title Evmos → Moca. Fix `scripts/protoc-swagger-gen.sh` (it still did `cp -r ./proto/evmos`, a removed dir, silently breaking `make proto-swagger-gen` under `set -e`) and move the third-party proto download out of the Makefile into `scripts/proto-download-deps.sh`, extended to fetch cosmos/evm's protos. Protos are pushed to `buf.build/moca/moca` manually (`buf push proto`) for now.
 - (dockerup) Remove legacy Node.js tooling from `deployment/dockerup` (dev.js, npm manifests,
   Node-only configs); Docker multi-validator flow uses `localup.sh` via `docker-compose.yml`
 - (localup) [#118](https://github.com/mocachain/moca/pull/118) Remove legacy Node.js tooling from `deployment/localup` (dev.js, join.js, npm manifests, configs, sample JSONs); local chains should use `localup.sh`
