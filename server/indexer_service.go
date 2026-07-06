@@ -2,11 +2,14 @@ package server
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"github.com/cometbft/cometbft/libs/service"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
+
 	servertypes "github.com/cosmos/evm/server/types"
 )
 
@@ -42,7 +45,11 @@ func (eis *EVMIndexerService) OnStart() error {
 	if err != nil {
 		return err
 	}
-	latestBlock := status.SyncInfo.LatestBlockHeight
+	// latestBlock is written by the new-block subscription goroutine and read
+	// by the indexing loop below — keep the access atomic (data race in the
+	// pre-fix copy and in upstream cosmos/evm as of v0.6.0).
+	var latestBlock atomic.Int64
+	latestBlock.Store(status.SyncInfo.LatestBlockHeight)
 	newBlockSignal := make(chan struct{}, 1)
 
 	// Use SubscribeUnbuffered here to ensure both subscriptions does not get
@@ -61,8 +68,8 @@ func (eis *EVMIndexerService) OnStart() error {
 		for {
 			msg := <-blockHeadersChan
 			eventDataHeader := msg.Data.(types.EventDataNewBlockHeader)
-			if eventDataHeader.Header.Height > latestBlock {
-				latestBlock = eventDataHeader.Header.Height
+			if eventDataHeader.Header.Height > latestBlock.Load() {
+				latestBlock.Store(eventDataHeader.Header.Height)
 				// notify
 				select {
 				case newBlockSignal <- struct{}{}:
@@ -77,26 +84,45 @@ func (eis *EVMIndexerService) OnStart() error {
 		return err
 	}
 	if lastBlock == -1 {
-		lastBlock = latestBlock
+		lastBlock = latestBlock.Load()
 	}
+
+	// blockErr indicates an error fetching an expected block or its results
+	var blockErr error
+
 	for {
-		if latestBlock <= lastBlock {
-			// nothing to index. wait for signal of new block
+		if latestBlock.Load() <= lastBlock || blockErr != nil {
+			// two cases to enter this block:
+			// 1. nothing to index (indexer is caught up). wait for signal of new block.
+			// 2. previous attempt to index errored (failed to fetch the Block or BlockResults).
+			//    in this case, wait before retrying the data fetching, rather than infinite looping
+			//    a failing fetch. this can occur due to drive latency between the block existing and its
+			//    block_results getting saved.
 			select {
 			case <-newBlockSignal:
 			case <-time.After(NewBlockWaitTimeout):
 			}
+			// Clear the latched fetch error so the loop actually re-attempts
+			// the fetch after backing off. Without this (upstream cosmos/evm
+			// as of v0.6.0), the first transient Block/BlockResults failure
+			// gates the loop forever and indexing stalls until restart.
+			blockErr = nil
 			continue
 		}
-		for i := lastBlock + 1; i <= latestBlock; i++ {
-			block, err := eis.client.Block(ctx, &i)
-			if err != nil {
-				eis.Logger.Error("failed to fetch block", "height", i, "err", err)
+		for i := lastBlock + 1; i <= latestBlock.Load(); i++ {
+			var (
+				block       *coretypes.ResultBlock
+				blockResult *coretypes.ResultBlockResults
+			)
+
+			block, blockErr = eis.client.Block(ctx, &i)
+			if blockErr != nil {
+				eis.Logger.Error("failed to fetch block", "height", i, "err", blockErr)
 				break
 			}
-			blockResult, err := eis.client.BlockResults(ctx, &i)
-			if err != nil {
-				eis.Logger.Error("failed to fetch block result", "height", i, "err", err)
+			blockResult, blockErr = eis.client.BlockResults(ctx, &i)
+			if blockErr != nil {
+				eis.Logger.Error("failed to fetch block result", "height", i, "err", blockErr)
 				break
 			}
 			if err := eis.txIdxr.IndexBlock(block.Block, blockResult.TxsResults); err != nil {
