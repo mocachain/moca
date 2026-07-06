@@ -1,3 +1,12 @@
+// Package indexer_test exercises cosmos/evm's KV indexer (the implementation
+// moca ships since the in-tree copy was removed) under moca's module graph:
+// the forked cosmos-sdk, moca's encoding config, and moca's tx types. Upstream
+// publishes no test files in its module (its equivalent suite runs only in the
+// cosmos/evm repo, against their app), so without this the indexer path would
+// have zero coverage in moca's CI — and fork-integration breaks (codec, key
+// types) on future cosmos/evm bumps would go unnoticed. Lives under
+// tests/integration/ (mirroring upstream's tests/integration/indexer) — the
+// home for guard tests of adopted upstream packages.
 package indexer_test
 
 import (
@@ -11,13 +20,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/cosmos/evm/indexer"
 	evmmodule "github.com/cosmos/evm/x/vm"
 	"github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	evmenc "github.com/mocachain/moca/v2/encoding"
-	"github.com/mocachain/moca/v2/indexer"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
 	"github.com/stretchr/testify/require"

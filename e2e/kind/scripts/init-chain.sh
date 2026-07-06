@@ -359,6 +359,11 @@ generate_genesis() {
     evm_chain_id=$(echo "${CHAIN_ID}" | sed -E 's/.*_([0-9]+)-.*/\1/')
     sed -i "/^evm-chain-id = /d" "$app"
     sed -i "/^\[evm\]$/a evm-chain-id = ${evm_chain_id}" "$app"
+    # Run validators with the EVM tx indexer enabled so the RPC suite exercises
+    # the cosmos/evm KV-indexer path end-to-end. With it off, receipt/tx-hash
+    # lookups silently fall back to CometBFT tx_search, leaving the indexer
+    # with zero live coverage (deployments enable it as operators require).
+    sed -i "s/^enable-indexer = false/enable-indexer = true/" "$app"
     sed -i "s/snapshot-interval = [0-9][0-9]*/snapshot-interval = ${SNAPSHOT_INTERVAL}/g" "$app"
     sed -i "s/snapshot-keep-recent = 2/snapshot-keep-recent = ${SNAPSHOT_KEEP_RECENT}/g" "$app"
     sed -i "s/src-chain-id = 1/src-chain-id = ${SRC_CHAIN_ID}/g" "$app"
