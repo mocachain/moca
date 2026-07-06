@@ -170,6 +170,15 @@
           "Params": "BaseParams"
         }
       }
+    },
+    {
+      "url": "./tmp-swagger-gen/cosmos/base/node/v1beta1/query.swagger.json",
+      "operationIds": {
+        "rename": {
+          "Config": "NodeConfig",
+          "Status": "NodeStatus"
+        }
+      }
     }
   ]
 }
