@@ -16,11 +16,11 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	evmtestutil "github.com/cosmos/evm/testutil"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
-	testutil "github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 )
 
@@ -293,7 +293,7 @@ func TestAuthzLimiterDecorator(t *testing.T) {
 			tx, err := createUnsignedTx(tc.msgs...)
 			require.NoError(t, err)
 
-			_, err = decorator.AnteHandle(ctx, tx, false, testutil.NextFn)
+			_, err = decorator.AnteHandle(ctx, tx, false, evmtestutil.NoOpNextFn)
 			if tc.expectedErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, err, tc.expectedErr)
