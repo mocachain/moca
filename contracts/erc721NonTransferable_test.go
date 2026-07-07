@@ -19,11 +19,13 @@ func TestERC721NonTransferableContract(t *testing.T) {
 
 	mint, ok := abi.Methods["mint"]
 	require.True(t, ok, "ABI must expose mint (used by the storage keeper)")
-	require.Len(t, mint.Inputs, 2, "mint(address,uint256)")
+	require.Equal(t, "mint(address,uint256)", mint.Sig,
+		"exact signature the keeper's CallEVM(..., \"mint\", owner, id) encodes against")
 
 	burn, ok := abi.Methods["burn"]
 	require.True(t, ok, "ABI must expose burn (used by the storage keeper)")
-	require.Len(t, burn.Inputs, 1, "burn(uint256)")
+	require.Equal(t, "burn(uint256)", burn.Sig,
+		"exact signature the keeper's CallEVM(..., \"burn\", id) encodes against")
 
 	// The artifact intentionally ships no bytecode: the keeper only
 	// ABI-encodes calldata against the fixed addresses below; nothing ever
