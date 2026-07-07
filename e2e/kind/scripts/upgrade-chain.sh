@@ -30,8 +30,6 @@ log_info "  Image:  ${NEW_DOCKER_IMAGE}"
 
 # ── Governance mode ──────────────────────────────────────────────────────────
 _upgrade_governance() {
-    local fees="5000000000000000amoca"
-
     log_info "Submitting software-upgrade proposal..."
 
     # Get the gov module authority address
@@ -86,18 +84,11 @@ PROPOSAL_EOF
 
     # Submit proposal via sync broadcast + wait for inclusion
     local submit_out="" submit_hash=""
-    submit_out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
-        mocad tx gov submit-proposal /tmp/upgrade-proposal.json \
-        --from validator0 \
-        --keyring-backend test \
-        --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 \
-        --fees "$fees" \
-        --home /root/.mocad \
-        --broadcast-mode sync -y --output json 2>&1) || {
+    submit_out=$(cosmos_bcast validator-0-0 tx gov submit-proposal /tmp/upgrade-proposal.json --from validator0)
+    if ! printf '%s' "$submit_out" | jq -e . >/dev/null 2>&1; then
         log_error "Upgrade proposal broadcast failed: $submit_out"
         return 1
-    }
+    fi
     echo "$submit_out"
     submit_hash=$(echo "$submit_out" | jq -r '.txhash // empty' 2>/dev/null)
     if [ -z "$submit_hash" ]; then
@@ -130,18 +121,11 @@ PROPOSAL_EOF
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
         log_info "  validator${i} voting YES..."
         local vote_out="" vote_hash=""
-        vote_out=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
-            mocad tx gov vote "$proposal_id" yes \
-            --from "validator${i}" \
-            --keyring-backend test \
-            --chain-id "${CHAIN_ID}" \
-            --node tcp://localhost:26657 \
-            --fees "$fees" \
-            --home /root/.mocad \
-            --broadcast-mode sync -y --output json 2>&1) || {
+        vote_out=$(cosmos_bcast "validator-${i}-0" tx gov vote "$proposal_id" yes --from "validator${i}")
+        if ! printf '%s' "$vote_out" | jq -e . >/dev/null 2>&1; then
             log_warn "  validator${i} vote broadcast failed: $vote_out"
             continue
-        }
+        fi
         vote_hash=$(echo "$vote_out" | jq -r '.txhash // empty' 2>/dev/null)
         if [ -n "$vote_hash" ]; then
             fw_wait_cosmos_tx "$vote_hash" || log_warn "  validator${i} vote not included or failed"
