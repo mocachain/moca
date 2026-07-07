@@ -377,21 +377,10 @@ benchmark:
 
 lint:
 	golangci-lint run --new-from-rev=HEAD~1
-	solhint contracts/**/*.sol
-
-lint-contracts:
-	@cd contracts && \
-	npm i && \
-	npm run lint
 
 lint-fix:
 	golangci-lint run --fix --out-format=tab --issues-exit-code=0
 
-lint-fix-contracts:
-	@cd contracts && \
-	npm i && \
-	npm run lint-fix
-	solhint --fix contracts/**/*.sol
 
 .PHONY: lint lint-fix
 
