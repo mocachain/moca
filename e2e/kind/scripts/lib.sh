@@ -91,9 +91,10 @@ exec_mocad() {
 # Broadcast a cosmos tx (sync mode) with the gas-auto policy, retrying on
 # `account sequence mismatch`. Common flags (home/keyring/chain-id/node/gas/
 # broadcast/output) are added here; callers pass the pod then the mocad args,
-# e.g.  cosmos_bcast validator-0-0 tx bank send "$a" "$b" "$amt" --from "$a"
+# e.g.  cosmos_broadcast validator-0-0 tx bank send "$a" "$b" "$amt" --from "$a"
 # Echoes the final broadcast JSON (or mocad's error text on hard failure).
-cosmos_bcast() {
+# shellcheck disable=SC2153  # CHAIN_ID is set by callers (workflow env / sourced constants)
+cosmos_broadcast() {
     local pod="$1"; shift
     local attempt out
     for ((attempt = 1; attempt <= COSMOS_TX_RETRIES; attempt++)); do

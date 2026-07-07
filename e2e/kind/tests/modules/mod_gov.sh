@@ -36,7 +36,7 @@ _gov_submit_proposal() {
 
     # Submit proposal via sync broadcast so we deterministically get a txhash
     local submit_out broadcast_code txhash
-    submit_out=$(cosmos_bcast validator-0-0 tx gov submit-proposal "${tmpfile}" --from validator0)
+    submit_out=$(cosmos_broadcast validator-0-0 tx gov submit-proposal "${tmpfile}" --from validator0)
     if ! printf '%s' "$submit_out" | jq -e . >/dev/null 2>&1; then
         log_warn "  [gov] broadcast failed: $submit_out" >&2
         return 1

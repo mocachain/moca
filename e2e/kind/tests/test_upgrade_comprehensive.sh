@@ -63,7 +63,7 @@ write_to_pod() {
 # 2>&1 capture instead of being silenced inside the helper.
 cosmos_tx() {
     local out hash
-    out=$(cosmos_bcast validator-0-0 tx "$@")
+    out=$(cosmos_broadcast validator-0-0 tx "$@")
     if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         log_error "  cosmos_tx broadcast failed: $out"
         return 1
@@ -83,7 +83,7 @@ cosmos_tx() {
 cosmos_tx_on() {
     local idx="$1"; shift
     local out hash
-    out=$(cosmos_bcast "validator-${idx}-0" tx "$@")
+    out=$(cosmos_broadcast "validator-${idx}-0" tx "$@")
     if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         log_error "  cosmos_tx_on broadcast failed: $out"
         return 1

@@ -248,8 +248,8 @@ fw_tx_send() {
     local from="$1" to="$2" amount="$3"
 
     local out hash
-    # cosmos_bcast: --gas auto (fee auto-derived from node min-gas-prices) + retry-on-mismatch.
-    out=$(cosmos_bcast validator-0-0 tx bank send "$from" "$to" "$amount" --from "$from")
+    # cosmos_broadcast: --gas auto (fee auto-derived from node min-gas-prices) + retry-on-mismatch.
+    out=$(cosmos_broadcast validator-0-0 tx bank send "$from" "$to" "$amount" --from "$from")
     if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         log_error "  fw_tx_send broadcast failed: $out"
         return 1

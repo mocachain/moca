@@ -84,7 +84,7 @@ PROPOSAL_EOF
 
     # Submit proposal via sync broadcast + wait for inclusion
     local submit_out="" submit_hash=""
-    submit_out=$(cosmos_bcast validator-0-0 tx gov submit-proposal /tmp/upgrade-proposal.json --from validator0)
+    submit_out=$(cosmos_broadcast validator-0-0 tx gov submit-proposal /tmp/upgrade-proposal.json --from validator0)
     if ! printf '%s' "$submit_out" | jq -e . >/dev/null 2>&1; then
         log_error "Upgrade proposal broadcast failed: $submit_out"
         return 1
@@ -121,7 +121,7 @@ PROPOSAL_EOF
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
         log_info "  validator${i} voting YES..."
         local vote_out="" vote_hash=""
-        vote_out=$(cosmos_bcast "validator-${i}-0" tx gov vote "$proposal_id" yes --from "validator${i}")
+        vote_out=$(cosmos_broadcast "validator-${i}-0" tx gov vote "$proposal_id" yes --from "validator${i}")
         if ! printf '%s' "$vote_out" | jq -e . >/dev/null 2>&1; then
             log_warn "  validator${i} vote broadcast failed: $vote_out"
             continue
