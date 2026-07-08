@@ -12,7 +12,7 @@ import (
 	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 
 	mocacommon "github.com/mocachain/moca/v2/types/common"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 const (

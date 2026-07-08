@@ -11,7 +11,7 @@ import (
 	spkeeper "github.com/mocachain/moca/v2/x/sp/keeper"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 const (

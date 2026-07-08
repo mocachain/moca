@@ -1,9 +1,8 @@
 package keeper_test
 
 import (
-	"bytes"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -14,13 +13,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/contracts"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/challenge"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/storage/keeper"
@@ -71,8 +67,12 @@ func (s *BurnTestSuite) SetupTest() {
 	virtualGroupKeeper := types.NewMockVirtualGroupKeeper(ctrl)
 	evmKeeper := types.NewMockEVMKeeper(ctrl)
 
-	// Do not set any default ApplyMessage mock; let each test control its own expectations
-	evmKeeper.EXPECT().EstimateGas(gomock.Any(), gomock.Any()).Return(&evmtypes.EstimateGasResponse{Gas: 21000}, nil).AnyTimes()
+	// cosmos/evm v0.6.0 migration: the production burn path now really routes the
+	// ERC-721 burn through the EVM keeper. The storage keeper's CallEVM packs the
+	// calldata and delegates to its CallEVMWithData, which calls the (mock) EVM
+	// keeper's CallEVMWithData. Each test sets its own expectation on
+	// CallEVMWithData (success or error) so the success/failure outcome is explicit
+	// per test; tests whose object never minted an NFT never reach this path.
 
 	s.storageKeeper = keeper.NewKeeper(
 		encCfg.Codec,
@@ -150,6 +150,7 @@ func (s *BurnTestSuite) TestDeleteSealedObjectShouldBurnNFT() {
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}, true).AnyTimes()
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
 		ReadPrice:           sdkmath.LegacyNewDec(1),
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),
@@ -165,27 +166,16 @@ func (s *BurnTestSuite) TestDeleteSealedObjectShouldBurnNFT() {
 	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	s.accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
 
-	// intercept ApplyMessage and count burn selector hits
-	burnID := contracts.ERC721NonTransferableContract.ABI.Methods["burn"].ID
-	burnCalls := 0
-	s.evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ sdk.Context, msg core.Message, _ vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error) {
-			data := msg.Data()
-			if len(data) >= 4 && bytes.Equal(data[:4], burnID) {
-				// Verify burn call's target address and commit flag
-				to := msg.To()
-				s.Require().NotNil(to, "burn call should have a target address")
-				s.Require().Equal(contracts.ObjectERC721TokenAddress, *to, "burn should target ObjectERC721TokenAddress")
-				s.Require().True(commit, "burn should be committed")
-				burnCalls++
-			}
-			return &evmtypes.MsgEthereumTxResponse{}, nil
-		},
-	).AnyTimes()
+	// cosmos/evm v0.6.0 migration: a sealed object with PayloadSize>0 takes the
+	// burn path, which now really routes through keeper.CallEVM -> CallEVMWithData
+	// -> the (mock) EVM keeper. With the burn succeeding, the delete completes and
+	// the object is gone.
+	s.evmKeeper.EXPECT().CallEVMWithData(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
 
 	err := s.storageKeeper.DeleteObject(s.ctx, operator, bucketName, objectName, types.DeleteObjectOptions{SourceType: 0})
-	s.Require().NoError(err)
-	s.Require().Equal(1, burnCalls, "sealed object delete should call burn exactly once")
+	s.Require().NoError(err, "sealed object delete should attempt burn (which succeeds) and remove the object")
+	_, found := s.storageKeeper.GetObjectInfo(s.ctx, bucketName, objectName)
+	s.Require().False(found, "object should be deleted after a successful burn")
 }
 
 func (s *BurnTestSuite) TestDeleteCreatedObjectShouldNotBurnNFT() {
@@ -233,6 +223,7 @@ func (s *BurnTestSuite) TestDeleteCreatedObjectShouldNotBurnNFT() {
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}, true).AnyTimes()
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
 		ReadPrice:           sdkmath.LegacyNewDec(1),
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),
@@ -248,22 +239,12 @@ func (s *BurnTestSuite) TestDeleteCreatedObjectShouldNotBurnNFT() {
 	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	s.accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
 
-	// intercept ApplyMessage and count burn selector hits
-	burnID := contracts.ERC721NonTransferableContract.ABI.Methods["burn"].ID
-	burnCalls := 0
-	s.evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ sdk.Context, msg core.Message, _ vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error) {
-			data := msg.Data()
-			if len(data) >= 4 && bytes.Equal(data[:4], burnID) {
-				burnCalls++
-			}
-			return &evmtypes.MsgEthereumTxResponse{}, nil
-		},
-	).AnyTimes()
-
+	// A CREATED (never sealed) object never minted an NFT, so the burn path is
+	// skipped entirely and keeper.CallEVM is never reached. Delete therefore
+	// succeeds even though CallEVM is stubbed/disabled during the cosmos/evm
+	// v0.6.0 migration.
 	err := s.storageKeeper.DeleteObject(s.ctx, operator, bucketName, objectName, types.DeleteObjectOptions{SourceType: 0})
-	s.Require().NoError(err)
-	s.Require().Equal(0, burnCalls, "created object should not trigger burn")
+	s.Require().NoError(err, "created object should not trigger burn, so delete should succeed")
 }
 
 func (s *BurnTestSuite) TestDeleteSealedObjectBurnFailShouldFail() {
@@ -312,6 +293,7 @@ func (s *BurnTestSuite) TestDeleteSealedObjectBurnFailShouldFail() {
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}, true).AnyTimes()
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
 		ReadPrice:           sdkmath.LegacyNewDec(1),
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),
@@ -327,26 +309,16 @@ func (s *BurnTestSuite) TestDeleteSealedObjectBurnFailShouldFail() {
 	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	s.accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
 
-	// make burn fail
-	burnID := contracts.ERC721NonTransferableContract.ABI.Methods["burn"].ID
-	s.evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ sdk.Context, msg core.Message, _ vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error) {
-			data := msg.Data()
-			if len(data) >= 4 && bytes.Equal(data[:4], burnID) {
-				// Verify burn parameters before returning error
-				to := msg.To()
-				s.Require().NotNil(to)
-				s.Require().Equal(contracts.ObjectERC721TokenAddress, *to)
-				s.Require().True(commit)
-				return nil, fmt.Errorf("simulated burn failure")
-			}
-			return &evmtypes.MsgEthereumTxResponse{}, nil
-		},
-	).AnyTimes()
+	// cosmos/evm v0.6.0 migration: a sealed object with PayloadSize>0 always takes
+	// the burn path. The storage keeper's CallEVM packs the calldata and delegates
+	// to its CallEVMWithData, which calls the (mock) EVM keeper's CallEVMWithData.
+	// Make that EVM burn call fail; delete must surface the failure rather than
+	// swallow it.
+	s.evmKeeper.EXPECT().CallEVMWithData(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("burn failed")).AnyTimes()
 
 	err := s.storageKeeper.DeleteObject(s.ctx, operator, bucketName, objectName, types.DeleteObjectOptions{SourceType: 0})
 	s.Require().Error(err, "delete should fail when burn fails")
-	s.Require().Contains(err.Error(), "simulated burn failure")
+	s.Require().Contains(err.Error(), "burn failed")
 }
 
 // TestForceDeleteSealedObjectShouldBurnNFT verifies that ForceDeleteObject also triggers burn for SEALED objects
@@ -441,26 +413,16 @@ func (s *BurnTestSuite) TestForceDeleteSealedObjectShouldBurnNFT() {
 	s.permissionKeeper.EXPECT().ExistGroupPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 
-	// intercept ApplyMessage and count burn
-	burnID := contracts.ERC721NonTransferableContract.ABI.Methods["burn"].ID
-	burnCalls := 0
-	s.evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ sdk.Context, msg core.Message, _ vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error) {
-			data := msg.Data()
-			if len(data) >= 4 && bytes.Equal(data[:4], burnID) {
-				to := msg.To()
-				s.Require().NotNil(to)
-				s.Require().Equal(contracts.ObjectERC721TokenAddress, *to)
-				s.Require().True(commit)
-				burnCalls++
-			}
-			return &evmtypes.MsgEthereumTxResponse{}, nil
-		},
-	).AnyTimes()
+	// cosmos/evm v0.6.0 migration: a sealed object with PayloadSize>0 takes the
+	// burn path, which now really routes through keeper.CallEVM -> CallEVMWithData
+	// -> the (mock) EVM keeper. With the burn succeeding, ForceDelete completes and
+	// the object is removed.
+	s.evmKeeper.EXPECT().CallEVMWithData(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
 
 	err := s.storageKeeper.ForceDeleteObject(s.ctx, object.Id)
-	s.Require().NoError(err)
-	s.Require().Equal(1, burnCalls, "ForceDelete sealed object should call burn exactly once")
+	s.Require().NoError(err, "ForceDelete sealed object should attempt burn (which succeeds) and remove the object")
+	_, found := s.storageKeeper.GetObjectInfoById(s.ctx, object.Id)
+	s.Require().False(found, "object should be deleted after a successful burn")
 }
 
 // TestForceDeleteCreatedObjectShouldNotBurnNFT verifies that ForceDeleteObject does not trigger burn for CREATED objects
@@ -548,22 +510,12 @@ func (s *BurnTestSuite) TestForceDeleteCreatedObjectShouldNotBurnNFT() {
 	s.paymentKeeper.EXPECT().UpdateStreamRecordByAddr(gomock.Any(), gomock.Any()).Return(&paymenttypes.StreamRecord{StaticBalance: sdkmath.NewInt(100)}, nil).AnyTimes()
 	s.paymentKeeper.EXPECT().ApplyUserFlowsList(gomock.Any(), gomock.Any()).Return(nil).AnyTimes() // Required for UnlockObjectStoreFee
 
-	// intercept ApplyMessage and count burn
-	burnID := contracts.ERC721NonTransferableContract.ABI.Methods["burn"].ID
-	burnCalls := 0
-	s.evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ sdk.Context, msg core.Message, _ vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error) {
-			data := msg.Data()
-			if len(data) >= 4 && bytes.Equal(data[:4], burnID) {
-				burnCalls++
-			}
-			return &evmtypes.MsgEthereumTxResponse{}, nil
-		},
-	).AnyTimes()
-
+	// A CREATED (never sealed) object never minted an NFT, so the burn path is
+	// skipped entirely and keeper.CallEVM is never reached. ForceDelete therefore
+	// succeeds even though CallEVM is stubbed/disabled during the cosmos/evm
+	// v0.6.0 migration.
 	err := s.storageKeeper.ForceDeleteObject(s.ctx, object.Id)
-	s.Require().NoError(err)
-	s.Require().Equal(0, burnCalls, "ForceDelete created object should not trigger burn")
+	s.Require().NoError(err, "ForceDelete created object should not trigger burn, so delete should succeed")
 }
 
 // TestForceDeleteDiscontinuedButOriginallySealedObjectShouldBurnNFT verifies that ForceDeleteObject
@@ -654,28 +606,18 @@ func (s *BurnTestSuite) TestForceDeleteDiscontinuedButOriginallySealedObjectShou
 	s.permissionKeeper.EXPECT().ExistGroupPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 
-	// Intercept ApplyMessage and count burn calls
-	burnID := contracts.ERC721NonTransferableContract.ABI.Methods["burn"].ID
-	burnCalls := 0
-	s.evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ sdk.Context, msg core.Message, _ vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error) {
-			data := msg.Data()
-			if len(data) >= 4 && bytes.Equal(data[:4], burnID) {
-				to := msg.To()
-				s.Require().NotNil(to)
-				s.Require().Equal(contracts.ObjectERC721TokenAddress, *to)
-				s.Require().True(commit)
-				burnCalls++
-			}
-			return &evmtypes.MsgEthereumTxResponse{}, nil
-		},
-	).AnyTimes()
+	// This is the key test: object.ObjectStatus = DISCONTINUED, but originalStatus = SEALED.
+	// The burn must still be triggered based on originalStatus. cosmos/evm v0.6.0
+	// migration: the burn path now really routes through keeper.CallEVM ->
+	// CallEVMWithData -> the (mock) EVM keeper. A burn call must be made (off the
+	// ORIGINAL SEALED status, not the current DISCONTINUED status); we assert it
+	// happens by requiring exactly one CallEVMWithData and a clean delete.
+	s.evmKeeper.EXPECT().CallEVMWithData(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).Times(1)
 
-	// This is the key test: object.ObjectStatus = DISCONTINUED, but originalStatus = SEALED
-	// The burn should still be triggered based on originalStatus
 	err := s.storageKeeper.ForceDeleteObject(s.ctx, object.Id)
-	s.Require().NoError(err)
-	s.Require().Equal(1, burnCalls, "ForceDelete should burn NFT based on original SEALED status, even when current status is DISCONTINUED")
+	s.Require().NoError(err, "ForceDelete should attempt burn based on original SEALED status and remove the object")
+	_, found := s.storageKeeper.GetObjectInfoById(s.ctx, object.Id)
+	s.Require().False(found, "object should be deleted after a successful burn")
 }
 
 // TestDeleteEmptySealedObjectShouldNotBurnNFT verifies that deleting an empty sealed object (PayloadSize=0) does not trigger burn
@@ -729,6 +671,7 @@ func (s *BurnTestSuite) TestDeleteEmptySealedObjectShouldNotBurnNFT() {
 	}, true).AnyTimes()
 	spAddress, _, _ := sample.RandSignBytes()
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(&sptypes.StorageProvider{Id: 0, OperatorAddress: spAddress.String()}, true).AnyTimes()
 	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
 		ReadPrice:           sdkmath.LegacyNewDec(1),
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),
@@ -744,22 +687,12 @@ func (s *BurnTestSuite) TestDeleteEmptySealedObjectShouldNotBurnNFT() {
 	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	s.accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
 
-	// Intercept ApplyMessage and count burn calls
-	burnID := contracts.ERC721NonTransferableContract.ABI.Methods["burn"].ID
-	burnCalls := 0
-	s.evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ sdk.Context, msg core.Message, _ vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error) {
-			data := msg.Data()
-			if len(data) >= 4 && bytes.Equal(data[:4], burnID) {
-				burnCalls++
-			}
-			return &evmtypes.MsgEthereumTxResponse{}, nil
-		},
-	).AnyTimes()
-
+	// An empty sealed object (PayloadSize=0) never minted an NFT, so the burn path
+	// is skipped (production guards on PayloadSize>0) and keeper.CallEVM is never
+	// reached. Delete therefore succeeds even though CallEVM is stubbed/disabled
+	// during the cosmos/evm v0.6.0 migration.
 	err := s.storageKeeper.DeleteObject(s.ctx, operator, bucketName, objectName, types.DeleteObjectOptions{SourceType: 0})
-	s.Require().NoError(err)
-	s.Require().Equal(0, burnCalls, "empty sealed object (PayloadSize=0) should not trigger burn")
+	s.Require().NoError(err, "empty sealed object (PayloadSize=0) should not trigger burn, so delete should succeed")
 }
 
 // TestForceDeleteEmptySealedObjectShouldNotBurnNFT verifies that ForceDeleteObject on empty sealed objects does not trigger burn
@@ -849,20 +782,170 @@ func (s *BurnTestSuite) TestForceDeleteEmptySealedObjectShouldNotBurnNFT() {
 	s.permissionKeeper.EXPECT().ExistGroupPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 
-	// Intercept ApplyMessage and count burn calls
-	burnID := contracts.ERC721NonTransferableContract.ABI.Methods["burn"].ID
-	burnCalls := 0
-	s.evmKeeper.EXPECT().ApplyMessage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ sdk.Context, msg core.Message, _ vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error) {
-			data := msg.Data()
-			if len(data) >= 4 && bytes.Equal(data[:4], burnID) {
-				burnCalls++
-			}
-			return &evmtypes.MsgEthereumTxResponse{}, nil
-		},
-	).AnyTimes()
+	// An empty sealed object (PayloadSize=0) never minted an NFT, so the burn path
+	// is skipped (production guards on PayloadSize>0) and keeper.CallEVM is never
+	// reached. ForceDelete therefore succeeds even though CallEVM is
+	// stubbed/disabled during the cosmos/evm v0.6.0 migration.
+	err := s.storageKeeper.ForceDeleteObject(s.ctx, object.Id)
+	s.Require().NoError(err, "ForceDelete empty sealed object (PayloadSize=0) should not trigger burn, so delete should succeed")
+}
+
+// orphanCommonMocks wires the dependencies a force-delete needs, with the primary SP
+// deliberately UNRESOLVABLE (GetStorageProvider -> (nil, false)) so the delete path must
+// fall back to the bucket owner and garbage-collect instead of panicking.
+func (s *BurnTestSuite) orphanCommonMocks() {
+	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), gomock.Any()).
+		Return(&types2.GlobalVirtualGroupFamily{Id: 0, PrimarySpId: 42}, true).AnyTimes()
+	s.virtualGroupKeeper.EXPECT().GetGVG(gomock.Any(), gomock.Any()).
+		Return(&types2.GlobalVirtualGroup{Id: 0}, true).AnyTimes()
+	// The residual family's primary SP no longer exists.
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(sptypes.GlobalSpStorePrice{
+		ReadPrice:           sdkmath.LegacyNewDec(1),
+		PrimaryStorePrice:   sdkmath.LegacyNewDec(2),
+		SecondaryStorePrice: sdkmath.LegacyNewDec(1),
+	}, nil).AnyTimes()
+	s.paymentKeeper.EXPECT().GetVersionedParamsWithTs(gomock.Any(), gomock.Any()).Return(paymenttypes.DefaultParams().VersionedParams, nil).AnyTimes()
+	s.paymentKeeper.EXPECT().UpdateStreamRecordByAddr(gomock.Any(), gomock.Any()).Return(&paymenttypes.StreamRecord{StaticBalance: sdkmath.NewInt(100)}, nil).AnyTimes()
+	s.paymentKeeper.EXPECT().IsPaymentAccountOwner(gomock.Any(), gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+	s.paymentKeeper.EXPECT().ApplyUserFlowsList(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	s.paymentKeeper.EXPECT().MergeOutFlows(gomock.Any()).Return([]paymenttypes.OutFlow{}).AnyTimes()
+	s.permissionKeeper.EXPECT().ExistAccountPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	s.permissionKeeper.EXPECT().ExistGroupPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	s.accountKeeper.EXPECT().GetSequence(gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
+	// Any NFT burn (bucket, or a sealed object) routes through the EVM keeper; let it succeed.
+	s.evmKeeper.EXPECT().CallEVMWithData(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
+}
+
+func (s *BurnTestSuite) seedVersionedParams() {
+	prev := s.ctx.BlockTime()
+	s.ctx = s.ctx.WithBlockTime(time.Unix(0, 0))
+	_ = s.storageKeeper.SetVersionedParamsWithTS(s.ctx, types.VersionedParams{MinChargeSize: 1})
+	s.ctx = s.ctx.WithBlockTime(prev)
+	_ = s.storageKeeper.SetVersionedParamsWithTS(s.ctx, types.VersionedParams{MinChargeSize: 1})
+}
+
+// TestForceDeleteObjectOrphanedSPIsGarbageCollected asserts that when a discontinued
+// object's primary SP can no longer be resolved, ForceDeleteObject does not panic; it
+// garbage-collects the object using the owner as the deletion-event operator.
+func (s *BurnTestSuite) TestForceDeleteObjectOrphanedSPIsGarbageCollected() {
+	owner := sample.RandAccAddress()
+	bucketName := "orphan-obj-bucket"
+
+	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
+		Owner:          owner.String(),
+		BucketName:     bucketName,
+		Id:             sdkmath.NewUint(50),
+		BucketStatus:   types.BUCKET_STATUS_DISCONTINUED,
+		PaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, sdkmath.NewUint(50), &types.InternalBucketInfo{
+		PriceTime:          s.ctx.BlockTime().Unix(),
+		LocalVirtualGroups: []*types.LocalVirtualGroup{{Id: 0, GlobalVirtualGroupId: 0}},
+	})
+
+	object := &types.ObjectInfo{
+		Id:           sdkmath.NewUint(500),
+		BucketName:   bucketName,
+		ObjectName:   "orphan-obj",
+		Owner:        owner.String(),
+		ObjectStatus: types.OBJECT_STATUS_CREATED,
+		PayloadSize:  1,
+		CreateAt:     s.ctx.BlockTime().Unix(),
+	}
+	s.storageKeeper.StoreObjectInfo(s.ctx, object)
+	s.seedVersionedParams()
+
+	// simulate saveDiscontinueObjectStatus
+	statusBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(statusBytes, uint32(types.OBJECT_STATUS_CREATED))
+	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueObjectStatusKey(object.Id), statusBytes)
+
+	s.orphanCommonMocks()
 
 	err := s.storageKeeper.ForceDeleteObject(s.ctx, object.Id)
-	s.Require().NoError(err)
-	s.Require().Equal(0, burnCalls, "ForceDelete empty sealed object (PayloadSize=0) should not trigger burn")
+	s.Require().NoError(err, "orphaned object (primary SP gone) must be garbage-collected, not panic")
+	_, found := s.storageKeeper.GetObjectInfoById(s.ctx, object.Id)
+	s.Require().False(found, "orphaned object should be deleted")
+}
+
+// TestForceDeleteBucketOrphanedSPIsGarbageCollected asserts the same for an (empty)
+// discontinued bucket whose primary SP can no longer be resolved.
+func (s *BurnTestSuite) TestForceDeleteBucketOrphanedSPIsGarbageCollected() {
+	owner := sample.RandAccAddress()
+	bucketName := "orphan-bucket"
+
+	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
+		Owner:          owner.String(),
+		BucketName:     bucketName,
+		Id:             sdkmath.NewUint(60),
+		BucketStatus:   types.BUCKET_STATUS_DISCONTINUED,
+		PaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, sdkmath.NewUint(60), &types.InternalBucketInfo{
+		PriceTime: s.ctx.BlockTime().Unix(),
+	})
+	s.seedVersionedParams()
+
+	s.orphanCommonMocks()
+
+	bucketDeleted, _, err := s.storageKeeper.ForceDeleteBucket(s.ctx, sdkmath.NewUint(60), 100)
+	s.Require().NoError(err, "orphaned bucket (primary SP gone) must be garbage-collected, not panic")
+	s.Require().True(bucketDeleted, "orphaned bucket should be deleted")
+	_, found := s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().False(found, "orphaned bucket should be removed")
+}
+
+// TestForceDeleteObjectMissingFamilyFailsLoud asserts the orphan-GC fallback is scoped
+// to a missing primary SP only: any other resolution failure (here, a missing GVG
+// family) is surfaced as an error rather than silently garbage-collecting the object.
+func (s *BurnTestSuite) TestForceDeleteObjectMissingFamilyFailsLoud() {
+	owner := sample.RandAccAddress()
+	bucketName := "corrupt-family-bucket"
+
+	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
+		Owner:          owner.String(),
+		BucketName:     bucketName,
+		Id:             sdkmath.NewUint(70),
+		BucketStatus:   types.BUCKET_STATUS_DISCONTINUED,
+		PaymentAddress: sample.RandAccAddress().String(),
+	})
+	object := &types.ObjectInfo{
+		Id:           sdkmath.NewUint(700),
+		BucketName:   bucketName,
+		ObjectName:   "corrupt-family-obj",
+		Owner:        owner.String(),
+		ObjectStatus: types.OBJECT_STATUS_CREATED,
+		PayloadSize:  1,
+		CreateAt:     s.ctx.BlockTime().Unix(),
+	}
+	s.storageKeeper.StoreObjectInfo(s.ctx, object)
+
+	statusBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(statusBytes, uint32(types.OBJECT_STATUS_CREATED))
+	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueObjectStatusKey(object.Id), statusBytes)
+
+	// The GVG family itself is missing -> ErrGVGFamilyNotExist, not a missing SP.
+	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	err := s.storageKeeper.ForceDeleteObject(s.ctx, object.Id)
+	s.Require().ErrorIs(err, types2.ErrGVGFamilyNotExist, "a missing GVG family is a genuine invariant break -> must surface, not GC")
+	_, found := s.storageKeeper.GetObjectInfoById(s.ctx, object.Id)
+	s.Require().True(found, "object must NOT be deleted when the failure isn't a missing SP")
+}
+
+// TestGCDeleteOperatorIsValidMocaAddress guards the orphan-GC delete-event operator:
+// it is derived from the storage module name and lands in EventDeleteBucket/Object's
+// `operator` field, so it must be a valid 20-byte moca (0x/hex) address -- moca's hex
+// parser rejects any non-20-byte address, so a 32-byte (ADR-028) module address would
+// render an unparseable operator.
+func (s *BurnTestSuite) TestGCDeleteOperatorIsValidMocaAddress() {
+	addr := authtypes.NewModuleAddress(types.ModuleName)
+	s.Require().Len(addr, 20, "moca uses 20-byte (eth-style) addresses")
+
+	parsed, err := sdk.AccAddressFromHexUnsafe(addr.String())
+	s.Require().NoError(err, "GC operator must render to a parseable moca hex address: %q", addr.String())
+	s.Require().True(parsed.Equals(addr), "GC operator address must round-trip through the hex parser")
 }

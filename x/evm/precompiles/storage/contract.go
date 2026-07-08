@@ -10,13 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type (
 	precompiledContractFunc func(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error)
 	Contract                struct {
-		ctx           sdk.Context
 		storageKeeper storagekeeper.Keeper
 		handlers      map[string]precompiledContractFunc
 		gasMeters     map[string]uint64
@@ -24,9 +24,9 @@ type (
 	}
 )
 
-func NewPrecompiledContract(ctx sdk.Context, storageKeeper storagekeeper.Keeper) *Contract {
+// NewPrecompiledContract returns a new static precompile instance.
+func NewPrecompiledContract(storageKeeper storagekeeper.Keeper) *Contract {
 	c := &Contract{
-		ctx:           ctx,
 		storageKeeper: storageKeeper,
 		handlers:      make(map[string]precompiledContractFunc),
 		gasMeters:     make(map[string]uint64),
@@ -47,7 +47,6 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 		return 0
 	}
 
-	// Special handling for dynamic gas methods
 	switch method.Name {
 	case PutPolicyMethodName:
 		return c.calculatePutPolicyGas(input)
@@ -63,10 +62,21 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
-	ctx, commit := c.ctx.CacheContext()
+	stateDB, ok := evm.StateDB.(*statedb.StateDB)
+	if !ok {
+		return types.PackRetError("storage precompile must run within the cosmos/evm StateDB")
+	}
+	cacheCtx, err := stateDB.GetCacheContext()
+	if err != nil {
+		return types.PackRetError(err.Error())
+	}
+	ctx, commit := cacheCtx.CacheContext()
 	snapshot := evm.StateDB.Snapshot()
 	defer func() {
 		if err != nil {
@@ -117,7 +127,6 @@ func (c *Contract) AddOtherLog(evm *vm.EVM, event abi.Event, address common.Addr
 	return nil
 }
 
-// calculatePutPolicyGas calculates gas cost based on statements and their nested fields
 func (c *Contract) calculatePutPolicyGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return PutPolicyBaseGas
@@ -134,13 +143,11 @@ func (c *Contract) calculatePutPolicyGas(input []byte) uint64 {
 		return PutPolicyBaseGas
 	}
 
-	// Calculate dynamic gas: base + per_statement * num_statements + per_action * total_actions + per_resource * total_resources
 	numStatements := uint64(len(args.Statements))
 	if numStatements > MaxPolicyStatements {
 		numStatements = MaxPolicyStatements
 	}
 
-	// Count total actions and resources across all statements
 	totalActions := uint64(0)
 	totalResources := uint64(0)
 	for i, statement := range args.Statements {
@@ -155,7 +162,6 @@ func (c *Contract) calculatePutPolicyGas(input []byte) uint64 {
 		(totalActions * PutPolicyPerActionGas) + (totalResources * PutPolicyPerResourceGas)
 }
 
-// calculateRenewGroupMemberGas calculates gas cost based on number of members
 func (c *Contract) calculateRenewGroupMemberGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return RenewGroupMemberBaseGas
@@ -172,7 +178,6 @@ func (c *Contract) calculateRenewGroupMemberGas(input []byte) uint64 {
 		return RenewGroupMemberBaseGas
 	}
 
-	// Calculate dynamic gas: base + per_member * num_members
 	numMembers := uint64(len(args.Members))
 	if numMembers > MaxRenewGroupMembers {
 		numMembers = MaxRenewGroupMembers
@@ -181,7 +186,6 @@ func (c *Contract) calculateRenewGroupMemberGas(input []byte) uint64 {
 	return RenewGroupMemberBaseGas + (numMembers * RenewGroupMemberPerMemberGas)
 }
 
-// calculateUpdateGroupGas calculates gas cost based on total members to add/delete
 func (c *Contract) calculateUpdateGroupGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return UpdateGroupBaseGas
@@ -198,7 +202,6 @@ func (c *Contract) calculateUpdateGroupGas(input []byte) uint64 {
 		return UpdateGroupBaseGas
 	}
 
-	// Calculate dynamic gas: base + per_member * (num_add + num_delete)
 	totalMembers := uint64(len(args.MembersToAdd) + len(args.MembersToDelete))
 	if totalMembers > MaxUpdateGroupMembers {
 		totalMembers = MaxUpdateGroupMembers
@@ -207,7 +210,6 @@ func (c *Contract) calculateUpdateGroupGas(input []byte) uint64 {
 	return UpdateGroupBaseGas + (totalMembers * UpdateGroupPerMemberGas)
 }
 
-// calculateDiscontinueObjectGas calculates gas cost based on number of object IDs
 func (c *Contract) calculateDiscontinueObjectGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return DiscontinueObjectBaseGas
@@ -224,7 +226,6 @@ func (c *Contract) calculateDiscontinueObjectGas(input []byte) uint64 {
 		return DiscontinueObjectBaseGas
 	}
 
-	// Calculate dynamic gas: base + per_id * num_ids
 	numIds := uint64(len(args.ObjectIds))
 	if numIds > MaxDiscontinueObjectIds {
 		numIds = MaxDiscontinueObjectIds

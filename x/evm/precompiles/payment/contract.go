@@ -10,13 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	paymentkeeper "github.com/mocachain/moca/v2/x/payment/keeper"
 
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type (
 	precompiledContractFunc func(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error)
 	Contract                struct {
-		ctx           sdk.Context
 		paymentKeeper paymentkeeper.Keeper
 		handlers      map[string]precompiledContractFunc
 		gasMeters     map[string]uint64
@@ -24,9 +24,9 @@ type (
 	}
 )
 
-func NewPrecompiledContract(ctx sdk.Context, paymentKeeper paymentkeeper.Keeper) *Contract {
+// NewPrecompiledContract returns a new static precompile instance.
+func NewPrecompiledContract(paymentKeeper paymentkeeper.Keeper) *Contract {
 	c := &Contract{
-		ctx:           ctx,
 		paymentKeeper: paymentKeeper,
 		handlers:      make(map[string]precompiledContractFunc),
 		gasMeters:     make(map[string]uint64),
@@ -50,10 +50,21 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
-	ctx, commit := c.ctx.CacheContext()
+	stateDB, ok := evm.StateDB.(*statedb.StateDB)
+	if !ok {
+		return types.PackRetError("payment precompile must run within the cosmos/evm StateDB")
+	}
+	cacheCtx, err := stateDB.GetCacheContext()
+	if err != nil {
+		return types.PackRetError(err.Error())
+	}
+	ctx, commit := cacheCtx.CacheContext()
 	snapshot := evm.StateDB.Snapshot()
 	defer func() {
 		if err != nil {

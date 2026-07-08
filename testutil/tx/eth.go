@@ -2,7 +2,6 @@ package tx
 
 import (
 	"encoding/json"
-	"math/big"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
@@ -16,10 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/server/config"
 	"github.com/mocachain/moca/v2/utils"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // PrepareEthTx creates an ethereum tx and signs it with the provided messages and private key.
@@ -32,7 +31,9 @@ func PrepareEthTx(
 ) (authsigning.Tx, error) {
 	txBuilder := txCfg.NewTxBuilder()
 
-	signer := ethtypes.LatestSignerForChainID(appMoca.EvmKeeper.ChainID())
+	// TODO(cosmos-evm): ChainID() removed in v0.6.0; nil yields unprotected signer, OK for test fixtures.
+	_ = appMoca
+	signer := ethtypes.LatestSignerForChainID(nil)
 	txFee := sdk.Coins{}
 	txGasLimit := uint64(0)
 
@@ -50,7 +51,8 @@ func PrepareEthTx(
 			}
 		}
 
-		msg.From = ""
+		// cosmos/evm v0.6.0: MsgEthereumTx.From is now []byte, not string.
+		msg.From = nil
 
 		txGasLimit += msg.GetGas()
 		txFee = txFee.Add(sdk.Coin{Denom: utils.BaseDenom, Amount: sdkmath.NewIntFromBigInt(msg.GetFee())})
@@ -78,53 +80,6 @@ func PrepareEthTx(
 	txBuilder.SetFeeAmount(txFee)
 
 	return txBuilder.GetTx(), nil
-}
-
-// CreateEthTx is a helper function to create and sign an Ethereum transaction.
-//
-// If the given private key is not nil, it will be used to sign the transaction.
-//
-// It offers the ability to increment the nonce by a given amount in case one wants to set up
-// multiple transactions that are supposed to be executed one after another.
-// Should this not be the case, just pass in zero.
-func CreateEthTx(
-	ctx sdk.Context,
-	appMoca *app.Moca,
-	privKey cryptotypes.PrivKey,
-	from sdk.AccAddress,
-	dest sdk.AccAddress,
-	amount *big.Int,
-	nonceIncrement int,
-) (*evmtypes.MsgEthereumTx, error) {
-	toAddr := common.BytesToAddress(dest.Bytes())
-	fromAddr := common.BytesToAddress(from.Bytes())
-	chainID := appMoca.EvmKeeper.ChainID()
-
-	// When we send multiple Ethereum Tx's in one Cosmos Tx, we need to increment the nonce for each one.
-	nonce := appMoca.EvmKeeper.GetNonce(ctx, fromAddr) + uint64(nonceIncrement)
-	evmTxParams := &evmtypes.EvmTxArgs{
-		ChainID:   chainID,
-		Nonce:     nonce,
-		To:        &toAddr,
-		Amount:    amount,
-		GasLimit:  100000,
-		GasFeeCap: appMoca.FeeMarketKeeper.GetBaseFee(ctx),
-		GasTipCap: big.NewInt(1),
-		Accesses:  &ethtypes.AccessList{},
-	}
-	msgEthereumTx := evmtypes.NewTx(evmTxParams)
-	msgEthereumTx.From = fromAddr.String()
-
-	// If we are creating multiple eth Tx's with different senders, we need to sign here rather than later.
-	if privKey != nil {
-		signer := ethtypes.LatestSignerForChainID(appMoca.EvmKeeper.ChainID())
-		err := msgEthereumTx.Sign(signer, NewSigner(privKey))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return msgEthereumTx, nil
 }
 
 // GasLimit estimates the gas limit for the provided parameters. To achieve

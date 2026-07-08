@@ -25,11 +25,11 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/mocachain/moca/v2/cmd/config"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 )
 
 func init() {
@@ -188,8 +188,17 @@ func GenesisStateWithValSet(app *Moca, genesisState mocatypes.GenesisState,
 		Coins:   sdk.Coins{sdk.NewCoin(utils.BaseDenom, bondAmt)},
 	})
 
-	// update total supply
-	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, []banktypes.Metadata{}, []banktypes.SendEnabled{})
+	// update total supply, preserving any denom metadata already set on the
+	// incoming genesis (e.g. DefaultGenesis registers the amoca EVM denom
+	// metadata that cosmos/evm's InitGenesis requires). The bank genesis entry
+	// may be absent in some test-genesis builders, so guard the unmarshal.
+	var existingMeta []banktypes.Metadata
+	if raw := genesisState[banktypes.ModuleName]; len(raw) > 0 {
+		var existingBank banktypes.GenesisState
+		app.AppCodec().MustUnmarshalJSON(raw, &existingBank)
+		existingMeta = existingBank.DenomMetadata
+	}
+	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, existingMeta, []banktypes.SendEnabled{})
 	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)
 
 	// set distribution genesis

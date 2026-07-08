@@ -16,9 +16,9 @@ import (
 	protov2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	enccodec "github.com/mocachain/moca/v2/encoding/codec"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // encodingConfig creates a new EncodingConfig and returns it

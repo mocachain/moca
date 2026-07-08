@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	accountkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -14,20 +13,20 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
+	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/authz"
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
-	ctx           sdk.Context
 	govKeeper     govkeeper.Keeper
 	accountKeeper accountkeeper.AccountKeeper
 	queryServer   v1.QueryServer
 }
 
-func NewPrecompiledContract(ctx sdk.Context, govKeeper govkeeper.Keeper, accountKeeper accountkeeper.AccountKeeper) *Contract {
+// NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
+func NewPrecompiledContract(govKeeper govkeeper.Keeper, accountKeeper accountkeeper.AccountKeeper) *Contract {
 	return &Contract{
-		ctx:           ctx,
 		govKeeper:     govKeeper,
 		accountKeeper: accountKeeper,
 		queryServer:   govkeeper.NewQueryServer(&govKeeper),
@@ -77,16 +76,27 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
 
-	ctx, commit := c.ctx.CacheContext()
+	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
+	stateDB, ok := evm.StateDB.(*statedb.StateDB)
+	if !ok {
+		return types.PackRetError("gov precompile must run within the cosmos/evm StateDB")
+	}
+	cacheCtx, err := stateDB.GetCacheContext()
+	if err != nil {
+		return types.PackRetError(err.Error())
+	}
+	ctx, commit := cacheCtx.CacheContext()
 	snapshot := evm.StateDB.Snapshot()
 
 	method, err := GetMethodByID(contract.Input)
 	if err == nil {
-		// parse input
 		switch method.Name {
 		case LegacySubmitProposalMethodName:
 			ret, err = c.LegacySubmitProposal(ctx, evm, contract, readonly)
@@ -115,17 +125,15 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 		case ParamsMethodName:
 			ret, err = c.Params(ctx, evm, contract, readonly)
 		default:
-			err = fmt.Errorf("method %s is not handle", method.Name)
+			err = fmt.Errorf("method %s is not handled", method.Name)
 		}
 	}
 
 	if err != nil {
-		// revert evm state
 		evm.StateDB.RevertToSnapshot(snapshot)
 		return types.PackRetError(err.Error())
 	}
 
-	// commit and append events
 	commit()
 	return ret, nil
 }
@@ -144,7 +152,6 @@ func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, ar
 	return nil
 }
 
-// calculateSubmitProposalGas calculates gas cost based on number of messages and payload size
 func (c *Contract) calculateSubmitProposalGas(input []byte) uint64 {
 	if len(input) < 4 {
 		return SubmitProposalBaseGas
@@ -161,20 +168,17 @@ func (c *Contract) calculateSubmitProposalGas(input []byte) uint64 {
 		return SubmitProposalBaseGas
 	}
 
-	// Parse messages to count them
 	var messages []json.RawMessage
 	err = json.Unmarshal([]byte(args.Messages), &messages)
 	if err != nil {
 		return SubmitProposalBaseGas
 	}
 
-	// Calculate number of messages (capped at max)
 	numMsgs := uint64(len(messages))
 	if numMsgs > MaxSubmitProposalMsgs {
 		numMsgs = MaxSubmitProposalMsgs
 	}
 
-	// Calculate payload size (capped at max)
 	// Convert []json.RawMessage to []string to reuse authz.CalcPerMsgBytes
 	msgStrings := make([]string, len(messages))
 	for i, msg := range messages {
@@ -185,6 +189,5 @@ func (c *Contract) calculateSubmitProposalGas(input []byte) uint64 {
 		payloadSize = MaxSubmitProposalPayloadBytes
 	}
 
-	// Gas formula: Base + PerMsg * num + PerByte * size
 	return SubmitProposalBaseGas + (numMsgs * SubmitProposalPerMsgGas) + (payloadSize * SubmitProposalPerByteGas)
 }

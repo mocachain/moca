@@ -33,8 +33,8 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/server"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func startInProcess(cfg Config, val *Validator) error {
@@ -128,10 +128,12 @@ func startInProcess(cfg Config, val *Validator) error {
 			return fmt.Errorf("validator %s context is nil", val.Moniker)
 		}
 
-		tmEndpoint := "/websocket"
-		tmRPCAddr := fmt.Sprintf("tcp://%s", val.AppConfig.GRPC.Address)
+		pendingTxApp, ok := app.(server.AppWithPendingTxStream)
+		if !ok {
+			return fmt.Errorf("app %T does not implement server.AppWithPendingTxStream", app)
+		}
 
-		val.jsonrpc, val.jsonrpcDone, err = server.StartJSONRPC(val.Ctx, val.ClientCtx, tmRPCAddr, tmEndpoint, val.AppConfig, nil)
+		val.jsonrpc, val.jsonrpcDone, err = server.StartJSONRPC(val.Ctx, val.ClientCtx, val.AppConfig, nil, pendingTxApp)
 		if err != nil {
 			return err
 		}

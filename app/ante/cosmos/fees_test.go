@@ -1,14 +1,14 @@
 package cosmos_test
 
 import (
-	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"time"
 
-	"cosmossdk.io/math"
+	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/x/feegrant"
 	sdktestutil "github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	evmtestutil "github.com/cosmos/evm/testutil"
 	cosmosante "github.com/mocachain/moca/v2/app/ante/cosmos"
 	"github.com/mocachain/moca/v2/testutil"
 	testutiltx "github.com/mocachain/moca/v2/testutil/tx"
@@ -23,17 +23,17 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 		// fee granter
 		fgAddr, _   = testutiltx.NewAccAddressAndKey()
 		initBalance = sdkmath.NewInt(1e18)
-		lowGasPrice = math.NewInt(1)
+		lowGasPrice = sdkmath.NewInt(1)
 		zero        = sdkmath.ZeroInt()
 	)
 
 	// Testcase definitions
 	testcases := []struct {
 		name        string
-		balance     math.Int
-		rewards     math.Int
+		balance     sdkmath.Int
+		rewards     sdkmath.Int
 		gas         uint64
-		gasPrice    *math.Int
+		gasPrice    *sdkmath.Int
 		feeGranter  sdk.AccAddress
 		checkTx     bool
 		simulate    bool
@@ -292,7 +292,7 @@ func (suite *AnteTestSuite) TestDeductFeeDecorator() {
 			suite.Require().NoError(err, "failed to create transaction")
 
 			// run the ante handler
-			_, err = dfd.AnteHandle(suite.ctx, tx, tc.simulate, testutil.NextFn)
+			_, err = dfd.AnteHandle(suite.ctx, tx, tc.simulate, evmtestutil.NoOpNextFn)
 
 			// assert the resulting error
 			if tc.expPass {

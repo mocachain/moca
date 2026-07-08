@@ -47,11 +47,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 
-	"github.com/mocachain/moca/v2/indexer"
-	ethdebug "github.com/mocachain/moca/v2/rpc/namespaces/ethereum/debug"
+	"github.com/cosmos/evm/indexer"
+	ethdebug "github.com/cosmos/evm/rpc/namespaces/ethereum/debug"
+	servertypes "github.com/cosmos/evm/server/types"
+
 	"github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
-	mocatypes "github.com/mocachain/moca/v2/types"
 )
 
 // DBOpener is a function to open `application.db`, potentially with customized options.
@@ -183,6 +184,7 @@ which accepts a path for the resulting pprof file.
 	cmd.Flags().StringSlice(srvflags.JSONRPCAPI, config.GetDefaultAPINamespaces(), "Defines a list of JSON-RPC namespaces that should be enabled")
 	cmd.Flags().String(srvflags.JSONRPCAddress, config.DefaultJSONRPCAddress, "the JSON-RPC server address to listen on")
 	cmd.Flags().String(srvflags.JSONWsAddress, config.DefaultJSONRPCWsAddress, "the JSON-RPC WS server address to listen on")
+	cmd.Flags().StringSlice(srvflags.JSONWsOrigins, config.GetDefaultWSOrigins(), "Comma-separated list of allowed Origin headers for JSON-RPC WS (eth_subscribe) connections; non-browser clients (no Origin) are always allowed")
 	cmd.Flags().Uint64(srvflags.JSONRPCGasCap, config.DefaultGasCap, "Sets a cap on gas that can be used in eth_call/estimateGas unit is amoca (0=infinite)")
 	cmd.Flags().Float64(srvflags.JSONRPCTxFeeCap, config.DefaultTxFeeCap, "Sets a cap on transaction fee that can be sent via the RPC APIs (1 = default 1 moca)")
 	cmd.Flags().Int32(srvflags.JSONRPCFilterCap, config.DefaultFilterCap, "Sets the global cap for total number of filters that can be created")
@@ -194,10 +196,15 @@ which accepts a path for the resulting pprof file.
 	cmd.Flags().Int32(srvflags.JSONRPCBlockRangeCap, config.DefaultBlockRangeCap, "Sets the max block range allowed for `eth_getLogs` query")
 	cmd.Flags().Int(srvflags.JSONRPCMaxOpenConnections, config.DefaultMaxOpenConnections, "Sets the maximum number of simultaneous connections for the server listener")
 	cmd.Flags().Bool(srvflags.JSONRPCEnableIndexer, false, "Enable the custom tx indexer for json-rpc")
+	cmd.Flags().Bool(srvflags.JSONRPCEnableProfiling, config.DefaultEnableProfiling, "Enable the profiling endpoints in the debug JSON-RPC namespace (do NOT enable on publicly exposed nodes)")
+	cmd.Flags().Bool(srvflags.JSONRPCAllowInsecureUnlock, config.DefaultAllowInsecureUnlock, "Allow keyring-backed account RPCs (eth_accounts, eth_sendTransaction, personal_*); public nodes should set this to false")
+	cmd.Flags().Int(srvflags.JSONRPCBatchRequestLimit, config.DefaultBatchRequestLimit, "Maximum number of calls in a single JSON-RPC batch request (0=unlimited)")
+	cmd.Flags().Int(srvflags.JSONRPCBatchResponseMaxSize, config.DefaultBatchResponseMaxSize, "Maximum size in bytes of a JSON-RPC batch response (0=unlimited)")
 	cmd.Flags().Bool(srvflags.JSONRPCEnableMetrics, false, "Define if EVM rpc metrics server should be enabled")
 
 	cmd.Flags().String(srvflags.EVMTracer, config.DefaultEVMTracer, "the EVM tracer type to collect execution traces from the EVM transaction execution (json|struct|access_list|markdown)")
 	cmd.Flags().Uint64(srvflags.EVMMaxTxGasWanted, config.DefaultMaxTxGasWanted, "the gas wanted for each eth tx returned in ante handler in check tx mode")
+	cmd.Flags().Uint64(srvflags.EVMChainID, config.DefaultEVMConfig().EVMChainID, "EIP-155 EVM chain ID for the cosmos/evm keeper (per network: devnet 5151 / testnet 222888 / mainnet 2288; 0 falls back to cosmos/evm default 262144)")
 
 	cmd.Flags().String(srvflags.TLSCertPath, "", "the cert.pem file path for the server TLS configuration")
 	cmd.Flags().String(srvflags.TLSKeyPath, "", "the key.pem file path for the server TLS configuration")
@@ -414,7 +421,7 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 		ethmetricsexp.Setup(config.JSONRPC.MetricsAddress)
 	}
 
-	var idxer mocatypes.EVMTxIndexer
+	var idxer servertypes.EVMTxIndexer
 	if config.JSONRPC.EnableIndexer {
 		idxDB, err := OpenIndexerDB(home, server.GetAppDBBackend(svrCtx.Viper))
 		if err != nil {
@@ -456,7 +463,7 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 		defer apiSrv.Close()
 	}
 
-	clientCtx, httpSrv, httpSrvDone, err := startJSONRPCServer(svrCtx, clientCtx, g, config, genDocProvider, cfg.RPC.ListenAddress, idxer)
+	clientCtx, httpSrv, httpSrvDone, err := startJSONRPCServer(svrCtx, clientCtx, g, config, genDocProvider, cfg.RPC.ListenAddress, idxer, app)
 	if httpSrv != nil {
 		defer func() {
 			shutdownCtx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
@@ -640,11 +647,19 @@ func startJSONRPCServer(
 	config config.AppConfig,
 	genDocProvider node.GenesisDocProvider,
 	cmtRPCAddr string,
-	idxer mocatypes.EVMTxIndexer,
+	idxer servertypes.EVMTxIndexer,
+	app types.Application,
 ) (ctx client.Context, httpSrv *http.Server, httpSrvDone chan struct{}, err error) {
 	ctx = clientCtx
 	if !config.JSONRPC.Enable {
 		return
+	}
+
+	// The pending-tx subscription stream registers itself on the app (see
+	// (*app.Moca).RegisterPendingTxListener); the app must expose that hook.
+	pendingTxApp, ok := app.(AppWithPendingTxStream)
+	if !ok {
+		return ctx, httpSrv, httpSrvDone, fmt.Errorf("app %T does not implement AppWithPendingTxStream", app)
 	}
 
 	genDoc, err := genDocProvider()
@@ -653,9 +668,8 @@ func startJSONRPCServer(
 	}
 
 	ctx = clientCtx.WithChainID(genDoc.ChainID)
-	cmtEndpoint := "/websocket"
 	g.Go(func() error {
-		httpSrv, httpSrvDone, err = StartJSONRPC(svrCtx, clientCtx, cmtRPCAddr, cmtEndpoint, &config, idxer)
+		httpSrv, httpSrvDone, err = StartJSONRPC(svrCtx, clientCtx, &config, idxer, pendingTxApp)
 		return err
 	})
 	return

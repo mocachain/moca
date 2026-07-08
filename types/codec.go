@@ -5,6 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	evmantetypes "github.com/cosmos/evm/ante/types"
 )
 
 // RegisterInterfaces registers the tendermint concrete client-related
@@ -19,8 +20,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&EthAccount{},
 	)
 	registry.RegisterImplementations(
-		(*tx.ExtensionOptionI)(nil),
-		&ExtensionOptionsWeb3Tx{},
-		&ExtensionOptionDynamicFeeTx{},
+		(*tx.TxExtensionOptionI)(nil),
+		&evmantetypes.ExtensionOptionDynamicFeeTx{},
 	)
 }

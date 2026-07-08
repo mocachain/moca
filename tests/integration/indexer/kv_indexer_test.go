@@ -1,0 +1,222 @@
+// Package indexer_test exercises cosmos/evm's KV indexer (the implementation
+// moca ships since the in-tree copy was removed) under moca's module graph:
+// the forked cosmos-sdk, moca's encoding config, and moca's tx types. Upstream
+// publishes no test files in its module (its equivalent suite runs only in the
+// cosmos/evm repo, against their app), so without this the indexer path would
+// have zero coverage in moca's CI — and fork-integration breaks (codec, key
+// types) on future cosmos/evm bumps would go unnoticed. Lives under
+// tests/integration/ (mirroring upstream's tests/integration/indexer) — the
+// home for guard tests of adopted upstream packages.
+package indexer_test
+
+import (
+	"math/big"
+	"testing"
+
+	tmlog "cosmossdk.io/log"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmtypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/cosmos/evm/indexer"
+	evmmodule "github.com/cosmos/evm/x/vm"
+	"github.com/cosmos/evm/x/vm/types"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
+	evmenc "github.com/mocachain/moca/v2/encoding"
+	utiltx "github.com/mocachain/moca/v2/testutil/tx"
+	"github.com/mocachain/moca/v2/utils"
+	"github.com/stretchr/testify/require"
+)
+
+func TestKVIndexer(t *testing.T) {
+	// cosmos/evm v0.6.0 reads a global EVM coin-info / chain-config (set by
+	// evmkeeper.NewKeeper in a real app) when building/encoding an EVM tx.
+	// This standalone test never constructs an app, so seed the defaults here
+	// (mirrors app.go and cosmos/evm's rpc/backend test setup) to avoid a nil deref in
+	// MsgEthereumTx.BuildTx.
+	evmmodule.SetGlobalConfigVariables(types.EvmCoinInfo{
+		Denom:         cmdcfg.BaseDenom,
+		ExtendedDenom: cmdcfg.BaseDenom,
+		DisplayDenom:  cmdcfg.DisplayDenom,
+		Decimals:      uint32(types.EighteenDecimals),
+	})
+	if err := types.SetChainConfig(types.DefaultChainConfig(types.DefaultEVMChainID)); err != nil {
+		require.NoError(t, err)
+	}
+
+	priv, err := ethsecp256k1.GenPrivKey()
+	require.NoError(t, err)
+	from := common.BytesToAddress(priv.PubKey().Address().Bytes())
+	signer := utiltx.NewSigner(priv)
+	ethSigner := ethtypes.LatestSignerForChainID(nil)
+
+	to := common.BigToAddress(big.NewInt(1))
+	ethTxParams := types.EvmTxArgs{
+		Nonce:    0,
+		To:       &to,
+		Amount:   big.NewInt(1000),
+		GasLimit: 21000,
+	}
+	tx := types.NewTx(&ethTxParams)
+	tx.From = from.Bytes()
+	require.NoError(t, tx.Sign(ethSigner, signer))
+	txHash := tx.AsTransaction().Hash()
+
+	encodingConfig := MakeEncodingConfig()
+	clientCtx := client.Context{}.WithTxConfig(encodingConfig.TxConfig).WithCodec(encodingConfig.Codec)
+
+	// build cosmos-sdk wrapper tx
+	tmTx, err := tx.BuildTx(clientCtx.TxConfig.NewTxBuilder(), utils.BaseDenom)
+	require.NoError(t, err)
+	txBz, err := clientCtx.TxConfig.TxEncoder()(tmTx)
+	require.NoError(t, err)
+
+	// build an invalid wrapper tx
+	builder := clientCtx.TxConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(tx))
+	tmTx2 := builder.GetTx()
+	txBz2, err := clientCtx.TxConfig.TxEncoder()(tmTx2)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name        string
+		block       *tmtypes.Block
+		blockResult []*abci.ExecTxResult
+		expSuccess  bool
+	}{
+		{
+			"success, format 1",
+			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
+			[]*abci.ExecTxResult{
+				{
+					Code: 0,
+					Events: []abci.Event{
+						{Type: types.EventTypeEthereumTx, Attributes: []abci.EventAttribute{
+							{Key: "ethereumTxHash", Value: txHash.Hex()},
+							{Key: "txIndex", Value: "0"},
+							{Key: "amount", Value: "1000"},
+							{Key: "txGasUsed", Value: "21000"},
+							{Key: "txHash", Value: ""},
+							{Key: "recipient", Value: "0x775b87ef5D82ca211811C1a02CE0fE0CA3a455d7"},
+						}},
+					},
+				},
+			},
+			true,
+		},
+		{
+			"success, format 2",
+			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
+			[]*abci.ExecTxResult{
+				{
+					Code: 0,
+					Events: []abci.Event{
+						{Type: types.EventTypeEthereumTx, Attributes: []abci.EventAttribute{
+							{Key: "ethereumTxHash", Value: txHash.Hex()},
+							{Key: "txIndex", Value: "0"},
+						}},
+						{Type: types.EventTypeEthereumTx, Attributes: []abci.EventAttribute{
+							{Key: "amount", Value: "1000"},
+							{Key: "txGasUsed", Value: "21000"},
+							{Key: "txHash", Value: "14A84ED06282645EFBF080E0B7ED80D8D8D6A36337668A12B5F229F81CDD3F57"},
+							{Key: "recipient", Value: "0x775b87ef5D82ca211811C1a02CE0fE0CA3a455d7"},
+						}},
+					},
+				},
+			},
+			true,
+		},
+		{
+			"success, exceed block gas limit",
+			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
+			[]*abci.ExecTxResult{
+				{
+					Code:   11,
+					Log:    "out of gas in location: block gas meter; gasWanted: 21000",
+					Events: []abci.Event{},
+				},
+			},
+			true,
+		},
+		{
+			"fail, failed eth tx",
+			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
+			[]*abci.ExecTxResult{
+				{
+					Code:   15,
+					Log:    "nonce mismatch",
+					Events: []abci.Event{},
+				},
+			},
+			false,
+		},
+		{
+			"fail, invalid events",
+			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz}}},
+			[]*abci.ExecTxResult{
+				{
+					Code:   0,
+					Events: []abci.Event{},
+				},
+			},
+			false,
+		},
+		{
+			"fail, not eth tx",
+			&tmtypes.Block{Header: tmtypes.Header{Height: 1}, Data: tmtypes.Data{Txs: []tmtypes.Tx{txBz2}}},
+			[]*abci.ExecTxResult{
+				{
+					Code:   0,
+					Events: []abci.Event{},
+				},
+			},
+			false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := dbm.NewMemDB()
+			idxer := indexer.NewKVIndexer(db, tmlog.NewNopLogger(), clientCtx)
+
+			err = idxer.IndexBlock(tc.block, tc.blockResult)
+			require.NoError(t, err)
+			if !tc.expSuccess {
+				first, err := idxer.FirstIndexedBlock()
+				require.NoError(t, err)
+				require.Equal(t, int64(-1), first)
+
+				last, err := idxer.LastIndexedBlock()
+				require.NoError(t, err)
+				require.Equal(t, int64(-1), last)
+			} else {
+				first, err := idxer.FirstIndexedBlock()
+				require.NoError(t, err)
+				require.Equal(t, tc.block.Header.Height, first)
+
+				last, err := idxer.LastIndexedBlock()
+				require.NoError(t, err)
+				require.Equal(t, tc.block.Header.Height, last)
+
+				res1, err := idxer.GetByTxHash(txHash)
+				require.NoError(t, err)
+				require.NotNil(t, res1)
+				res2, err := idxer.GetByBlockAndIndex(1, 0)
+				require.NoError(t, err)
+				require.Equal(t, res1, res2)
+			}
+		})
+	}
+}
+
+// MakeEncodingConfig returns encoding for this package's tests only: base MakeConfig plus EVM
+// interface registration so TxDecoder can unpack MsgEthereumTx (mirrors app wiring, not global MakeConfig).
+func MakeEncodingConfig() sdktestutil.TestEncodingConfig {
+	cfg := evmenc.MakeConfig()
+	types.RegisterInterfaces(cfg.InterfaceRegistry)
+	return cfg
+}

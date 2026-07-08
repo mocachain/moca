@@ -250,22 +250,20 @@ fw_run_test() {
 
 fw_tx_send() {
     local from="$1" to="$2" amount="$3"
-    local fees="${4:-200000000000000amoca}"
 
     local out hash
-    # Direct kubectl exec so mocad's stderr (errors) reaches our 2>&1.
-    out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
-        mocad tx bank send "$from" "$to" "$amount" \
-        --home /root/.mocad \
-        --from "$from" \
-        --keyring-backend test \
-        --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 \
-        --fees "$fees" \
-        --broadcast-mode sync -y --output json 2>&1) || {
+    # cosmos_broadcast: --gas auto (fee auto-derived from node min-gas-prices) + retry-on-mismatch.
+    out=$(cosmos_broadcast validator-0-0 tx bank send "$from" "$to" "$amount" --from "$from")
+    if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         log_error "  fw_tx_send broadcast failed: $out"
         return 1
-    }
+    fi
+    # A CheckTx rejection (bad fee, sequence mismatch after retries) is valid JSON with a
+    # txhash but code!=0; gate on it or fw_wait_cosmos_tx just times out on a tx that never lands.
+    if [ "$(echo "$out" | jq -r '.code // 0')" != "0" ]; then
+        log_error "  fw_tx_send CheckTx rejected: $out"
+        return 1
+    fi
     hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  fw_tx_send returned no txhash: $out"; return 1; }
     fw_wait_cosmos_tx "$hash"

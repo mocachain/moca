@@ -159,6 +159,54 @@ exec_mocad() {
         mocad "$@" --home /root/.mocad 2>/dev/null
 }
 
+# ── Cosmos tx broadcast (--gas auto + retry) ──────────────────────────────────
+# Gas/fee policy for cosmos txs: simulate-derived gas (`--gas auto`) with the fee
+# auto-derived from the node's minimum-gas-prices — never fixed --gas/--fees, and NOT
+# --gas-prices: moca's `--gas auto` already derives the fee internally, so pairing it
+# with --gas-prices errors "cannot provide both fees and gas prices". `--gas auto` adds
+# a simulate round-trip that widens the window in which validator0's account sequence —
+# shared across the suite's cosmos AND EVM txs, because cosmos/evm maps the EVM nonce
+# onto the cosmos account sequence — can be read stale, so we retry on the mismatch.
+# (The node's minimum-gas-prices must clear the post-v2 feemarket floor — init-chain.sh.)
+# 1.5, not 1.3: post-v2 store-write (WriteFlat) gas is ~30% above the simulate estimate,
+# so 1.3 leaves some txs (e.g. distribution withdraw) a few hundred gas short -> out of gas.
+: "${COSMOS_GAS_ADJUSTMENT:=1.5}"
+: "${COSMOS_TX_RETRIES:=6}"
+: "${COSMOS_TX_RETRY_SLEEP:=1.5}"
+
+# Broadcast a cosmos tx (sync mode) with the gas-auto policy, retrying on
+# `account sequence mismatch`. Common flags (home/keyring/chain-id/node/gas/
+# broadcast/output) are added here; callers pass the pod then the mocad args,
+# e.g.  cosmos_broadcast validator-0-0 tx bank send "$a" "$b" "$amt" --from "$a"
+# Echoes the final broadcast JSON (or mocad's error text on hard failure).
+# shellcheck disable=SC2153  # CHAIN_ID is set by callers (workflow env / sourced constants)
+cosmos_broadcast() {
+    local pod="$1"; shift
+    local attempt out
+    for ((attempt = 1; attempt <= COSMOS_TX_RETRIES; attempt++)); do
+        out=$(kubectl exec -n "${K8S_NAMESPACE}" "$pod" -c mocad -- \
+            mocad "$@" \
+            --home /root/.mocad \
+            --keyring-backend test \
+            --chain-id "${CHAIN_ID}" \
+            --node tcp://localhost:26657 \
+            --gas auto --gas-adjustment "${COSMOS_GAS_ADJUSTMENT}" \
+            --broadcast-mode sync -y --output json 2>&1) || true
+        if printf '%s' "$out" | grep -qiE "account sequence mismatch" \
+           && [ "$attempt" -lt "$COSMOS_TX_RETRIES" ]; then
+            sleep "${COSMOS_TX_RETRY_SLEEP}"
+            continue
+        fi
+        break
+    done
+    # `--gas auto` prints "gas estimate: N" to stderr (captured via 2>&1). Return just the
+    # broadcast JSON line when present so callers get clean JSON; otherwise the raw text
+    # (hard-error path, e.g. a build/simulate failure with no JSON — callers surface it).
+    local json
+    json=$(printf '%s\n' "$out" | grep -E '^\{.*\}$' | tail -1)
+    if [ -n "$json" ]; then printf '%s' "$json"; else printf '%s' "$out"; fi
+}
+
 # Poll a Cosmos tx hash until it's included in a block (or timeout).
 # Returns 0 if the tx was included with code=0, 1 if it failed on chain
 # or wasn't included within the retry budget.

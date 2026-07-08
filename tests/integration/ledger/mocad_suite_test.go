@@ -27,9 +27,9 @@ import (
 	rpcclientmock "github.com/cometbft/cometbft/rpc/client/mock"
 	cosmosledger "github.com/cosmos/cosmos-sdk/crypto/ledger"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	clientkeys "github.com/mocachain/moca/v2/client/keys"
 	mocakeyring "github.com/mocachain/moca/v2/crypto/keyring"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 
 	. "github.com/onsi/ginkgo/v2" //nolint
 	. "github.com/onsi/gomega"    //nolint

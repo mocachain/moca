@@ -121,3 +121,5 @@ e2e/local/ERC20/lib/
 e2e/kind/contracts/out/
 e2e/kind/contracts/cache/
 .env
+
+/mocad

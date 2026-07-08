@@ -35,32 +35,44 @@ const (
 
 // JSON-RPC flags
 const (
-	JSONRPCEnable              = "json-rpc.enable"
-	JSONRPCAPI                 = "json-rpc.api"
-	JSONRPCAddress             = "json-rpc.address"
-	JSONWsAddress              = "json-rpc.ws-address"
-	JSONRPCGasCap              = "json-rpc.gas-cap"
-	JSONRPCEVMTimeout          = "json-rpc.evm-timeout"
-	JSONRPCTxFeeCap            = "json-rpc.txfee-cap"
-	JSONRPCFilterCap           = "json-rpc.filter-cap"
-	JSONRPCLogsCap             = "json-rpc.logs-cap"
-	JSONRPCBlockRangeCap       = "json-rpc.block-range-cap"
-	JSONRPCHTTPTimeout         = "json-rpc.http-timeout"
-	JSONRPCHTTPIdleTimeout     = "json-rpc.http-idle-timeout"
-	JSONRPCAllowUnprotectedTxs = "json-rpc.allow-unprotected-txs"
-	JSONRPCMaxOpenConnections  = "json-rpc.max-open-connections"
-	JSONRPCEnableIndexer       = "json-rpc.enable-indexer"
+	JSONRPCEnable               = "json-rpc.enable"
+	JSONRPCAPI                  = "json-rpc.api"
+	JSONRPCAddress              = "json-rpc.address"
+	JSONWsAddress               = "json-rpc.ws-address"
+	JSONWsOrigins               = "json-rpc.ws-origins"
+	JSONRPCGasCap               = "json-rpc.gas-cap"
+	JSONRPCEVMTimeout           = "json-rpc.evm-timeout"
+	JSONRPCTxFeeCap             = "json-rpc.txfee-cap"
+	JSONRPCFilterCap            = "json-rpc.filter-cap"
+	JSONRPCLogsCap              = "json-rpc.logs-cap"
+	JSONRPCBlockRangeCap        = "json-rpc.block-range-cap"
+	JSONRPCHTTPTimeout          = "json-rpc.http-timeout"
+	JSONRPCHTTPIdleTimeout      = "json-rpc.http-idle-timeout"
+	JSONRPCAllowUnprotectedTxs  = "json-rpc.allow-unprotected-txs"
+	JSONRPCMaxOpenConnections   = "json-rpc.max-open-connections"
+	JSONRPCEnableIndexer        = "json-rpc.enable-indexer"
+	JSONRPCEnableProfiling      = "json-rpc.enable-profiling"
+	JSONRPCAllowInsecureUnlock  = "json-rpc.allow-insecure-unlock"
+	JSONRPCBatchRequestLimit    = "json-rpc.batch-request-limit"
+	JSONRPCBatchResponseMaxSize = "json-rpc.batch-response-max-size"
 	// JSONRPCEnableMetrics enables EVM RPC metrics server.
 	// Set to `metrics` which is hardcoded flag from go-ethereum.
 	// https://github.com/ethereum/go-ethereum/blob/master/metrics/metrics.go#L35-L55
-	JSONRPCEnableMetrics            = "metrics"
-	JSONRPCFixRevertGasRefundHeight = "json-rpc.fix-revert-gas-refund-height"
+	JSONRPCEnableMetrics = "metrics"
 )
 
 // EVM flags
 const (
 	EVMTracer         = "evm.tracer"
 	EVMMaxTxGasWanted = "evm.max-tx-gas-wanted"
+	// EVMChainID is the EIP-155 chain ID baked into the cosmos/evm keeper at
+	// construction. When unset (0), cosmos/evm falls back to its default
+	// (262144). The throwaway app built by the root command leaves this
+	// unset, so the keeper's one-time SetChainConfig transitions default ->
+	// configured value on the real app without tripping the "already set"
+	// guard. Configure per-network in app.toml (devnet 5151 / testnet
+	// 222888 / mainnet 2288).
+	EVMChainID = "evm.evm-chain-id"
 )
 
 // TLS flags

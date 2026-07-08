@@ -20,10 +20,10 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/gogoproto/proto"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"

@@ -21,7 +21,7 @@ import (
 	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 const (
@@ -192,7 +192,8 @@ func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 		return nil, err
 	}
 	msg := &storagetypes.MsgUpdateBucketInfo{
-		Operator:       contract.CallerAddress.String(),
+		// geth v1.16: vm.Contract.CallerAddress field was replaced by Caller().
+		Operator:       contract.Caller().String(),
 		BucketName:     args.BucketName,
 		Visibility:     storagetypes.VisibilityType(args.Visibility),
 		PaymentAddress: args.PaymentAddress.String(),

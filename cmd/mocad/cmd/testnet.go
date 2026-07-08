@@ -44,8 +44,8 @@ import (
 	"github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	mocakr "github.com/mocachain/moca/v2/crypto/keyring"

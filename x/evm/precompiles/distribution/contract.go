@@ -1,7 +1,8 @@
 package distribution
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -9,17 +10,17 @@ import (
 
 	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 
-	"github.com/mocachain/moca/v2/x/evm/types"
+	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
-	ctx                sdk.Context
 	distributionKeeper distributionkeeper.Keeper
 }
 
-func NewPrecompiledContract(ctx sdk.Context, distributionKeeper distributionkeeper.Keeper) *Contract {
+// NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
+func NewPrecompiledContract(distributionKeeper distributionkeeper.Keeper) *Contract {
 	return &Contract{
-		ctx:                ctx,
 		distributionKeeper: distributionKeeper,
 	}
 }
@@ -71,16 +72,27 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 }
 
 func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
+	if err = types.RejectValue(contract); err != nil {
+		return types.PackRetError(err.Error())
+	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
 
-	ctx, commit := c.ctx.CacheContext()
+	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
+	stateDB, ok := evm.StateDB.(*statedb.StateDB)
+	if !ok {
+		return types.PackRetError("distribution precompile must run within the cosmos/evm StateDB")
+	}
+	cacheCtx, err := stateDB.GetCacheContext()
+	if err != nil {
+		return types.PackRetError(err.Error())
+	}
+	ctx, commit := cacheCtx.CacheContext()
 	snapshot := evm.StateDB.Snapshot()
 
 	method, err := GetMethodByID(contract.Input)
 	if err == nil {
-		// parse input
 		switch method.Name {
 		case SetWithdrawAddressMethodName:
 			ret, err = c.SetWithdrawAddress(ctx, evm, contract, readonly)
@@ -112,16 +124,16 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret [
 			ret, err = c.DelegatorValidators(ctx, evm, contract, readonly)
 		case delegatorWithdrawAddressMethodName:
 			ret, err = c.DelegatorWithdrawAddress(ctx, evm, contract, readonly)
+		default:
+			err = fmt.Errorf("method %s is not handled", method.Name)
 		}
 	}
 
 	if err != nil {
-		// revert evm state
 		evm.StateDB.RevertToSnapshot(snapshot)
 		return types.PackRetError(err.Error())
 	}
 
-	// commit and append events
 	commit()
 	return ret, nil
 }
