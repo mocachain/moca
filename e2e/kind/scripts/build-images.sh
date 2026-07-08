@@ -4,6 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib.sh"
 
 REPO_ROOT=$(cd -- "${E2E_DIR}/../.." && pwd)
@@ -14,7 +15,7 @@ FULL_IMAGE="${DOCKER_IMAGE}:${DOCKER_TAG}"
 
 # Create a Docker-safe gitconfig (HTTPS-only, no SSH rewrite)
 _DOCKER_GITCONFIG=$(mktemp)
-trap "rm -f ${_DOCKER_GITCONFIG}" EXIT
+trap 'rm -f ${_DOCKER_GITCONFIG}' EXIT
 grep -A1 'url.*gho_\|url.*ghp_\|url.*github_pat_' "${HOME}/.gitconfig" > "${_DOCKER_GITCONFIG}" 2>/dev/null || true
 # If no token found, try GOPRIVATE + netrc approach
 if [ ! -s "${_DOCKER_GITCONFIG}" ]; then
@@ -42,10 +43,9 @@ else
 fi
 log_success "Docker image built: ${FULL_IMAGE}"
 
-# Load into Kind
+# Load into Kind (uses docker save | ctr import — see kind_load_image in lib.sh)
 log_info "Loading image into Kind cluster '${KIND_CLUSTER_NAME}'..."
-kind load docker-image "${FULL_IMAGE}" --name "${KIND_CLUSTER_NAME}"
-log_success "Image loaded into Kind cluster"
+kind_load_image "${FULL_IMAGE}"
 
 # Build old version image if OLD_VERSION is set (for upgrade tests)
 if [ -n "${OLD_VERSION:-}" ]; then
@@ -61,7 +61,7 @@ if [ -n "${OLD_VERSION:-}" ]; then
     log_success "Old version image built: ${OLD_IMAGE}"
 
     log_info "Loading old version image into Kind cluster..."
-    kind load docker-image "${OLD_IMAGE}" --name "${KIND_CLUSTER_NAME}"
+    kind_load_image "${OLD_IMAGE}"
     log_success "Old version image loaded into Kind cluster"
 fi
 
