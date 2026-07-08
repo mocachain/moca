@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	cosmosevmserver "github.com/cosmos/evm/server"
+
 	// TODO update import to local pkg when rpc pkg is migrated
 	"github.com/gorilla/mux"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -53,7 +55,7 @@ func AddCommands(
 		sdkserver.NewRollbackCmd(opts.AppCreator, opts.DefaultNodeHome),
 
 		// custom tx indexer command
-		NewIndexTxCmd(),
+		cosmosevmserver.NewIndexTxCmd(),
 	)
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	evmantetypes "github.com/cosmos/evm/ante/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/cosmos/evm/x/vm/statedb"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -30,7 +31,6 @@ import (
 	"github.com/mocachain/moca/v2/app/ante"
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/testutil"
-	"github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/utils"
 )
 
@@ -187,7 +187,7 @@ func (suite *AnteTestSuite) setupPerTestState(checkTx bool) {
 		FeeMarketKeeper:        suite.app.FeeMarketKeeper,
 		SignModeHandler:        encodingConfig.TxConfig.SignModeHandler(),
 		SigGasConsumer:         ante.SigVerificationGasConsumer,
-		ExtensionOptionChecker: types.HasDynamicFeeExtensionOption,
+		ExtensionOptionChecker: evmantetypes.HasDynamicFeeExtensionOption,
 	})
 
 	suite.anteHandler = anteHandler
