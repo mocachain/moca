@@ -15,8 +15,9 @@ fi
 # ── Logging ───────────────────────────────────────────────────────────────────
 log_info()    { echo -e "\033[0;34m[INFO]\033[0m $*"; }
 log_success() { echo -e "\033[0;32m[PASS]\033[0m $*"; }
-log_error()   { echo -e "\033[0;31m[FAIL]\033[0m $*"; }
-log_warn()    { echo -e "\033[0;33m[WARN]\033[0m $*"; }
+# Errors/warnings to stderr: else `x=$(fn)` swallows them into x (hidden failure + polluted value).
+log_error()   { echo -e "\033[0;31m[FAIL]\033[0m $*" >&2; }
+log_warn()    { echo -e "\033[0;33m[WARN]\033[0m $*" >&2; }
 
 # ── Chain queries ─────────────────────────────────────────────────────────────
 
