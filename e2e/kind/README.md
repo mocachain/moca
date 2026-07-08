@@ -273,7 +273,7 @@ Edit `e2e.env` to change:
 - **Pruning**: `default` (keeps last 362880 states)
 - **Block time**: ~1s (`timeout_commit = 1s`)
 - **Voting period**: 15s
-- **Min gas price**: 5000000000 amoca
+- **Min gas price**: 25000000000 amoca (25 gwei, clears the post-v2 feemarket floor)
 
 ## Debugging
 
