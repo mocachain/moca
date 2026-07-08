@@ -1,3 +1,16 @@
+// Package contracts holds the compiled-contract artifacts moca keepers encode
+// EVM calls against (mirroring cosmos/evm's top-level contracts/ package).
+//
+// The artifacts here are ABI-only and have no in-tree Solidity source: the
+// embedded JSON is the source of truth (greenfield heritage; it carries no
+// bytecode and nothing ever deploys it — keepers only encode calldata toward
+// fixed addresses). There is deliberately no compile/regenerate target; to
+// change an artifact, edit the JSON and update the guard test that pins its
+// call signatures, addresses, and bytecode-less nature.
+//
+// Adding a new contract: author the Solidity under solidity/ (the maintained
+// hardhat project), compile there, commit the artifact JSON here with a Go
+// embed loader, and pin it with a guard test like the one in this package.
 package contracts
 
 import (
