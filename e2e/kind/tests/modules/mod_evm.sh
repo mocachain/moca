@@ -4,6 +4,7 @@
 _EVM_ADDRS=()
 _EVM_CONTRACTS=()
 _EVM_ERC20_ADDR=""
+_EVM_PROBE_ADDR=""   # value-store contract deployed pre-upgrade; storage/exec probed post-upgrade
 _EVM_PRE_CHAIN_ID=""
 _EVM_PRE_TOKEN_NAME=""
 _EVM_PRE_TOKEN_SYMBOL=""
@@ -17,6 +18,18 @@ _VALUE_STORE_BC="0x602a6000556005601160003960056000f33460005500"
 
 evm_setup() {
     _EVM_PRE_CHAIN_ID=$(cast chain-id --rpc-url "$EVM_RPC" 2>/dev/null || echo "0")
+
+    # v1.3.0 -> v2 upgrade probe: a raw-bytecode value-store contract deployed by the
+    # PRE-upgrade binary. Its constructor SSTOREs 0x2a to slot 0; the runtime SSTOREs
+    # callvalue to slot 0. Raw bytecode (no solc), so unlike the forge ERC20 path this
+    # runs on every runner. The verify fn asserts post-upgrade that (a) the storage the
+    # old x/evm wrote survives in place, and (b) the contract still EXECUTES on cosmos/evm.
+    _EVM_PROBE_ADDR=$(evm_deploy "$_VALUE_STORE_BC")
+    if [ -n "$_EVM_PROBE_ADDR" ]; then
+        log_success "[evm] upgrade storage/exec probe at: ${_EVM_PROBE_ADDR}"
+    else
+        log_warn "[evm] upgrade storage/exec probe deploy failed"
+    fi
 
     # Generate recipient addresses
     log_info "[evm] Generating 10 recipient addresses..."
@@ -137,6 +150,27 @@ _evm_verify_contracts_live() {
     assert_not_empty "$code" "Deployed contract should have code"
 }
 
+# Prove the v1.3.0 -> v2 in-place upgrade preserved a pre-upgrade contract's storage AND
+# that it still executes on cosmos/evm's x/vm. Unlike "contracts live" (code presence only),
+# this reads a storage slot the old x/evm wrote and then drives a state-changing call — only
+# real execution against the in-place-migrated state (code+storage under the "evm" store,
+# code-hash index backfilled by migrateToV2) can produce these results.
+_evm_verify_probe_survives() {
+    [ -z "$_EVM_PROBE_ADDR" ] && { log_warn "No upgrade storage/exec probe"; return 0; }
+    # (a) storage the PRE-upgrade constructor wrote (slot0 = 0x2a) survives in place.
+    local raw dec
+    raw=$(cast storage "$_EVM_PROBE_ADDR" 0 --rpc-url "$EVM_RPC" 2>/dev/null || echo "0x0")
+    dec=$(cast to-dec "$raw" 2>/dev/null || echo "0")
+    assert_eq "$dec" "42" "Pre-upgrade contract storage (slot0=0x2a) survives the upgrade"
+    # (b) the pre-upgrade contract still EXECUTES: a value-call runs SSTORE(callvalue), so
+    #     slot0 becomes the newly sent value.
+    local sentinel=12345
+    evm_send "$_EVM_PROBE_ADDR" --value "$sentinel" || { log_error "  probe value-call failed"; return 1; }
+    raw=$(cast storage "$_EVM_PROBE_ADDR" 0 --rpc-url "$EVM_RPC" 2>/dev/null || echo "0x0")
+    dec=$(cast to-dec "$raw" 2>/dev/null || echo "0")
+    assert_eq "$dec" "$sentinel" "Pre-upgrade contract still executes post-upgrade (SSTORE via value-call)"
+}
+
 _evm_verify_erc20_metadata() {
     [ -z "$_EVM_ERC20_ADDR" ] && { log_warn "No ERC20"; return 0; }
     local name; name=$(evm_call "$_EVM_ERC20_ADDR" "name()(string)")
@@ -168,6 +202,7 @@ register_tx     evm_erc20_tx
 register_verify "EVM chain ID preserved"         _evm_verify_chain_id
 register_verify "EVM native balances preserved"  _evm_verify_native_balances
 register_verify "Deployed contracts live"        _evm_verify_contracts_live
+register_verify "Pre-upgrade contract storage + exec survives" _evm_verify_probe_survives
 register_verify "ERC20 metadata preserved"       _evm_verify_erc20_metadata
 register_verify "ERC20 total supply consistent"  _evm_verify_erc20_supply
 register_verify "Fresh EVM transfer works"       _evm_verify_fresh_transfer
