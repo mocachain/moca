@@ -44,6 +44,12 @@ _gov_submit_proposal() {
     broadcast_code=$(echo "$submit_out" | jq -r '.code // empty' 2>/dev/null)
     txhash=$(echo "$submit_out" | jq -r '.txhash // empty' 2>/dev/null)
     log_info "  [gov] broadcast response: code=${broadcast_code:-?} txhash=${txhash:-none}" >&2
+    # A CheckTx rejection returns valid JSON + txhash but code!=0; gate on it so we fail here
+    # instead of on a fw_wait_cosmos_tx timeout for a tx that never lands.
+    if [ -n "$broadcast_code" ] && [ "$broadcast_code" != "0" ]; then
+        log_warn "  [gov] CheckTx rejected (code=${broadcast_code}): $submit_out" >&2
+        return 1
+    fi
     if [ -z "$txhash" ]; then
         log_warn "  [gov] no txhash in broadcast response: $submit_out" >&2
         return 1

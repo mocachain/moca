@@ -254,6 +254,12 @@ fw_tx_send() {
         log_error "  fw_tx_send broadcast failed: $out"
         return 1
     fi
+    # A CheckTx rejection (bad fee, sequence mismatch after retries) is valid JSON with a
+    # txhash but code!=0; gate on it or fw_wait_cosmos_tx just times out on a tx that never lands.
+    if [ "$(echo "$out" | jq -r '.code // 0')" != "0" ]; then
+        log_error "  fw_tx_send CheckTx rejected: $out"
+        return 1
+    fi
     hash=$(echo "$out" | jq -r '.txhash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  fw_tx_send returned no txhash: $out"; return 1; }
     fw_wait_cosmos_tx "$hash"
