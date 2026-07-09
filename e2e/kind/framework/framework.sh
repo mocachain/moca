@@ -134,7 +134,7 @@ fw_start_chain() {
         fi
     else
         log_info "FW_SKIP_BUILD=true, loading pre-built images into Kind..."
-        kind_load_image "${DOCKER_IMAGE}:${DOCKER_TAG}" || true
+        kind_load_image "${DOCKER_IMAGE}:${DOCKER_TAG}"
     fi
 
     # Deploy chain
@@ -162,8 +162,8 @@ fw_start_chain_from_version() {
         OLD_VERSION="${old_version}" bash "${SCRIPTS_DIR}/build-images.sh"
     else
         log_info "FW_SKIP_BUILD=true, loading pre-built images into Kind..."
-        kind_load_image "${DOCKER_IMAGE}:${DOCKER_TAG}" || true
-        kind_load_image "${DOCKER_IMAGE}:${old_version}" || true
+        kind_load_image "${DOCKER_IMAGE}:${DOCKER_TAG}"
+        kind_load_image "${DOCKER_IMAGE}:${old_version}"
     fi
 
     # Deploy with old version

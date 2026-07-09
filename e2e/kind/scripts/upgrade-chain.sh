@@ -38,7 +38,7 @@ _upgrade_governance() {
         mocad query auth module-account gov \
         --node tcp://localhost:26657 \
         --home /root/.mocad \
-        --output json 2>/dev/null | jq -r '.account.base_account.address // .account.value.address // empty' 2>/dev/null) || true
+        --output json 2>/dev/null | jq -r '.account.base_account.address // .account.value.address // empty' 2>/dev/null)
 
     if [ -z "$gov_authority" ]; then
         log_warn "Could not query gov module address, trying alternative..."
@@ -46,7 +46,7 @@ _upgrade_governance() {
             mocad query auth module-accounts \
             --node tcp://localhost:26657 \
             --home /root/.mocad \
-            --output json 2>/dev/null | jq -r '.accounts[] | select(.name=="gov") | .base_account.address // .value.address // empty' 2>/dev/null) || true
+            --output json 2>/dev/null | jq -r '.accounts[] | select(.name=="gov") | .base_account.address // .value.address // empty' 2>/dev/null)
     fi
 
     if [ -z "$gov_authority" ]; then
@@ -80,7 +80,7 @@ PROPOSAL_EOF
 
     # Write proposal file into the pod
     echo "$proposal_json" | kubectl exec -i -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
-        bash -c "cat > /tmp/upgrade-proposal.json" || true
+        bash -c "cat > /tmp/upgrade-proposal.json"
 
     # Submit proposal via sync broadcast + wait for inclusion
     local submit_out="" submit_hash=""
@@ -110,9 +110,9 @@ PROPOSAL_EOF
         --node tcp://localhost:26657 \
         --chain-id "${CHAIN_ID}" \
         --home /root/.mocad \
-        --output json 2>&1) || true
+        --output json 2>&1)
 
-    proposal_id=$(echo "$query_out" | jq -r '.proposals[-1].id // .proposals[-1].proposal_id // empty' 2>/dev/null) || true
+    proposal_id=$(echo "$query_out" | jq -r '.proposals[-1].id // .proposals[-1].proposal_id // empty' 2>/dev/null)
 
     if [ -z "$proposal_id" ]; then
         log_error "Could not find upgrade proposal"
@@ -206,9 +206,9 @@ _wait_for_upgrade_halt() {
     # Chain halts but doesn't exit — scale down, replace binary, scale back up
     log_info "Scaling down validators..."
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
-        kubectl scale statefulset "validator-${i}" --replicas=0 -n "${K8S_NAMESPACE}" 2>/dev/null || true
+        kubectl scale statefulset "validator-${i}" --replicas=0 -n "${K8S_NAMESPACE}" 2>/dev/null
     done
-    kubectl wait --for=delete pod -l app=validator -n "${K8S_NAMESPACE}" --timeout=60s 2>/dev/null || true
+    kubectl wait --for=delete pod -l app=validator -n "${K8S_NAMESPACE}" --timeout=60s 2>/dev/null
     log_info "All validators stopped"
 
     # Update all validator StatefulSets to use the new image, then scale back up
@@ -220,7 +220,7 @@ _update_validator_images() {
 
     # Load new image into Kind if not already loaded (docker save | ctr import
     # — see kind_load_image in lib.sh; avoids buildx desktop-linux quirks)
-    kind_load_image "${NEW_DOCKER_IMAGE}" || true
+    kind_load_image "${NEW_DOCKER_IMAGE}"
 
     # Patch each validator StatefulSet with the new image
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
@@ -236,7 +236,7 @@ _update_validator_images() {
     # Scale validators back up with new image
     log_info "Starting validators with new image..."
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
-        kubectl scale statefulset "validator-${i}" --replicas=1 -n "${K8S_NAMESPACE}" 2>/dev/null || true
+        kubectl scale statefulset "validator-${i}" --replicas=1 -n "${K8S_NAMESPACE}" 2>/dev/null
     done
 
     # Wait for all validators to come back up
@@ -246,7 +246,7 @@ _update_validator_images() {
         kubectl wait --for=condition=ready "pod/validator-${i}-0" \
             -n "${K8S_NAMESPACE}" --timeout=180s 2>/dev/null || {
             log_error "Validator-${i} failed to restart"
-            kubectl logs -n "${K8S_NAMESPACE}" "validator-${i}-0" --tail=50 2>/dev/null || true
+            kubectl logs -n "${K8S_NAMESPACE}" "validator-${i}-0" --tail=50 2>/dev/null
             return 1
         }
     done

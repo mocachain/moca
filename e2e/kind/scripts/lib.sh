@@ -123,11 +123,18 @@ kind_load_image() {
         log_error "Kind control-plane container '$node' not running"
         return 1
     fi
-    docker save "$image" | docker exec -i "$node" \
-        ctr --namespace=k8s.io images import - >/dev/null 2>&1 || {
-        log_error "Failed to load image $image into Kind"
+    local import_out
+    if ! import_out=$(docker save "$image" | docker exec -i "$node" \
+        ctr --namespace=k8s.io images import - 2>&1); then
+        log_error "Failed to load image $image into Kind: ${import_out}"
         return 1
-    }
+    fi
+    # Verify the image is actually present in containerd — a truncated stream
+    # can "succeed" without importing what we think it did.
+    if ! docker exec "$node" ctr --namespace=k8s.io images ls -q 2>/dev/null | grep -qF "${image}"; then
+        log_error "Image $image not present in Kind containerd after import (got: ${import_out})"
+        return 1
+    fi
     log_success "Image $image loaded into Kind cluster"
 }
 
