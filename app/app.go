@@ -104,6 +104,7 @@ import (
 	// cosmos/evm v0.6.0 EVM keeper + moca's chain-specific precompiles, registered
 	// into the EVM via WithStaticPrecompiles in EvmPrecompiled().
 	evmante "github.com/cosmos/evm/ante"
+	evmantetypes "github.com/cosmos/evm/ante/types"
 	feemarketmodule "github.com/cosmos/evm/x/feemarket"
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
@@ -884,7 +885,7 @@ func (app *Moca) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 		Cdc:                    app.appCodec,
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
-		ExtensionOptionChecker: mocatypes.HasDynamicFeeExtensionOption,
+		ExtensionOptionChecker: evmantetypes.HasDynamicFeeExtensionOption,
 		EvmKeeper:              app.EvmKeeper,
 		FeegrantKeeper:         app.FeeGrantKeeper,
 		DistributionKeeper:     app.DistrKeeper,
