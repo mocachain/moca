@@ -88,7 +88,12 @@ func TestIndexerServiceRetriesAfterFetchError(t *testing.T) {
 		height:   1,
 		headerCh: make(chan coretypes.ResultEvent, 4),
 	}
-	client.failuresLeft.Store(2) // first two BlockResults calls fail, then succeed
+	// Exactly ONE failure: recovery then needs a single wake-up token. With two
+	// failures the test needed two tokens, but the new-block signal channel has
+	// capacity 1 and the subscription goroutine coalesces close headers into
+	// one token — under the -race scheduler that interleaving stranded the
+	// second retry on the 60s timeout and tripped the 10s deadline (flake).
+	client.failuresLeft.Store(1)
 	idxr := &mockIndexer{indexed: make(chan int64, 8)}
 
 	svc := NewEVMIndexerService(idxr, client)
@@ -104,10 +109,23 @@ func TestIndexerServiceRetriesAfterFetchError(t *testing.T) {
 		}
 	}
 
-	// Attempt 1 fails on startup catch-up (height 1). Each signal wakes the
-	// wait branch: attempt 2 fails, attempt 3 succeeds and must recover.
+	// Phase 1 — busy-loop discriminator. Attempt 1 fails on startup catch-up
+	// (height 1) and NO wake-up has been sent: the correct loop must park on
+	// the new-block signal. The pre-fix busy-loop retried the failing fetch
+	// immediately, so it would have recovered and indexed without any signal.
+	select {
+	case h := <-idxr.indexed:
+		t.Fatalf("indexed height %d without a wake-up: busy-loop regression", h)
+	case <-time.After(1500 * time.Millisecond):
+		// parked, as it should be
+	}
+
+	// Phase 2 — latch discriminator + recovery. A single signal is a single
+	// retry token: attempt 2 succeeds and the loop catches up through height
+	// 2. Deterministic under any interleaving (recovery needs exactly one
+	// token). The latched pre-fix version never re-enters the fetch, so it
+	// stays parked and trips the deadline.
 	signal(2)
-	signal(3)
 
 	deadline := time.After(10 * time.Second)
 	got := map[int64]bool{}
@@ -122,9 +140,7 @@ func TestIndexerServiceRetriesAfterFetchError(t *testing.T) {
 	}
 	require.True(t, got[1] && got[2], "heights 1 and 2 must be indexed after recovery, got %v", got)
 
-	// No busy-loop: while erroring, exactly one fetch attempt per wake-up.
-	// Catch-up + two signaled retries + the follow-up block ≈ 4 attempts;
-	// leave slack for scheduling, but orders of magnitude below a busy loop.
-	require.LessOrEqual(t, client.attempts.Load(), int64(6),
-		"fetch attempts should be bounded by wake-ups (busy-loop regression)")
+	// Sanity bound: catch-up failure + signaled retry + follow-up block = 3.
+	require.LessOrEqual(t, client.attempts.Load(), int64(4),
+		"fetch attempts should be bounded by wake-ups")
 }
