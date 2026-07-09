@@ -77,6 +77,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (tests) [#325](https://github.com/mocachain/moca/pull/325) De-flake `TestIndexerServiceRetriesAfterFetchError`: recovery needed two wake-up tokens but the new-block signal channel coalesces to one, stranding the second retry on the 60s timeout under the `-race` scheduler. Restructured to a deterministic two-phase design (quiescence check catches the busy-loop regression; a single-token recovery catches the latch) — verified 30× under `-race` and still failing on both historical defects.
 - (e2e) [#319](https://github.com/mocachain/moca/pull/319) Route `log_error`/`log_warn` to stderr in the kind e2e harness so error/warning text isn't swallowed into `x=$(fn)` command substitutions (which masked failures as silent "Test exited early" and polluted captured values).
 - (server) [#311](https://github.com/mocachain/moca/pull/311) Harden the EVM tx indexer service's fetch loop: back off on transient `Block`/`BlockResults` fetch errors instead of busy-looping, clear the error before retrying so indexing cannot stall until restart (upstream cosmos/evm as of v0.6.0 latches it), and make the shared latest-height access atomic (data race between the new-block subscription goroutine and the indexing loop). Guarded by a mock-driven regression test that fails on all three defects.
 - (virtualgroup,storage) [#306](https://github.com/mocachain/moca/pull/306) Tighten storage provider exit preconditions and make discontinued-resource cleanup resolve its primary SP defensively.

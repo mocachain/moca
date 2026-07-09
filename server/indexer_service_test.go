@@ -88,7 +88,9 @@ func TestIndexerServiceRetriesAfterFetchError(t *testing.T) {
 		height:   1,
 		headerCh: make(chan coretypes.ResultEvent, 4),
 	}
-	client.failuresLeft.Store(2) // first two BlockResults calls fail, then succeed
+	// One failure → recovery needs exactly one wake-up token. (Two needed two, but the
+	// capacity-1 signal channel coalesces close headers into one → the old -race flake.)
+	client.failuresLeft.Store(1)
 	idxr := &mockIndexer{indexed: make(chan int64, 8)}
 
 	svc := NewEVMIndexerService(idxr, client)
@@ -104,10 +106,17 @@ func TestIndexerServiceRetriesAfterFetchError(t *testing.T) {
 		}
 	}
 
-	// Attempt 1 fails on startup catch-up (height 1). Each signal wakes the
-	// wait branch: attempt 2 fails, attempt 3 succeeds and must recover.
+	// Phase 1 — busy-loop check: startup catch-up (height 1) fails, no signal sent.
+	// Correct code parks; a busy-loop retries immediately and indexes without a wake-up.
+	select {
+	case h := <-idxr.indexed:
+		t.Fatalf("indexed height %d without a wake-up: busy-loop regression", h)
+	case <-time.After(1500 * time.Millisecond): // parked, as it should be
+	}
+
+	// Phase 2 — latch check: one signal = one retry token. Correct code clears the error
+	// and catches up (heights 1–2); the latched variant stays parked and trips the deadline.
 	signal(2)
-	signal(3)
 
 	deadline := time.After(10 * time.Second)
 	got := map[int64]bool{}
@@ -122,9 +131,7 @@ func TestIndexerServiceRetriesAfterFetchError(t *testing.T) {
 	}
 	require.True(t, got[1] && got[2], "heights 1 and 2 must be indexed after recovery, got %v", got)
 
-	// No busy-loop: while erroring, exactly one fetch attempt per wake-up.
-	// Catch-up + two signaled retries + the follow-up block ≈ 4 attempts;
-	// leave slack for scheduling, but orders of magnitude below a busy loop.
-	require.LessOrEqual(t, client.attempts.Load(), int64(6),
-		"fetch attempts should be bounded by wake-ups (busy-loop regression)")
+	// Sanity bound: catch-up failure + signaled retry + follow-up block = 3.
+	require.LessOrEqual(t, client.attempts.Load(), int64(4),
+		"fetch attempts should be bounded by wake-ups")
 }
