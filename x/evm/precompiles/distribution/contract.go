@@ -3,6 +3,9 @@ package distribution
 import (
 	"fmt"
 
+	storetypes "cosmossdk.io/store/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -10,17 +13,25 @@ import (
 
 	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 
-	"github.com/cosmos/evm/x/vm/statedb"
+	cmn "github.com/cosmos/evm/precompiles/common"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
+	cmn.Precompile
 	distributionKeeper distributionkeeper.Keeper
 }
 
 // NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
-func NewPrecompiledContract(distributionKeeper distributionkeeper.Keeper) *Contract {
+func NewPrecompiledContract(distributionKeeper distributionkeeper.Keeper, bankKeeper bankkeeper.Keeper) *Contract {
 	return &Contract{
+		Precompile: cmn.Precompile{
+			KvGasConfig:          storetypes.KVGasConfig(),
+			TransientKVGasConfig: storetypes.TransientGasConfig(),
+			ContractAddress:      distributionAddress,
+			// Reconciles bank keeper coin moves with the EVM StateDB balances.
+			BalanceHandlerFactory: cmn.NewBalanceHandlerFactory(bankKeeper),
+		},
 		distributionKeeper: distributionKeeper,
 	}
 }
@@ -71,71 +82,65 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	}
 }
 
-func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
-	if err = types.RejectValue(contract); err != nil {
+func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	if err := types.RejectValue(contract); err != nil {
 		return types.PackRetError(err.Error())
 	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
 
-	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
-	stateDB, ok := evm.StateDB.(*statedb.StateDB)
-	if !ok {
-		return types.PackRetError("distribution precompile must run within the cosmos/evm StateDB")
-	}
-	cacheCtx, err := stateDB.GetCacheContext()
-	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	ctx, commit := cacheCtx.CacheContext()
-	snapshot := evm.StateDB.Snapshot()
+	// Route dispatch through cosmos/evm's native-action protocol so keeper coin
+	// moves stay reconciled with the EVM StateDB: FlushToCacheCtx + the
+	// BalanceHandler translate the bank coin_spent/coin_received events into
+	// StateDB SubBalance/AddBalance, the multistore is snapshotted for atomic
+	// revert (AddPrecompileFn), and store gas is metered against contract.Gas.
+	// Without this, StateDB.Commit's balance reconciliation would mint a debited
+	// amount back to a 7702-dirtied caller (native-token inflation).
+	return c.RunNativeAction(evm, contract, func(ctx sdk.Context) ([]byte, error) {
+		return c.execute(ctx, evm, contract, readonly)
+	})
+}
 
+func (c *Contract) execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	method, err := GetMethodByID(contract.Input)
-	if err == nil {
-		switch method.Name {
-		case SetWithdrawAddressMethodName:
-			ret, err = c.SetWithdrawAddress(ctx, evm, contract, readonly)
-		case WithdrawDelegatorRewardMethodName:
-			ret, err = c.WithdrawDelegatorReward(ctx, evm, contract, readonly)
-		case WithdrawDelegatorAllRewardsMethodName:
-			ret, err = c.WithdrawDelegatorAllRewards(ctx, evm, contract, readonly)
-		case WithdrawValidatorCommissionMethodName:
-			ret, err = c.WithdrawValidatorCommission(ctx, evm, contract, readonly)
-		case FundCommunityPoolMethodName:
-			ret, err = c.FundCommunityPool(ctx, evm, contract, readonly)
-		case ValidatorDistributionInfoMethodName:
-			ret, err = c.ValidatorDistributionInfo(ctx, evm, contract, readonly)
-		case ValidatorOutstandingRewardsMethodName:
-			ret, err = c.ValidatorOutstandingRewards(ctx, evm, contract, readonly)
-		case ValidatorCommissionMethodName:
-			ret, err = c.ValidatorCommission(ctx, evm, contract, readonly)
-		case DelegationRewardsMethodName:
-			ret, err = c.DelegationRewards(ctx, evm, contract, readonly)
-		case DelegationTotalRewardsMethodName:
-			ret, err = c.DelegationTotalRewards(ctx, evm, contract, readonly)
-		case CommunityPoolMethodName:
-			ret, err = c.CommunityPool(ctx, evm, contract, readonly)
-		case ParamsMethodName:
-			ret, err = c.Params(ctx, evm, contract, readonly)
-		case ValidatorSlashesMethodName:
-			ret, err = c.ValidatorSlashes(ctx, evm, contract, readonly)
-		case DelegatorValidatorsMethodName:
-			ret, err = c.DelegatorValidators(ctx, evm, contract, readonly)
-		case delegatorWithdrawAddressMethodName:
-			ret, err = c.DelegatorWithdrawAddress(ctx, evm, contract, readonly)
-		default:
-			err = fmt.Errorf("method %s is not handled", method.Name)
-		}
-	}
-
 	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
-		return types.PackRetError(err.Error())
+		return nil, err
 	}
-
-	commit()
-	return ret, nil
+	switch method.Name {
+	case SetWithdrawAddressMethodName:
+		return c.SetWithdrawAddress(ctx, evm, contract, readonly)
+	case WithdrawDelegatorRewardMethodName:
+		return c.WithdrawDelegatorReward(ctx, evm, contract, readonly)
+	case WithdrawDelegatorAllRewardsMethodName:
+		return c.WithdrawDelegatorAllRewards(ctx, evm, contract, readonly)
+	case WithdrawValidatorCommissionMethodName:
+		return c.WithdrawValidatorCommission(ctx, evm, contract, readonly)
+	case FundCommunityPoolMethodName:
+		return c.FundCommunityPool(ctx, evm, contract, readonly)
+	case ValidatorDistributionInfoMethodName:
+		return c.ValidatorDistributionInfo(ctx, evm, contract, readonly)
+	case ValidatorOutstandingRewardsMethodName:
+		return c.ValidatorOutstandingRewards(ctx, evm, contract, readonly)
+	case ValidatorCommissionMethodName:
+		return c.ValidatorCommission(ctx, evm, contract, readonly)
+	case DelegationRewardsMethodName:
+		return c.DelegationRewards(ctx, evm, contract, readonly)
+	case DelegationTotalRewardsMethodName:
+		return c.DelegationTotalRewards(ctx, evm, contract, readonly)
+	case CommunityPoolMethodName:
+		return c.CommunityPool(ctx, evm, contract, readonly)
+	case ParamsMethodName:
+		return c.Params(ctx, evm, contract, readonly)
+	case ValidatorSlashesMethodName:
+		return c.ValidatorSlashes(ctx, evm, contract, readonly)
+	case DelegatorValidatorsMethodName:
+		return c.DelegatorValidators(ctx, evm, contract, readonly)
+	case delegatorWithdrawAddressMethodName:
+		return c.DelegatorWithdrawAddress(ctx, evm, contract, readonly)
+	default:
+		return nil, fmt.Errorf("method %s is not handled", method.Name)
+	}
 }
 
 func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, args ...interface{}) error {

@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	storetypes "cosmossdk.io/store/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	accountkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 
@@ -13,20 +16,28 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/cosmos/evm/x/vm/statedb"
+	cmn "github.com/cosmos/evm/precompiles/common"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/authz"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
+	cmn.Precompile
 	govKeeper     govkeeper.Keeper
 	accountKeeper accountkeeper.AccountKeeper
 	queryServer   v1.QueryServer
 }
 
 // NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
-func NewPrecompiledContract(govKeeper govkeeper.Keeper, accountKeeper accountkeeper.AccountKeeper) *Contract {
+func NewPrecompiledContract(govKeeper govkeeper.Keeper, accountKeeper accountkeeper.AccountKeeper, bankKeeper bankkeeper.Keeper) *Contract {
 	return &Contract{
+		Precompile: cmn.Precompile{
+			KvGasConfig:          storetypes.KVGasConfig(),
+			TransientKVGasConfig: storetypes.TransientGasConfig(),
+			ContractAddress:      govAddress,
+			// Reconciles bank keeper coin moves with the EVM StateDB balances.
+			BalanceHandlerFactory: cmn.NewBalanceHandlerFactory(bankKeeper),
+		},
 		govKeeper:     govKeeper,
 		accountKeeper: accountKeeper,
 		queryServer:   govkeeper.NewQueryServer(&govKeeper),
@@ -75,67 +86,61 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	}
 }
 
-func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
-	if err = types.RejectValue(contract); err != nil {
+func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	if err := types.RejectValue(contract); err != nil {
 		return types.PackRetError(err.Error())
 	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
 
-	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
-	stateDB, ok := evm.StateDB.(*statedb.StateDB)
-	if !ok {
-		return types.PackRetError("gov precompile must run within the cosmos/evm StateDB")
-	}
-	cacheCtx, err := stateDB.GetCacheContext()
-	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	ctx, commit := cacheCtx.CacheContext()
-	snapshot := evm.StateDB.Snapshot()
+	// Route dispatch through cosmos/evm's native-action protocol so keeper coin
+	// moves stay reconciled with the EVM StateDB: FlushToCacheCtx + the
+	// BalanceHandler translate the bank coin_spent/coin_received events into
+	// StateDB SubBalance/AddBalance, the multistore is snapshotted for atomic
+	// revert (AddPrecompileFn), and store gas is metered against contract.Gas.
+	// Without this, StateDB.Commit's balance reconciliation would mint a debited
+	// amount back to a 7702-dirtied caller (native-token inflation).
+	return c.RunNativeAction(evm, contract, func(ctx sdk.Context) ([]byte, error) {
+		return c.execute(ctx, evm, contract, readonly)
+	})
+}
 
+func (c *Contract) execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	method, err := GetMethodByID(contract.Input)
-	if err == nil {
-		switch method.Name {
-		case LegacySubmitProposalMethodName:
-			ret, err = c.LegacySubmitProposal(ctx, evm, contract, readonly)
-		case SubmitProposalMethodName:
-			ret, err = c.SubmitProposal(ctx, evm, contract, readonly)
-		case VoteMethodName:
-			ret, err = c.Vote(ctx, evm, contract, readonly)
-		case VoteWeightedMethodName:
-			ret, err = c.VoteWeighted(ctx, evm, contract, readonly)
-		case DepositMethodName:
-			ret, err = c.Deposit(ctx, evm, contract, readonly)
-		case ProposalMethodName:
-			ret, err = c.Proposal(ctx, evm, contract, readonly)
-		case ProposalsMethodName:
-			ret, err = c.Proposals(ctx, evm, contract, readonly)
-		case VoteQueryMethodName:
-			ret, err = c.VoteQuery(ctx, evm, contract, readonly)
-		case VotesMethodName:
-			ret, err = c.Votes(ctx, evm, contract, readonly)
-		case DepositQueryMethodName:
-			ret, err = c.DepositQuery(ctx, evm, contract, readonly)
-		case DepositsMethodName:
-			ret, err = c.Deposits(ctx, evm, contract, readonly)
-		case TallyResultMethodName:
-			ret, err = c.TallyResult(ctx, evm, contract, readonly)
-		case ParamsMethodName:
-			ret, err = c.Params(ctx, evm, contract, readonly)
-		default:
-			err = fmt.Errorf("method %s is not handled", method.Name)
-		}
-	}
-
 	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
-		return types.PackRetError(err.Error())
+		return nil, err
 	}
-
-	commit()
-	return ret, nil
+	switch method.Name {
+	case LegacySubmitProposalMethodName:
+		return c.LegacySubmitProposal(ctx, evm, contract, readonly)
+	case SubmitProposalMethodName:
+		return c.SubmitProposal(ctx, evm, contract, readonly)
+	case VoteMethodName:
+		return c.Vote(ctx, evm, contract, readonly)
+	case VoteWeightedMethodName:
+		return c.VoteWeighted(ctx, evm, contract, readonly)
+	case DepositMethodName:
+		return c.Deposit(ctx, evm, contract, readonly)
+	case ProposalMethodName:
+		return c.Proposal(ctx, evm, contract, readonly)
+	case ProposalsMethodName:
+		return c.Proposals(ctx, evm, contract, readonly)
+	case VoteQueryMethodName:
+		return c.VoteQuery(ctx, evm, contract, readonly)
+	case VotesMethodName:
+		return c.Votes(ctx, evm, contract, readonly)
+	case DepositQueryMethodName:
+		return c.DepositQuery(ctx, evm, contract, readonly)
+	case DepositsMethodName:
+		return c.Deposits(ctx, evm, contract, readonly)
+	case TallyResultMethodName:
+		return c.TallyResult(ctx, evm, contract, readonly)
+	case ParamsMethodName:
+		return c.Params(ctx, evm, contract, readonly)
+	default:
+		return nil, fmt.Errorf("method %s is not handled", method.Name)
+	}
 }
 
 func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, args ...interface{}) error {

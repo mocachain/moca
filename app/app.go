@@ -1210,16 +1210,16 @@ func GetMaccPerms() map[string][]string {
 func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContract {
 	return map[common.Address]vm.PrecompiledContract{
 		precompilesbank.GetAddress():         precompilesbank.NewPrecompiledContract(app.BankKeeper, app.PaymentKeeper),
-		precompilesauthz.GetAddress():        precompilesauthz.NewPrecompiledContract(app.AuthzKeeper),
-		precompilesgov.GetAddress():          precompilesgov.NewPrecompiledContract(app.GovKeeper, app.AccountKeeper),
-		precompilespayment.GetAddress():      precompilespayment.NewPrecompiledContract(app.PaymentKeeper),
-		precompilespermission.GetAddress():   precompilespermission.NewPrecompiledContract(app.PermissionKeeper),
-		precompilesstaking.GetAddress():      precompilesstaking.NewPrecompiledContract(app.StakingKeeper),
-		precompilesdistribution.GetAddress(): precompilesdistribution.NewPrecompiledContract(app.DistrKeeper),
-		precompilesslashing.GetAddress():     precompilesslashing.NewPrecompiledContract(app.SlashingKeeper),
-		precompilesstorage.GetAddress():      precompilesstorage.NewPrecompiledContract(app.StorageKeeper),
-		precompilesvirtualgroup.GetAddress(): precompilesvirtualgroup.NewPrecompiledContract(app.VirtualgroupKeeper),
-		precompilessp.GetAddress():           precompilessp.NewPrecompiledContract(app.SpKeeper),
+		precompilesauthz.GetAddress():        precompilesauthz.NewPrecompiledContract(app.AuthzKeeper, app.BankKeeper),
+		precompilesgov.GetAddress():          precompilesgov.NewPrecompiledContract(app.GovKeeper, app.AccountKeeper, app.BankKeeper),
+		precompilespayment.GetAddress():      precompilespayment.NewPrecompiledContract(app.PaymentKeeper, app.BankKeeper),
+		precompilespermission.GetAddress():   precompilespermission.NewPrecompiledContract(app.PermissionKeeper, app.BankKeeper),
+		precompilesstaking.GetAddress():      precompilesstaking.NewPrecompiledContract(app.StakingKeeper, app.BankKeeper),
+		precompilesdistribution.GetAddress(): precompilesdistribution.NewPrecompiledContract(app.DistrKeeper, app.BankKeeper),
+		precompilesslashing.GetAddress():     precompilesslashing.NewPrecompiledContract(app.SlashingKeeper, app.BankKeeper),
+		precompilesstorage.GetAddress():      precompilesstorage.NewPrecompiledContract(app.StorageKeeper, app.BankKeeper),
+		precompilesvirtualgroup.GetAddress(): precompilesvirtualgroup.NewPrecompiledContract(app.VirtualgroupKeeper, app.BankKeeper),
+		precompilessp.GetAddress():           precompilessp.NewPrecompiledContract(app.SpKeeper, app.BankKeeper),
 	}
 }
 
