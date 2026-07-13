@@ -48,6 +48,96 @@ wait_for_chain_ready() {
     return 1
 }
 
+# Wait until every validator pod is actually serving its own RPC. Goes beyond
+# wait_for_chain_ready (which only checks the host's NodePort RPC, so a single
+# healthy pod can satisfy it) by polling each validator's internal RPC. Critical
+# after a rolling restart where pods come back at staggered times.
+#
+# Usage: wait_for_all_validator_rpcs <num> [timeout_seconds=120]
+wait_for_all_validator_rpcs() {
+    local num="$1"
+    local timeout="${2:-120}"
+    local deadline=$(( $(date +%s) + timeout ))
+    local i height now
+    log_info "Waiting for all ${num} validator RPCs to serve /status..."
+    for ((i = 0; i < num; i++)); do
+        while :; do
+            height=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
+                curl -sS -m 5 http://localhost:26657/status 2>/dev/null \
+                | jq -r '.result.sync_info.latest_block_height // empty' 2>/dev/null) || true
+            if [ -n "$height" ] && [ "$height" -gt 0 ] 2>/dev/null; then
+                log_success "  validator-${i} RPC serving (height=${height})"
+                break
+            fi
+            now=$(date +%s)
+            if [ "$now" -ge "$deadline" ]; then
+                log_error "  validator-${i} RPC not serving after timeout"
+                return 1
+            fi
+            sleep 2
+        done
+    done
+}
+
+# wait_for_evm_rpc_ready: poll the EVM JSON-RPC at the host's port-forward
+# until eth_blockNumber returns a non-zero block. The cosmos /status endpoint
+# can be live before the EVM RPC is fully attached, leading to "server returned
+# a null response" errors on the first `cast send` after start.
+#
+# Usage: wait_for_evm_rpc_ready [rpc=http://localhost:8545] [timeout=60]
+wait_for_evm_rpc_ready() {
+    local rpc="${1:-http://localhost:8545}"
+    local timeout="${2:-60}"
+    local deadline=$(( $(date +%s) + timeout ))
+    local block now
+    log_info "Waiting for EVM RPC ${rpc} to serve eth_blockNumber..."
+    while :; do
+        block=$(curl -sS -m 5 -X POST -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+            "$rpc" 2>/dev/null | jq -r '.result // empty' 2>/dev/null) || true
+        if [ -n "$block" ] && [ "$block" != "0x0" ] && [ "$block" != "null" ]; then
+            log_success "EVM RPC ready (block=${block})"
+            return 0
+        fi
+        now=$(date +%s)
+        if [ "$now" -ge "$deadline" ]; then
+            log_error "EVM RPC ${rpc} not ready after ${timeout}s"
+            return 1
+        fi
+        sleep 2
+    done
+}
+
+# kind_load_image: load a local docker image into the Kind cluster's containerd
+# snapshotter. Uses `docker save | docker exec ctr import` instead of the
+# default `kind load docker-image` because the latter can silently fail with
+# the desktop-linux buildx driver — the image manifest gets exported but the
+# image doesn't actually land in the cluster's snapshotter under the expected
+# SHA, leading to ErrImageNeverPull at pod start.
+#
+# Usage: kind_load_image <image:tag>
+kind_load_image() {
+    local image="$1"
+    local node="${KIND_CLUSTER_NAME}-control-plane"
+    if ! docker exec "$node" true 2>/dev/null; then
+        log_error "Kind control-plane container '$node' not running"
+        return 1
+    fi
+    local import_out
+    if ! import_out=$(docker save "$image" | docker exec -i "$node" \
+        ctr --namespace=k8s.io images import - 2>&1); then
+        log_error "Failed to load image $image into Kind: ${import_out}"
+        return 1
+    fi
+    # Verify the image is actually present in containerd — a truncated stream
+    # can "succeed" without importing what we think it did.
+    if ! docker exec "$node" ctr --namespace=k8s.io images ls -q 2>/dev/null | grep -qF "${image}"; then
+        log_error "Image $image not present in Kind containerd after import (got: ${import_out})"
+        return 1
+    fi
+    log_success "Image $image loaded into Kind cluster"
+}
+
 # Wait until the chain reaches a specific block height.
 wait_for_height() {
     local target="$1"

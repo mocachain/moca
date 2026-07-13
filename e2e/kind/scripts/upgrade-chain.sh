@@ -32,21 +32,27 @@ log_info "  Image:  ${NEW_DOCKER_IMAGE}"
 _upgrade_governance() {
     log_info "Submitting software-upgrade proposal..."
 
-    # Get the gov module authority address
+    # Get the gov module authority address. Use `if !` (not a bare assignment) so
+    # a failing query under `set -euo pipefail` falls through to the alternative /
+    # diagnostic below instead of terminating the script.
     local gov_authority=""
-    gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+    if ! gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
         mocad query auth module-account gov \
         --node tcp://localhost:26657 \
         --home /root/.mocad \
-        --output json 2>/dev/null | jq -r '.account.base_account.address // .account.value.address // empty' 2>/dev/null) || true
+        --output json 2>/dev/null | jq -r '.account.base_account.address // .account.value.address // empty' 2>/dev/null); then
+        gov_authority=""
+    fi
 
     if [ -z "$gov_authority" ]; then
         log_warn "Could not query gov module address, trying alternative..."
-        gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+        if ! gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
             mocad query auth module-accounts \
             --node tcp://localhost:26657 \
             --home /root/.mocad \
-            --output json 2>/dev/null | jq -r '.accounts[] | select(.name=="gov") | .base_account.address // .value.address // empty' 2>/dev/null) || true
+            --output json 2>/dev/null | jq -r '.accounts[] | select(.name=="gov") | .base_account.address // .value.address // empty' 2>/dev/null); then
+            gov_authority=""
+        fi
     fi
 
     if [ -z "$gov_authority" ]; then
@@ -218,8 +224,10 @@ _wait_for_upgrade_halt() {
 _update_validator_images() {
     log_info "Updating validator images to ${NEW_DOCKER_IMAGE}..."
 
-    # Load new image into Kind if not already loaded
-    kind load docker-image "${NEW_DOCKER_IMAGE}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
+    # Load new image into Kind (docker save | ctr import with verification — see
+    # kind_load_image in lib.sh; the plain `kind load` silently no-op'd on a
+    # failed load, leaving validators to restart into a missing/old image).
+    kind_load_image "${NEW_DOCKER_IMAGE}"
 
     # Patch each validator StatefulSet with the new image
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
@@ -252,8 +260,14 @@ _update_validator_images() {
 
     log_success "All validators restarted with new image"
 
-    # Wait for chain to resume producing blocks
+    # Wait for chain to resume producing blocks (NodePort RPC — a single healthy
+    # pod satisfies this), then gate on EVERY validator's own RPC: a tx broadcast
+    # routed via kubectl exec to a pod whose RPC isn't yet serving fails with
+    # empty stderr, and the EVM JSON-RPC can lag the cosmos /status by several
+    # seconds after a rolling restart ("null response" on the first cast send).
     wait_for_chain_ready "http://localhost:26657" 180
+    wait_for_all_validator_rpcs "$NUM_VALIDATORS" 60
+    wait_for_evm_rpc_ready "http://localhost:8545" 60
     log_success "Chain resumed after upgrade"
 }
 
