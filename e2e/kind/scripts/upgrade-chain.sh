@@ -32,21 +32,27 @@ log_info "  Image:  ${NEW_DOCKER_IMAGE}"
 _upgrade_governance() {
     log_info "Submitting software-upgrade proposal..."
 
-    # Get the gov module authority address
+    # Get the gov module authority address. Use `if !` (not a bare assignment) so
+    # a failing query under `set -euo pipefail` falls through to the alternative /
+    # diagnostic below instead of terminating the script.
     local gov_authority=""
-    gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+    if ! gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
         mocad query auth module-account gov \
         --node tcp://localhost:26657 \
         --home /root/.mocad \
-        --output json 2>/dev/null | jq -r '.account.base_account.address // .account.value.address // empty' 2>/dev/null)
+        --output json 2>/dev/null | jq -r '.account.base_account.address // .account.value.address // empty' 2>/dev/null); then
+        gov_authority=""
+    fi
 
     if [ -z "$gov_authority" ]; then
         log_warn "Could not query gov module address, trying alternative..."
-        gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+        if ! gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
             mocad query auth module-accounts \
             --node tcp://localhost:26657 \
             --home /root/.mocad \
-            --output json 2>/dev/null | jq -r '.accounts[] | select(.name=="gov") | .base_account.address // .value.address // empty' 2>/dev/null)
+            --output json 2>/dev/null | jq -r '.accounts[] | select(.name=="gov") | .base_account.address // .value.address // empty' 2>/dev/null); then
+            gov_authority=""
+        fi
     fi
 
     if [ -z "$gov_authority" ]; then
@@ -80,7 +86,7 @@ PROPOSAL_EOF
 
     # Write proposal file into the pod
     echo "$proposal_json" | kubectl exec -i -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
-        bash -c "cat > /tmp/upgrade-proposal.json"
+        bash -c "cat > /tmp/upgrade-proposal.json" || true
 
     # Submit proposal via sync broadcast + wait for inclusion
     local submit_out="" submit_hash=""
@@ -110,9 +116,9 @@ PROPOSAL_EOF
         --node tcp://localhost:26657 \
         --chain-id "${CHAIN_ID}" \
         --home /root/.mocad \
-        --output json 2>&1)
+        --output json 2>&1) || true
 
-    proposal_id=$(echo "$query_out" | jq -r '.proposals[-1].id // .proposals[-1].proposal_id // empty' 2>/dev/null)
+    proposal_id=$(echo "$query_out" | jq -r '.proposals[-1].id // .proposals[-1].proposal_id // empty' 2>/dev/null) || true
 
     if [ -z "$proposal_id" ]; then
         log_error "Could not find upgrade proposal"
@@ -206,9 +212,9 @@ _wait_for_upgrade_halt() {
     # Chain halts but doesn't exit — scale down, replace binary, scale back up
     log_info "Scaling down validators..."
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
-        kubectl scale statefulset "validator-${i}" --replicas=0 -n "${K8S_NAMESPACE}" 2>/dev/null
+        kubectl scale statefulset "validator-${i}" --replicas=0 -n "${K8S_NAMESPACE}" 2>/dev/null || true
     done
-    kubectl wait --for=delete pod -l app=validator -n "${K8S_NAMESPACE}" --timeout=60s 2>/dev/null
+    kubectl wait --for=delete pod -l app=validator -n "${K8S_NAMESPACE}" --timeout=60s 2>/dev/null || true
     log_info "All validators stopped"
 
     # Update all validator StatefulSets to use the new image, then scale back up
@@ -218,8 +224,9 @@ _wait_for_upgrade_halt() {
 _update_validator_images() {
     log_info "Updating validator images to ${NEW_DOCKER_IMAGE}..."
 
-    # Load new image into Kind if not already loaded (docker save | ctr import
-    # — see kind_load_image in lib.sh; avoids buildx desktop-linux quirks)
+    # Load new image into Kind (docker save | ctr import with verification — see
+    # kind_load_image in lib.sh; the plain `kind load` silently no-op'd on a
+    # failed load, leaving validators to restart into a missing/old image).
     kind_load_image "${NEW_DOCKER_IMAGE}"
 
     # Patch each validator StatefulSet with the new image
@@ -236,7 +243,7 @@ _update_validator_images() {
     # Scale validators back up with new image
     log_info "Starting validators with new image..."
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
-        kubectl scale statefulset "validator-${i}" --replicas=1 -n "${K8S_NAMESPACE}" 2>/dev/null
+        kubectl scale statefulset "validator-${i}" --replicas=1 -n "${K8S_NAMESPACE}" 2>/dev/null || true
     done
 
     # Wait for all validators to come back up
@@ -246,21 +253,20 @@ _update_validator_images() {
         kubectl wait --for=condition=ready "pod/validator-${i}-0" \
             -n "${K8S_NAMESPACE}" --timeout=180s 2>/dev/null || {
             log_error "Validator-${i} failed to restart"
-            kubectl logs -n "${K8S_NAMESPACE}" "validator-${i}-0" --tail=50 2>/dev/null
+            kubectl logs -n "${K8S_NAMESPACE}" "validator-${i}-0" --tail=50 2>/dev/null || true
             return 1
         }
     done
 
     log_success "All validators restarted with new image"
 
-    # Wait for chain to resume producing blocks (NodePort RPC, fast signal)
+    # Wait for chain to resume producing blocks (NodePort RPC — a single healthy
+    # pod satisfies this), then gate on EVERY validator's own RPC: a tx broadcast
+    # routed via kubectl exec to a pod whose RPC isn't yet serving fails with
+    # empty stderr, and the EVM JSON-RPC can lag the cosmos /status by several
+    # seconds after a rolling restart ("null response" on the first cast send).
     wait_for_chain_ready "http://localhost:26657" 180
-    # Then poll EACH validator's RPC — wait_for_chain_ready is satisfied by a
-    # single healthy pod, but a tx broadcast routed via kubectl exec to a pod
-    # whose RPC isn't yet serving will fail with empty stderr. Belt-and-braces.
     wait_for_all_validator_rpcs "$NUM_VALIDATORS" 60
-    # And the EVM JSON-RPC, which can lag the cosmos /status by several seconds
-    # after a rolling restart, leading to "null response" on first cast send.
     wait_for_evm_rpc_ready "http://localhost:8545" 60
     log_success "Chain resumed after upgrade"
 }
