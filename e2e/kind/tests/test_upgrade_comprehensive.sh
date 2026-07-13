@@ -191,7 +191,7 @@ if [ -n "$RELEASE_TAG" ] && [ -z "$RELEASE_IMAGE" ]; then
     log_info "Pulling release image: ${_GHCR_IMAGE}..."
     docker pull "$_GHCR_IMAGE" 2>&1
     echo "FROM ${_GHCR_IMAGE}" | docker build -t "$RELEASE_IMAGE" - 2>&1
-    kind load docker-image "$RELEASE_IMAGE" --name "${KIND_CLUSTER_NAME}" 2>&1
+    kind_load_image "$RELEASE_IMAGE"
 fi
 
 # Get validator operator addresses indexed by validator-N pod number.
