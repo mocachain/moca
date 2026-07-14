@@ -25,18 +25,18 @@ import (
 	"github.com/mocachain/moca/v2/x/evm/precompiles/staking"
 )
 
-type InflationTestSuite struct {
+type SupplyTestSuite struct {
 	suite.Suite
 	ctx     sdk.Context
 	app     *app.Moca
 	address common.Address
 }
 
-func TestInflationTestSuite(t *testing.T) {
-	suite.Run(t, new(InflationTestSuite))
+func TestSupplyTestSuite(t *testing.T) {
+	suite.Run(t, new(SupplyTestSuite))
 }
 
-func (s *InflationTestSuite) SetupTest() {
+func (s *SupplyTestSuite) SetupTest() {
 	checkTx := false
 	chainID := utils.TestnetChainID + "-1"
 
@@ -64,12 +64,12 @@ func (s *InflationTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-// TestDelegate_NoSupplyInflation is the native-token-inflation regression guard
-// for the staking precompile (delegate moves coins delegator -> bonded pool).
-// Like the bank guard, the delegator is made a 7702-style delegated account
-// (SetCode) so its stateObject balance is authoritative at Commit; without the
-// BalanceHandler reconciliation, Commit would mint the debited amount back.
-func (s *InflationTestSuite) TestDelegate_NoSupplyInflation() {
+// TestDelegate_TotalSupplyInvariant asserts that a delegate through the staking
+// precompile (which moves coins delegator -> bonded pool) leaves total bank
+// supply unchanged. The delegator is given code and its stateObject is loaded
+// before the call so the assertion exercises the keeper/StateDB balance path;
+// without that setup the check would pass regardless of that path.
+func (s *SupplyTestSuite) TestDelegate_TotalSupplyInvariant() {
 	// Bond in the base denom so the funded delegator can stake it.
 	zeroDec := math.LegacyZeroDec()
 	stakingParams, err := s.app.StakingKeeper.GetParams(s.ctx)
@@ -96,8 +96,8 @@ func (s *InflationTestSuite) TestDelegate_NoSupplyInflation() {
 	input := s.mustPackDelegateInput(common.BytesToAddress(valAddr.Bytes()), big.NewInt(100_000))
 	precompileAddr := staking.GetAddress()
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
-	// 7702-style: give the delegator code and load its stateObject so its cached
-	// balance is authoritative at Commit (the inflation trigger).
+	// Give the delegator code and load its stateObject before the call so the
+	// test exercises the balance path; otherwise the assertion would be trivial.
 	stateDB.SetCode(s.address, []byte{0x60, 0x00})
 	_ = stateDB.GetBalance(s.address)
 	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
@@ -105,17 +105,17 @@ func (s *InflationTestSuite) TestDelegate_NoSupplyInflation() {
 	s.Require().False(res.Failed(), "evm call reverted: %s", res.VmError)
 
 	supplyAfter := s.app.BankKeeper.GetSupply(s.ctx, utils.BaseDenom).Amount
-	s.Require().Equal(supplyBefore.String(), supplyAfter.String(), "delegate must not inflate total supply")
+	s.Require().Equal(supplyBefore.String(), supplyAfter.String(), "total bank supply must be unchanged")
 }
 
-func (s *InflationTestSuite) mustEnableStaticPrecompiles() {
+func (s *SupplyTestSuite) mustEnableStaticPrecompiles() {
 	evmParams := s.app.EvmKeeper.GetParams(s.ctx)
 	evmParams.EvmDenom = utils.BaseDenom
 	evmParams.ActiveStaticPrecompiles = app.MocaActiveStaticPrecompiles()
 	s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, evmParams))
 }
 
-func (s *InflationTestSuite) mustPackDelegateInput(validator common.Address, amount *big.Int) []byte {
+func (s *SupplyTestSuite) mustPackDelegateInput(validator common.Address, amount *big.Int) []byte {
 	method := staking.MustMethod(staking.DelegateMethodName)
 	packedArgs, err := method.Inputs.Pack(validator, amount)
 	s.Require().NoError(err)

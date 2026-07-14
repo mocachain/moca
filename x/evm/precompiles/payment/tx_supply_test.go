@@ -23,18 +23,18 @@ import (
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 
-type InflationTestSuite struct {
+type SupplyTestSuite struct {
 	suite.Suite
 	ctx     sdk.Context
 	app     *app.Moca
 	address common.Address
 }
 
-func TestInflationTestSuite(t *testing.T) {
-	suite.Run(t, new(InflationTestSuite))
+func TestSupplyTestSuite(t *testing.T) {
+	suite.Run(t, new(SupplyTestSuite))
 }
 
-func (s *InflationTestSuite) SetupTest() {
+func (s *SupplyTestSuite) SetupTest() {
 	checkTx := false
 	chainID := utils.TestnetChainID + "-1"
 
@@ -62,12 +62,12 @@ func (s *InflationTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-// TestDeposit_NoSupplyInflation is the native-token-inflation regression guard
-// for the payment precompile (deposit moves coins depositor -> payment module).
-// The depositor is made a 7702-style delegated account (SetCode) so its
-// stateObject balance is authoritative at Commit; without the BalanceHandler
-// reconciliation, Commit would mint the debited amount back.
-func (s *InflationTestSuite) TestDeposit_NoSupplyInflation() {
+// TestDeposit_TotalSupplyInvariant asserts that a deposit through the payment
+// precompile (which moves coins depositor -> payment module) leaves total bank
+// supply unchanged. The depositor is given code and its stateObject is loaded
+// before the call so the assertion exercises the keeper/StateDB balance path;
+// without that setup the check would pass regardless of that path.
+func (s *SupplyTestSuite) TestDeposit_TotalSupplyInvariant() {
 	// EthSetup's genesis leaves payment params zero-valued, so install defaults
 	// (DefaultFeeDenom is the base denom "amoca") before depositing.
 	s.Require().NoError(s.app.PaymentKeeper.SetParams(s.ctx, paymenttypes.DefaultParams()))
@@ -81,8 +81,8 @@ func (s *InflationTestSuite) TestDeposit_NoSupplyInflation() {
 	input := s.mustPackDepositInput(to, big.NewInt(100_000))
 	precompileAddr := payment.GetAddress()
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
-	// 7702-style: give the depositor code and load its stateObject so its cached
-	// balance is authoritative at Commit (the inflation trigger).
+	// Give the depositor code and load its stateObject before the call so the
+	// test exercises the balance path; otherwise the assertion would be trivial.
 	stateDB.SetCode(s.address, []byte{0x60, 0x00})
 	_ = stateDB.GetBalance(s.address)
 	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
@@ -90,17 +90,17 @@ func (s *InflationTestSuite) TestDeposit_NoSupplyInflation() {
 	s.Require().False(res.Failed(), "evm call reverted: %s", res.VmError)
 
 	supplyAfter := s.app.BankKeeper.GetSupply(s.ctx, utils.BaseDenom).Amount
-	s.Require().Equal(supplyBefore.String(), supplyAfter.String(), "deposit must not inflate total supply")
+	s.Require().Equal(supplyBefore.String(), supplyAfter.String(), "total bank supply must be unchanged")
 }
 
-func (s *InflationTestSuite) mustEnableStaticPrecompiles() {
+func (s *SupplyTestSuite) mustEnableStaticPrecompiles() {
 	evmParams := s.app.EvmKeeper.GetParams(s.ctx)
 	evmParams.EvmDenom = utils.BaseDenom
 	evmParams.ActiveStaticPrecompiles = app.MocaActiveStaticPrecompiles()
 	s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, evmParams))
 }
 
-func (s *InflationTestSuite) mustPackDepositInput(to string, amount *big.Int) []byte {
+func (s *SupplyTestSuite) mustPackDepositInput(to string, amount *big.Int) []byte {
 	method := payment.GetAbiMethod(payment.DepositMethodName)
 	packedArgs, err := method.Inputs.Pack(to, amount)
 	s.Require().NoError(err)
