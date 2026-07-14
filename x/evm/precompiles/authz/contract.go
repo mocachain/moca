@@ -3,23 +3,34 @@ package authz
 import (
 	"fmt"
 
+	storetypes "cosmossdk.io/store/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/cosmos/evm/x/vm/statedb"
+	cmn "github.com/cosmos/evm/precompiles/common"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
+	cmn.Precompile
 	authzKeeper authzkeeper.Keeper
 }
 
 // NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
-func NewPrecompiledContract(authzKeeper authzkeeper.Keeper) *Contract {
+func NewPrecompiledContract(authzKeeper authzkeeper.Keeper, bankKeeper bankkeeper.Keeper) *Contract {
 	return &Contract{
+		Precompile: cmn.Precompile{
+			KvGasConfig:          storetypes.KVGasConfig(),
+			TransientKVGasConfig: storetypes.TransientGasConfig(),
+			ContractAddress:      authzAddress,
+			// Reconciles bank keeper coin moves with the EVM StateDB balances.
+			BalanceHandlerFactory: cmn.NewBalanceHandlerFactory(bankKeeper),
+		},
 		authzKeeper: authzKeeper,
 	}
 }
@@ -52,53 +63,47 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	}
 }
 
-func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
-	if err = types.RejectValue(contract); err != nil {
+func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	if err := types.RejectValue(contract); err != nil {
 		return types.PackRetError(err.Error())
 	}
 	if len(contract.Input) < 4 {
 		return types.PackRetError("invalid input")
 	}
 
-	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
-	stateDB, ok := evm.StateDB.(*statedb.StateDB)
-	if !ok {
-		return types.PackRetError("authz precompile must run within the cosmos/evm StateDB")
-	}
-	cacheCtx, err := stateDB.GetCacheContext()
-	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	ctx, commit := cacheCtx.CacheContext()
-	snapshot := evm.StateDB.Snapshot()
+	// Route dispatch through cosmos/evm's native-action protocol so keeper coin
+	// moves stay reconciled with the EVM StateDB: FlushToCacheCtx + the
+	// BalanceHandler translate the bank coin_spent/coin_received events into
+	// StateDB SubBalance/AddBalance, the multistore is snapshotted for atomic
+	// revert (AddPrecompileFn), and store gas is metered against contract.Gas.
+	// Without this, StateDB.Commit's balance reconciliation would mint a debited
+	// amount back to a 7702-dirtied caller (native-token inflation).
+	return c.RunNativeAction(evm, contract, func(ctx sdk.Context) ([]byte, error) {
+		return c.execute(ctx, evm, contract, readonly)
+	})
+}
 
+func (c *Contract) execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	method, err := GetMethodByID(contract.Input)
-	if err == nil {
-		switch method.Name {
-		case GrantMethodName:
-			ret, err = c.Grant(ctx, evm, contract, readonly)
-		case RevokeMethodName:
-			ret, err = c.Revoke(ctx, evm, contract, readonly)
-		case ExecMethodName:
-			ret, err = c.Exec(ctx, evm, contract, readonly)
-		case GrantsMethodName:
-			ret, err = c.Grants(ctx, evm, contract, readonly)
-		case GranterGrantsMethodName:
-			ret, err = c.GranterGrants(ctx, evm, contract, readonly)
-		case GranteeGrantsMethodName:
-			ret, err = c.GranteeGrants(ctx, evm, contract, readonly)
-		default:
-			err = fmt.Errorf("method %s is not handled", method.Name)
-		}
-	}
-
 	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
-		return types.PackRetError(err.Error())
+		return nil, err
 	}
-
-	commit()
-	return ret, nil
+	switch method.Name {
+	case GrantMethodName:
+		return c.Grant(ctx, evm, contract, readonly)
+	case RevokeMethodName:
+		return c.Revoke(ctx, evm, contract, readonly)
+	case ExecMethodName:
+		return c.Exec(ctx, evm, contract, readonly)
+	case GrantsMethodName:
+		return c.Grants(ctx, evm, contract, readonly)
+	case GranterGrantsMethodName:
+		return c.GranterGrants(ctx, evm, contract, readonly)
+	case GranteeGrantsMethodName:
+		return c.GranteeGrants(ctx, evm, contract, readonly)
+	default:
+		return nil, fmt.Errorf("method %s is not handled", method.Name)
+	}
 }
 
 func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, args ...interface{}) error {
