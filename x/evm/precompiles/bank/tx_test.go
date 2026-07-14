@@ -85,20 +85,34 @@ func (s *PrecompileTestSuite) TestBankSend_EVMDispatchSuccess() {
 	s.Require().Equal(math.NewInt(12345), receiverBalance.Amount)
 }
 
-func (s *PrecompileTestSuite) TestBankSend_RejectsContractForwarding() {
+func (s *PrecompileTestSuite) TestBankSend_AllowsContractForwarding() {
+	// A contract forwarding the call: the tx origin (an EOA) differs from the
+	// direct caller. EOA-only is removed, so the send is allowed and the business
+	// identity is the direct caller (the forwarding contract), which is debited.
 	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
+	callerAcc := sdk.AccAddress(caller.Bytes())
+	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, callerAcc, 1_000_000))
+
 	receiver := common.HexToAddress("0x4444444444444444444444444444444444444444")
-	input := mustPackBankSendInput(s.T(), receiver, big.NewInt(1))
+	input := mustPackBankSendInput(s.T(), receiver, big.NewInt(1000))
 
 	contract := vm.NewContract(caller, bank.GetAddress(), uint256.NewInt(0), 60_000, nil)
 	contract.Input = input
 
 	evm := &vm.EVM{}
-	evm.SetTxContext(vm.TxContext{Origin: s.address})
+	evm.SetTxContext(vm.TxContext{Origin: s.address}) // origin != caller (contract forwarding)
+	evm.Context.BlockNumber = big.NewInt(1)
+	evm.StateDB = statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 
 	c := bank.NewPrecompiledContract(s.app.BankKeeper, s.app.PaymentKeeper)
 	_, err := c.Send(s.ctx, evm, contract, false)
-	s.Require().EqualError(err, "only allow EOA can call this method")
+	s.Require().NoError(err, "contract forwarding is now allowed")
+
+	// Identity is the direct caller (the contract): it was debited, not the origin.
+	s.Require().Equal(int64(999000), s.app.BankKeeper.GetBalance(s.ctx, callerAcc, utils.BaseDenom).Amount.Int64())
+	s.Require().Equal(int64(1000), s.app.BankKeeper.GetBalance(s.ctx, sdk.AccAddress(receiver.Bytes()), utils.BaseDenom).Amount.Int64())
+	// The origin EOA is untouched.
+	s.Require().True(s.app.BankKeeper.GetBalance(s.ctx, sdk.AccAddress(s.address.Bytes()), utils.BaseDenom).Amount.IsPositive())
 }
 
 func (s *PrecompileTestSuite) TestBankSend_FailureDoesNotChangeBalances() {

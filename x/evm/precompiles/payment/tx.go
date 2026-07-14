@@ -32,9 +32,6 @@ func (c *Contract) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *
 	if readonly {
 		return nil, errors.New("create payment account method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(CreatePaymentAccountMethodName)
 	msg := &paymenttypes.MsgCreatePaymentAccount{
 		Creator: contract.Caller().String(),
@@ -63,9 +60,6 @@ func (c *Contract) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *
 func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("deposit method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(DepositMethodName)
 	var args DepositArgs
@@ -102,9 +96,6 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 func (c *Contract) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("disable refund method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DisableRefundMethodName)
@@ -144,9 +135,6 @@ func (c *Contract) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 func (c *Contract) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("withdraw method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(WithdrawMethodName)

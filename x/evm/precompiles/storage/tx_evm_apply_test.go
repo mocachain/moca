@@ -13,6 +13,7 @@ package storage_test
 // exercised here are shared by every storage tx method, including createBucket.
 
 import (
+	"math/big"
 	"testing"
 	"time"
 
@@ -110,19 +111,30 @@ func (s *CreateGroupTestSuite) TestCreateGroup_EVMDispatchSuccess() {
 // when the direct caller differs from the tx origin (a contract forwarding the
 // call), createGroup is rejected before any state is touched. The migration to
 // direct-caller semantics must consciously change this, so we pin it here.
-func (s *CreateGroupTestSuite) TestCreateGroup_RejectsContractForwarding() {
+func (s *CreateGroupTestSuite) TestCreateGroup_AllowsContractForwarding() {
+	// EOA-only removed: a contract can forward createGroup; identity = direct
+	// caller, so the group is owned by the caller (not the tx origin).
+	s.mustEnableStaticPrecompiles()
+
 	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
-	input := s.mustPackCreateGroupInput("baseline-group-fwd", "")
+	const groupName = "baseline-group-fwd"
+	input := s.mustPackCreateGroupInput(groupName, "")
 
 	contract := vm.NewContract(caller, storage.GetAddress(), uint256.NewInt(0), 60_000, nil)
 	contract.Input = input
 
 	evm := &vm.EVM{}
-	evm.SetTxContext(vm.TxContext{Origin: s.address}) // origin != caller
+	evm.SetTxContext(vm.TxContext{Origin: s.address}) // origin != caller (contract forwarding)
+	evm.Context.BlockNumber = big.NewInt(1)
+	evm.StateDB = statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 
 	c := storage.NewPrecompiledContract(s.app.StorageKeeper)
 	_, err := c.CreateGroup(s.ctx, evm, contract, false)
-	s.Require().EqualError(err, "only allow EOA can call this method")
+	s.Require().NoError(err, "contract forwarding is now allowed")
+
+	group, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(caller.Bytes()), groupName)
+	s.Require().True(found, "group created under the direct caller's identity")
+	s.Require().Equal(sdk.AccAddress(caller.Bytes()).String(), group.Owner)
 }
 
 // TestCreateGroup_FailureDoesNotMutateState pre-creates a group, then dispatches

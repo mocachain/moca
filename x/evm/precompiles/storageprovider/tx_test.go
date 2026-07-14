@@ -215,20 +215,42 @@ func (s *PrecompileTestSuite) TestUpdateSPPrice_EVMApply() {
 // when the direct caller differs from the tx origin (i.e. a contract is forwarding
 // the call), updateSPPrice is rejected before any state is touched. The migration
 // to direct-caller semantics must consciously change this behavior, so we pin it here.
-func (s *PrecompileTestSuite) TestUpdateSPPrice_RejectsContractForwarding() {
+func (s *PrecompileTestSuite) TestUpdateSPPrice_AllowsContractForwarding() {
+	// EOA-only removed: a contract can forward the call; the business identity is
+	// the direct caller, so it updates the caller's own SP price.
 	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
+	callerBech32 := sdk.AccAddress(caller.Bytes()).String()
+	sp := sptypes.StorageProvider{
+		OperatorAddress: callerBech32,
+		FundingAddress:  callerBech32,
+		SealAddress:     callerBech32,
+		ApprovalAddress: callerBech32,
+		GcAddress:       callerBech32,
+		Status:          sptypes.STATUS_IN_SERVICE,
+		TotalDeposit:    math.NewInt(1000),
+	}
+	s.app.SpKeeper.SetStorageProvider(s.ctx, &sp)
+	s.app.SpKeeper.SetStorageProviderByOperatorAddr(s.ctx, &sp)
+
 	input := s.mustPackUpdateSPPriceInput(
 		big.NewInt(2000000000000000000), uint64(1024), big.NewInt(1000000000000000000))
-
 	contract := vm.NewContract(caller, storageprovider.GetAddress(), uint256.NewInt(0), 60_000, nil)
 	contract.Input = input
 
 	evm := &vm.EVM{}
-	evm.SetTxContext(vm.TxContext{Origin: s.address}) // origin != caller
+	evm.SetTxContext(vm.TxContext{Origin: s.address}) // origin != caller (contract forwarding)
+	evm.Context.BlockNumber = big.NewInt(1)
+	evm.StateDB = statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 
 	c := storageprovider.NewPrecompiledContract(s.app.SpKeeper)
 	_, err := c.UpdateSPPrice(s.ctx, evm, contract, false)
-	s.Require().EqualError(err, "only allow EOA can call this method")
+	s.Require().NoError(err, "contract forwarding is now allowed")
+
+	updatedSP, found := s.app.SpKeeper.GetStorageProviderByOperatorAddr(s.ctx, sdk.AccAddress(caller.Bytes()))
+	s.Require().True(found)
+	spPrice, ok := s.app.SpKeeper.GetSpStoragePrice(s.ctx, updatedSP.Id)
+	s.Require().True(ok)
+	s.Require().Equal(uint64(1024), spPrice.FreeReadQuota)
 }
 
 // TestUpdateSPPrice_FailureDoesNotMutateState drives updateSPPrice through the EVM

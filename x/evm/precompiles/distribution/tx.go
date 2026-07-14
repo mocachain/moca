@@ -1,8 +1,6 @@
 package distribution
 
 import (
-	"errors"
-
 	"cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -38,10 +36,6 @@ func (c *Contract) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm
 		return nil, types.ErrReadOnly
 	}
 
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
-
 	method := MustMethod(SetWithdrawAddressMethodName)
 
 	var args SetWithdrawAddressArgs
@@ -75,10 +69,6 @@ func (c *Contract) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm
 func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(WithdrawDelegatorRewardMethodName)
@@ -132,10 +122,6 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(WithdrawDelegatorAllRewardsMethodName)
@@ -206,10 +192,6 @@ func (c *Contract) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, con
 		return nil, types.ErrReadOnly
 	}
 
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
-
 	method := MustMethod(WithdrawValidatorCommissionMethodName)
 
 	msg := &distributiontypes.MsgWithdrawValidatorCommission{
@@ -245,10 +227,6 @@ func (c *Contract) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, con
 func (c *Contract) FundCommunityPool(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(FundCommunityPoolMethodName)

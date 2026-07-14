@@ -26,9 +26,6 @@ func (c *Contract) UpdateSPPrice(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	if readonly {
 		return nil, errors.New("update sp price method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(UpdateSPPriceMethodName)
 	var args UpdateSPPriceArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {

@@ -72,16 +72,21 @@ the reason with `abi.UnpackRevert(res.Ret)`.
   this shape. Until every balance-changing path is provably reconciled to the
   `StateDB`, rejecting value is the safe invariant.
 
-## Caller semantics (current)
+## Caller semantics (direct caller)
 
-Transaction methods still enforce **EOA-only**: they reject calls where
-`evm.Origin != contract.Caller()` (a contract forwarding the call). Business
-identity is the direct caller today, and contracts cannot yet call precompiles.
+The **EOA-only** guard is removed: transaction methods no longer reject calls
+where `evm.Origin != contract.Caller()`. Contracts may now call precompiles, and
+the business identity is always the **direct caller** (`contract.Caller()`) — the
+Cosmos msg sender / operator / voter / delegator is derived from it. `tx.origin`
+is never the precompile authority subject.
 
-Removing EOA-only and moving to a direct-caller model is a **consensus behavior
-change** delivered separately as a versioned chain upgrade — it changes the
-execution result of already-deployed contract transactions and must not ship as a
-silent refactor.
+This is a **consensus behavior change**: it changes the execution result of
+already-deployed contract transactions (a contract calling a precompile now
+succeeds and acts as itself, where before it was rejected). It must be delivered
+behind a versioned chain upgrade — pre-upgrade blocks keep the historical
+EOA-only behavior, and only from the upgrade height does the direct-caller model
+take effect. See the upgrade handler and migration notes shipped with this
+change.
 
 ## Internal keeper EVM calls
 
@@ -99,7 +104,8 @@ identical, so app wiring and `expected_keepers` are untouched, and the
 | Baselines | characterization tests for bank / storageprovider / storage | ✅ |
 | Runtime base | `base` package | ✅ |
 | Runtime migration | all 11 precompiles on the base | ✅ |
-| Direct-caller | remove EOA-only, contract calls (chain upgrade) | pending (HITL) |
+| Direct-caller | remove EOA-only, allow contract calls | ✅ (gated by chain upgrade) |
 
 The runtime migration preserves external behavior except for the native revert
-semantics noted above; EOA-only is intact everywhere.
+semantics noted above. The direct-caller change removes EOA-only across all
+transaction methods and must be activated at a chain-upgrade height.

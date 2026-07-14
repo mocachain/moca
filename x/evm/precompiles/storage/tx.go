@@ -117,9 +117,6 @@ func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if readonly {
 		return nil, errors.New("create bucket method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(CreateBucketMethodName)
 	var args CreateBucketArgs
 
@@ -183,9 +180,6 @@ func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if readonly {
 		return nil, errors.New("update bucket method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(UpdateBucketInfoMethodName)
 	var args UpdateBucketInfoArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -228,9 +222,6 @@ func (c *Contract) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if readonly {
 		return nil, errors.New("delete bucket method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 
 	method := GetAbiMethod(DeleteBucketMethodName)
 
@@ -269,9 +260,6 @@ func (c *Contract) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 func (c *Contract) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("discontinue bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DiscontinueBucketMethodName)
@@ -315,9 +303,6 @@ func (c *Contract) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.
 func (c *Contract) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("migrate bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(MigrateBucketMethodName)
@@ -366,9 +351,6 @@ func (c *Contract) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 func (c *Contract) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("complete migrate bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(CompleteMigrateBucketMethodName)
@@ -424,9 +406,6 @@ func (c *Contract) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 	if readonly {
 		return nil, errors.New("reject migrate bucket method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 
 	method := GetAbiMethod(RejectMigrateBucketMethodName)
 
@@ -466,9 +445,6 @@ func (c *Contract) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 	if readonly {
 		return nil, errors.New("cancel migrate bucket method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 
 	method := GetAbiMethod(CancelMigrateBucketMethodName)
 
@@ -507,9 +483,6 @@ func (c *Contract) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 func (c *Contract) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("set bucket flow rate limit method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(SetBucketFlowRateLimitMethodName)
@@ -552,9 +525,6 @@ func (c *Contract) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract
 func (c *Contract) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("create object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(CreateObjectMethodName)
 	var args CreateObjectArgs
@@ -607,9 +577,6 @@ func (c *Contract) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 	if readonly {
 		return nil, errors.New("copy object method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(CopyObjectMethodName)
 	var args CopyObjectArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -649,9 +616,6 @@ func (c *Contract) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 func (c *Contract) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("delete object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DeleteObjectMethodName)
@@ -693,9 +657,6 @@ func (c *Contract) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm
 	if readonly {
 		return nil, errors.New("cancel create object method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 
 	method := GetAbiMethod(CancelCreateObjectMethodName)
 
@@ -735,9 +696,6 @@ func (c *Contract) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm
 func (c *Contract) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("seal object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(SealObjectMethodName)
 	var args SealObjectArgs
@@ -795,9 +753,6 @@ func (c *Contract) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if readonly {
 		return nil, errors.New("seal object V2 method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(SealObjectV2MethodName)
 	var args SealObjectV2Args
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -846,9 +801,6 @@ func (c *Contract) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if readonly {
 		return nil, errors.New("reject seal object method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(RejectSealObjectMethodName)
 	var args RejectSealObjectArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -884,9 +836,6 @@ func (c *Contract) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 func (c *Contract) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("delegate create object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(DelegateCreateObjectMethodName)
 	var args DelegateCreateObjectArgs
@@ -938,9 +887,6 @@ func (c *Contract) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, con
 	if readonly {
 		return nil, errors.New("delegate update object content method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(DelegateUpdateObjectContentMethodName)
 	var args DelegateUpdateObjectContentArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -989,9 +935,6 @@ func (c *Contract) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if readonly {
 		return nil, errors.New("update object info method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(UpdateObjectInfoMethodName)
 	var args UpdateObjectInfoArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -1023,9 +966,6 @@ func (c *Contract) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 func (c *Contract) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("update object content method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(UpdateObjectContentMethodName)
 	var args UpdateObjectContentArgs
@@ -1072,9 +1012,6 @@ func (c *Contract) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *v
 func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("discontinue object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DiscontinueObjectMethodName)
@@ -1128,9 +1065,6 @@ func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	if readonly {
 		return nil, errors.New("create group method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(CreateGroupMethodName)
 	var args CreateGroupArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -1181,9 +1115,6 @@ func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 func (c *Contract) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("update group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(UpdateGroupMethodName)
 	var args UpdateGroupArgs
@@ -1240,9 +1171,6 @@ func (c *Contract) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if readonly {
 		return nil, errors.New("update group extra method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(UpdateGroupExtraMethodName)
 	var args UpdateGroupExtraArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -1277,9 +1205,6 @@ func (c *Contract) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	if readonly {
 		return nil, errors.New("delete group method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(DeleteGroupMethodName)
 	var args DeleteGroupArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -1309,9 +1234,6 @@ func (c *Contract) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 func (c *Contract) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("leave group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(LeaveGroupMethodName)
 	var args LeaveGroupArgs
@@ -1346,9 +1268,6 @@ func (c *Contract) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("renew group member method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(RenewGroupMemberMethodName)
 	var args RenewGroupMemberArgs
@@ -1405,9 +1324,6 @@ func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 func (c *Contract) SetTag(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("set tag for group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(SetTagMethodName)
 	var args SetTagArgs
@@ -1588,9 +1504,6 @@ func (c *Contract) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 	if readonly {
 		return nil, errors.New("put policy to group or account method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(PutPolicyMethodName)
 	var args PutPolicyArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -1654,9 +1567,6 @@ func (c *Contract) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if readonly {
 		return nil, errors.New("delete policy of principal method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(DeletePolicyMethodName)
 	var args DeletePolicyArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -1689,9 +1599,6 @@ func (c *Contract) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contra
 	if readonly {
 		return nil, errors.New("toggle SP as delegated agent method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(ToggleSPAsDelegatedAgentMethodName)
 	var args ToggleSPAsDelegatedAgentArgs
 	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
@@ -1722,9 +1629,6 @@ func (c *Contract) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contra
 func (c *Contract) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("cancel update object content method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(CancelUpdateObjectContentMethodName)
 	var args CancelUpdateObjectContentArgs

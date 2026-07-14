@@ -1,8 +1,6 @@
 package bank
 
 import (
-	"errors"
-
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
@@ -27,10 +25,6 @@ const (
 )
 
 func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
-
 	method := MustMethod(SendMethodName)
 
 	var args SendArgs
@@ -74,10 +68,6 @@ func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 
 // MultiSend defines a method for sending coins from an account to some other accounts.
 func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
-
 	method := MustMethod(MultiSendMethodName)
 
 	var args MultiSendArgs
