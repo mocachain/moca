@@ -15,6 +15,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
@@ -114,10 +115,15 @@ func (s *PrecompileTestSuite) TestBankSend_FailureDoesNotChangeBalances() {
 
 	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
 	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "insufficient funds")
 	s.Require().NotNil(res)
 	s.Require().True(res.Failed())
-	s.Require().Contains(res.VmError, "insufficient funds")
+	// Native mode surfaces the failure as a proper EVM revert (cosmos/evm
+	// RunNativeAction -> ReturnRevertError): the underlying "insufficient funds"
+	// reason is ABI-encoded in the revert return data rather than the raw VmError.
+	s.Require().Contains(err.Error(), "execution reverted")
+	reason, uErr := abi.UnpackRevert(res.Ret)
+	s.Require().NoError(uErr)
+	s.Require().Contains(reason, "insufficient funds")
 
 	checkCtx := s.app.BaseApp.NewContext(false).
 		WithBlockHeader(s.ctx.BlockHeader()).

@@ -3,25 +3,30 @@ package bank
 import (
 	"fmt"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/base"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 	paymentkeeper "github.com/mocachain/moca/v2/x/payment/keeper"
 )
 
 type Contract struct {
+	base.Precompile
+
 	bankKeeper    bankkeeper.Keeper
 	paymentKeeper paymentkeeper.Keeper
 }
 
 // NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
+// It wires the balance handler so bank coin movements reconcile back to the EVM StateDB.
 func NewPrecompiledContract(bankKeeper bankkeeper.Keeper, paymentKeeper paymentkeeper.Keeper) *Contract {
 	return &Contract{
+		Precompile:    base.New(bankAddress, bankABI, base.WithBalanceHandler(bankKeeper)),
 		bankKeeper:    bankKeeper,
 		paymentKeeper: paymentKeeper,
 	}
@@ -57,10 +62,6 @@ func (c *Contract) calculateMultiSendGas(input []byte) uint64 {
 	}
 
 	return MultiSendBaseGas + (numOutputs * MultiSendPerOutputGas) + (totalCoins * MultiSendPerCoinGas)
-}
-
-func (c *Contract) Address() common.Address {
-	return bankAddress
 }
 
 func (c *Contract) RequiredGas(input []byte) uint64 {
@@ -101,67 +102,62 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	}
 }
 
-func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
-	if err = types.RejectValue(contract); err != nil {
-		return types.PackRetError(err.Error())
-	}
-	if len(contract.Input) < 4 {
-		return types.PackRetError("invalid input")
-	}
+// Run is the precompile entrypoint. The base rejects native value, sets up the
+// native cache context / snapshot / gas metering / balance handler, and reverts
+// on error; the per-method business logic runs in Execute.
+func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	return c.RunPrecompile(evm, contract, readonly, c.Execute)
+}
 
-	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
-	stateDB, ok := evm.StateDB.(*statedb.StateDB)
-	if !ok {
-		return types.PackRetError("bank precompile must run within the cosmos/evm StateDB")
-	}
-	cacheCtx, err := stateDB.GetCacheContext()
+// Execute dispatches the ABI method to its handler. Read-only write protection is
+// enforced by the base Dispatch (SetupABI) using IsTransaction.
+func (c *Contract) Execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	method, _, err := c.Dispatch(contract, readonly, c.IsTransaction)
 	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	ctx, commit := cacheCtx.CacheContext()
-	snapshot := evm.StateDB.Snapshot()
-
-	method, err := GetMethodByID(contract.Input)
-	if err == nil {
-		switch method.Name {
-		case SendMethodName:
-			ret, err = c.Send(ctx, evm, contract, readonly)
-		case MultiSendMethodName:
-			ret, err = c.MultiSend(ctx, evm, contract, readonly)
-		case BalanceMethodName:
-			ret, err = c.Balance(ctx, evm, contract, readonly)
-		case AllBalancesMethodName:
-			ret, err = c.AllBalances(ctx, evm, contract, readonly)
-		case TotalSupplyMethodName:
-			ret, err = c.TotalSupply(ctx, evm, contract, readonly)
-		case SpendableBalancesMethodName:
-			ret, err = c.SpendableBalances(ctx, evm, contract, readonly)
-		case SpendableBalanceByDenomMethodName:
-			ret, err = c.SpendableBalanceByDenom(ctx, evm, contract, readonly)
-		case SupplyOfMethodName:
-			ret, err = c.SupplyOf(ctx, evm, contract, readonly)
-		case ParamsMethodName:
-			ret, err = c.Params(ctx, evm, contract, readonly)
-		case DenomMetadataMethodName:
-			ret, err = c.DenomMetadata(ctx, evm, contract, readonly)
-		case DenomsMetadataMethodName:
-			ret, err = c.DenomsMetadata(ctx, evm, contract, readonly)
-		case DenomOwnersMethodName:
-			ret, err = c.DenomOwners(ctx, evm, contract, readonly)
-		case SendEnabledMethodName:
-			ret, err = c.SendEnabled(ctx, evm, contract, readonly)
-		default:
-			err = fmt.Errorf("method %s is not handled", method.Name)
-		}
+		return nil, err
 	}
 
-	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
-		return types.PackRetError(err.Error())
+	switch method.Name {
+	case SendMethodName:
+		return c.Send(ctx, evm, contract, readonly)
+	case MultiSendMethodName:
+		return c.MultiSend(ctx, evm, contract, readonly)
+	case BalanceMethodName:
+		return c.Balance(ctx, evm, contract, readonly)
+	case AllBalancesMethodName:
+		return c.AllBalances(ctx, evm, contract, readonly)
+	case TotalSupplyMethodName:
+		return c.TotalSupply(ctx, evm, contract, readonly)
+	case SpendableBalancesMethodName:
+		return c.SpendableBalances(ctx, evm, contract, readonly)
+	case SpendableBalanceByDenomMethodName:
+		return c.SpendableBalanceByDenom(ctx, evm, contract, readonly)
+	case SupplyOfMethodName:
+		return c.SupplyOf(ctx, evm, contract, readonly)
+	case ParamsMethodName:
+		return c.Params(ctx, evm, contract, readonly)
+	case DenomMetadataMethodName:
+		return c.DenomMetadata(ctx, evm, contract, readonly)
+	case DenomsMetadataMethodName:
+		return c.DenomsMetadata(ctx, evm, contract, readonly)
+	case DenomOwnersMethodName:
+		return c.DenomOwners(ctx, evm, contract, readonly)
+	case SendEnabledMethodName:
+		return c.SendEnabled(ctx, evm, contract, readonly)
+	default:
+		return nil, fmt.Errorf("method %s is not handled", method.Name)
 	}
+}
 
-	commit()
-	return ret, nil
+// IsTransaction reports whether a method mutates state. It drives read-only write
+// protection in the base Dispatch.
+func (Contract) IsTransaction(method *abi.Method) bool {
+	switch method.Name {
+	case SendMethodName, MultiSendMethodName:
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, args ...interface{}) error {
