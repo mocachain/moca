@@ -27,9 +27,6 @@ const (
 )
 
 func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
 	if evm.Origin != contract.Caller() {
 		return nil, errors.New("only allow EOA can call this method")
 	}
@@ -77,9 +74,6 @@ func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 
 // MultiSend defines a method for sending coins from an account to some other accounts.
 func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
 	if evm.Origin != contract.Caller() {
 		return nil, errors.New("only allow EOA can call this method")
 	}
