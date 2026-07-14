@@ -1410,6 +1410,14 @@ func (app *Moca) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
+	// Activates the precompile direct-caller semantics (removes EOA-only, allows
+	// contract callers). SCAFFOLD: the precompile-side gating is a pending design
+	// decision — see upgrades.PrecompileDirectCaller.
+	app.UpgradeKeeper.SetUpgradeHandler(
+		upgrades.PrecompileDirectCallerUpgradeName,
+		upgrades.PrecompileDirectCaller(app.mm, app.configurator),
+	)
+
 	// testnet only upgrade Handlers
 	app.UpgradeKeeper.SetUpgradeHandler(
 		"testnet-gov-param-fix",
