@@ -82,20 +82,12 @@ func (s *PrecompileTestSuite) TestBankSend_EVMDispatchSuccess() {
 	s.Require().Equal(math.NewInt(12345), s.balance(sdk.AccAddress(receiver.Bytes())))
 }
 
-// TestBankSend_NoSupplyInflation is the regression guard for the native-token
-// inflation fixed by #332.
-//
-// The exploit needs the sender to be an EIP-7702-delegated EOA: giving the sender
-// code makes its EVM stateObject balance authoritative at StateDB.Commit. Without
-// the fix, the keeper coin move debits the sender's bank balance but leaves the
-// stale stateObject balance untouched; Commit then reconciles by minting the
-// debited amount back to the sender — total supply inflates by exactly the sent
-// amount. (Verified: on pre-#332 bank code this test fails with supply += 5e8;
-// a plain send without SetCode does NOT reproduce it, so the SetCode is load-bearing.)
-//
-// The BalanceHandler (RunNativeAction) keeps the stateObject reconciled during the
-// call, so Commit mints nothing and total supply stays flat.
-func (s *PrecompileTestSuite) TestBankSend_NoSupplyInflation() {
+// TestBankSend_TotalSupplyInvariant asserts that a bank.send through the
+// precompile leaves total bank supply unchanged (a transfer must not change
+// supply). The sender is given code and its stateObject is loaded before the
+// call so the assertion exercises the keeper/StateDB balance path; without that
+// setup the check would pass regardless of that path.
+func (s *PrecompileTestSuite) TestBankSend_TotalSupplyInvariant() {
 	s.mustEnableStaticPrecompiles()
 
 	supplyBefore := s.app.BankKeeper.GetSupply(s.ctx, utils.BaseDenom).Amount
@@ -105,9 +97,8 @@ func (s *PrecompileTestSuite) TestBankSend_NoSupplyInflation() {
 
 	precompileAddr := bank.GetAddress()
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
-	// Make the sender a 7702-style delegated account (has code) and load its
-	// stateObject, so its cached balance is authoritative at Commit — this is the
-	// condition under which the pre-fix reconciliation minted the debited amount.
+	// Give the sender code and load its stateObject before the call so the test
+	// exercises the balance path; otherwise the assertion would be trivial.
 	stateDB.SetCode(s.address, []byte{0x60, 0x00})
 	_ = stateDB.GetBalance(s.address)
 	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
@@ -115,7 +106,7 @@ func (s *PrecompileTestSuite) TestBankSend_NoSupplyInflation() {
 	s.Require().False(res.Failed(), "evm call reverted: %s", res.VmError)
 
 	supplyAfter := s.app.BankKeeper.GetSupply(s.ctx, utils.BaseDenom).Amount
-	s.Require().Equal(supplyBefore.String(), supplyAfter.String(), "bank.send must not inflate total supply")
+	s.Require().Equal(supplyBefore.String(), supplyAfter.String(), "total bank supply must be unchanged")
 }
 
 // TestBankSend_FailureRevertsCleanly pins the native revert semantics: an

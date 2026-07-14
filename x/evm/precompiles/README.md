@@ -40,8 +40,7 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byt
 - **Balance reconciliation** — a `BalanceHandlerFactory(bankKeeper)` translates the
   bank `coin_spent` / `coin_received` events emitted during the call into
   `StateDB.SubBalance` / `AddBalance`, keeping the EVM stateObject balances in sync
-  with the keeper coin moves. **All 11 precompiles wire this** (see the inflation
-  note below).
+  with the keeper coin moves. **All 11 precompiles wire this** (see below).
 - **Atomic revert** — the multistore is snapshotted (`AddPrecompileFn`) so an outer
   EVM-frame revert rolls back the keeper writes; there are no partial writes.
 - **Gas metering** — the SDK gas meter is re-capped to `contract.Gas`, so store
@@ -52,22 +51,19 @@ func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byt
   with the reason ABI-encoded in the return data (decode with
   `abi.UnpackRevert(res.Ret)`), not as a raw string in `VmError`.
 
-## Why every precompile wires the balance handler (native-token inflation)
+## Why every precompile wires the balance handler
 
-Before the native-action migration, precompiles used the legacy Greenfield
-`GetCacheContext → keeper write → commit` pattern: a keeper coin move updated the
-**bank store** but not the EVM **StateDB stateObject** balance. With EIP-7702
-active from genesis, an attacker could self-delegate an EOA to a contract that
-calls `bank.send`, leaving the EOA a dirty stateObject with a stale balance;
-`StateDB.Commit` then reconciled it by **minting the debited amount back** — net
-total-supply inflation, repeatable per block.
+A keeper coin move updates the bank store, but the EVM `StateDB` also caches an
+account's balance in its stateObject. If the two are not kept in sync during a
+precompile call, `StateDB.Commit` can reconcile them against a stale value. The
+`BalanceHandler` translates the bank events emitted during the call into `StateDB`
+balance updates so the two stay consistent. Because bank / staking / distribution /
+gov / payment / storage / storageprovider / virtualgroup precompiles all move
+coins, **all 11** wire the balance handler, not just `bank`.
 
-The `BalanceHandler` keeps the stateObject reconciled so `Commit` has zero delta
-to mint. Because staking / distribution / gov / payment / storage precompiles also
-move coins, **all 11** wire the balance handler, not just `bank`.
-
-Regression guard: `TestBankSend_NoSupplyInflation` asserts a precompile `bank.send`
-leaves total supply flat.
+Regression guards assert that a precompile transfer leaves total bank supply
+unchanged: `TestBankSend_TotalSupplyInvariant`, `TestDelegate_TotalSupplyInvariant`,
+`TestDeposit_TotalSupplyInvariant`.
 
 ## Why native value is still rejected
 
@@ -89,10 +85,11 @@ upgrade — it is intentionally **not** part of the native-action migration.
 
 Regression / characterization coverage layered on top of the migration:
 
-- `bank`: dispatch success, **no-supply-inflation invariant**, native revert on failure.
+- `bank` / `staking` / `payment`: **total-supply-invariant** guards, plus bank dispatch
+  success and native revert on failure.
 - `storage`: `createGroup` dispatch success, EOA-only rejection, failure-does-not-mutate.
 - `storageprovider`: `updateSPPrice` decode + EVM-apply dispatch.
 
-Follow-ups: total-supply-invariant guards for the other coin-moving precompiles
-(staking / distribution / gov / payment), and a type-4 (7702) end-to-end inflation
-reproduction.
+Follow-ups: total-supply-invariant guards for the remaining coin-moving precompiles
+(distribution / gov / storageprovider / virtualgroup), and an end-to-end variant
+across a full transaction.
