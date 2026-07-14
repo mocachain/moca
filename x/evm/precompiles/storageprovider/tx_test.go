@@ -6,11 +6,14 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/holiman/uint256"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -205,4 +208,69 @@ func (s *PrecompileTestSuite) TestUpdateSPPrice_EVMApply() {
 	s.Require().Equal(math.LegacyNewDecFromBigIntWithPrec(newReadPrice, math.LegacyPrecision).String(), spPrice.ReadPrice.String(), "read price updated via EVM dispatch")
 	s.Require().Equal(math.LegacyNewDecFromBigIntWithPrec(newStorePrice, math.LegacyPrecision).String(), spPrice.StorePrice.String(), "store price updated via EVM dispatch")
 	s.Require().Equal(freeReadQuota, spPrice.FreeReadQuota, "free read quota updated via EVM dispatch")
+}
+
+// TestUpdateSPPrice_RejectsContractForwarding freezes the current EOA-only guard:
+// when the direct caller differs from the tx origin (i.e. a contract is forwarding
+// the call), updateSPPrice is rejected before any state is touched. The migration
+// to direct-caller semantics must consciously change this behavior, so we pin it here.
+func (s *PrecompileTestSuite) TestUpdateSPPrice_RejectsContractForwarding() {
+	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
+	input := s.mustPackUpdateSPPriceInput(
+		big.NewInt(2000000000000000000), uint64(1024), big.NewInt(1000000000000000000))
+
+	contract := vm.NewContract(caller, storageprovider.GetAddress(), uint256.NewInt(0), 60_000, nil)
+	contract.Input = input
+
+	evm := &vm.EVM{}
+	evm.SetTxContext(vm.TxContext{Origin: s.address}) // origin != caller
+
+	c := storageprovider.NewPrecompiledContract(s.app.SpKeeper)
+	_, err := c.UpdateSPPrice(s.ctx, evm, contract, false)
+	s.Require().EqualError(err, "only allow EOA can call this method")
+}
+
+// TestUpdateSPPrice_FailureDoesNotMutateState drives updateSPPrice through the EVM
+// keeper with NO storage provider registered, so the SP msg server fails with
+// "StorageProvider does not exist". It pins that a failed precompile call reverts
+// cleanly (Contract.Run snapshot/revert) and writes no SP state.
+func (s *PrecompileTestSuite) TestUpdateSPPrice_FailureDoesNotMutateState() {
+	s.mustEnableStaticPrecompiles()
+
+	input := s.mustPackUpdateSPPriceInput(
+		big.NewInt(2000000000000000000), uint64(1024), big.NewInt(1000000000000000000))
+
+	precompileAddr := storageprovider.GetAddress()
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "StorageProvider does not exist")
+	s.Require().NotNil(res)
+	s.Require().True(res.Failed())
+	s.Require().Contains(res.VmError, "StorageProvider does not exist")
+
+	// The failed EVM call leaves s.ctx's gas meter exhausted, so read post-call
+	// state through a fresh context (mirrors the bank baseline). The failed call
+	// must not have created any SP (and hence no SP price) state.
+	checkCtx := s.app.BaseApp.NewContext(false).
+		WithBlockHeader(s.ctx.BlockHeader()).
+		WithChainID(s.ctx.ChainID()).
+		WithGasMeter(storetypes.NewInfiniteGasMeter()).
+		WithBlockGasMeter(storetypes.NewInfiniteGasMeter())
+	_, found := s.app.SpKeeper.GetStorageProviderByOperatorAddr(checkCtx, sdk.AccAddress(s.address.Bytes()))
+	s.Require().False(found, "failed updateSPPrice must not create SP state")
+}
+
+func (s *PrecompileTestSuite) mustEnableStaticPrecompiles() {
+	evmParams := s.app.EvmKeeper.GetParams(s.ctx)
+	evmParams.EvmDenom = utils.BaseDenom
+	evmParams.ActiveStaticPrecompiles = app.MocaActiveStaticPrecompiles()
+	s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, evmParams))
+}
+
+func (s *PrecompileTestSuite) mustPackUpdateSPPriceInput(readPrice *big.Int, freeReadQuota uint64, storePrice *big.Int) []byte {
+	method := storageprovider.GetAbiMethod(storageprovider.UpdateSPPriceMethodName)
+	packedArgs, err := method.Inputs.Pack(readPrice, freeReadQuota, storePrice)
+	s.Require().NoError(err)
+	return append(append([]byte{}, method.ID...), packedArgs...)
 }
