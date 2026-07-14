@@ -11,6 +11,7 @@ import (
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
@@ -244,10 +245,14 @@ func (s *PrecompileTestSuite) TestUpdateSPPrice_FailureDoesNotMutateState() {
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
 	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "StorageProvider does not exist")
 	s.Require().NotNil(res)
 	s.Require().True(res.Failed())
-	s.Require().Contains(res.VmError, "StorageProvider does not exist")
+	// Native mode surfaces the failure as an EVM revert; the underlying
+	// "StorageProvider does not exist" reason is ABI-encoded in the revert data.
+	s.Require().Contains(err.Error(), "execution reverted")
+	reason, uErr := abi.UnpackRevert(res.Ret)
+	s.Require().NoError(uErr)
+	s.Require().Contains(reason, "StorageProvider does not exist")
 
 	// The failed EVM call leaves s.ctx's gas meter exhausted, so read post-call
 	// state through a fresh context (mirrors the bank baseline). The failed call
