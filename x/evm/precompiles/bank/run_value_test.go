@@ -10,6 +10,8 @@ import (
 )
 
 // TestRun_RejectsNonzeroValue verifies the value guard fires before any StateDB access.
+// This is part of the precompile migration baseline: later runtime rewrites must
+// still reject native value before touching the Cosmos/EVM execution context.
 // A nil EVM is intentional: if the guard were absent the nil dereference would cause a panic.
 func TestRun_RejectsNonzeroValue(t *testing.T) {
 	c := &Contract{}
