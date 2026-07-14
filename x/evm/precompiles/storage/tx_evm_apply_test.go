@@ -24,6 +24,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
@@ -150,10 +151,14 @@ func (s *CreateGroupTestSuite) TestCreateGroup_FailureDoesNotMutateState() {
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
 	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "Group already exists")
 	s.Require().NotNil(res)
 	s.Require().True(res.Failed())
-	s.Require().Contains(res.VmError, "Group already exists")
+	// Native mode surfaces the failure as an EVM revert; the underlying
+	// "Group already exists" reason is ABI-encoded in the revert data.
+	s.Require().Contains(err.Error(), "execution reverted")
+	reason, uErr := abi.UnpackRevert(res.Ret)
+	s.Require().NoError(uErr)
+	s.Require().Contains(reason, "Group already exists")
 
 	// The failed EVM call exhausts s.ctx's gas meter, so read post-call state
 	// through a fresh context (mirrors the bank/storageprovider baselines). The

@@ -10,13 +10,15 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 
-	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/base"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type (
 	precompiledContractFunc func(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error)
 	Contract                struct {
+		base.Precompile
+
 		storageKeeper storagekeeper.Keeper
 		handlers      map[string]precompiledContractFunc
 		gasMeters     map[string]uint64
@@ -27,6 +29,7 @@ type (
 // NewPrecompiledContract returns a new static precompile instance.
 func NewPrecompiledContract(storageKeeper storagekeeper.Keeper) *Contract {
 	c := &Contract{
+		Precompile:    base.New(storageAddress, storageABI),
 		storageKeeper: storageKeeper,
 		handlers:      make(map[string]precompiledContractFunc),
 		gasMeters:     make(map[string]uint64),
@@ -35,10 +38,6 @@ func NewPrecompiledContract(storageKeeper storagekeeper.Keeper) *Contract {
 	c.registerQuery()
 	c.registerTx()
 	return c
-}
-
-func (c *Contract) Address() common.Address {
-	return storageAddress
 }
 
 func (c *Contract) RequiredGas(input []byte) uint64 {
@@ -61,42 +60,31 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	}
 }
 
-func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
-	if err = types.RejectValue(contract); err != nil {
-		return types.PackRetError(err.Error())
-	}
-	if len(contract.Input) < 4 {
-		return types.PackRetError("invalid input")
-	}
-	stateDB, ok := evm.StateDB.(*statedb.StateDB)
-	if !ok {
-		return types.PackRetError("storage precompile must run within the cosmos/evm StateDB")
-	}
-	cacheCtx, err := stateDB.GetCacheContext()
-	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	ctx, commit := cacheCtx.CacheContext()
-	snapshot := evm.StateDB.Snapshot()
-	defer func() {
-		if err != nil {
-			evm.StateDB.RevertToSnapshot(snapshot)
-		}
-	}()
-	method, err := GetMethodByID(contract.Input)
-	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	handler, ok := c.handlers[method.Name]
-	if !ok {
-		return types.PackRetError("method not handled")
-	}
-	ret, err = handler(ctx, evm, contract, readonly)
+// Run is the precompile entrypoint. The base rejects native value, sets up the
+// native cache context / snapshot / gas metering, and reverts on error; the
+// per-method business logic runs in Execute.
+func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	return c.RunPrecompile(evm, contract, readonly, c.Execute)
+}
+
+// Execute dispatches the ABI method to its registered handler. Read-only write
+// protection is enforced by the base Dispatch (SetupABI) using IsTransaction.
+func (c *Contract) Execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	method, _, err := c.Dispatch(contract, readonly, c.IsTransaction)
 	if err != nil {
 		return nil, err
 	}
-	commit()
-	return ret, nil
+	handler, ok := c.handlers[method.Name]
+	if !ok {
+		return nil, fmt.Errorf("method %s is not handled", method.Name)
+	}
+	return handler(ctx, evm, contract, readonly)
+}
+
+// IsTransaction reports whether a method mutates state (drives read-only write
+// protection). A method is a transaction iff its ABI mutability is not view/pure.
+func (Contract) IsTransaction(method *abi.Method) bool {
+	return !method.IsConstant()
 }
 
 func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, args ...interface{}) error {
