@@ -8,25 +8,25 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
-	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/base"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
+	base.Precompile
+
 	stakingKeeper *stakingkeeper.Keeper
 }
 
 // NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
 func NewPrecompiledContract(stakingKeeper *stakingkeeper.Keeper) *Contract {
 	return &Contract{
+		Precompile:    base.New(stakingAddress, stakingABI),
 		stakingKeeper: stakingKeeper,
 	}
-}
-
-func (c *Contract) Address() common.Address {
-	return stakingAddress
 }
 
 func (c *Contract) RequiredGas(input []byte) uint64 {
@@ -79,79 +79,69 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	}
 }
 
-func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
-	if err = types.RejectValue(contract); err != nil {
-		return types.PackRetError(err.Error())
-	}
-	if len(contract.Input) < 4 {
-		return types.PackRetError("invalid input")
-	}
+// Run is the precompile entrypoint. The base rejects native value, sets up the
+// native cache context / snapshot / gas metering, and reverts on error; the
+// per-method business logic runs in Execute.
+func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	return c.RunPrecompile(evm, contract, readonly, c.Execute)
+}
 
-	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
-	stateDB, ok := evm.StateDB.(*statedb.StateDB)
-	if !ok {
-		return types.PackRetError("staking precompile must run within the cosmos/evm StateDB")
-	}
-	cacheCtx, err := stateDB.GetCacheContext()
+// Execute dispatches the ABI method to its handler. Read-only write protection is
+// enforced by the base Dispatch (SetupABI) using IsTransaction.
+func (c *Contract) Execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	method, _, err := c.Dispatch(contract, readonly, c.IsTransaction)
 	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	ctx, commit := cacheCtx.CacheContext()
-	snapshot := evm.StateDB.Snapshot()
-
-	method, err := GetMethodByID(contract.Input)
-	if err == nil {
-		switch method.Name {
-		case EditValidatorMethodName:
-			ret, err = c.EditValidator(ctx, evm, contract, readonly)
-		case DelegateMethodName:
-			ret, err = c.Delegate(ctx, evm, contract, readonly)
-		case UndelegateMethodName:
-			ret, err = c.Undelegate(ctx, evm, contract, readonly)
-		case RedelegateMethodName:
-			ret, err = c.Redelegate(ctx, evm, contract, readonly)
-		case CancelUnbondingDelegationMethodName:
-			ret, err = c.CancelUnbondingDelegation(ctx, evm, contract, readonly)
-		case DelegationMethodName:
-			ret, err = c.Delegation(ctx, evm, contract, readonly)
-		case UnbondingDelegationMethodName:
-			ret, err = c.UnbondingDelegation(ctx, evm, contract, readonly)
-		case ValidatorMethodName:
-			ret, err = c.Validator(ctx, evm, contract, readonly)
-		case ValidatorsMethodName:
-			ret, err = c.Validators(ctx, evm, contract, readonly)
-		case ValidatorDelegationsMethodName:
-			ret, err = c.ValidatorDelegations(ctx, evm, contract, readonly)
-		case ValidatorUnbondingDelegationsMethodName:
-			ret, err = c.ValidatorUnbondingDelegations(ctx, evm, contract, readonly)
-		case DelegatorDelegationsMethodName:
-			ret, err = c.DelegatorDelegations(ctx, evm, contract, readonly)
-		case DelegatorUnbondingDelegationsMethodName:
-			ret, err = c.DelegatorUnbondingDelegations(ctx, evm, contract, readonly)
-		case RedelegationsMethodName:
-			ret, err = c.Redelegations(ctx, evm, contract, readonly)
-		case DelegatorValidatorsMethodName:
-			ret, err = c.DelegatorValidators(ctx, evm, contract, readonly)
-		case DelegatorValidatorMethodName:
-			ret, err = c.DelegatorValidator(ctx, evm, contract, readonly)
-		case HistoricalInfoMethodName:
-			ret, err = c.HistoricalInfo(ctx, evm, contract, readonly)
-		case PoolMethodName:
-			ret, err = c.Pool(ctx, evm, contract, readonly)
-		case ParamsMethodName:
-			ret, err = c.Params(ctx, evm, contract, readonly)
-		default:
-			err = fmt.Errorf("method %s is not handled", method.Name)
-		}
+		return nil, err
 	}
 
-	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
-		return types.PackRetError(err.Error())
+	switch method.Name {
+	case EditValidatorMethodName:
+		return c.EditValidator(ctx, evm, contract, readonly)
+	case DelegateMethodName:
+		return c.Delegate(ctx, evm, contract, readonly)
+	case UndelegateMethodName:
+		return c.Undelegate(ctx, evm, contract, readonly)
+	case RedelegateMethodName:
+		return c.Redelegate(ctx, evm, contract, readonly)
+	case CancelUnbondingDelegationMethodName:
+		return c.CancelUnbondingDelegation(ctx, evm, contract, readonly)
+	case DelegationMethodName:
+		return c.Delegation(ctx, evm, contract, readonly)
+	case UnbondingDelegationMethodName:
+		return c.UnbondingDelegation(ctx, evm, contract, readonly)
+	case ValidatorMethodName:
+		return c.Validator(ctx, evm, contract, readonly)
+	case ValidatorsMethodName:
+		return c.Validators(ctx, evm, contract, readonly)
+	case ValidatorDelegationsMethodName:
+		return c.ValidatorDelegations(ctx, evm, contract, readonly)
+	case ValidatorUnbondingDelegationsMethodName:
+		return c.ValidatorUnbondingDelegations(ctx, evm, contract, readonly)
+	case DelegatorDelegationsMethodName:
+		return c.DelegatorDelegations(ctx, evm, contract, readonly)
+	case DelegatorUnbondingDelegationsMethodName:
+		return c.DelegatorUnbondingDelegations(ctx, evm, contract, readonly)
+	case RedelegationsMethodName:
+		return c.Redelegations(ctx, evm, contract, readonly)
+	case DelegatorValidatorsMethodName:
+		return c.DelegatorValidators(ctx, evm, contract, readonly)
+	case DelegatorValidatorMethodName:
+		return c.DelegatorValidator(ctx, evm, contract, readonly)
+	case HistoricalInfoMethodName:
+		return c.HistoricalInfo(ctx, evm, contract, readonly)
+	case PoolMethodName:
+		return c.Pool(ctx, evm, contract, readonly)
+	case ParamsMethodName:
+		return c.Params(ctx, evm, contract, readonly)
+	default:
+		return nil, fmt.Errorf("method %s is not handled", method.Name)
 	}
+}
 
-	commit()
-	return ret, nil
+// IsTransaction reports whether a method mutates state (drives read-only write
+// protection). A method is a transaction iff its ABI mutability is not view/pure.
+func (Contract) IsTransaction(method *abi.Method) bool {
+	return !method.IsConstant()
 }
 
 func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, args ...interface{}) error {

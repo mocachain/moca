@@ -3,29 +3,29 @@ package authz
 import (
 	"fmt"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/base"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
+	base.Precompile
+
 	authzKeeper authzkeeper.Keeper
 }
 
 // NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
 func NewPrecompiledContract(authzKeeper authzkeeper.Keeper) *Contract {
 	return &Contract{
+		Precompile:  base.New(authzAddress, authzABI),
 		authzKeeper: authzKeeper,
 	}
-}
-
-func (c *Contract) Address() common.Address {
-	return authzAddress
 }
 
 func (c *Contract) RequiredGas(input []byte) uint64 {
@@ -52,53 +52,43 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	}
 }
 
-func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
-	if err = types.RejectValue(contract); err != nil {
-		return types.PackRetError(err.Error())
-	}
-	if len(contract.Input) < 4 {
-		return types.PackRetError("invalid input")
-	}
+// Run is the precompile entrypoint. The base rejects native value, sets up the
+// native cache context / snapshot / gas metering, and reverts on error; the
+// per-method business logic runs in Execute.
+func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	return c.RunPrecompile(evm, contract, readonly, c.Execute)
+}
 
-	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
-	stateDB, ok := evm.StateDB.(*statedb.StateDB)
-	if !ok {
-		return types.PackRetError("authz precompile must run within the cosmos/evm StateDB")
-	}
-	cacheCtx, err := stateDB.GetCacheContext()
+// Execute dispatches the ABI method to its handler. Read-only write protection is
+// enforced by the base Dispatch (SetupABI) using IsTransaction.
+func (c *Contract) Execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	method, _, err := c.Dispatch(contract, readonly, c.IsTransaction)
 	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	ctx, commit := cacheCtx.CacheContext()
-	snapshot := evm.StateDB.Snapshot()
-
-	method, err := GetMethodByID(contract.Input)
-	if err == nil {
-		switch method.Name {
-		case GrantMethodName:
-			ret, err = c.Grant(ctx, evm, contract, readonly)
-		case RevokeMethodName:
-			ret, err = c.Revoke(ctx, evm, contract, readonly)
-		case ExecMethodName:
-			ret, err = c.Exec(ctx, evm, contract, readonly)
-		case GrantsMethodName:
-			ret, err = c.Grants(ctx, evm, contract, readonly)
-		case GranterGrantsMethodName:
-			ret, err = c.GranterGrants(ctx, evm, contract, readonly)
-		case GranteeGrantsMethodName:
-			ret, err = c.GranteeGrants(ctx, evm, contract, readonly)
-		default:
-			err = fmt.Errorf("method %s is not handled", method.Name)
-		}
+		return nil, err
 	}
 
-	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
-		return types.PackRetError(err.Error())
+	switch method.Name {
+	case GrantMethodName:
+		return c.Grant(ctx, evm, contract, readonly)
+	case RevokeMethodName:
+		return c.Revoke(ctx, evm, contract, readonly)
+	case ExecMethodName:
+		return c.Exec(ctx, evm, contract, readonly)
+	case GrantsMethodName:
+		return c.Grants(ctx, evm, contract, readonly)
+	case GranterGrantsMethodName:
+		return c.GranterGrants(ctx, evm, contract, readonly)
+	case GranteeGrantsMethodName:
+		return c.GranteeGrants(ctx, evm, contract, readonly)
+	default:
+		return nil, fmt.Errorf("method %s is not handled", method.Name)
 	}
+}
 
-	commit()
-	return ret, nil
+// IsTransaction reports whether a method mutates state (drives read-only write
+// protection). A method is a transaction iff its ABI mutability is not view/pure.
+func (Contract) IsTransaction(method *abi.Method) bool {
+	return !method.IsConstant()
 }
 
 func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, args ...interface{}) error {
