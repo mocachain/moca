@@ -3,29 +3,29 @@ package virtualgroup
 import (
 	"fmt"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	virtualgroupkeeper "github.com/mocachain/moca/v2/x/virtualgroup/keeper"
 
-	"github.com/cosmos/evm/x/vm/statedb"
+	"github.com/mocachain/moca/v2/x/evm/precompiles/base"
 	"github.com/mocachain/moca/v2/x/evm/precompiles/types"
 )
 
 type Contract struct {
+	base.Precompile
+
 	virtualGroupKeeper virtualgroupkeeper.Keeper
 }
 
 // NewPrecompiledContract returns a static precompile; sdk.Context is sourced per-call via the EVM StateDB.
 func NewPrecompiledContract(virtualGroupKeeper virtualgroupkeeper.Keeper) *Contract {
 	return &Contract{
+		Precompile:         base.New(virtualGroupAddress, virtualGroupABI),
 		virtualGroupKeeper: virtualGroupKeeper,
 	}
-}
-
-func (c *Contract) Address() common.Address {
-	return virtualGroupAddress
 }
 
 func (c *Contract) RequiredGas(input []byte) uint64 {
@@ -64,65 +64,55 @@ func (c *Contract) RequiredGas(input []byte) uint64 {
 	}
 }
 
-func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (ret []byte, err error) {
-	if err = types.RejectValue(contract); err != nil {
-		return types.PackRetError(err.Error())
-	}
-	if len(contract.Input) < 4 {
-		return types.PackRetError("invalid input")
-	}
+// Run is the precompile entrypoint. The base rejects native value, sets up the
+// native cache context / snapshot / gas metering, and reverts on error; the
+// per-method business logic runs in Execute.
+func (c *Contract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	return c.RunPrecompile(evm, contract, readonly, c.Execute)
+}
 
-	// Pull the live SDK context from the EVM StateDB (static precompiles don't bind ctx at construction).
-	stateDB, ok := evm.StateDB.(*statedb.StateDB)
-	if !ok {
-		return types.PackRetError("virtualgroup precompile must run within the cosmos/evm StateDB")
-	}
-	cacheCtx, err := stateDB.GetCacheContext()
+// Execute dispatches the ABI method to its handler. Read-only write protection is
+// enforced by the base Dispatch (SetupABI) using IsTransaction.
+func (c *Contract) Execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	method, _, err := c.Dispatch(contract, readonly, c.IsTransaction)
 	if err != nil {
-		return types.PackRetError(err.Error())
-	}
-	ctx, commit := cacheCtx.CacheContext()
-	snapshot := evm.StateDB.Snapshot()
-
-	method, err := GetMethodByID(contract.Input)
-	if err == nil {
-		switch method.Name {
-		case CreateGlobalVirtualGroupMethodName:
-			ret, err = c.CreateGlobalVirtualGroup(ctx, evm, contract, readonly)
-		case DeleteGlobalVirtualGroupMethodName:
-			ret, err = c.DeleteGlobalVirtualGroup(ctx, evm, contract, readonly)
-		case SwapOutMethodName:
-			ret, err = c.SwapOut(ctx, evm, contract, readonly)
-		case CompleteSwapOutMethodName:
-			ret, err = c.CompleteSwapOut(ctx, evm, contract, readonly)
-		case SPExitMethodName:
-			ret, err = c.SPExit(ctx, evm, contract, readonly)
-		case CompleteSPExitMethodName:
-			ret, err = c.CompleteSPExit(ctx, evm, contract, readonly)
-		case DepositMethodName:
-			ret, err = c.Deposit(ctx, evm, contract, readonly)
-		case ReserveSwapInMethodName:
-			ret, err = c.ReserveSwapIn(ctx, evm, contract, readonly)
-		case CompleteSwapInMethodName:
-			ret, err = c.CompleteSwapIn(ctx, evm, contract, readonly)
-		case CancelSwapInMethodName:
-			ret, err = c.CancelSwapIn(ctx, evm, contract, readonly)
-		case GlobalVirtualGroupFamiliesMethodName:
-			ret, err = c.GlobalVirtualGroupFamilies(ctx, evm, contract, readonly)
-		case GlobalVirtualGroupFamilyMethodName:
-			ret, err = c.GlobalVirtualGroupFamily(ctx, evm, contract, readonly)
-		default:
-			err = fmt.Errorf("method %s is not handled", method.Name)
-		}
+		return nil, err
 	}
 
-	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
-		return types.PackRetError(err.Error())
+	switch method.Name {
+	case CreateGlobalVirtualGroupMethodName:
+		return c.CreateGlobalVirtualGroup(ctx, evm, contract, readonly)
+	case DeleteGlobalVirtualGroupMethodName:
+		return c.DeleteGlobalVirtualGroup(ctx, evm, contract, readonly)
+	case SwapOutMethodName:
+		return c.SwapOut(ctx, evm, contract, readonly)
+	case CompleteSwapOutMethodName:
+		return c.CompleteSwapOut(ctx, evm, contract, readonly)
+	case SPExitMethodName:
+		return c.SPExit(ctx, evm, contract, readonly)
+	case CompleteSPExitMethodName:
+		return c.CompleteSPExit(ctx, evm, contract, readonly)
+	case DepositMethodName:
+		return c.Deposit(ctx, evm, contract, readonly)
+	case ReserveSwapInMethodName:
+		return c.ReserveSwapIn(ctx, evm, contract, readonly)
+	case CompleteSwapInMethodName:
+		return c.CompleteSwapIn(ctx, evm, contract, readonly)
+	case CancelSwapInMethodName:
+		return c.CancelSwapIn(ctx, evm, contract, readonly)
+	case GlobalVirtualGroupFamiliesMethodName:
+		return c.GlobalVirtualGroupFamilies(ctx, evm, contract, readonly)
+	case GlobalVirtualGroupFamilyMethodName:
+		return c.GlobalVirtualGroupFamily(ctx, evm, contract, readonly)
+	default:
+		return nil, fmt.Errorf("method %s is not handled", method.Name)
 	}
+}
 
-	commit()
-	return ret, nil
+// IsTransaction reports whether a method mutates state (drives read-only write
+// protection). A method is a transaction iff its ABI mutability is not view/pure.
+func (Contract) IsTransaction(method *abi.Method) bool {
+	return !method.IsConstant()
 }
 
 func (c *Contract) AddLog(evm *vm.EVM, event abi.Event, topics []common.Hash, args ...interface{}) error {
