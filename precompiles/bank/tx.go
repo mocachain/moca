@@ -1,8 +1,6 @@
 package bank
 
 import (
-	"errors"
-
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
@@ -27,11 +25,9 @@ const (
 )
 
 func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(SendMethodName)
@@ -51,7 +47,7 @@ func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	}
 
 	msg := &banktypes.MsgSend{
-		FromAddress: contract.Caller().String(),
+		FromAddress: caller.String(),
 		ToAddress:   args.ToAddress.String(),
 		Amount:      amount,
 	}
@@ -66,7 +62,7 @@ func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	if err := c.AddLog(
 		evm,
 		MustEvent(SendEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.ToAddress.Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(args.ToAddress.Bytes())},
 		amount.String(),
 	); err != nil {
 		return nil, err
@@ -77,11 +73,9 @@ func (c *Contract) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 
 // MultiSend defines a method for sending coins from an account to some other accounts.
 func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(MultiSendMethodName)
@@ -113,7 +107,7 @@ func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 
 	msg := &banktypes.MsgMultiSend{
 		Inputs: []banktypes.Input{{
-			Address: contract.Caller().String(),
+			Address: caller.String(),
 			Coins:   totalCoins,
 		}},
 		Outputs: outputs,
@@ -129,7 +123,7 @@ func (c *Contract) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 	if err := c.AddLog(
 		evm,
 		MustEvent(MultiSendEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		totalCoins.String(),
 	); err != nil {
 		return nil, err

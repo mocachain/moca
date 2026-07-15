@@ -35,7 +35,8 @@ func (s *CreateGroupTestSuite) TestCreateGroup_AllowsContractForwarding() {
 	groupName := "regression-group-fwd"
 	contract := vm.NewContract(caller, storage.GetAddress(), uint256.NewInt(0), 60_000, nil)
 	contract.Input = s.mustPackCreateGroupInput(groupName, "")
-	evm := &vm.EVM{}
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 	c := storage.NewPrecompiledContract(s.app.StorageKeeper, s.app.BankKeeper)
 	_, err := c.CreateGroup(s.ctx, evm, contract, false)
@@ -55,7 +56,8 @@ func (s *PrecompileTestSuite) TestBankSend_AllowsContractForwarding() {
 	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(caller.Bytes()), 100))
 	contract := vm.NewContract(caller, bank.GetAddress(), uint256.NewInt(0), bank.SendGas, nil)
 	contract.Input = s.mustPackBankSendInput(receiver, big.NewInt(40))
-	evm := &vm.EVM{}
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 	c := bank.NewPrecompiledContract(s.app.BankKeeper, s.app.PaymentKeeper)
 	_, err := c.Send(s.ctx, evm, contract, false)

@@ -29,15 +29,13 @@ func (c *Contract) registerTx() {
 }
 
 func (c *Contract) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("create payment account method readonly")
 	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
 	method := GetAbiMethod(CreatePaymentAccountMethodName)
 	msg := &paymenttypes.MsgCreatePaymentAccount{
-		Creator: contract.Caller().String(),
+		Creator: caller.String(),
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
@@ -51,7 +49,7 @@ func (c *Contract) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *
 		evm,
 		GetAbiEvent(c.events[CreatePaymentAccountMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 		},
 	); err != nil {
 		return nil, err
@@ -61,11 +59,9 @@ func (c *Contract) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *
 }
 
 func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("deposit method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(DepositMethodName)
 	var args DepositArgs
@@ -74,7 +70,7 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	}
 	msg := &paymenttypes.MsgDeposit{
 		// geth v1.16: vm.Contract.CallerAddress field was replaced by Caller().
-		Creator: contract.Caller().String(),
+		Creator: caller.String(),
 		To:      args.To,
 		Amount:  math.NewIntFromBigInt(args.Amount),
 	}
@@ -91,7 +87,7 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 		evm,
 		GetAbiEvent(c.events[DepositMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 		},
 	); err != nil {
 		return nil, err
@@ -100,11 +96,9 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 }
 
 func (c *Contract) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("disable refund method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DisableRefundMethodName)
@@ -116,7 +110,7 @@ func (c *Contract) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	}
 
 	msg := &paymenttypes.MsgDisableRefund{
-		Owner: contract.Caller().String(),
+		Owner: caller.String(),
 		Addr:  args.Addr,
 	}
 
@@ -134,7 +128,7 @@ func (c *Contract) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[DisableRefundMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -142,11 +136,9 @@ func (c *Contract) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 }
 
 func (c *Contract) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("withdraw method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(WithdrawMethodName)
@@ -158,7 +150,7 @@ func (c *Contract) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	}
 
 	msg := &paymenttypes.MsgWithdraw{
-		Creator: contract.Caller().String(),
+		Creator: caller.String(),
 		From:    args.From,
 		Amount:  math.NewIntFromBigInt(args.Amount),
 	}
@@ -178,7 +170,7 @@ func (c *Contract) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 		evm,
 		GetAbiEvent(c.events[WithdrawMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 		},
 	); err != nil {
 		return nil, err

@@ -1,8 +1,6 @@
 package distribution
 
 import (
-	"errors"
-
 	"cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -34,12 +32,9 @@ const (
 )
 
 func (c *Contract) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(SetWithdrawAddressMethodName)
@@ -51,7 +46,7 @@ func (c *Contract) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm
 	}
 
 	msg := &distributiontypes.MsgSetWithdrawAddress{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
+		DelegatorAddress: sdk.AccAddress(caller.Bytes()).String(),
 		WithdrawAddress:  sdk.AccAddress(args.WithdrawAddress.Bytes()).String(),
 	}
 
@@ -64,7 +59,7 @@ func (c *Contract) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm
 	if err := c.AddLog(
 		evm,
 		MustEvent(SetWithdrawAddressEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.WithdrawAddress.Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(args.WithdrawAddress.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -73,12 +68,9 @@ func (c *Contract) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm
 }
 
 func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(WithdrawDelegatorRewardMethodName)
@@ -90,7 +82,7 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 	}
 
 	msg := &distributiontypes.MsgWithdrawDelegatorReward{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
+		DelegatorAddress: sdk.AccAddress(caller.Bytes()).String(),
 		ValidatorAddress: args.ValidatorAddress.String(),
 	}
 
@@ -103,7 +95,7 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 	// topic[1] must be withdrawAddress, not validatorAddress
 	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
 	withdrawRes, err := querier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
+		DelegatorAddress: sdk.AccAddress(caller.Bytes()).String(),
 	})
 	if err != nil {
 		return nil, err
@@ -112,7 +104,7 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 	if err := c.AddLog(
 		evm,
 		MustEvent(WithdrawDelegatorRewardEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(withdrawAddr.Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(withdrawAddr.Bytes())},
 		res.Amount.String(),
 	); err != nil {
 		return nil, err
@@ -130,16 +122,13 @@ func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contrac
 }
 
 func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
 	}
 
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
-	}
-
 	method := MustMethod(WithdrawDelegatorAllRewardsMethodName)
-	delegator := contract.Caller().String()
+	delegator := caller.String()
 	msgQuery := &distributiontypes.QueryDelegatorValidatorsRequest{
 		DelegatorAddress: delegator,
 	}
@@ -173,7 +162,7 @@ func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, con
 		if err := c.AddLog(
 			evm,
 			MustEvent(WithdrawDelegatorRewardEventName),
-			[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(withdrawAddr.Bytes())},
+			[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(withdrawAddr.Bytes())},
 			res.Amount.String(),
 		); err != nil {
 			return nil, err
@@ -184,7 +173,7 @@ func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, con
 	if err := c.AddLog(
 		evm,
 		MustEvent(WithdrawDelegatorAllRewardsEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		total.String(),
 	); err != nil {
 		return nil, err
@@ -202,18 +191,15 @@ func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, con
 }
 
 func (c *Contract) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(WithdrawValidatorCommissionMethodName)
 
 	msg := &distributiontypes.MsgWithdrawValidatorCommission{
-		ValidatorAddress: sdk.ValAddress(contract.Caller().Bytes()).String(),
+		ValidatorAddress: sdk.ValAddress(caller.Bytes()).String(),
 	}
 
 	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
@@ -225,7 +211,7 @@ func (c *Contract) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, con
 	if err := c.AddLog(
 		evm,
 		MustEvent(WithdrawValidatorCommissionEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		res.Amount.String(),
 	); err != nil {
 		return nil, err
@@ -243,12 +229,9 @@ func (c *Contract) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, con
 }
 
 func (c *Contract) FundCommunityPool(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(FundCommunityPoolMethodName)
@@ -267,7 +250,7 @@ func (c *Contract) FundCommunityPool(ctx sdk.Context, evm *vm.EVM, contract *vm.
 		})
 	}
 	msg := &distributiontypes.MsgFundCommunityPool{
-		Depositor: sdk.AccAddress(contract.Caller().Bytes()).String(),
+		Depositor: sdk.AccAddress(caller.Bytes()).String(),
 		Amount:    amount,
 	}
 
@@ -280,7 +263,7 @@ func (c *Contract) FundCommunityPool(ctx sdk.Context, evm *vm.EVM, contract *vm.
 	if err := c.AddLog(
 		evm,
 		MustEvent(FundCommunityPoolEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		msg.Amount.String(),
 	); err != nil {
 		return nil, err

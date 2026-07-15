@@ -71,15 +71,30 @@ unchanged: `TestBankSend_TotalSupplyInvariant`, `TestDelegate_TotalSupplyInvaria
 value**. Moca is not on the ERC-20 / WERC20 path; sending native `value` to a
 precompile while the handler also moves Cosmos funds is a double-write hazard.
 
-## Caller semantics (EOA-only)
+## Caller semantics (direct caller)
 
-Transaction methods enforce **EOA-only**: a call where `evm.Origin != contract.Caller()`
-(a contract forwarding the call) is rejected with `only allow EOA can call this method`.
-Business identity is the direct caller.
+Transaction methods use the immediate EVM caller as the Cosmos message actor.
+Smart contracts may call transaction precompiles, while module message servers
+continue to enforce authorization. Transaction origin is not an authorization
+input.
 
-Removing EOA-only to let contracts call precompiles (direct-caller model) is a
-separate **consensus behavior change** that must ship behind a versioned chain
-upgrade — it is intentionally **not** part of the native-action migration.
+The direct caller maps to each module's acting identity:
+
+- `authz`: granter or executor
+- `bank`: sender
+- `distribution`: delegator, validator, or depositor
+- `gov`: proposer, voter, or depositor
+- `payment`: creator or owner
+- `slashing`: validator
+- `staking`: validator or delegator
+- `storage`: creator, operator, or member
+- `storageprovider`: storage provider
+- `virtualgroup`: storage provider
+
+Addresses supplied as method arguments remain targets or counterparties, such
+as recipients, validators, bucket owners, group owners, and grantees. This is a
+**consensus behavior change** and must ship through a coordinated versioned
+chain upgrade; the binary transition is the activation boundary.
 
 ## Tests
 
@@ -87,7 +102,7 @@ Regression / characterization coverage layered on top of the migration:
 
 - `bank` / `staking` / `payment`: **total-supply-invariant** guards, plus bank dispatch
   success and native revert on failure.
-- `storage`: `createGroup` dispatch success, EOA-only rejection, failure-does-not-mutate.
+- `storage`: `createGroup` dispatch success, contract forwarding, failure-does-not-mutate.
 - `storageprovider`: `updateSPPrice` decode + EVM-apply dispatch.
 
 Follow-ups: total-supply-invariant guards for the remaining coin-moving precompiles

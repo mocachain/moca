@@ -17,12 +17,14 @@ import (
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/holiman/uint256"
 
 	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/precompiles/bank"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/precompiles/bank"
 )
 
 type PrecompileTestSuite struct {
@@ -80,6 +82,28 @@ func (s *PrecompileTestSuite) TestBankSend_EVMDispatchSuccess() {
 
 	s.Require().Equal(math.NewInt(999999987655), s.balance(sdk.AccAddress(s.address.Bytes())))
 	s.Require().Equal(math.NewInt(12345), s.balance(sdk.AccAddress(receiver.Bytes())))
+}
+
+// TestBankSend_AllowsContractForwarding asserts that a forwarded native action
+// debits the immediate contract caller without using the transaction origin as
+// an authorization identity.
+func (s *PrecompileTestSuite) TestBankSend_AllowsContractForwarding() {
+	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
+	receiver := common.HexToAddress("0x4444444444444444444444444444444444444444")
+	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(caller.Bytes()), 100))
+
+	contract := vm.NewContract(caller, bank.GetAddress(), uint256.NewInt(0), bank.SendGas, nil)
+	contract.Input = s.mustPackBankSendInput(receiver, big.NewInt(40))
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.SetTxContext(vm.TxContext{Origin: s.address})
+
+	c := bank.NewPrecompiledContract(s.app.BankKeeper, s.app.PaymentKeeper)
+	_, err := c.Send(s.ctx, evm, contract, false)
+	s.Require().NoError(err)
+	s.Require().Equal(math.NewInt(60), s.balance(sdk.AccAddress(caller.Bytes())))
+	s.Require().Equal(math.NewInt(40), s.balance(sdk.AccAddress(receiver.Bytes())))
+	s.Require().Equal(math.NewInt(1_000_000_000_000), s.balance(sdk.AccAddress(s.address.Bytes())))
 }
 
 // TestBankSend_TotalSupplyInvariant asserts that a bank.send through the

@@ -23,8 +23,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
-	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
 	"github.com/mocachain/moca/v2/precompiles/types"
+	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"
@@ -71,12 +71,9 @@ func CalcPerMsgBytes(msgs []string) int {
 
 // Grant implements the MsgServer.Grant method to create a new grant.
 func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(GrantMethodName)
@@ -148,7 +145,7 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 		exp := time.Unix(args.Expiration, 0)
 		expiration = &exp
 	}
-	msg, err := authz.NewMsgGrant(contract.Caller().Bytes(), args.Grantee.Bytes(), authorization, expiration)
+	msg, err := authz.NewMsgGrant(caller.Bytes(), args.Grantee.Bytes(), authorization, expiration)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +159,7 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 	if err := c.AddLog(
 		evm,
 		MustEvent(GrantEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.Grantee.Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(args.Grantee.Bytes())},
 		args.AuthzType,
 	); err != nil {
 		return nil, err
@@ -173,12 +170,9 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 
 // Revoke implements the MsgServer.Revoke method.
 func (c *Contract) Revoke(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(RevokeMethodName)
@@ -190,7 +184,7 @@ func (c *Contract) Revoke(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 	}
 
 	msg := &authz.MsgRevoke{
-		Granter:    sdk.AccAddress(contract.Caller().Bytes()).String(),
+		Granter:    sdk.AccAddress(caller.Bytes()).String(),
 		Grantee:    sdk.AccAddress(args.Grantee.Bytes()).String(),
 		MsgTypeUrl: args.MsgTypeUrl,
 	}
@@ -207,7 +201,7 @@ func (c *Contract) Revoke(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 	if err := c.AddLog(
 		evm,
 		MustEvent(RevokeEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.Grantee.Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(args.Grantee.Bytes())},
 		args.MsgTypeUrl,
 	); err != nil {
 		return nil, err
@@ -218,12 +212,9 @@ func (c *Contract) Revoke(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 
 // Exec implements the MsgServer.Exec method.
 func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(ExecMethodName)
@@ -274,7 +265,7 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 		msgs[i] = msg
 	}
 
-	msg := authz.NewMsgExec(sdk.AccAddress(contract.Caller().Bytes()), msgs)
+	msg := authz.NewMsgExec(sdk.AccAddress(caller.Bytes()), msgs)
 	_, err = c.authzKeeper.Exec(ctx, &msg)
 	if err != nil {
 		return nil, err
@@ -284,7 +275,7 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	if err := c.AddLog(
 		evm,
 		MustEvent(ExecEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
