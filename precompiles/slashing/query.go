@@ -1,92 +1,63 @@
 package slashing
 
 import (
-	"bytes"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/precompiles/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 const (
-	SigningInfoGas  = 30_000
-	SigningInfosGas = 50_000
-	paramsGas       = 30_000
-
-	SigningInfoMethodName  = "signingInfo"
-	SigningInfosMethodName = "signingInfos"
-	ParamsMethodName       = "params"
+	// SigningInfoMethod is the ABI name for the SigningInfo query.
+	SigningInfoMethod = "signingInfo"
+	// SigningInfosMethod is the ABI name for the SigningInfos query.
+	SigningInfosMethod = "signingInfos"
+	// ParamsMethod is the ABI name for the Params query.
+	ParamsMethod = "params"
 )
 
-func (c *Contract) SigningInfo(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(SigningInfoMethodName)
-
-	var args SigningInfoArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
-		return nil, err
-	}
-
-	msg := &slashingtypes.QuerySigningInfoRequest{
-		ConsAddress: args.GetConsAddress().String(),
-	}
-
-	res, err := c.slashingkeeper.SigningInfo(ctx, msg)
+// SigningInfo queries the signing info of a single validator by consensus address.
+func (p Precompile) SigningInfo(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	req, err := NewSigningInfoRequest(args)
 	if err != nil {
 		return nil, err
 	}
 
-	valSigningInfo := OutPutValidatorSigningInfo(res.ValSigningInfo)
-
-	return method.Outputs.Pack(valSigningInfo)
-}
-
-func (c *Contract) SigningInfos(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(SigningInfosMethodName)
-
-	var args SigningInfosArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
-		return nil, err
-	}
-
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
-	msg := &slashingtypes.QuerySigningInfosRequest{
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-
-	res, err := c.slashingkeeper.SigningInfos(ctx, msg)
+	res, err := p.slashingQuerier.SigningInfo(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	var valSigningInfos []ValidatorSigningInfo
-	for _, valSigningInfo := range res.Info {
-		valSigningInfos = append(valSigningInfos, OutPutValidatorSigningInfo(valSigningInfo))
-	}
-
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(valSigningInfos, pageResponse)
+	return method.Outputs.Pack(newValidatorSigningInfo(res.ValSigningInfo))
 }
 
-func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ParamsMethodName)
+// SigningInfos queries the signing info of all validators, paginated.
+func (p Precompile) SigningInfos(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	req, err := NewSigningInfosRequest(method, args)
+	if err != nil {
+		return nil, err
+	}
 
-	msg := &slashingtypes.QueryParamsRequest{}
+	res, err := p.slashingQuerier.SigningInfos(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
-	res, err := c.slashingkeeper.Params(ctx, msg)
+	infos := make([]ValidatorSigningInfo, 0, len(res.Info))
+	for _, info := range res.Info {
+		infos = append(infos, newValidatorSigningInfo(info))
+	}
+
+	pageResponse := PageResponse{
+		NextKey: res.Pagination.NextKey,
+		Total:   res.Pagination.Total,
+	}
+
+	return method.Outputs.Pack(infos, pageResponse)
+}
+
+// Params queries the slashing module parameters.
+func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	res, err := p.slashingQuerier.Params(ctx, &slashingtypes.QueryParamsRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -100,15 +71,4 @@ func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ b
 	}
 
 	return method.Outputs.Pack(params)
-}
-
-func OutPutValidatorSigningInfo(validatorSigningInfo slashingtypes.ValidatorSigningInfo) ValidatorSigningInfo {
-	return ValidatorSigningInfo{
-		ConsAddress:         common.HexToAddress(validatorSigningInfo.Address),
-		StartHeight:         validatorSigningInfo.StartHeight,
-		IndexOffset:         validatorSigningInfo.IndexOffset,
-		JailedUntil:         validatorSigningInfo.JailedUntil.Unix(),
-		Tombstoned:          validatorSigningInfo.Tombstoned,
-		MissedBlocksCounter: validatorSigningInfo.MissedBlocksCounter,
-	}
 }
