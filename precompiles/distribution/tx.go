@@ -3,288 +3,176 @@ package distribution
 import (
 	"errors"
 
-	"cosmossdk.io/math"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/precompiles/types"
+
+	cmn "github.com/cosmos/evm/precompiles/common"
 )
 
 const (
-	SetWithdrawAddressGas          = 60_000
-	WithdrawDelegatorRewardGas     = 60_000
-	WithdrawDelegatorAllRewardsGas = 100_000
-	WithdrawValidatorCommissionGas = 60_000
-	FundCommunityPoolGas           = 60_000
-
-	SetWithdrawAddressMethodName          = "setWithdrawAddress"
-	WithdrawDelegatorRewardMethodName     = "withdrawDelegatorReward"
-	WithdrawDelegatorAllRewardsMethodName = "withdrawDelegatorAllRewards"
-	WithdrawValidatorCommissionMethodName = "withdrawValidatorCommission"
-	FundCommunityPoolMethodName           = "fundCommunityPool"
-
-	SetWithdrawAddressEventName          = "SetWithdrawAddress"
-	WithdrawDelegatorRewardEventName     = "WithdrawDelegatorReward"
-	WithdrawDelegatorAllRewardsEventName = "WithdrawDelegatorAllRewards"
-	WithdrawValidatorCommissionEventName = "WithdrawValidatorCommission"
-	FundCommunityPoolEventName           = "FundCommunityPool"
+	// SetWithdrawAddressMethod is the ABI name for the SetWithdrawAddress transaction.
+	SetWithdrawAddressMethod = "setWithdrawAddress"
+	// WithdrawDelegatorRewardMethod is the ABI name for the WithdrawDelegatorReward transaction.
+	WithdrawDelegatorRewardMethod = "withdrawDelegatorReward"
+	// WithdrawDelegatorAllRewardsMethod is the ABI name for the moca-specific
+	// WithdrawDelegatorAllRewards transaction.
+	WithdrawDelegatorAllRewardsMethod = "withdrawDelegatorAllRewards"
+	// WithdrawValidatorCommissionMethod is the ABI name for the WithdrawValidatorCommission transaction.
+	WithdrawValidatorCommissionMethod = "withdrawValidatorCommission"
+	// FundCommunityPoolMethod is the ABI name for the FundCommunityPool transaction.
+	FundCommunityPoolMethod = "fundCommunityPool"
 )
 
-func (c *Contract) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
+// errOnlyEOA is the moca-specific guard: state-changing methods may only be
+// invoked directly by an externally owned account (evm.Origin == caller).
+var errOnlyEOA = errors.New("only allow EOA can call this method")
 
+// SetWithdrawAddress sets the withdraw address for the caller's delegation rewards.
+func (p Precompile) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
+		return nil, errOnlyEOA
 	}
 
-	method := MustMethod(SetWithdrawAddressMethodName)
-
-	var args SetWithdrawAddressArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
+	msg, withdrawAddr, err := NewMsgSetWithdrawAddress(args, contract.Caller())
 	if err != nil {
 		return nil, err
 	}
 
-	msg := &distributiontypes.MsgSetWithdrawAddress{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
-		WithdrawAddress:  sdk.AccAddress(args.WithdrawAddress.Bytes()).String(),
-	}
-
-	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
-	_, err = server.SetWithdrawAddress(ctx, msg)
-	if err != nil {
+	if _, err = p.distributionMsgServer.SetWithdrawAddress(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	if err := c.AddLog(
-		evm,
-		MustEvent(SetWithdrawAddressEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.WithdrawAddress.Bytes())},
-	); err != nil {
+	if err = p.EmitSetWithdrawAddressEvent(evm, contract.Caller(), withdrawAddr); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
+// WithdrawDelegatorReward withdraws the caller's rewards from a single validator.
+func (p Precompile) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
+		return nil, errOnlyEOA
 	}
 
-	method := MustMethod(WithdrawDelegatorRewardMethodName)
-
-	var args ValidatorAddressArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
+	msg, _, err := NewMsgWithdrawDelegatorReward(args, contract.Caller())
 	if err != nil {
 		return nil, err
 	}
 
-	msg := &distributiontypes.MsgWithdrawDelegatorReward{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
-		ValidatorAddress: args.ValidatorAddress.String(),
-	}
-
-	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
-	res, err := server.WithdrawDelegatorReward(ctx, msg)
+	res, err := p.distributionMsgServer.WithdrawDelegatorReward(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 
-	// topic[1] must be withdrawAddress, not validatorAddress
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	withdrawRes, err := querier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
-	})
+	// The reward event topic is the delegator's withdraw address, not the validator.
+	withdrawAddr, err := p.delegatorWithdrawAddress(ctx, msg.DelegatorAddress)
 	if err != nil {
 		return nil, err
 	}
-	withdrawAddr := common.HexToAddress(withdrawRes.WithdrawAddress)
-	if err := c.AddLog(
-		evm,
-		MustEvent(WithdrawDelegatorRewardEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(withdrawAddr.Bytes())},
-		res.Amount.String(),
-	); err != nil {
+
+	if err = p.EmitWithdrawDelegatorRewardEvent(evm, contract.Caller(), withdrawAddr, res.Amount.String()); err != nil {
 		return nil, err
 	}
 
-	var rewards []Coin
-	for _, amount := range res.Amount {
-		rewards = append(rewards, Coin{
-			Denom:  amount.Denom,
-			Amount: amount.Amount.BigInt(),
-		})
-	}
-
-	return method.Outputs.Pack(rewards)
+	return method.Outputs.Pack(cmn.NewCoinsResponse(res.Amount))
 }
 
-func (c *Contract) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
+// WithdrawDelegatorAllRewards withdraws the caller's rewards from every validator it
+// is delegated to. This is a moca-specific convenience method with no cosmos/evm analog.
+func (p Precompile) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
+		return nil, errOnlyEOA
 	}
 
-	method := MustMethod(WithdrawDelegatorAllRewardsMethodName)
 	delegator := contract.Caller().String()
-	msgQuery := &distributiontypes.QueryDelegatorValidatorsRequest{
-		DelegatorAddress: delegator,
-	}
 
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	resQuery, err := querier.DelegatorValidators(ctx, msgQuery)
-	if err != nil {
-		return nil, err
-	}
-
-	withdrawRes, err := querier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
+	resQuery, err := p.distributionQuerier.DelegatorValidators(ctx, &distributiontypes.QueryDelegatorValidatorsRequest{
 		DelegatorAddress: delegator,
 	})
 	if err != nil {
 		return nil, err
 	}
-	withdrawAddr := common.HexToAddress(withdrawRes.WithdrawAddress)
+
+	withdrawAddr, err := p.delegatorWithdrawAddress(ctx, delegator)
+	if err != nil {
+		return nil, err
+	}
 
 	var total sdk.Coins
-	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
 	for _, validator := range resQuery.Validators {
-		msg := &distributiontypes.MsgWithdrawDelegatorReward{
+		res, err := p.distributionMsgServer.WithdrawDelegatorReward(ctx, &distributiontypes.MsgWithdrawDelegatorReward{
 			DelegatorAddress: delegator,
 			ValidatorAddress: validator,
-		}
-
-		res, err := server.WithdrawDelegatorReward(ctx, msg)
+		})
 		if err != nil {
 			return nil, err
 		}
-		if err := c.AddLog(
-			evm,
-			MustEvent(WithdrawDelegatorRewardEventName),
-			[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(withdrawAddr.Bytes())},
-			res.Amount.String(),
-		); err != nil {
+		if err = p.EmitWithdrawDelegatorRewardEvent(evm, contract.Caller(), withdrawAddr, res.Amount.String()); err != nil {
 			return nil, err
 		}
 		total = total.Add(res.Amount...)
 	}
 
-	if err := c.AddLog(
-		evm,
-		MustEvent(WithdrawDelegatorAllRewardsEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
-		total.String(),
-	); err != nil {
+	if err = p.EmitWithdrawDelegatorAllRewardsEvent(evm, contract.Caller(), total.String()); err != nil {
 		return nil, err
 	}
 
-	var rewards []Coin
-	for _, amount := range total {
-		rewards = append(rewards, Coin{
-			Denom:  amount.Denom,
-			Amount: amount.Amount.BigInt(),
-		})
-	}
-
-	return method.Outputs.Pack(rewards)
+	return method.Outputs.Pack(cmn.NewCoinsResponse(total))
 }
 
-func (c *Contract) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
+// WithdrawValidatorCommission withdraws the caller's accumulated validator commission.
+func (p Precompile) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, _ []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
+		return nil, errOnlyEOA
 	}
 
-	method := MustMethod(WithdrawValidatorCommissionMethodName)
+	msg := NewMsgWithdrawValidatorCommission(contract.Caller())
 
-	msg := &distributiontypes.MsgWithdrawValidatorCommission{
-		ValidatorAddress: sdk.ValAddress(contract.Caller().Bytes()).String(),
-	}
-
-	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
-	res, err := server.WithdrawValidatorCommission(ctx, msg)
+	res, err := p.distributionMsgServer.WithdrawValidatorCommission(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := c.AddLog(
-		evm,
-		MustEvent(WithdrawValidatorCommissionEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
-		res.Amount.String(),
-	); err != nil {
+	if err = p.EmitWithdrawValidatorCommissionEvent(evm, contract.Caller(), res.Amount.String()); err != nil {
 		return nil, err
 	}
 
-	var rewards []Coin
-	for _, amount := range res.Amount {
-		rewards = append(rewards, Coin{
-			Denom:  amount.Denom,
-			Amount: amount.Amount.BigInt(),
-		})
-	}
-
-	return method.Outputs.Pack(rewards)
+	return method.Outputs.Pack(cmn.NewCoinsResponse(res.Amount))
 }
 
-func (c *Contract) FundCommunityPool(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
+// FundCommunityPool funds the community pool from the caller's balance.
+func (p Precompile) FundCommunityPool(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
+		return nil, errOnlyEOA
 	}
 
-	method := MustMethod(FundCommunityPoolMethodName)
-
-	var args FundCommunityPoolArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
+	msg, err := NewMsgFundCommunityPool(args, contract.Caller())
 	if err != nil {
 		return nil, err
 	}
 
-	var amount []sdk.Coin
-	for _, coin := range args.Amount {
-		amount = append(amount, sdk.Coin{
-			Denom:  coin.Denom,
-			Amount: math.NewIntFromBigInt(coin.Amount),
-		})
-	}
-	msg := &distributiontypes.MsgFundCommunityPool{
-		Depositor: sdk.AccAddress(contract.Caller().Bytes()).String(),
-		Amount:    amount,
-	}
-
-	server := distributionkeeper.NewMsgServerImpl(c.distributionKeeper)
-	_, err = server.FundCommunityPool(ctx, msg)
-	if err != nil {
+	if _, err = p.distributionMsgServer.FundCommunityPool(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	if err := c.AddLog(
-		evm,
-		MustEvent(FundCommunityPoolEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
-		msg.Amount.String(),
-	); err != nil {
+	if err = p.EmitFundCommunityPoolEvent(evm, contract.Caller(), msg.Amount.String()); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
+}
+
+// delegatorWithdrawAddress resolves a delegator's configured withdraw address as a hex address.
+func (p Precompile) delegatorWithdrawAddress(ctx sdk.Context, delegator string) (common.Address, error) {
+	res, err := p.distributionQuerier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
+		DelegatorAddress: delegator,
+	})
+	if err != nil {
+		return common.Address{}, err
+	}
+	return common.HexToAddress(res.WithdrawAddress), nil
 }
