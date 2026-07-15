@@ -1,16 +1,25 @@
 # Direct Precompile Caller Semantics Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:subagent-driven-development (recommended) or
+> superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Allow smart contracts to call transaction precompiles while making the immediate EVM caller the single acting identity.
+**Goal:** Allow smart contracts to call transaction precompiles while making
+the immediate EVM caller the single acting identity.
 
-**Architecture:** The existing `RunNativeAction` boundary already journals Cosmos writes for nested EVM calls. Remove the EOA-only guard from every transaction method, bind `contract.Caller()` once per method, and use that address consistently for message actor fields and event topics; module message servers continue enforcing authorization.
+**Architecture:** The existing `RunNativeAction` boundary already journals
+Cosmos writes for nested EVM calls. Remove the EOA-only guard from every
+transaction method, bind `contract.Caller()` once per method, and use that
+address consistently for message actor fields and event topics. Module message
+servers continue enforcing authorization.
 
 **Tech Stack:** Go, go-ethereum EVM, Cosmos SDK message servers, cosmos/evm precompile runtime, testify suites.
 
 ## Global Constraints
 
-- Preserve target and counterparty arguments such as validator, bucket owner, group owner, storage provider, recipient, and grantee.
+- Preserve target and counterparty arguments such as validator, bucket owner,
+  group owner, storage provider, recipient, and grantee.
 - Do not add a runtime fallback or height flag; coordinated `x/upgrade` binary replacement is the activation boundary.
 - Preserve `RunNativeAction`, balance reconciliation, read-only checks, gas accounting, and module authorization.
 - Branch, commit, and PR title follow Conventional Commits.
@@ -20,10 +29,12 @@
 ### Task 1: Pin Direct-Caller Behavior
 
 **Files:**
+
 - Modify: `precompiles/storage/tx_evm_apply_test.go`
 - Modify: `precompiles/bank/tx_test.go`
 
 **Interfaces:**
+
 - Consumes: existing `Contract.CreateGroup`, `Contract.Send`, and test app keepers.
 - Produces: regression tests proving `contract.Caller()` owns and funds forwarded actions independently of `evm.Origin`.
 
@@ -77,9 +88,11 @@ Expected: both new forwarding tests fail with `only allow EOA can call this meth
 ### Task 2: Adopt Direct Caller Across Transaction Precompiles
 
 **Files:**
+
 - Modify: `precompiles/{authz,bank,distribution,gov,payment,slashing,staking,storage,storageprovider,virtualgroup}/tx.go`
 
 **Interfaces:**
+
 - Consumes: `vm.Contract.Caller()` and existing Cosmos message server authorization.
 - Produces: transaction methods that accept nested contract calls and use one direct-caller value for actor fields and logs.
 
@@ -122,10 +135,12 @@ Expected: no matches.
 ### Task 3: Document and Verify the Consensus Change
 
 **Files:**
+
 - Modify: `precompiles/README.md`
 - Modify: `CHANGELOG.md`
 
 **Interfaces:**
+
 - Consumes: the behavior established in Tasks 1 and 2.
 - Produces: operator-facing upgrade notice and developer-facing caller contract.
 
