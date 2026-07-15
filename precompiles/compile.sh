@@ -6,7 +6,10 @@ set -eo pipefail
 project_dir="$(git rev-parse --show-toplevel)"
 gopath="$(go env GOPATH)"
 abigen_path="$gopath/bin/abigen"
-desired_abigen_version="1.15.11-stable"
+# abigen pinned to the go-ethereum version cosmos/evm v0.6.0 tracks; the minimal
+# cosmos/go-ethereum fork keeps the upstream module path, so upstream abigen matches.
+desired_abigen_version="1.16.2-stable"
+abigen_install_version="v1.16.2"
 
 # Check if commands exist
 check_commands() {
@@ -31,11 +34,10 @@ get_abigen_version() {
 check_and_install_abigen() {
   local current_version
   current_version=$(get_abigen_version)
-  echo "$current_version"
 
   if [ "$current_version" != "$desired_abigen_version" ]; then
     echo "Installing abigen version $desired_abigen_version..."
-    GOBIN="$gopath/bin" go install github.com/ethereum/go-ethereum/cmd/abigen@v1.14.5
+    GOBIN="$gopath/bin" go install "github.com/ethereum/go-ethereum/cmd/abigen@${abigen_install_version}"
     if [ ! -f "$abigen_path" ]; then
       echo "abigen installation failed, please check your Go setup." && exit 1
     fi
@@ -46,7 +48,7 @@ check_and_install_abigen() {
 
 # Install Node.js modules
 install_node_modules() {
-  if [ ! -d "$project_dir/solidity/contracts/node_modules" ]; then
+  if [ ! -d "$project_dir/solidity/node_modules" ]; then
     echo "===> Installing node modules"
     (cd "$project_dir/solidity" && yarn install)
   fi
@@ -75,13 +77,15 @@ create_directories() {
 
 # Generate ABI and bytecode files, and use abigen to generate Go wrapper code
 generate_abigen() {
-  local contracts=(IBank IAuthz IGov IDistribution IStorage IVirtualGroup IStorageProvider IStaking IPayment IPermission ISlashing IErc20)
+  local contracts=(IBank IAuthz IGov IDistribution IStorage IVirtualGroup IStorageProvider IStaking IPayment IPermission ISlashing)
 
   for contract in "${contracts[@]}"; do
     echo "===> Ethereum ABI wrapper code generator: $contract"
-    local pkg=$(echo "$contract" | tr '[:upper:]' '[:lower:]')
+    local pkg
+    pkg=$(echo "$contract" | tr '[:upper:]' '[:lower:]')
     pkg=${pkg:1}
-    local file_path=$(find "$project_dir/solidity/artifacts" -name "${contract}.json" -type f)
+    local file_path
+    file_path=$(find "$project_dir/solidity/artifacts" -name "${contract}.json" -type f)
     jq -c '.abi' "$file_path" >"$project_dir/precompiles/contracts/artifacts/${contract}.abi"
     jq -r '.bytecode' "$file_path" >"$project_dir/precompiles/contracts/artifacts/${contract}.bin"
     $abigen_path --abi "$project_dir/precompiles/contracts/artifacts/${contract}.abi" \
