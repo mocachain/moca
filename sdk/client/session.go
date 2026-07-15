@@ -13,13 +13,13 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	gnfdSdkTypes "github.com/mocachain/moca/v2/sdk/types"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/authz"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/bank"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/distribution"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/gov"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/payment"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/staking"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/storage"
+	"github.com/mocachain/moca/v2/precompiles/authz"
+	"github.com/mocachain/moca/v2/precompiles/bank"
+	"github.com/mocachain/moca/v2/precompiles/distribution"
+	"github.com/mocachain/moca/v2/precompiles/gov"
+	"github.com/mocachain/moca/v2/precompiles/payment"
+	"github.com/mocachain/moca/v2/precompiles/staking"
+	"github.com/mocachain/moca/v2/precompiles/storage"
 )
 
 func CreateTxOpts(ctx context.Context, client *ethclient.Client, hexPrivateKey string, chain *big.Int, gasLimit uint64, nonce uint64) (*bind.TransactOpts, error) {

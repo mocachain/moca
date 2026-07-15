@@ -521,7 +521,7 @@ stop-dc:
 .PHONY: build-dcf start-dc stop-dc
 
 precompile:
-	@cd x/evm/precompiles && sh compile.sh
+	@cd precompiles && sh compile.sh
 
 verify:
 	@cd solidity && node verify.js
