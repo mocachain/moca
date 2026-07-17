@@ -16,10 +16,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/precompiles/payment"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/precompiles/payment"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 
@@ -101,7 +101,7 @@ func (s *SupplyTestSuite) mustEnableStaticPrecompiles() {
 }
 
 func (s *SupplyTestSuite) mustPackDepositInput(to string, amount *big.Int) []byte {
-	method := payment.GetAbiMethod(payment.DepositMethodName)
+	method := payment.MustMethod(payment.DepositMethodName)
 	packedArgs, err := method.Inputs.Pack(to, amount)
 	s.Require().NoError(err)
 	return append(append([]byte{}, method.ID...), packedArgs...)

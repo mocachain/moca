@@ -1,185 +1,157 @@
 package payment
 
 import (
-	"bytes"
 	"fmt"
 	"math/big"
 
+	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/mocachain/moca/v2/types"
 )
 
 var (
 	paymentAddress = common.HexToAddress(types.PaymentAddress)
 	paymentABI     = types.MustABIJson(IPaymentMetaData.ABI)
-	invalidMethod  = abi.Method{}
 )
 
-type (
-	PageRequestJSON = PageRequest
-)
-
+// GetAddress returns the payment precompile's fixed hex address.
 func GetAddress() common.Address {
 	return paymentAddress
 }
 
-func GetMethodByID(input []byte) (abi.Method, error) {
-	if len(input) < 4 {
-		return invalidMethod, fmt.Errorf("input length %d is too short", len(input))
+// GetMethod resolves an ABI method by name.
+func GetMethod(name string) (abi.Method, error) {
+	method := paymentABI.Methods[name]
+	if method.ID == nil {
+		return abi.Method{}, fmt.Errorf("method %s does not exist", name)
 	}
-	for _, method := range paymentABI.Methods {
-		if bytes.Equal(input[:4], method.ID) {
-			return method, nil
-		}
+	return method, nil
+}
+
+// MustMethod resolves an ABI method by name and panics if it does not exist.
+func MustMethod(name string) abi.Method {
+	method, err := GetMethod(name)
+	if err != nil {
+		panic(err)
 	}
-	return invalidMethod, fmt.Errorf("method id %s is not exist", string(input[:4]))
+	return method
 }
 
-func GetAbiMethod(name string) abi.Method {
-	return paymentABI.Methods[name]
+// GetEvent resolves an ABI event by name.
+func GetEvent(name string) (abi.Event, error) {
+	event := paymentABI.Events[name]
+	if event.ID == (common.Hash{}) {
+		return abi.Event{}, fmt.Errorf("event %s does not exist", name)
+	}
+	return event, nil
 }
 
-func GetAbiEvent(name string) abi.Event {
-	return paymentABI.Events[name]
+// MustEvent resolves an ABI event by name and panics if it does not exist.
+func MustEvent(name string) abi.Event {
+	event, err := GetEvent(name)
+	if err != nil {
+		panic(err)
+	}
+	return event
 }
 
+// The arg structs below are decode targets for cmn.SetupABI's positional args via
+// abi.Arguments.Copy; their fields carry the ABI names.
+
+// DepositArgs are the inputs to the deposit transaction.
 type DepositArgs struct {
-	// Creator string   `abi:"creator"`
 	To     string   `abi:"to"`
 	Amount *big.Int `abi:"amount"`
 }
 
-// Validate DepositArgs the args
-func (args *DepositArgs) Validate() error {
-	return nil
-}
-
+// DisableRefundArgs are the inputs to the disableRefund transaction.
 type DisableRefundArgs struct {
-	// Owner string `abi:"owner"`
 	Addr string `abi:"addr"`
 }
 
-// Validate DisableRefundArgs the args
-func (args *DisableRefundArgs) Validate() error {
-	return nil
-}
-
+// WithdrawArgs are the inputs to the withdraw transaction.
 type WithdrawArgs struct {
-	// Creator string   `abi:"creator"`
 	From   string   `abi:"from"`
 	Amount *big.Int `abi:"amount"`
 }
 
-// Validate WithdrawArgs the args
-func (args *WithdrawArgs) Validate() error {
-	return nil
-}
-
+// PaymentAccountsByOwnerArgs are the inputs to the paymentAccountsByOwner query.
 type PaymentAccountsByOwnerArgs struct {
 	Owner string `abi:"owner"`
 }
 
-// Validate PaymentAccountsByOwnerArgs the args
-func (args *PaymentAccountsByOwnerArgs) Validate() error {
-	return nil
-}
-
+// PaymentAccountArgs are the inputs to the paymentAccount query.
 type PaymentAccountArgs struct {
 	Addr string `abi:"addr"`
 }
 
-// Validate PaymentAccountArgs the args
-func (args *PaymentAccountArgs) Validate() error {
-	return nil
-}
-
+// ParamsByTimestampArgs are the inputs to the paramsByTimestamp query.
 type ParamsByTimestampArgs struct {
 	Timestamp int64 `abi:"timestamp"`
 }
 
-// Validate ParamsByTimestampArgs the args
-func (args *ParamsByTimestampArgs) Validate() error {
-	return nil
-}
-
+// OutFlowsArgs are the inputs to the outFlows query.
 type OutFlowsArgs struct {
 	Account string `abi:"account"`
 }
 
-// Validate OutFlowsArgs the args
-func (args *OutFlowsArgs) Validate() error {
-	return nil
-}
-
+// StreamRecordArgs are the inputs to the streamRecord query.
 type StreamRecordArgs struct {
 	Account string `abi:"account"`
 }
 
-// Validate StreamRecordArgs the args
-func (args *StreamRecordArgs) Validate() error {
-	return nil
-}
-
+// StreamRecordsArgs are the inputs to the streamRecords query.
 type StreamRecordsArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
-// Validate StreamRecordsArgs the args
-func (args *StreamRecordsArgs) Validate() error {
-	return nil
-}
-
+// PaymentAccountCountArgs are the inputs to the paymentAccountCount query.
 type PaymentAccountCountArgs struct {
 	Owner string `abi:"owner"`
 }
 
-// Validate PaymentAccountCountArgs the args
-func (args *PaymentAccountCountArgs) Validate() error {
-	return nil
-}
-
+// PaymentAccountCountsArgs are the inputs to the paymentAccountCounts query.
 type PaymentAccountCountsArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
-// Validate PaymentAccountCountsArgs the args
-func (args *PaymentAccountCountsArgs) Validate() error {
-	return nil
-}
-
+// PaymentAccountsArgs are the inputs to the paymentAccounts query.
 type PaymentAccountsArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
-// Validate PaymentAccountsArgs the args
-func (args *PaymentAccountsArgs) Validate() error {
-	return nil
-}
-
+// DynamicBalanceArgs are the inputs to the dynamicBalance query.
 type DynamicBalanceArgs struct {
 	Account string `abi:"account"`
 }
 
-// Validate DynamicBalanceArgs the args
-func (args *DynamicBalanceArgs) Validate() error {
-	return nil
-}
-
+// AutoSettleRecordsArgs are the inputs to the autoSettleRecords query.
 type AutoSettleRecordsArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
-// Validate AutoSettleRecordsArgs the args
-func (args *AutoSettleRecordsArgs) Validate() error {
-	return nil
-}
-
+// DelayedWithdrawalArgs are the inputs to the delayedWithdrawal query.
 type DelayedWithdrawalArgs struct {
 	Account string `abi:"account"`
 }
 
-// Validate DelayedWithdrawalArgs the args
-func (args *DelayedWithdrawalArgs) Validate() error {
-	return nil
+// pageRequest builds a query.PageRequest from the ABI pagination tuple.
+func pageRequest(page PageRequest) *query.PageRequest {
+	return &query.PageRequest{
+		Key:        page.Key,
+		Offset:     page.Offset,
+		Limit:      page.Limit,
+		CountTotal: page.CountTotal,
+		Reverse:    page.Reverse,
+	}
+}
+
+// pageResponse maps a query.PageResponse into the ABI tuple.
+func pageResponse(res *query.PageResponse) *PageResponse {
+	return &PageResponse{
+		NextKey: res.NextKey,
+		Total:   res.Total,
+	}
 }

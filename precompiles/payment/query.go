@@ -2,57 +2,50 @@ package payment
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/precompiles/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 
 const (
+	// PaymentAccountsByOwnerMethodName is the ABI name for the paymentAccountsByOwner query.
 	PaymentAccountsByOwnerMethodName = "paymentAccountsByOwner"
-	PaymentAccountMethodName         = "paymentAccount"
-	ParamsMethodName                 = "params"
-	ParamsByTimestampMethodName      = "paramsByTimestamp"
-	OutFlowsMethodName               = "outFlows"
-	StreamRecordMethodName           = "streamRecord"
-	StreamRecordsMethodName          = "streamRecords"
-	PaymentAccountCountMethodName    = "paymentAccountCount"
-	PaymentAccountCountsMethodName   = "paymentAccountCounts"
-	PaymentAccountsMethodName        = "paymentAccounts"
-	DynamicBalanceMethodName         = "dynamicBalance"
-	AutoSettleRecordsMethodName      = "autoSettleRecords"
-	DelayedWithdrawalMethodName      = "delayedWithdrawal"
+	// PaymentAccountMethodName is the ABI name for the paymentAccount query.
+	PaymentAccountMethodName = "paymentAccount"
+	// ParamsMethodName is the ABI name for the params query.
+	ParamsMethodName = "params"
+	// ParamsByTimestampMethodName is the ABI name for the paramsByTimestamp query.
+	ParamsByTimestampMethodName = "paramsByTimestamp"
+	// OutFlowsMethodName is the ABI name for the outFlows query.
+	OutFlowsMethodName = "outFlows"
+	// StreamRecordMethodName is the ABI name for the streamRecord query.
+	StreamRecordMethodName = "streamRecord"
+	// StreamRecordsMethodName is the ABI name for the streamRecords query.
+	StreamRecordsMethodName = "streamRecords"
+	// PaymentAccountCountMethodName is the ABI name for the paymentAccountCount query.
+	PaymentAccountCountMethodName = "paymentAccountCount"
+	// PaymentAccountCountsMethodName is the ABI name for the paymentAccountCounts query.
+	PaymentAccountCountsMethodName = "paymentAccountCounts"
+	// PaymentAccountsMethodName is the ABI name for the paymentAccounts query.
+	PaymentAccountsMethodName = "paymentAccounts"
+	// DynamicBalanceMethodName is the ABI name for the dynamicBalance query.
+	DynamicBalanceMethodName = "dynamicBalance"
+	// AutoSettleRecordsMethodName is the ABI name for the autoSettleRecords query.
+	AutoSettleRecordsMethodName = "autoSettleRecords"
+	// DelayedWithdrawalMethodName is the ABI name for the delayedWithdrawal query.
+	DelayedWithdrawalMethodName = "delayedWithdrawal"
 )
 
-func (c *Contract) registerQuery() {
-	c.registerMethod(PaymentAccountsByOwnerMethodName, 50_000, c.PaymentAccountsByOwner, "")
-	c.registerMethod(PaymentAccountMethodName, 50_000, c.PaymentAccount, "")
-	c.registerMethod(ParamsMethodName, 50_000, c.Params, "")
-	c.registerMethod(ParamsByTimestampMethodName, 50_000, c.ParamsByTimestamp, "")
-	c.registerMethod(OutFlowsMethodName, 50_000, c.OutFlows, "")
-	c.registerMethod(StreamRecordMethodName, 50_000, c.StreamRecord, "")
-	c.registerMethod(StreamRecordsMethodName, 50_000, c.StreamRecords, "")
-	c.registerMethod(PaymentAccountCountMethodName, 50_000, c.PaymentAccountCount, "")
-	c.registerMethod(PaymentAccountCountsMethodName, 50_000, c.PaymentAccountCounts, "")
-	c.registerMethod(PaymentAccountsMethodName, 50_000, c.PaymentAccounts, "")
-	c.registerMethod(DynamicBalanceMethodName, 50_000, c.DynamicBalance, "")
-	c.registerMethod(AutoSettleRecordsMethodName, 50_000, c.AutoSettleRecords, "")
-	c.registerMethod(DelayedWithdrawalMethodName, 50_000, c.DelayedWithdrawal, "")
-}
-
-// PaymentAccountsByOwner queries all payment accounts by a owner.
-func (c *Contract) PaymentAccountsByOwner(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(PaymentAccountsByOwnerMethodName)
-	// parse args
-	var args PaymentAccountsByOwnerArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// PaymentAccountsByOwner queries all payment accounts by an owner.
+func (p Precompile) PaymentAccountsByOwner(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input PaymentAccountsByOwnerArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryPaymentAccountsByOwnerRequest{
-		Owner: args.Owner,
-	}
-	res, err := c.paymentKeeper.PaymentAccountsByOwner(ctx, msg)
+	res, err := p.paymentKeeper.PaymentAccountsByOwner(ctx, &paymenttypes.QueryPaymentAccountsByOwnerRequest{
+		Owner: input.Owner,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -61,102 +54,67 @@ func (c *Contract) PaymentAccountsByOwner(ctx sdk.Context, _ *vm.EVM, contract *
 }
 
 // PaymentAccount queries a payment account by payment account address.
-func (c *Contract) PaymentAccount(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(PaymentAccountMethodName)
-	var args PaymentAccountArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) PaymentAccount(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input PaymentAccountArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryPaymentAccountRequest{
-		Addr: args.Addr,
-	}
-	res, err := c.paymentKeeper.PaymentAccount(ctx, msg)
+	res, err := p.paymentKeeper.PaymentAccount(ctx, &paymenttypes.QueryPaymentAccountRequest{
+		Addr: input.Addr,
+	})
 	if err != nil {
 		return nil, err
 	}
-	paymentAccount := PaymentAccount{
+
+	return method.Outputs.Pack(PaymentAccount{
 		Addr:       res.PaymentAccount.Addr,
 		Owner:      res.PaymentAccount.Owner,
 		Refundable: res.PaymentAccount.Refundable,
-	}
-
-	return method.Outputs.Pack(paymentAccount)
+	})
 }
 
-// Parameters queries the parameters of the module.
-func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(ParamsMethodName)
-
-	msg := &paymenttypes.QueryParamsRequest{}
-	res, err := c.paymentKeeper.Params(ctx, msg)
+// Params queries the parameters of the payment module.
+func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	res, err := p.paymentKeeper.Params(ctx, &paymenttypes.QueryParamsRequest{})
 	if err != nil {
 		return nil, err
 	}
-	params := Params{
-		VersionedParams: VersionedParams{
-			ReserveTime:      res.Params.VersionedParams.ReserveTime,
-			ValidatorTaxRate: res.Params.VersionedParams.ValidatorTaxRate.BigInt(),
-		},
-		PaymentAccountCountLimit:  res.Params.PaymentAccountCountLimit,
-		ForcedSettleTime:          res.Params.ForcedSettleTime,
-		MaxAutoSettleFlowCount:    res.Params.MaxAutoSettleFlowCount,
-		MaxAutoResumeFlowCount:    res.Params.MaxAutoResumeFlowCount,
-		FeeDenom:                  res.Params.FeeDenom,
-		WithdrawTimeLockThreshold: res.Params.WithdrawTimeLockThreshold.BigInt(),
-		WithdrawTimeLockDuration:  res.Params.WithdrawTimeLockDuration,
-	}
 
-	return method.Outputs.Pack(params)
+	return method.Outputs.Pack(outputsParams(res.Params))
 }
 
-// ParamsByTimestamp queries the parameter of the module by timestamp.
-func (c *Contract) ParamsByTimestamp(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(ParamsByTimestampMethodName)
-	var args ParamsByTimestampArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// ParamsByTimestamp queries the parameters of the payment module by timestamp.
+func (p Precompile) ParamsByTimestamp(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ParamsByTimestampArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryParamsByTimestampRequest{
-		Timestamp: args.Timestamp,
-	}
-	res, err := c.paymentKeeper.ParamsByTimestamp(ctx, msg)
+	res, err := p.paymentKeeper.ParamsByTimestamp(ctx, &paymenttypes.QueryParamsByTimestampRequest{
+		Timestamp: input.Timestamp,
+	})
 	if err != nil {
 		return nil, err
 	}
-	params := Params{
-		VersionedParams: VersionedParams{
-			ReserveTime:      res.Params.VersionedParams.ReserveTime,
-			ValidatorTaxRate: res.Params.VersionedParams.ValidatorTaxRate.BigInt(),
-		},
-		PaymentAccountCountLimit:  res.Params.PaymentAccountCountLimit,
-		ForcedSettleTime:          res.Params.ForcedSettleTime,
-		MaxAutoSettleFlowCount:    res.Params.MaxAutoSettleFlowCount,
-		MaxAutoResumeFlowCount:    res.Params.MaxAutoResumeFlowCount,
-		FeeDenom:                  res.Params.FeeDenom,
-		WithdrawTimeLockThreshold: res.Params.WithdrawTimeLockThreshold.BigInt(),
-		WithdrawTimeLockDuration:  res.Params.WithdrawTimeLockDuration,
-	}
 
-	return method.Outputs.Pack(params)
+	return method.Outputs.Pack(outputsParams(res.Params))
 }
 
-// Queries out flows by account.
-func (c *Contract) OutFlows(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(OutFlowsMethodName)
-	var args OutFlowsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// OutFlows queries out flows by account.
+func (p Precompile) OutFlows(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input OutFlowsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryOutFlowsRequest{
-		Account: args.Account,
-	}
-	res, err := c.paymentKeeper.OutFlows(ctx, msg)
+	res, err := p.paymentKeeper.OutFlows(ctx, &paymenttypes.QueryOutFlowsRequest{
+		Account: input.Account,
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	outFlows := make([]OutFlow, 0)
 	for _, outFlow := range res.OutFlows {
 		outFlows = append(outFlows, OutFlow{ToAddress: outFlow.ToAddress, Rate: outFlow.Rate.BigInt(), Status: int32(outFlow.Status)})
@@ -165,120 +123,79 @@ func (c *Contract) OutFlows(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _
 	return method.Outputs.Pack(outFlows)
 }
 
-// Queries a stream record by account.
-func (c *Contract) StreamRecord(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(StreamRecordMethodName)
-	var args StreamRecordArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// StreamRecord queries a stream record by account.
+func (p Precompile) StreamRecord(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input StreamRecordArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryGetStreamRecordRequest{
-		Account: args.Account,
-	}
-	res, err := c.paymentKeeper.StreamRecord(ctx, msg)
+	res, err := p.paymentKeeper.StreamRecord(ctx, &paymenttypes.QueryGetStreamRecordRequest{
+		Account: input.Account,
+	})
 	if err != nil {
 		return nil, err
 	}
-	streamRecord := StreamRecord{
-		Account:           res.StreamRecord.Account,
-		CrudTimestamp:     res.StreamRecord.CrudTimestamp,
-		NetflowRate:       res.StreamRecord.NetflowRate.BigInt(),
-		StaticBalance:     res.StreamRecord.StaticBalance.BigInt(),
-		BufferBalance:     res.StreamRecord.BufferBalance.BigInt(),
-		LockBalance:       res.StreamRecord.LockBalance.BigInt(),
-		Status:            int32(res.StreamRecord.Status),
-		SettleTimestamp:   res.StreamRecord.SettleTimestamp,
-		OutFlowCount:      res.StreamRecord.OutFlowCount,
-		FrozenNetflowRate: res.StreamRecord.FrozenNetflowRate.BigInt(),
-	}
 
-	return method.Outputs.Pack(streamRecord)
+	return method.Outputs.Pack(outputsStreamRecord(res.StreamRecord))
 }
 
-// Queries all stream records.
-func (c *Contract) StreamRecords(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(StreamRecordsMethodName)
-	var args StreamRecordsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// StreamRecords queries all stream records.
+func (p Precompile) StreamRecords(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input StreamRecordsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryStreamRecordsRequest{
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-	res, err := c.paymentKeeper.StreamRecords(ctx, msg)
+	res, err := p.paymentKeeper.StreamRecords(ctx, &paymenttypes.QueryStreamRecordsRequest{
+		Pagination: pageRequest(input.Pagination),
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	streamRecords := make([]StreamRecord, 0, len(res.StreamRecords))
 	for _, streamRecord := range res.StreamRecords {
-		streamRecords = append(streamRecords, StreamRecord{
-			Account:           streamRecord.Account,
-			CrudTimestamp:     streamRecord.CrudTimestamp,
-			NetflowRate:       streamRecord.NetflowRate.BigInt(),
-			StaticBalance:     streamRecord.StaticBalance.BigInt(),
-			BufferBalance:     streamRecord.BufferBalance.BigInt(),
-			LockBalance:       streamRecord.LockBalance.BigInt(),
-			Status:            int32(streamRecord.Status),
-			SettleTimestamp:   streamRecord.SettleTimestamp,
-			OutFlowCount:      streamRecord.OutFlowCount,
-			FrozenNetflowRate: streamRecord.FrozenNetflowRate.BigInt(),
-		})
+		streamRecords = append(streamRecords, outputsStreamRecord(streamRecord))
 	}
-	return method.Outputs.Pack(streamRecords, outputPageResponse(res.Pagination))
+
+	return method.Outputs.Pack(streamRecords, pageResponse(res.Pagination))
 }
 
-// Queries the count of payment account by owner.
-func (c *Contract) PaymentAccountCount(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(PaymentAccountCountMethodName)
-	var args PaymentAccountCountArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// PaymentAccountCount queries the count of payment accounts by owner.
+func (p Precompile) PaymentAccountCount(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input PaymentAccountCountArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryPaymentAccountCountRequest{
-		Owner: args.Owner,
-	}
-	res, err := c.paymentKeeper.PaymentAccountCount(ctx, msg)
+	res, err := p.paymentKeeper.PaymentAccountCount(ctx, &paymenttypes.QueryPaymentAccountCountRequest{
+		Owner: input.Owner,
+	})
 	if err != nil {
 		return nil, err
 	}
-	paymentAccountCount := PaymentAccountCount{
+
+	return method.Outputs.Pack(PaymentAccountCount{
 		Owner: res.PaymentAccountCount.Owner,
 		Count: res.PaymentAccountCount.Count,
-	}
-
-	return method.Outputs.Pack(paymentAccountCount)
+	})
 }
 
-// Queries all counts of payment account for all owners.
-func (c *Contract) PaymentAccountCounts(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(PaymentAccountCountsMethodName)
-	var args PaymentAccountCountsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// PaymentAccountCounts queries all counts of payment accounts for all owners.
+func (p Precompile) PaymentAccountCounts(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input PaymentAccountCountsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryPaymentAccountCountsRequest{
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-	res, err := c.paymentKeeper.PaymentAccountCounts(ctx, msg)
+	res, err := p.paymentKeeper.PaymentAccountCounts(ctx, &paymenttypes.QueryPaymentAccountCountsRequest{
+		Pagination: pageRequest(input.Pagination),
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	paymentAccountCounts := make([]PaymentAccountCount, 0, len(res.PaymentAccountCounts))
 	for _, paymentAccountCount := range res.PaymentAccountCounts {
 		paymentAccountCounts = append(paymentAccountCounts, PaymentAccountCount{
@@ -286,30 +203,24 @@ func (c *Contract) PaymentAccountCounts(ctx sdk.Context, _ *vm.EVM, contract *vm
 			Count: paymentAccountCount.Count,
 		})
 	}
-	return method.Outputs.Pack(paymentAccountCounts, outputPageResponse(res.Pagination))
+
+	return method.Outputs.Pack(paymentAccountCounts, pageResponse(res.Pagination))
 }
 
-// Queries all payment accounts.
-func (c *Contract) PaymentAccounts(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(PaymentAccountsMethodName)
-	var args PaymentAccountsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// PaymentAccounts queries all payment accounts.
+func (p Precompile) PaymentAccounts(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input PaymentAccountsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryPaymentAccountsRequest{
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-	res, err := c.paymentKeeper.PaymentAccounts(ctx, msg)
+	res, err := p.paymentKeeper.PaymentAccounts(ctx, &paymenttypes.QueryPaymentAccountsRequest{
+		Pagination: pageRequest(input.Pagination),
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	paymentAccounts := make([]PaymentAccount, 0, len(res.PaymentAccounts))
 	for _, paymentAccount := range res.PaymentAccounts {
 		paymentAccounts = append(paymentAccounts, PaymentAccount{
@@ -318,21 +229,20 @@ func (c *Contract) PaymentAccounts(ctx sdk.Context, _ *vm.EVM, contract *vm.Cont
 			Refundable: paymentAccount.Refundable,
 		})
 	}
-	return method.Outputs.Pack(paymentAccounts, outputPageResponse(res.Pagination))
+
+	return method.Outputs.Pack(paymentAccounts, pageResponse(res.Pagination))
 }
 
-// Queries dynamic balance of a payment account.
-func (c *Contract) DynamicBalance(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(DynamicBalanceMethodName)
-	var args DynamicBalanceArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DynamicBalance queries the dynamic balance of a payment account.
+func (p Precompile) DynamicBalance(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DynamicBalanceArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryDynamicBalanceRequest{
-		Account: args.Account,
-	}
-	res, err := c.paymentKeeper.DynamicBalance(ctx, msg)
+	res, err := p.paymentKeeper.DynamicBalance(ctx, &paymenttypes.QueryDynamicBalanceRequest{
+		Account: input.Account,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -340,27 +250,20 @@ func (c *Contract) DynamicBalance(ctx sdk.Context, _ *vm.EVM, contract *vm.Contr
 	return method.Outputs.Pack(res.DynamicBalance.BigInt())
 }
 
-// Queries all auto settle records.
-func (c *Contract) AutoSettleRecords(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(AutoSettleRecordsMethodName)
-	var args AutoSettleRecordsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// AutoSettleRecords queries all auto settle records.
+func (p Precompile) AutoSettleRecords(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input AutoSettleRecordsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryAutoSettleRecordsRequest{
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-	res, err := c.paymentKeeper.AutoSettleRecords(ctx, msg)
+	res, err := p.paymentKeeper.AutoSettleRecords(ctx, &paymenttypes.QueryAutoSettleRecordsRequest{
+		Pagination: pageRequest(input.Pagination),
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	autoSettleRecords := make([]AutoSettleRecord, 0, len(res.AutoSettleRecords))
 	for _, autoSettleRecord := range res.AutoSettleRecords {
 		autoSettleRecords = append(autoSettleRecords, AutoSettleRecord{
@@ -368,37 +271,61 @@ func (c *Contract) AutoSettleRecords(ctx sdk.Context, _ *vm.EVM, contract *vm.Co
 			Addr:      autoSettleRecord.Addr,
 		})
 	}
-	return method.Outputs.Pack(autoSettleRecords, outputPageResponse(res.Pagination))
+
+	return method.Outputs.Pack(autoSettleRecords, pageResponse(res.Pagination))
 }
 
-// Queries delayed withdrawal of a account.
-func (c *Contract) DelayedWithdrawal(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(DelayedWithdrawalMethodName)
-	var args DelayedWithdrawalArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DelayedWithdrawal queries the delayed withdrawal of an account.
+func (p Precompile) DelayedWithdrawal(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DelayedWithdrawalArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &paymenttypes.QueryDelayedWithdrawalRequest{
-		Account: args.Account,
-	}
-	res, err := c.paymentKeeper.DelayedWithdrawal(ctx, msg)
+	res, err := p.paymentKeeper.DelayedWithdrawal(ctx, &paymenttypes.QueryDelayedWithdrawalRequest{
+		Account: input.Account,
+	})
 	if err != nil {
 		return nil, err
 	}
-	delayedWithdrawal := DelayedWithdrawalRecord{
+
+	return method.Outputs.Pack(DelayedWithdrawalRecord{
 		Addr:            res.DelayedWithdrawal.Addr,
 		Amount:          res.DelayedWithdrawal.Amount.BigInt(),
 		From:            res.DelayedWithdrawal.From,
 		UnlockTimestamp: res.DelayedWithdrawal.UnlockTimestamp,
-	}
-
-	return method.Outputs.Pack(delayedWithdrawal)
+	})
 }
 
-func outputPageResponse(p *query.PageResponse) *PageResponse {
-	return &PageResponse{
-		NextKey: p.NextKey,
-		Total:   p.Total,
+// outputsParams maps payment module params into the ABI tuple.
+func outputsParams(params paymenttypes.Params) Params {
+	return Params{
+		VersionedParams: VersionedParams{
+			ReserveTime:      params.VersionedParams.ReserveTime,
+			ValidatorTaxRate: params.VersionedParams.ValidatorTaxRate.BigInt(),
+		},
+		PaymentAccountCountLimit:  params.PaymentAccountCountLimit,
+		ForcedSettleTime:          params.ForcedSettleTime,
+		MaxAutoSettleFlowCount:    params.MaxAutoSettleFlowCount,
+		MaxAutoResumeFlowCount:    params.MaxAutoResumeFlowCount,
+		FeeDenom:                  params.FeeDenom,
+		WithdrawTimeLockThreshold: params.WithdrawTimeLockThreshold.BigInt(),
+		WithdrawTimeLockDuration:  params.WithdrawTimeLockDuration,
+	}
+}
+
+// outputsStreamRecord maps a payment stream record into the ABI tuple.
+func outputsStreamRecord(streamRecord paymenttypes.StreamRecord) StreamRecord {
+	return StreamRecord{
+		Account:           streamRecord.Account,
+		CrudTimestamp:     streamRecord.CrudTimestamp,
+		NetflowRate:       streamRecord.NetflowRate.BigInt(),
+		StaticBalance:     streamRecord.StaticBalance.BigInt(),
+		BufferBalance:     streamRecord.BufferBalance.BigInt(),
+		LockBalance:       streamRecord.LockBalance.BigInt(),
+		Status:            int32(streamRecord.Status),
+		SettleTimestamp:   streamRecord.SettleTimestamp,
+		OutFlowCount:      streamRecord.OutFlowCount,
+		FrozenNetflowRate: streamRecord.FrozenNetflowRate.BigInt(),
 	}
 }
