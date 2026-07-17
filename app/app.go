@@ -132,12 +132,12 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 
-	challengemodule "github.com/mocachain/moca/v2/x/challenge"
-	challengemodulekeeper "github.com/mocachain/moca/v2/x/challenge/keeper"
-	challengemoduletypes "github.com/mocachain/moca/v2/x/challenge/types"
 	precompilesdistribution "github.com/mocachain/moca/v2/precompiles/distribution"
 	precompilesslashing "github.com/mocachain/moca/v2/precompiles/slashing"
 	precompilesstaking "github.com/mocachain/moca/v2/precompiles/staking"
+	challengemodule "github.com/mocachain/moca/v2/x/challenge"
+	challengemodulekeeper "github.com/mocachain/moca/v2/x/challenge/keeper"
+	challengemoduletypes "github.com/mocachain/moca/v2/x/challenge/types"
 	"github.com/mocachain/moca/v2/x/gensp"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
 	paymentmodule "github.com/mocachain/moca/v2/x/payment"
@@ -1209,12 +1209,18 @@ func GetMaccPerms() map[string][]string {
 // the EVM StateDB at Run time instead of binding it at construction.
 func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContract {
 	return map[common.Address]vm.PrecompiledContract{
-		precompilesbank.GetAddress():         precompilesbank.NewPrecompiledContract(app.BankKeeper, app.PaymentKeeper),
-		precompilesauthz.GetAddress():        precompilesauthz.NewPrecompiledContract(app.AuthzKeeper, app.BankKeeper),
-		precompilesgov.GetAddress():          precompilesgov.NewPrecompiledContract(app.GovKeeper, app.AccountKeeper, app.BankKeeper),
-		precompilespayment.GetAddress():      precompilespayment.NewPrecompiledContract(app.PaymentKeeper, app.BankKeeper),
-		precompilespermission.GetAddress():   precompilespermission.NewPrecompiledContract(app.PermissionKeeper, app.BankKeeper),
-		precompilesstaking.GetAddress():      precompilesstaking.NewPrecompiledContract(app.StakingKeeper, app.BankKeeper),
+		precompilesbank.GetAddress():  precompilesbank.NewPrecompiledContract(app.BankKeeper, app.PaymentKeeper),
+		precompilesauthz.GetAddress(): precompilesauthz.NewPrecompiledContract(app.AuthzKeeper, app.BankKeeper),
+		precompilesgov.GetAddress(): precompilesgov.NewPrecompile(
+			govkeeper.NewMsgServerImpl(&app.GovKeeper),
+			govkeeper.NewQueryServer(&app.GovKeeper),
+			app.AccountKeeper,
+			app.BankKeeper,
+			app.appCodec,
+		),
+		precompilespayment.GetAddress():    precompilespayment.NewPrecompiledContract(app.PaymentKeeper, app.BankKeeper),
+		precompilespermission.GetAddress(): precompilespermission.NewPrecompiledContract(app.PermissionKeeper, app.BankKeeper),
+		precompilesstaking.GetAddress():    precompilesstaking.NewPrecompiledContract(app.StakingKeeper, app.BankKeeper),
 		precompilesdistribution.GetAddress(): precompilesdistribution.NewPrecompile(
 			distrkeeper.NewMsgServerImpl(app.DistrKeeper),
 			distrkeeper.Querier{Keeper: app.DistrKeeper},

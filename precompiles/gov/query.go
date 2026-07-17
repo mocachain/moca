@@ -1,144 +1,95 @@
 package gov
 
 import (
-	"bytes"
-
-	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
-	"github.com/mocachain/moca/v2/utils"
-	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
-	"github.com/mocachain/moca/v2/precompiles/types"
-	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
-	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
-	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"
-	sptypes "github.com/mocachain/moca/v2/x/sp/types"
-	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
-	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
-
-	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
-	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
+
+	"github.com/mocachain/moca/v2/utils"
 )
 
 const (
-	ProposalGas     = 30_000
-	ProposalsGas    = 30_000
-	VoteQueryGas    = 30_000
-	VotesGas        = 30_000
-	DepositQueryGas = 30_000
-	DepositsGas     = 30_000
-	TallyResultGas  = 30_000
-	ParamsGas       = 30_000
-
-	ProposalMethodName     = "proposal"
-	ProposalsMethodName    = "proposals"
-	VoteQueryMethodName    = "vote0"
-	VotesMethodName        = "votes"
-	DepositQueryMethodName = "deposit"
-	DepositsMethodName     = "deposits"
-	TallyResultMethodName  = "tallyResult"
-	ParamsMethodName       = "params"
+	// ProposalMethod is the ABI name for the Proposal query.
+	ProposalMethod = "proposal"
+	// ProposalsMethod is the ABI name for the Proposals query.
+	ProposalsMethod = "proposals"
+	// VoteQueryMethod is the ABI name for the Vote query.
+	VoteQueryMethod = "vote0"
+	// VotesMethod is the ABI name for the Votes query.
+	VotesMethod = "votes"
+	// DepositQueryMethod is the ABI name for the Deposit query.
+	DepositQueryMethod = "deposit"
+	// DepositsMethod is the ABI name for the Deposits query.
+	DepositsMethod = "deposits"
+	// TallyResultMethod is the ABI name for the TallyResult query.
+	TallyResultMethod = "tallyResult"
+	// ParamsMethod is the ABI name for the Params query.
+	ParamsMethod = "params"
+	// ConstitutionMethod is the ABI name for the Constitution query.
+	ConstitutionMethod = "constitution"
 )
 
-// Proposal returns proposal details based on ProposalID
-func (c *Contract) Proposal(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ProposalMethodName)
-
-	var args ProposalArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Proposal queries a proposal by id.
+func (p Precompile) Proposal(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ProposalArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &govv1.QueryProposalRequest{
-		ProposalId: args.ProposalId,
-	}
 
-	res, err := c.queryServer.Proposal(ctx, msg)
+	res, err := p.govQuerier.Proposal(ctx, &govv1.QueryProposalRequest{ProposalId: input.ProposalId})
 	if err != nil {
 		return nil, err
 	}
 
-	return method.Outputs.Pack(OutputsProposal(*res.Proposal))
+	return method.Outputs.Pack(p.outputsProposal(*res.Proposal))
 }
 
-// Proposals queries all proposals based on given status.
-func (c *Contract) Proposals(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ProposalsMethodName)
-
-	var args ProposalsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Proposals queries all proposals filtered by status, voter and depositor.
+func (p Precompile) Proposals(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ProposalsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
-	}
-
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
 	}
 
 	voter := ""
-	if args.Voter != (common.Address{}) {
-		voter = sdk.AccAddress(args.Voter.Bytes()).String()
+	if input.Voter != (common.Address{}) {
+		voter = sdk.AccAddress(input.Voter.Bytes()).String()
 	}
-
 	depositor := ""
-	if args.Depositor != (common.Address{}) {
-		depositor = sdk.AccAddress(args.Depositor.Bytes()).String()
+	if input.Depositor != (common.Address{}) {
+		depositor = sdk.AccAddress(input.Depositor.Bytes()).String()
 	}
 
-	msg := &govv1.QueryProposalsRequest{
-		ProposalStatus: govv1.ProposalStatus(args.Status),
+	res, err := p.govQuerier.Proposals(ctx, &govv1.QueryProposalsRequest{
+		ProposalStatus: govv1.ProposalStatus(input.Status),
 		Voter:          voter,
 		Depositor:      depositor,
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-
-	res, err := c.queryServer.Proposals(ctx, msg)
+		Pagination:     pageRequest(input.Pagination),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var proposals []Proposal
+	proposals := make([]Proposal, 0, len(res.Proposals))
 	for _, proposal := range res.Proposals {
-		proposals = append(proposals, OutputsProposal(*proposal))
+		proposals = append(proposals, p.outputsProposal(*proposal))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(proposals, pageResponse)
+	return method.Outputs.Pack(proposals, pageResponse(res.Pagination))
 }
 
-// VoteQuery returns Voted information based on proposalID, voterAddr
-func (c *Contract) VoteQuery(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(VoteQueryMethodName)
-
-	var args VoteQueryArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// VoteQuery queries a single vote by proposal id and voter.
+func (p Precompile) VoteQuery(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input VoteQueryArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &govv1.QueryVoteRequest{
-		ProposalId: args.ProposalId,
-		Voter:      sdk.AccAddress(args.Voter.Bytes()).String(),
-	}
 
-	res, err := c.queryServer.Vote(ctx, msg)
+	res, err := p.govQuerier.Vote(ctx, &govv1.QueryVoteRequest{
+		ProposalId: input.ProposalId,
+		Voter:      sdk.AccAddress(input.Voter.Bytes()).String(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -146,61 +97,40 @@ func (c *Contract) VoteQuery(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, 
 	return method.Outputs.Pack(OutputsVote(*res.Vote))
 }
 
-// Votes returns single proposal's votes
-func (c *Contract) Votes(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(VotesMethodName)
-
-	var args VotesArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Votes queries all votes of a proposal.
+func (p Precompile) Votes(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input VotesArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
-
-	msg := &govv1.QueryVotesRequest{
-		ProposalId: args.ProposalId,
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-
-	res, err := c.queryServer.Votes(ctx, msg)
+	res, err := p.govQuerier.Votes(ctx, &govv1.QueryVotesRequest{
+		ProposalId: input.ProposalId,
+		Pagination: pageRequest(input.Pagination),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var votes []VoteData
+	votes := make([]VoteData, 0, len(res.Votes))
 	for _, vote := range res.Votes {
 		votes = append(votes, OutputsVote(*vote))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(votes, pageResponse)
+	return method.Outputs.Pack(votes, pageResponse(res.Pagination))
 }
 
-// DepositQuery queries single deposit information based on proposalID, depositAddr.
-func (c *Contract) DepositQuery(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DepositQueryMethodName)
-
-	var args DepositQueryArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DepositQuery queries a single deposit by proposal id and depositor.
+func (p Precompile) DepositQuery(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DepositQueryArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &govv1.QueryDepositRequest{
-		ProposalId: args.ProposalId,
-		Depositor:  sdk.AccAddress(args.Depositor.Bytes()).String(),
-	}
 
-	res, err := c.queryServer.Deposit(ctx, msg)
+	res, err := p.govQuerier.Deposit(ctx, &govv1.QueryDepositRequest{
+		ProposalId: input.ProposalId,
+		Depositor:  sdk.AccAddress(input.Depositor.Bytes()).String(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -208,60 +138,37 @@ func (c *Contract) DepositQuery(ctx sdk.Context, _ *vm.EVM, contract *vm.Contrac
 	return method.Outputs.Pack(OutputsDeposit(*res.Deposit))
 }
 
-// Deposits returns single proposal's all deposits
-func (c *Contract) Deposits(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DepositsMethodName)
-
-	var args DepositsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Deposits queries all deposits of a proposal.
+func (p Precompile) Deposits(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DepositsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
-
-	msg := &govv1.QueryDepositsRequest{
-		ProposalId: args.ProposalId,
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-
-	res, err := c.queryServer.Deposits(ctx, msg)
+	res, err := p.govQuerier.Deposits(ctx, &govv1.QueryDepositsRequest{
+		ProposalId: input.ProposalId,
+		Pagination: pageRequest(input.Pagination),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var deposits []DepositData
-	for _, vote := range res.Deposits {
-		deposits = append(deposits, OutputsDeposit(*vote))
+	deposits := make([]DepositData, 0, len(res.Deposits))
+	for _, deposit := range res.Deposits {
+		deposits = append(deposits, OutputsDeposit(*deposit))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(deposits, pageResponse)
+	return method.Outputs.Pack(deposits, pageResponse(res.Pagination))
 }
 
-// TallyResult queries the tally of a proposal vote.
-func (c *Contract) TallyResult(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(TallyResultMethodName)
-
-	var args ProposalArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// TallyResult queries the tally of a proposal.
+func (p Precompile) TallyResult(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ProposalArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &govv1.QueryTallyResultRequest{
-		ProposalId: args.ProposalId,
-	}
 
-	res, err := c.queryServer.TallyResult(ctx, msg)
+	res, err := p.govQuerier.TallyResult(ctx, &govv1.QueryTallyResultRequest{ProposalId: input.ProposalId})
 	if err != nil {
 		return nil, err
 	}
@@ -269,33 +176,17 @@ func (c *Contract) TallyResult(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract
 	return method.Outputs.Pack(TallyResult(*res.Tally))
 }
 
-// Params queries the staking parameters
-func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ParamsMethodName)
-
-	msg1 := &govv1.QueryParamsRequest{
-		ParamsType: govv1.ParamDeposit,
-	}
-
-	res1, err := c.queryServer.Params(ctx, msg1)
+// Params queries the gov deposit, voting and tally parameters.
+func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	depositRes, err := p.govQuerier.Params(ctx, &govv1.QueryParamsRequest{ParamsType: govv1.ParamDeposit})
 	if err != nil {
 		return nil, err
 	}
-
-	msg2 := &govv1.QueryParamsRequest{
-		ParamsType: govv1.ParamVoting,
-	}
-
-	res2, err := c.queryServer.Params(ctx, msg2)
+	votingRes, err := p.govQuerier.Params(ctx, &govv1.QueryParamsRequest{ParamsType: govv1.ParamVoting})
 	if err != nil {
 		return nil, err
 	}
-
-	msg3 := &govv1.QueryParamsRequest{
-		ParamsType: govv1.ParamTallying,
-	}
-
-	res3, err := c.queryServer.Params(ctx, msg3)
+	tallyRes, err := p.govQuerier.Params(ctx, &govv1.QueryParamsRequest{ParamsType: govv1.ParamTallying})
 	if err != nil {
 		return nil, err
 	}
@@ -303,97 +194,62 @@ func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ b
 	params := Params{
 		MinDeposit: []Coin{
 			{
-				Denom:  res1.Params.MinDeposit[0].Denom,
-				Amount: res1.Params.MinDeposit[0].Amount.BigInt(),
+				Denom:  depositRes.Params.MinDeposit[0].Denom,
+				Amount: depositRes.Params.MinDeposit[0].Amount.BigInt(),
 			},
 		},
-		MaxDepositPeriod:           int64(res1.Params.MaxDepositPeriod.Seconds()),
-		VotingPeriod:               int64(res2.Params.VotingPeriod.Seconds()),
-		Quorum:                     res3.Params.Quorum,
-		Threshold:                  res3.Params.Threshold,
-		VetoThreshold:              res3.Params.VetoThreshold,
-		MinInitialDepositRatio:     res3.Params.MinInitialDepositRatio,
-		BurnProposalDepositPrevote: res3.Params.BurnProposalDepositPrevote,
-		BurnVoteQuorum:             res3.Params.BurnVoteQuorum,
-		BurnVoteVeto:               res3.Params.BurnVoteVeto,
+		MaxDepositPeriod:           int64(depositRes.Params.MaxDepositPeriod.Seconds()),
+		VotingPeriod:               int64(votingRes.Params.VotingPeriod.Seconds()),
+		Quorum:                     tallyRes.Params.Quorum,
+		Threshold:                  tallyRes.Params.Threshold,
+		VetoThreshold:              tallyRes.Params.VetoThreshold,
+		MinInitialDepositRatio:     tallyRes.Params.MinInitialDepositRatio,
+		BurnProposalDepositPrevote: tallyRes.Params.BurnProposalDepositPrevote,
+		BurnVoteQuorum:             tallyRes.Params.BurnVoteQuorum,
+		BurnVoteVeto:               tallyRes.Params.BurnVoteVeto,
 	}
 
 	return method.Outputs.Pack(params)
 }
 
-func OutputsProposal(proposal govv1.Proposal) Proposal {
-	var messages []string
-	msgs, err := proposal.GetMsgs()
-
-	emptyProposal := Proposal{
-		Id:               0,
-		Messages:         nil,
-		Status:           0,
-		FinalTallyResult: TallyResult{},
-		SubmitTime:       0,
-		DepositEndTime:   0,
-		TotalDeposit:     nil,
-		VotingStartTime:  0,
-		VotingEndTime:    0,
-		Metadata:         "",
-		Title:            "",
-		Summary:          "",
-		Proposer:         common.Address{},
-		FailedReason:     "",
-	}
-
+// Constitution queries the chain constitution.
+func (p Precompile) Constitution(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	res, err := p.govQuerier.Constitution(ctx, &govv1.QueryConstitutionRequest{})
 	if err != nil {
-		return emptyProposal
+		return nil, err
 	}
 
-	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	return method.Outputs.Pack(res.Constitution)
+}
 
-	authtypes.RegisterInterfaces(interfaceRegistry)
-	banktypes.RegisterInterfaces(interfaceRegistry)
-	consensustypes.RegisterInterfaces(interfaceRegistry)
-	stakingtypes.RegisterInterfaces(interfaceRegistry)
-	distrtypes.RegisterInterfaces(interfaceRegistry)
-	slashingtypes.RegisterInterfaces(interfaceRegistry)
-	govv1beta1.RegisterInterfaces(interfaceRegistry)
-	govv1.RegisterInterfaces(interfaceRegistry)
-	// Note: upgradetypes.RegisterInterfaces is not available in v0.50, interfaces are registered via module manager
-	cryptocodec.RegisterInterfaces(interfaceRegistry)
+// outputsProposal maps a gov v1 Proposal into the ABI tuple, encoding its messages
+// through the application codec.
+func (p Precompile) outputsProposal(proposal govv1.Proposal) Proposal {
+	msgs, err := proposal.GetMsgs()
+	if err != nil {
+		return Proposal{}
+	}
 
-	challengetypes.RegisterInterfaces(interfaceRegistry)
-	types.RegisterInterfaces(interfaceRegistry)
-	feemarkettypes.RegisterInterfaces(interfaceRegistry)
-	gensptypes.RegisterInterfaces(interfaceRegistry)
-	paymenttypes.RegisterInterfaces(interfaceRegistry)
-	permissiontypes.RegisterInterfaces(interfaceRegistry)
-	sptypes.RegisterInterfaces(interfaceRegistry)
-	storagetypes.RegisterInterfaces(interfaceRegistry)
-	virtualgrouptypes.RegisterInterfaces(interfaceRegistry)
-
-	protoCodec := codec.NewProtoCodec(interfaceRegistry)
-
+	var messages []string
 	for _, msg := range msgs {
-		bytesMsg, err := protoCodec.MarshalInterfaceJSON(msg)
+		bz, err := p.cdc.MarshalInterfaceJSON(msg)
 		if err != nil {
 			messages = append(messages, msg.String())
+			continue
 		}
-
-		messages = append(messages, string(bytesMsg))
+		messages = append(messages, string(bz))
 	}
 
 	var totalDeposit []Coin
 	for _, coin := range proposal.TotalDeposit {
-		totalDeposit = append(totalDeposit, Coin{
-			Denom:  coin.Denom,
-			Amount: coin.Amount.BigInt(),
-		})
+		totalDeposit = append(totalDeposit, Coin{Denom: coin.Denom, Amount: coin.Amount.BigInt()})
 	}
 
-	var votingStartTime int64 = 0
+	var votingStartTime int64
 	if proposal.VotingStartTime != nil {
 		votingStartTime = proposal.VotingStartTime.Unix()
 	}
-
-	var votingEndTime int64 = 0
+	var votingEndTime int64
 	if proposal.VotingEndTime != nil {
 		votingEndTime = proposal.VotingEndTime.Unix()
 	}
@@ -414,8 +270,9 @@ func OutputsProposal(proposal govv1.Proposal) Proposal {
 	}
 }
 
+// OutputsVote maps a gov v1 Vote into the ABI tuple with a hex voter address.
 func OutputsVote(vote govv1.Vote) VoteData {
-	var options []WeightedVoteOption
+	options := make([]WeightedVoteOption, 0, len(vote.Options))
 	for _, option := range vote.Options {
 		options = append(options, WeightedVoteOption{
 			Option: uint8(option.Option),
@@ -431,13 +288,11 @@ func OutputsVote(vote govv1.Vote) VoteData {
 	}
 }
 
+// OutputsDeposit maps a gov v1 Deposit into the ABI tuple with a hex depositor address.
 func OutputsDeposit(deposit govv1.Deposit) DepositData {
-	var amount []Coin
+	amount := make([]Coin, 0, len(deposit.Amount))
 	for _, coin := range deposit.Amount {
-		amount = append(amount, Coin{
-			Denom:  coin.Denom,
-			Amount: coin.Amount.BigInt(),
-		})
+		amount = append(amount, Coin{Denom: coin.Denom, Amount: coin.Amount.BigInt()})
 	}
 
 	return DepositData{

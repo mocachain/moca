@@ -241,6 +241,18 @@ interface IGov {
     ) external view returns (TallyResult calldata tallyResult);
 
     /**
+     * @dev cancelProposal defines a method to cancel a proposal.
+     */
+    function cancelProposal(
+        uint64 proposalId
+    ) external returns (bool success);
+
+    /**
+     * @dev constitution queries the chain constitution.
+     */
+    function constitution() external view returns (string memory constitution);
+
+    /**
      * @dev LegacySubmitProposal defines an Event emitted when a legacy proposal submited.
      */
     event LegacySubmitProposal(address indexed proposer, uint64 proposalId);
@@ -264,4 +276,9 @@ interface IGov {
      * @dev Vote defines an Event emitted when a proposal deposited by a depositor.
      */
     event Deposit(address indexed depositor, uint64 proposalId);
+
+    /**
+     * @dev CancelProposal defines an Event emitted when a proposal is canceled.
+     */
+    event CancelProposal(address indexed proposer, uint64 proposalId);
 }
