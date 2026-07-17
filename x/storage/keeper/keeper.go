@@ -2338,9 +2338,16 @@ func (k Keeper) CompleteMigrateBucket(ctx sdk.Context, operator sdk.AccAddress, 
 		return storagetypes.ErrMigrationBucketFailed.Wrapf("dst sp info not match")
 	}
 
-	_, found = k.virtualGroupKeeper.GetGVGFamily(ctx, gvgFamilyID)
+	dstGVGFamily, found := k.virtualGroupKeeper.GetGVGFamily(ctx, gvgFamilyID)
 	if !found {
 		return virtualgroupmoduletypes.ErrGVGFamilyNotExist
+	}
+	// The destination GVG family must belong to the destination SP. Otherwise the
+	// bucket's primary SP — derived from the family via GetPrimarySPForBucket —
+	// would be misattributed to an unrelated SP. Mirrors SealObject's check.
+	if dstGVGFamily.PrimarySpId != dstSP.Id {
+		return storagetypes.ErrMigrationBucketFailed.Wrapf(
+			"destination gvg family %d does not belong to destination sp %d", gvgFamilyID, dstSP.Id)
 	}
 
 	srcGvgFamily, found := k.virtualGroupKeeper.GetGVGFamily(ctx, bucketInfo.GlobalVirtualGroupFamilyId)
