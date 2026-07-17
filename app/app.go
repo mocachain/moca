@@ -1223,7 +1223,11 @@ func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContra
 		),
 		precompilespayment.GetAddress():    precompilespayment.NewPrecompiledContract(app.PaymentKeeper, app.BankKeeper),
 		precompilespermission.GetAddress(): precompilespermission.NewPrecompiledContract(app.PermissionKeeper, app.BankKeeper),
-		precompilesstaking.GetAddress():    precompilesstaking.NewPrecompiledContract(app.StakingKeeper, app.BankKeeper),
+		precompilesstaking.GetAddress(): precompilesstaking.NewPrecompile(
+			stakingkeeper.NewMsgServerImpl(app.StakingKeeper),
+			stakingkeeper.Querier{Keeper: app.StakingKeeper},
+			app.BankKeeper,
+		),
 		precompilesdistribution.GetAddress(): precompilesdistribution.NewPrecompile(
 			distrkeeper.NewMsgServerImpl(app.DistrKeeper),
 			distrkeeper.Querier{Keeper: app.DistrKeeper},

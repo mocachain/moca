@@ -4,286 +4,195 @@ import (
 	"math/big"
 
 	"cosmossdk.io/math"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
+
 	"github.com/mocachain/moca/v2/precompiles/types"
 )
 
 const (
-	EditValidatorGas             = 30_000
-	DelegateGas                  = 40_000 // 98000 - 160000 // 165000
-	UndelegateGas                = 45_000 // 94000 - 163000 // 172000
-	RedelegateGas                = 60_000 // undelegate_gas+delegate_gas+withdraw_gas*2
-	CancelUnbondingDelegationGas = 30_000 // 98000
-
 	EditValidatorMethodName             = "editValidator"
 	DelegateMethodName                  = "delegate"
 	UndelegateMethodName                = "undelegate"
 	RedelegateMethodName                = "redelegate"
 	CancelUnbondingDelegationMethodName = "cancelUnbondingDelegation"
-
-	EditValidatorEventName             = "EditValidator"
-	DelegateEventName                  = "Delegate"
-	UndelegateEventName                = "Undelegate"
-	RedelegateEventName                = "Redelegate"
-	CancelUnbondingDelegationEventName = "CancelUnbondingDelegation"
 )
 
-func (c *Contract) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
+// EditValidator edits an existing validator's description and moca PoA/BLS fields.
+func (p Precompile) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
 		return nil, types.ErrInvalidCaller
 	}
 
-	method := MustMethod(EditValidatorMethodName)
-
-	// parse args
-	var args EditValidatorArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+	var input EditValidatorArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &stakingtypes.MsgEditValidator{
-		Description:       stakingtypes.Description(args.Description),
+		Description:       stakingtypes.Description(input.Description),
 		ValidatorAddress:  contract.Caller().String(),
-		CommissionRate:    args.GetCommissionRate(),
-		MinSelfDelegation: args.GetMinSelfDelegation(),
-		RelayerAddress:    args.GetRelayerAddress(),
-		ChallengerAddress: args.GetChallengerAddress(),
-		BlsKey:            args.BlsKey,
-		BlsProof:          args.BlsProof,
+		CommissionRate:    input.GetCommissionRate(),
+		MinSelfDelegation: input.GetMinSelfDelegation(),
+		RelayerAddress:    input.GetRelayerAddress(),
+		ChallengerAddress: input.GetChallengerAddress(),
+		BlsKey:            input.BlsKey,
+		BlsProof:          input.BlsProof,
 	}
 
-	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
-
-	_, err = server.EditValidator(ctx, msg)
-	if err != nil {
+	if _, err := p.stakingMsgServer.EditValidator(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	if err := c.AddLog(
-		evm,
-		MustEvent(EditValidatorEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
-		args.CommissionRate,
-		args.MinSelfDelegation,
-	); err != nil {
+	if err := p.EmitEditValidatorEvent(evm, contract.Caller(), input.CommissionRate, input.MinSelfDelegation); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
+// Delegate delegates coins from the caller to a validator.
+func (p Precompile) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
 		return nil, types.ErrInvalidCaller
 	}
 
-	method := MustMethod(DelegateMethodName)
-
-	// parse args
-	var args DelegateArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+	var input DelegateArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	params, err := c.stakingKeeper.GetParams(ctx)
+	params, err := p.stakingQuerier.Params(ctx, &stakingtypes.QueryParamsRequest{})
 	if err != nil {
 		return nil, err
 	}
 	msg := &stakingtypes.MsgDelegate{
 		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
-		ValidatorAddress: args.GetValidator().String(),
+		ValidatorAddress: input.GetValidator().String(),
 		Amount: sdk.Coin{
-			Denom:  params.BondDenom,
-			Amount: math.NewIntFromBigInt(args.Amount),
+			Denom:  params.Params.BondDenom,
+			Amount: math.NewIntFromBigInt(input.Amount),
 		},
 	}
 
-	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
-
-	_, err = server.Delegate(ctx, msg)
-	if err != nil {
+	if _, err := p.stakingMsgServer.Delegate(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add delegate log
-	if err := c.AddLog(
-		evm,
-		MustEvent(DelegateEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
-		args.Amount,
-	); err != nil {
+	if err := p.EmitDelegateEvent(evm, contract.Caller(), input.GetValidator(), input.Amount); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
+// Undelegate undelegates coins from a validator back to the caller.
+func (p Precompile) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
 		return nil, types.ErrInvalidCaller
 	}
 
-	method := MustMethod(UndelegateMethodName)
-	// parse args
-	var args UndelegateArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+	var input UndelegateArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	params, err := c.stakingKeeper.GetParams(ctx)
+	params, err := p.stakingQuerier.Params(ctx, &stakingtypes.QueryParamsRequest{})
 	if err != nil {
 		return nil, err
 	}
 	msg := &stakingtypes.MsgUndelegate{
 		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
-		ValidatorAddress: args.GetValidator().String(),
+		ValidatorAddress: input.GetValidator().String(),
 		Amount: sdk.Coin{
-			Denom:  params.BondDenom,
-			Amount: math.NewIntFromBigInt(args.Amount),
+			Denom:  params.Params.BondDenom,
+			Amount: math.NewIntFromBigInt(input.Amount),
 		},
 	}
 
-	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
-
-	res, err := server.Undelegate(ctx, msg)
+	res, err := p.stakingMsgServer.Undelegate(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 	completionTime := big.NewInt(res.CompletionTime.Unix())
 
-	// add undelegate log
-	if err := c.AddLog(
-		evm,
-		MustEvent(UndelegateEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
-		args.Amount,
-		completionTime,
-	); err != nil {
+	if err := p.EmitUndelegateEvent(evm, contract.Caller(), input.GetValidator(), input.Amount, completionTime); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(completionTime)
 }
 
-func (c *Contract) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
+// Redelegate moves a delegation from one validator to another.
+func (p Precompile) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
 		return nil, types.ErrInvalidCaller
 	}
-	method := MustMethod(RedelegateMethodName)
 
-	// parse args
-	var args RedelegateArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+	var input RedelegateArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	params, err := c.stakingKeeper.GetParams(ctx)
+	params, err := p.stakingQuerier.Params(ctx, &stakingtypes.QueryParamsRequest{})
 	if err != nil {
 		return nil, err
 	}
 	msg := &stakingtypes.MsgBeginRedelegate{
 		DelegatorAddress:    sdk.AccAddress(contract.Caller().Bytes()).String(),
-		ValidatorSrcAddress: args.GetSrcValidator().String(),
-		ValidatorDstAddress: args.GetDstValidator().String(),
+		ValidatorSrcAddress: input.GetSrcValidator().String(),
+		ValidatorDstAddress: input.GetDstValidator().String(),
 		Amount: sdk.Coin{
-			Denom:  params.BondDenom,
-			Amount: math.NewIntFromBigInt(args.Amount),
+			Denom:  params.Params.BondDenom,
+			Amount: math.NewIntFromBigInt(input.Amount),
 		},
 	}
 
-	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
-
-	res, err := server.BeginRedelegate(ctx, msg)
+	res, err := p.stakingMsgServer.BeginRedelegate(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 	completionTime := big.NewInt(res.CompletionTime.Unix())
 
-	// add redelegate log
-	if err := c.AddLog(
-		evm,
-		MustEvent(RedelegateEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.GetSrcValidator().Bytes()), common.BytesToHash(args.GetDstValidator().Bytes())},
-		args.Amount,
-		completionTime,
-	); err != nil {
+	if err := p.EmitRedelegateEvent(evm, contract.Caller(), input.GetSrcValidator(), input.GetDstValidator(), input.Amount, completionTime); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(completionTime)
 }
 
-func (c *Contract) CancelUnbondingDelegation(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
+// CancelUnbondingDelegation cancels an unbonding delegation and re-delegates the coins.
+func (p Precompile) CancelUnbondingDelegation(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
 		return nil, types.ErrInvalidCaller
 	}
 
-	method := MustMethod(CancelUnbondingDelegationMethodName)
-
-	// parse args
-	var args CancelUnbondingDelegationArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+	var input CancelUnbondingDelegationArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	params, err := c.stakingKeeper.GetParams(ctx)
+	params, err := p.stakingQuerier.Params(ctx, &stakingtypes.QueryParamsRequest{})
 	if err != nil {
 		return nil, err
 	}
 	msg := &stakingtypes.MsgCancelUnbondingDelegation{
 		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
-		ValidatorAddress: args.GetValidator().String(),
+		ValidatorAddress: input.GetValidator().String(),
 		Amount: sdk.Coin{
-			Denom:  params.BondDenom,
-			Amount: math.NewIntFromBigInt(args.Amount),
+			Denom:  params.Params.BondDenom,
+			Amount: math.NewIntFromBigInt(input.Amount),
 		},
-		CreationHeight: args.GetCreationHeight(),
+		CreationHeight: input.GetCreationHeight(),
 	}
 
-	server := stakingkeeper.NewMsgServerImpl(c.stakingKeeper)
-
-	_, err = server.CancelUnbondingDelegation(ctx, msg)
-	if err != nil {
+	if _, err := p.stakingMsgServer.CancelUnbondingDelegation(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add CancelUnbondingDelegationMethod log
-	if err := c.AddLog(
-		evm,
-		MustEvent(CancelUnbondingDelegationEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
-		args.Amount,
-		args.CreationHeight,
-	); err != nil {
+	if err := p.EmitCancelUnbondingDelegationEvent(evm, contract.Caller(), input.GetValidator(), input.Amount, input.CreationHeight); err != nil {
 		return nil, err
 	}
 
