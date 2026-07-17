@@ -42,6 +42,9 @@ keyring_test_cosmos
 secret.yml
 artifacts/*
 tmp-swagger-gen
+
+# precompiles/compile.sh codegen scratch dir
+/precompiles/contracts/
 github.com/
 # vue/
 

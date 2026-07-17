@@ -53,6 +53,7 @@ import (
 	"github.com/mocachain/moca/v2/app"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	mocakr "github.com/mocachain/moca/v2/crypto/keyring"
+	mocatypes "github.com/mocachain/moca/v2/types"
 	gensputilcli "github.com/mocachain/moca/v2/x/gensp/client/cli"
 )
 
@@ -183,8 +184,13 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 				return err
 			}
 
-			// override the app and tendermint configuration
-			customAppTemplate, customAppConfig := initAppConfig()
+			// override the app and tendermint configuration.
+			//
+			// Derive the EIP-155 EVM chain ID from --chain-id so a fresh
+			// `mocad init` bakes the right evm.evm-chain-id into app.toml with no
+			// operator step.
+			chainID, _ := cmd.Flags().GetString(flags.FlagChainID)
+			customAppTemplate, customAppConfig := initAppConfig(evmChainIDFromChainID(chainID))
 			customTMConfig := initTendermintConfig()
 
 			err = sdkserver.InterceptConfigsPreRunHandler(
@@ -314,9 +320,31 @@ func txCommand() *cobra.Command {
 	return cmd
 }
 
+// evmChainIDFromChainID derives the EIP-155 EVM chain ID from a cosmos chain-id
+// (any well-formed <name>_<evmid>-<epoch>, per types.ParseChainID — not
+// moca-prefix-specific) for init-time app.toml rendering. It returns 0 for an
+// empty, malformed, or out-of-range chain-id, so `mocad init` with an
+// unparseable chain-id keeps the existing default rather than guessing.
+func evmChainIDFromChainID(chainID string) uint64 {
+	if chainID == "" {
+		return 0
+	}
+	id, err := mocatypes.ParseChainID(chainID)
+	if err != nil {
+		return 0
+	}
+	// ParseChainID accepts an unbounded integer; leave the value unset rather
+	// than truncating an out-of-range id into a wrong EVM chain ID.
+	if !id.IsUint64() {
+		return 0
+	}
+	return id.Uint64()
+}
+
 // initAppConfig helps to override default appConfig template and configs.
-// return "", nil if no custom configuration is required for the application.
-func initAppConfig() (string, interface{}) {
+// evmChainID is baked into the rendered app.toml (evm.evm-chain-id) so a fresh
+// `mocad init` needs no operator edit; 0 leaves the default in place.
+func initAppConfig(evmChainID uint64) (string, interface{}) {
 	customAppTemplate, customAppConfig := servercfg.NewAppConfig(cmdcfg.BaseDenom)
 
 	srvCfg, ok := customAppConfig.(servercfg.AppConfig)
@@ -327,6 +355,7 @@ func initAppConfig() (string, interface{}) {
 	srvCfg.StateSync.SnapshotInterval = 5000
 	srvCfg.StateSync.SnapshotKeepRecent = 2
 	srvCfg.IAVLDisableFastNode = false
+	srvCfg.EVM.EVMChainID = evmChainID
 
 	return customAppTemplate, srvCfg
 }
