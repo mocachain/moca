@@ -15,50 +15,49 @@ import (
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/utils"
+
 	"github.com/mocachain/moca/v2/precompiles/types"
+	"github.com/mocachain/moca/v2/utils"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
 const (
-	GrantsGas        = 80_000
-	GranterGrantsGas = 50_000
-	GranteeGrantsGas = 50_000
-
-	GrantsMethodName        = "grants"
+	// GrantsMethodName is the ABI name for the Grants query.
+	GrantsMethodName = "grants"
+	// GranterGrantsMethodName is the ABI name for the GranterGrants query.
 	GranterGrantsMethodName = "granterGrants"
+	// GranteeGrantsMethodName is the ABI name for the GranteeGrants query.
 	GranteeGrantsMethodName = "granteeGrants"
 )
 
 // Grants returns list of `Authorization`, granted to the grantee by the granter.
-func (c *Contract) Grants(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(GrantsMethodName)
-
-	var args GrantsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) Grants(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input GrantsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+	if bytes.Equal(input.Pagination.Key, []byte{0}) {
+		input.Pagination.Key = nil
 	}
 
 	msg := &authztypes.QueryGrantsRequest{
-		Granter:    args.Granter.String(),
-		Grantee:    args.Grantee.String(),
-		MsgTypeUrl: args.MsgTypeUrl,
+		Granter:    input.Granter.String(),
+		Grantee:    input.Grantee.String(),
+		MsgTypeUrl: input.MsgTypeURL,
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        input.Pagination.Key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
 	}
 
-	res, err := c.authzKeeper.Grants(ctx, msg)
+	res, err := p.authzKeeper.Grants(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -83,30 +82,28 @@ func (c *Contract) Grants(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ b
 }
 
 // GranterGrants returns list of `GrantAuthorization`, granted by granter.
-func (c *Contract) GranterGrants(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(GranterGrantsMethodName)
-
-	var args GranterGrantsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) GranterGrants(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input GranterGrantsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+	if bytes.Equal(input.Pagination.Key, []byte{0}) {
+		input.Pagination.Key = nil
 	}
 
 	msg := &authztypes.QueryGranterGrantsRequest{
-		Granter: args.Granter.String(),
+		Granter: input.Granter.String(),
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        input.Pagination.Key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
 	}
 
-	res, err := c.authzKeeper.GranterGrants(ctx, msg)
+	res, err := p.authzKeeper.GranterGrants(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -134,30 +131,28 @@ func (c *Contract) GranterGrants(ctx sdk.Context, _ *vm.EVM, contract *vm.Contra
 }
 
 // GranteeGrants returns a list of `GrantAuthorization` by grantee.
-func (c *Contract) GranteeGrants(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(GranteeGrantsMethodName)
-
-	var args GranteeGrantsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) GranteeGrants(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input GranteeGrantsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+	if bytes.Equal(input.Pagination.Key, []byte{0}) {
+		input.Pagination.Key = nil
 	}
 
 	msg := &authztypes.QueryGranteeGrantsRequest{
-		Grantee: args.Grantee.String(),
+		Grantee: input.Grantee.String(),
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        input.Pagination.Key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
 	}
 
-	res, err := c.authzKeeper.GranteeGrants(ctx, msg)
+	res, err := p.authzKeeper.GranteeGrants(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -184,6 +179,9 @@ func (c *Contract) GranteeGrants(ctx sdk.Context, _ *vm.EVM, contract *vm.Contra
 	return method.Outputs.Pack(grants, pageResponse)
 }
 
+// OutputsAuthorization marshals an authorization to its JSON string form using a
+// codec seeded with the moca and cosmos-sdk module interfaces, falling back to the
+// authorization's String() form on error.
 func OutputsAuthorization(authorization authztypes.Authorization) string {
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 

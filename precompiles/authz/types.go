@@ -1,14 +1,13 @@
 package authz
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/mocachain/moca/v2/types"
 )
 
@@ -17,10 +16,12 @@ var (
 	authzABI     = types.MustABIJson(IAuthzMetaData.ABI)
 )
 
+// GetAddress returns the authz precompile's fixed hex address.
 func GetAddress() common.Address {
 	return authzAddress
 }
 
+// GetMethod resolves an ABI method by name.
 func GetMethod(name string) (abi.Method, error) {
 	method := authzABI.Methods[name]
 	if method.ID == nil {
@@ -29,18 +30,7 @@ func GetMethod(name string) (abi.Method, error) {
 	return method, nil
 }
 
-func GetMethodByID(input []byte) (abi.Method, error) {
-	if len(input) < 4 {
-		return abi.Method{}, fmt.Errorf("input length %d is too short", len(input))
-	}
-	for _, method := range authzABI.Methods {
-		if bytes.Equal(input[:4], method.ID) {
-			return method, nil
-		}
-	}
-	return abi.Method{}, fmt.Errorf("method id %s is not exist", string(input[:4]))
-}
-
+// MustMethod resolves an ABI method by name and panics if it does not exist.
 func MustMethod(name string) abi.Method {
 	method, err := GetMethod(name)
 	if err != nil {
@@ -49,6 +39,7 @@ func MustMethod(name string) abi.Method {
 	return method
 }
 
+// GetEvent resolves an ABI event by name.
 func GetEvent(name string) (abi.Event, error) {
 	event := authzABI.Events[name]
 	if event.ID == (common.Hash{}) {
@@ -57,6 +48,7 @@ func GetEvent(name string) (abi.Event, error) {
 	return event, nil
 }
 
+// MustEvent resolves an ABI event by name and panics if it does not exist.
 func MustEvent(name string) abi.Event {
 	event, err := GetEvent(name)
 	if err != nil {
@@ -65,33 +57,19 @@ func MustEvent(name string) abi.Event {
 	return event
 }
 
-type (
-	CoinJson        = Coin
-	PageRequestJson = PageRequest
-)
+// The arg structs below are decode targets for cmn.SetupABI's positional args via
+// abi.Arguments.Copy; their fields carry the ABI names (and hex address types).
 
 type GrantArgs struct {
 	Grantee       common.Address `abi:"grantee"`
 	AuthzType     string         `abi:"authzType"`
 	Authorization string         `abi:"authorization"`
-	Limit         []CoinJson     `abi:"limit"`
+	Limit         []Coin         `abi:"limit"`
 	Expiration    int64          `abi:"expiration"`
 }
 
-// Validate grant args
-func (args *GrantArgs) Validate() error {
-	for _, coin := range args.Limit {
-		if coin.Amount.Sign() <= 0 {
-			return fmt.Errorf("limit %s amount is %s, need to greater than 0", coin.Denom, coin.Amount.String())
-		}
-	}
-
-	if args.Expiration < 0 {
-		return fmt.Errorf("expiration is %d, need to greater than or equal 0", args.Expiration)
-	}
-	return nil
-}
-
+// StakingParams parses the allowed/denied validator list from the staking
+// authorization string (e.g. "allowed:0x..,0x.." or "denied:0x..").
 func (args *GrantArgs) StakingParams() (allowed []sdk.AccAddress, denied []sdk.AccAddress, err error) {
 	err = fmt.Errorf("authorization input example allowed:0x00000004e1E16f249E2b71c2dc66545215FE9d84,0x1111102Dd32160B064F2A512CDEf74bFdB6a9F96 or denied:0x00000004e1E16f249E2b71c2dc66545215FE9d84, but you input is %s", args.Authorization)
 
@@ -130,10 +108,10 @@ func (args *GrantArgs) StakingParams() (allowed []sdk.AccAddress, denied []sdk.A
 	default:
 		return nil, nil, fmt.Errorf("auth type %s not need staking params", args.AuthzType)
 	}
-
-	return nil, nil, err
 }
 
+// SendParams parses the allowed recipient list from the send authorization
+// string (e.g. "allowed:0x..,0x..").
 func (args *GrantArgs) SendParams() (allowed []sdk.AccAddress, err error) {
 	err = fmt.Errorf("authorization input example allowed:0x00000004e1E16f249E2b71c2dc66545215FE9d84,0x1111102Dd32160B064F2A512CDEf74bFdB6a9F96 but you input is %s", args.Authorization)
 
@@ -161,66 +139,35 @@ func (args *GrantArgs) SendParams() (allowed []sdk.AccAddress, err error) {
 
 		if authorizationType == "allowed" {
 			return allowed, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	default:
 		return nil, fmt.Errorf("auth type %s not need staking params", args.AuthzType)
 	}
-
-	return nil, err
 }
 
 type RevokeArgs struct {
 	Grantee    common.Address `abi:"grantee"`
-	MsgTypeUrl string         `abi:"msgTypeUrl"`
-}
-
-// Validate revoke args
-func (args *RevokeArgs) Validate() error {
-	return nil
+	MsgTypeURL string         `abi:"msgTypeUrl"`
 }
 
 type ExecArgs struct {
 	Msgs []string `abi:"msgs"`
 }
 
-// Validate exec args
-func (args *ExecArgs) Validate() error {
-	if len(args.Msgs) == 0 {
-		return errors.New("msgs is empty string")
-	}
-	return nil
-}
-
 type GrantsArgs struct {
-	Granter    common.Address  `abi:"granter"`
-	Grantee    common.Address  `abi:"grantee"`
-	MsgTypeUrl string          `abi:"msgTypeUrl"`
-	Pagination PageRequestJson `abi:"pagination"`
-}
-
-// Validate check grants args
-func (args *GrantsArgs) Validate() error {
-	return nil
+	Granter    common.Address `abi:"granter"`
+	Grantee    common.Address `abi:"grantee"`
+	MsgTypeURL string         `abi:"msgTypeUrl"`
+	Pagination PageRequest    `abi:"pagination"`
 }
 
 type GranterGrantsArgs struct {
-	Granter    common.Address  `abi:"granter"`
-	Pagination PageRequestJson `abi:"pagination"`
-}
-
-// Validate check granter grants args
-func (args *GranterGrantsArgs) Validate() error {
-	return nil
+	Granter    common.Address `abi:"granter"`
+	Pagination PageRequest    `abi:"pagination"`
 }
 
 type GranteeGrantsArgs struct {
-	Grantee    common.Address  `abi:"grantee"`
-	Pagination PageRequestJson `abi:"pagination"`
-}
-
-// Validate check grantee grants args
-func (args *GranteeGrantsArgs) Validate() error {
-	return nil
+	Grantee    common.Address `abi:"grantee"`
+	Pagination PageRequest    `abi:"pagination"`
 }

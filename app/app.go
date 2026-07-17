@@ -1213,7 +1213,7 @@ func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContra
 			bankkeeper.NewMsgServerImpl(app.BankKeeper, app.PaymentKeeper),
 			app.BankKeeper,
 		),
-		precompilesauthz.GetAddress(): precompilesauthz.NewPrecompiledContract(app.AuthzKeeper, app.BankKeeper),
+		precompilesauthz.GetAddress(): precompilesauthz.NewPrecompile(app.AuthzKeeper, app.BankKeeper),
 		precompilesgov.GetAddress(): precompilesgov.NewPrecompile(
 			govkeeper.NewMsgServerImpl(&app.GovKeeper),
 			govkeeper.NewQueryServer(&app.GovKeeper),
