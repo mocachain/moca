@@ -1238,7 +1238,7 @@ func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContra
 			app.SlashingKeeper,
 			app.BankKeeper,
 		),
-		precompilesstorage.GetAddress():      precompilesstorage.NewPrecompiledContract(app.StorageKeeper, app.BankKeeper),
+		precompilesstorage.GetAddress():      precompilesstorage.NewPrecompile(storagemodulekeeper.NewMsgServerImpl(app.StorageKeeper), app.StorageKeeper, app.BankKeeper),
 		precompilesvirtualgroup.GetAddress(): precompilesvirtualgroup.NewPrecompile(virtualgroupmodulekeeper.NewMsgServerImpl(app.VirtualgroupKeeper), app.VirtualgroupKeeper, app.BankKeeper),
 		precompilessp.GetAddress(): precompilessp.NewPrecompile(
 			spmodulekeeper.NewMsgServerImpl(app.SpKeeper),

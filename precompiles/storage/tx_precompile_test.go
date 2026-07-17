@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	evmtypes "github.com/mocachain/moca/v2/precompiles/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +20,7 @@ func TestCancelUpdateObjectContent_ABI_And_Args(t *testing.T) {
 	require.NotEqual(t, abi.Event{}, event, "CancelUpdateObjectContent event should exist in ABI")
 	require.Equal(t, "CancelUpdateObjectContent", event.Name)
 
-	// 3) Pack args and then decode via ParseMethodArgs
+	// 3) Pack args and then decode via the ABI unpack/copy path used by the precompile
 	args := CancelUpdateObjectContentArgs{
 		BucketName: "bucket-a",
 		ObjectName: "object-a",
@@ -30,11 +29,12 @@ func TestCancelUpdateObjectContent_ABI_And_Args(t *testing.T) {
 	encodedArgs, err := method.Inputs.Pack(args.BucketName, args.ObjectName)
 	require.NoError(t, err)
 
-	// For ParseMethodArgs we need to pass the full input (after the 4-byte selector).
-	// In precompile, types.ParseMethodArgs is invoked with contract.Input[4:],
-	// so we directly pass the packed args here.
+	// The precompile decodes calldata (after the 4-byte selector) via
+	// method.Inputs.Unpack followed by method.Inputs.Copy into the arg struct.
+	unpacked, err := method.Inputs.Unpack(encodedArgs)
+	require.NoError(t, err)
 	var decoded CancelUpdateObjectContentArgs
-	err = evmtypes.ParseMethodArgs(method, &decoded, encodedArgs)
+	err = method.Inputs.Copy(&decoded, unpacked)
 	require.NoError(t, err)
 	require.Equal(t, args.BucketName, decoded.BucketName)
 	require.Equal(t, args.ObjectName, decoded.ObjectName)

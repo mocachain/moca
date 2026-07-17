@@ -25,10 +25,11 @@ import (
 
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/contracts"
+	"github.com/mocachain/moca/v2/precompiles/storage"
+	precompiletypes "github.com/mocachain/moca/v2/precompiles/types"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/precompiles/storage"
 	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
@@ -112,9 +113,10 @@ func (s *CreateGroupTestSuite) TestCreateGroup_RejectsContractForwarding() {
 	evm := &vm.EVM{}
 	evm.SetTxContext(vm.TxContext{Origin: s.address}) // origin != caller
 
-	c := storage.NewPrecompiledContract(s.app.StorageKeeper, s.app.BankKeeper)
-	_, err := c.CreateGroup(s.ctx, evm, contract, false)
-	s.Require().EqualError(err, "only allow EOA can call this method")
+	p := storage.NewPrecompile(storagekeeper.NewMsgServerImpl(s.app.StorageKeeper), s.app.StorageKeeper, s.app.BankKeeper)
+	method := storage.MustMethod(storage.CreateGroupMethodName)
+	_, err := p.CreateGroup(s.ctx, evm, contract, &method, nil)
+	s.Require().ErrorIs(err, precompiletypes.ErrInvalidCaller)
 }
 
 // TestCreateGroup_FailureDoesNotMutateState pre-creates a group, then dispatches
