@@ -40,81 +40,75 @@ func MustEvent(name string) abi.Event {
 	return event
 }
 
-type (
-	CoinJson               = Coin
-	PageRequestJson        = PageRequest
-	WeightedVoteOptionJson = WeightedVoteOption
-)
-
 // The arg structs below are decode targets for cmn.SetupABI's positional args via
 // abi.Arguments.Copy; their fields carry the ABI names (and hex address types).
 
 type LegacySubmitProposalArgs struct {
-	Title          string     `abi:"title"`
-	Description    string     `abi:"description"`
-	InitialDeposit []CoinJson `abi:"initialDeposit"`
+	Title          string `abi:"title"`
+	Description    string `abi:"description"`
+	InitialDeposit []Coin `abi:"initialDeposit"`
 }
 
 type SubmitProposalArgs struct {
-	Messages       string     `abi:"messages"`
-	InitialDeposit []CoinJson `abi:"initialDeposit"`
-	Metadata       string     `abi:"metadata"`
-	Title          string     `abi:"title"`
-	Summary        string     `abi:"summary"`
-	Expedited      bool       `abi:"expedited"`
+	Messages       string `abi:"messages"`
+	InitialDeposit []Coin `abi:"initialDeposit"`
+	Metadata       string `abi:"metadata"`
+	Title          string `abi:"title"`
+	Summary        string `abi:"summary"`
+	Expedited      bool   `abi:"expedited"`
 }
 
 type VoteArgs struct {
-	ProposalId uint64 `abi:"proposalId"`
+	ProposalID uint64 `abi:"proposalId"`
 	Option     uint8  `abi:"option"`
 	Metadata   string `abi:"metadata"`
 }
 
 type VoteWeightedArgs struct {
-	ProposalId uint64                   `abi:"proposalId"`
-	Options    []WeightedVoteOptionJson `abi:"options"`
-	Metadata   string                   `abi:"metadata"`
+	ProposalID uint64               `abi:"proposalId"`
+	Options    []WeightedVoteOption `abi:"options"`
+	Metadata   string               `abi:"metadata"`
 }
 
 type DepositArgs struct {
-	ProposalId uint64   `abi:"proposalId"`
+	ProposalID uint64   `abi:"proposalId"`
 	Amount     *big.Int `abi:"amount"`
 }
 
 type ProposalArgs struct {
-	ProposalId uint64 `abi:"proposalId"`
+	ProposalID uint64 `abi:"proposalId"`
 }
 
 type ProposalsArgs struct {
-	Status     uint8           `abi:"status"`
-	Voter      common.Address  `abi:"voter"`
-	Depositor  common.Address  `abi:"depositor"`
-	Pagination PageRequestJson `abi:"pagination"`
+	Status     uint8          `abi:"status"`
+	Voter      common.Address `abi:"voter"`
+	Depositor  common.Address `abi:"depositor"`
+	Pagination PageRequest    `abi:"pagination"`
 }
 
 type VoteQueryArgs struct {
-	ProposalId uint64         `abi:"proposalId"`
+	ProposalID uint64         `abi:"proposalId"`
 	Voter      common.Address `abi:"voter"`
 }
 
 type VotesArgs struct {
-	ProposalId uint64          `abi:"proposalId"`
-	Pagination PageRequestJson `abi:"pagination"`
+	ProposalID uint64      `abi:"proposalId"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
 type DepositQueryArgs struct {
-	ProposalId uint64         `abi:"proposalId"`
+	ProposalID uint64         `abi:"proposalId"`
 	Depositor  common.Address `abi:"depositor"`
 }
 
 type DepositsArgs struct {
-	ProposalId uint64          `abi:"proposalId"`
-	Pagination PageRequestJson `abi:"pagination"`
+	ProposalID uint64      `abi:"proposalId"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
 // pageRequest builds a query.PageRequest from the ABI pagination tuple, treating a
 // single zero byte key as empty.
-func pageRequest(page PageRequestJson) *query.PageRequest {
+func pageRequest(page PageRequest) *query.PageRequest {
 	key := page.Key
 	if bytes.Equal(key, []byte{0}) {
 		key = nil

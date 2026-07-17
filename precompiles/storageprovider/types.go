@@ -15,10 +15,6 @@ var (
 	spABI     = types.MustABIJson(IStorageProviderMetaData.ABI)
 )
 
-type (
-	PageRequestJson = PageRequest
-)
-
 // GetAddress returns the storage provider precompile's fixed hex address.
 func GetAddress() common.Address {
 	return spAddress
@@ -57,11 +53,11 @@ type UpdateSPPriceArgs struct {
 }
 
 type StorageProviderArgs struct {
-	Id uint32 `abi:"id"`
+	ID uint32 `abi:"id"`
 }
 
 type StorageProvidersArgs struct {
-	Pagination PageRequestJson `abi:"pagination"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
 type StorageProviderByOperatorAddressArgs struct {

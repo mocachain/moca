@@ -171,8 +171,8 @@ func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{})
 		return nil, err
 	}
 
-	sendEnableds := make([]SendEnabled, 0, len(res.Params.SendEnabled))
-	for _, sendEnabled := range res.Params.SendEnabled {
+	sendEnableds := make([]SendEnabled, 0, len(res.Params.SendEnabled)) //nolint:staticcheck // deprecated field returned for ABI compatibility
+	for _, sendEnabled := range res.Params.SendEnabled {                //nolint:staticcheck // deprecated field returned for ABI compatibility
 		sendEnableds = append(sendEnableds, SendEnabled{Denom: sendEnabled.Denom, Enabled: sendEnabled.Enabled})
 	}
 
@@ -273,7 +273,7 @@ func (p Precompile) SendEnabled(ctx sdk.Context, method *abi.Method, args []inte
 
 // pageRequest builds a query.PageRequest from the ABI pagination tuple, treating a
 // single zero byte key as empty.
-func pageRequest(page PageRequestJson) *query.PageRequest {
+func pageRequest(page PageRequest) *query.PageRequest {
 	key := page.Key
 	if bytes.Equal(key, []byte{0}) {
 		key = nil

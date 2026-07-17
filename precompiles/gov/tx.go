@@ -134,7 +134,7 @@ func (p Precompile) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, me
 	}
 
 	msg := &govv1.MsgVote{
-		ProposalId: input.ProposalId,
+		ProposalId: input.ProposalID,
 		Voter:      sdk.AccAddress(contract.Caller().Bytes()).String(),
 		Option:     govv1.VoteOption(input.Option),
 		Metadata:   input.Metadata,
@@ -144,7 +144,7 @@ func (p Precompile) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, me
 		return nil, err
 	}
 
-	if err := p.EmitVoteEvent(evm, contract.Caller(), input.ProposalId, input.Option); err != nil {
+	if err := p.EmitVoteEvent(evm, contract.Caller(), input.ProposalID, input.Option); err != nil {
 		return nil, err
 	}
 
@@ -171,7 +171,7 @@ func (p Precompile) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	}
 
 	msg := &govv1.MsgVoteWeighted{
-		ProposalId: input.ProposalId,
+		ProposalId: input.ProposalID,
 		Voter:      sdk.AccAddress(contract.Caller().Bytes()).String(),
 		Options:    options,
 		Metadata:   input.Metadata,
@@ -181,7 +181,7 @@ func (p Precompile) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 		return nil, err
 	}
 
-	if err := p.EmitVoteWeightedEvent(evm, contract.Caller(), input.ProposalId); err != nil {
+	if err := p.EmitVoteWeightedEvent(evm, contract.Caller(), input.ProposalID); err != nil {
 		return nil, err
 	}
 
@@ -203,7 +203,7 @@ func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	amount = amount.Add(sdk.Coin{Denom: utils.BaseDenom, Amount: math.NewIntFromBigInt(input.Amount)})
 
 	msg := &govv1.MsgDeposit{
-		ProposalId: input.ProposalId,
+		ProposalId: input.ProposalID,
 		Depositor:  sdk.AccAddress(contract.Caller().Bytes()).String(),
 		Amount:     amount,
 	}
@@ -212,7 +212,7 @@ func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 		return nil, err
 	}
 
-	if err := p.EmitDepositEvent(evm, contract.Caller(), input.ProposalId); err != nil {
+	if err := p.EmitDepositEvent(evm, contract.Caller(), input.ProposalID); err != nil {
 		return nil, err
 	}
 

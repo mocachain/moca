@@ -31,7 +31,7 @@ func (p Precompile) StorageProvider(ctx sdk.Context, method *abi.Method, args []
 	}
 
 	res, err := p.spQuerier.StorageProvider(ctx, &sptypes.QueryStorageProviderRequest{
-		Id: input.Id,
+		Id: input.ID,
 	})
 	if err != nil {
 		return nil, err

@@ -55,17 +55,12 @@ func MustEvent(name string) abi.Event {
 	return event
 }
 
-type (
-	CoinJson        = Coin
-	PageRequestJson = PageRequest
-)
-
 // The arg structs below are decode targets for cmn.SetupABI's positional args via
 // abi.Arguments.Copy; their fields carry the ABI names (and hex address types).
 
 type SendArgs struct {
 	ToAddress common.Address `abi:"toAddress"`
-	Amount    []CoinJson     `abi:"amount"`
+	Amount    []Coin         `abi:"amount"`
 }
 
 type MultiSendArgs struct {
@@ -78,8 +73,8 @@ type BalanceArgs struct {
 }
 
 type AllBalancesArgs struct {
-	AccountAddress common.Address  `abi:"accountAddress"`
-	PageRequest    PageRequestJson `abi:"pageRequest"`
+	AccountAddress common.Address `abi:"accountAddress"`
+	PageRequest    PageRequest    `abi:"pageRequest"`
 }
 
 type SpendableBalancesArgs = AllBalancesArgs
@@ -90,7 +85,7 @@ type SpendableBalanceByDenomArgs struct {
 }
 
 type TotalSupplyArgs struct {
-	PageRequest PageRequestJson `abi:"pageRequest"`
+	PageRequest PageRequest `abi:"pageRequest"`
 }
 
 type SupplyOfArgs struct {
@@ -100,15 +95,15 @@ type SupplyOfArgs struct {
 type DenomMetadataArgs = SupplyOfArgs
 
 type DenomsMetadataArgs struct {
-	PageRequest PageRequestJson `abi:"pageRequest"`
+	PageRequest PageRequest `abi:"pageRequest"`
 }
 
 type DenomOwnersArgs struct {
-	Denom       string          `abi:"denom"`
-	PageRequest PageRequestJson `abi:"pageRequest"`
+	Denom       string      `abi:"denom"`
+	PageRequest PageRequest `abi:"pageRequest"`
 }
 
 type SendEnabledArgs struct {
-	Denoms      []string        `abi:"denoms"`
-	PageRequest PageRequestJson `abi:"pageRequest"`
+	Denoms      []string    `abi:"denoms"`
+	PageRequest PageRequest `abi:"pageRequest"`
 }

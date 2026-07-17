@@ -225,8 +225,8 @@ func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{})
 
 	params := Params{
 		CommunityTax:        res.Params.CommunityTax.BigInt(),
-		BaseProposerReward:  res.Params.BaseProposerReward.BigInt(),
-		BonusProposerReward: res.Params.BonusProposerReward.BigInt(),
+		BaseProposerReward:  res.Params.BaseProposerReward.BigInt(),  //nolint:staticcheck // deprecated field returned for ABI compatibility
+		BonusProposerReward: res.Params.BonusProposerReward.BigInt(), //nolint:staticcheck // deprecated field returned for ABI compatibility
 		WithdrawAddrEnabled: res.Params.WithdrawAddrEnabled,
 	}
 

@@ -59,24 +59,18 @@ func MustEvent(name string) abi.Event {
 	return event
 }
 
-type (
-	DescriptionJson     = Description
-	CommissionRatesJson = CommissionRates
-	PageRequestJson     = PageRequest
-)
-
 // The arg structs below are decode targets for cmn.SetupABI's positional args via
 // abi.Arguments.Copy; their fields carry the ABI names (and hex address types). The
 // keeper validates message contents, so these carry only moca PoA/BLS logic helpers.
 
 type EditValidatorArgs struct {
-	Description       DescriptionJson `abi:"description"`
-	CommissionRate    *big.Int        `abi:"commissionRate"`
-	MinSelfDelegation *big.Int        `abi:"minSelfDelegation"`
-	RelayerAddress    common.Address  `abi:"relayerAddress"`
-	ChallengerAddress common.Address  `abi:"challengerAddress"`
-	BlsKey            string          `abi:"blsKey"`
-	BlsProof          string          `abi:"blsProof"`
+	Description       Description    `abi:"description"`
+	CommissionRate    *big.Int       `abi:"commissionRate"`
+	MinSelfDelegation *big.Int       `abi:"minSelfDelegation"`
+	RelayerAddress    common.Address `abi:"relayerAddress"`
+	ChallengerAddress common.Address `abi:"challengerAddress"`
+	BlsKey            string         `abi:"blsKey"`
+	BlsProof          string         `abi:"blsProof"`
 }
 
 // GetCommissionRate returns the dec commission rate
@@ -213,8 +207,8 @@ func (args *CancelUnbondingDelegationArgs) GetCreationHeight() int64 {
 }
 
 type ValidatorsArgs struct {
-	Status     uint8           `abi:"status"`
-	Pagination PageRequestJson `abi:"pagination"`
+	Status     uint8       `abi:"status"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
 // GetStatus returns the validator status string
@@ -244,8 +238,8 @@ func (args *ValidatorArgs) GetValidator() sdk.ValAddress {
 }
 
 type ValidatorDelegationsArgs struct {
-	ValidatorAddr common.Address  `abi:"validatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
+	ValidatorAddr common.Address `abi:"validatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetValidator returns the validator address, caller must ensure the validator address is valid
@@ -255,8 +249,8 @@ func (args *ValidatorDelegationsArgs) GetValidator() sdk.ValAddress {
 }
 
 type ValidatorUnbondingDelegationsArgs struct {
-	ValidatorAddr common.Address  `abi:"validatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
+	ValidatorAddr common.Address `abi:"validatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetValidator returns the validator address, caller must ensure the validator address is valid
@@ -266,8 +260,8 @@ func (args *ValidatorUnbondingDelegationsArgs) GetValidator() sdk.ValAddress {
 }
 
 type DelegatorDelegationsArgs struct {
-	DelegatorAddr common.Address  `abi:"delegatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
+	DelegatorAddr common.Address `abi:"delegatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid
@@ -277,8 +271,8 @@ func (args *DelegatorDelegationsArgs) GetDelegator() sdk.AccAddress {
 }
 
 type DelegatorUnbondingDelegationsArgs struct {
-	DelegatorAddr common.Address  `abi:"delegatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
+	DelegatorAddr common.Address `abi:"delegatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid
@@ -288,10 +282,10 @@ func (args *DelegatorUnbondingDelegationsArgs) GetDelegator() sdk.AccAddress {
 }
 
 type Redelegations struct {
-	DelegatorAddr    common.Address  `abi:"delegatorAddr"`
-	SrcValidatorAddr common.Address  `abi:"srcValidatorAddr"`
-	DstValidatorAddr common.Address  `abi:"dstValidatorAddr"`
-	Pagination       PageRequestJson `abi:"pagination"`
+	DelegatorAddr    common.Address `abi:"delegatorAddr"`
+	SrcValidatorAddr common.Address `abi:"srcValidatorAddr"`
+	DstValidatorAddr common.Address `abi:"dstValidatorAddr"`
+	Pagination       PageRequest    `abi:"pagination"`
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid
@@ -313,8 +307,8 @@ func (args *Redelegations) GetDstValidator() sdk.ValAddress {
 }
 
 type DelegatorValidators struct {
-	DelegatorAddr common.Address  `abi:"delegatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
+	DelegatorAddr common.Address `abi:"delegatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid

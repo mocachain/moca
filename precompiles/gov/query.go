@@ -37,7 +37,7 @@ func (p Precompile) Proposal(ctx sdk.Context, method *abi.Method, args []interfa
 		return nil, err
 	}
 
-	res, err := p.govQuerier.Proposal(ctx, &govv1.QueryProposalRequest{ProposalId: input.ProposalId})
+	res, err := p.govQuerier.Proposal(ctx, &govv1.QueryProposalRequest{ProposalId: input.ProposalID})
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (p Precompile) VoteQuery(ctx sdk.Context, method *abi.Method, args []interf
 	}
 
 	res, err := p.govQuerier.Vote(ctx, &govv1.QueryVoteRequest{
-		ProposalId: input.ProposalId,
+		ProposalId: input.ProposalID,
 		Voter:      sdk.AccAddress(input.Voter.Bytes()).String(),
 	})
 	if err != nil {
@@ -105,7 +105,7 @@ func (p Precompile) Votes(ctx sdk.Context, method *abi.Method, args []interface{
 	}
 
 	res, err := p.govQuerier.Votes(ctx, &govv1.QueryVotesRequest{
-		ProposalId: input.ProposalId,
+		ProposalId: input.ProposalID,
 		Pagination: pageRequest(input.Pagination),
 	})
 	if err != nil {
@@ -128,7 +128,7 @@ func (p Precompile) DepositQuery(ctx sdk.Context, method *abi.Method, args []int
 	}
 
 	res, err := p.govQuerier.Deposit(ctx, &govv1.QueryDepositRequest{
-		ProposalId: input.ProposalId,
+		ProposalId: input.ProposalID,
 		Depositor:  sdk.AccAddress(input.Depositor.Bytes()).String(),
 	})
 	if err != nil {
@@ -146,7 +146,7 @@ func (p Precompile) Deposits(ctx sdk.Context, method *abi.Method, args []interfa
 	}
 
 	res, err := p.govQuerier.Deposits(ctx, &govv1.QueryDepositsRequest{
-		ProposalId: input.ProposalId,
+		ProposalId: input.ProposalID,
 		Pagination: pageRequest(input.Pagination),
 	})
 	if err != nil {
@@ -168,7 +168,7 @@ func (p Precompile) TallyResult(ctx sdk.Context, method *abi.Method, args []inte
 		return nil, err
 	}
 
-	res, err := p.govQuerier.TallyResult(ctx, &govv1.QueryTallyResultRequest{ProposalId: input.ProposalId})
+	res, err := p.govQuerier.TallyResult(ctx, &govv1.QueryTallyResultRequest{ProposalId: input.ProposalID})
 	if err != nil {
 		return nil, err
 	}

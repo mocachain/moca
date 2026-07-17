@@ -83,7 +83,7 @@ func (p Precompile) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contra
 
 // WithdrawDelegatorAllRewards withdraws the caller's rewards from every validator it
 // is delegated to. This is a moca-specific convenience method with no cosmos/evm analog.
-func (p Precompile) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+func (p Precompile) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, _ []interface{}) ([]byte, error) {
 	if evm.Origin != contract.Caller() {
 		return nil, errOnlyEOA
 	}

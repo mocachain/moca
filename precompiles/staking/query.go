@@ -363,7 +363,7 @@ func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{})
 
 // pageRequest builds a query.PageRequest from the ABI pagination tuple, treating a
 // single zero byte key as empty.
-func pageRequest(page PageRequestJson) *query.PageRequest {
+func pageRequest(page PageRequest) *query.PageRequest {
 	key := page.Key
 	if bytes.Equal(key, []byte{0}) {
 		key = nil
