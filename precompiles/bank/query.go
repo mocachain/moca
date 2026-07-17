@@ -3,54 +3,50 @@ package bank
 import (
 	"bytes"
 
-	"github.com/mocachain/moca/v2/utils"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/precompiles/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+
+	"github.com/mocachain/moca/v2/utils"
 )
 
 const (
-	BalanceGas                 = 30_000
-	AllBalancesGas             = 50_000
-	TotalSupplyGas             = 50_000
-	SpendableBalancesGas       = 50_000
-	SpendableBalanceByDenomGas = 50_000
-	SupplyOfGas                = 30_000
-	ParamsGas                  = 50_000
-	DenomMetadataGas           = 30_000
-	DenomsMetadataGas          = 50_000
-	DenomOwnersGas             = 50_000
-	SendEnabledGas             = 50_000
-
-	BalanceMethodName                 = "balance"
-	AllBalancesMethodName             = "allBalances"
-	TotalSupplyMethodName             = "totalSupply"
-	SpendableBalancesMethodName       = "spendableBalances"
+	// BalanceMethodName is the ABI name for the Balance query.
+	BalanceMethodName = "balance"
+	// AllBalancesMethodName is the ABI name for the AllBalances query.
+	AllBalancesMethodName = "allBalances"
+	// TotalSupplyMethodName is the ABI name for the TotalSupply query.
+	TotalSupplyMethodName = "totalSupply"
+	// SpendableBalancesMethodName is the ABI name for the SpendableBalances query.
+	SpendableBalancesMethodName = "spendableBalances"
+	// SpendableBalanceByDenomMethodName is the ABI name for the SpendableBalanceByDenom query.
 	SpendableBalanceByDenomMethodName = "spendableBalanceByDenom"
-	SupplyOfMethodName                = "supplyOf"
-	ParamsMethodName                  = "params"
-	DenomMetadataMethodName           = "denomMetadata"
-	DenomsMetadataMethodName          = "denomsMetadata"
-	DenomOwnersMethodName             = "denomOwners"
-	SendEnabledMethodName             = "sendEnabled"
+	// SupplyOfMethodName is the ABI name for the SupplyOf query.
+	SupplyOfMethodName = "supplyOf"
+	// ParamsMethodName is the ABI name for the Params query.
+	ParamsMethodName = "params"
+	// DenomMetadataMethodName is the ABI name for the DenomMetadata query.
+	DenomMetadataMethodName = "denomMetadata"
+	// DenomsMetadataMethodName is the ABI name for the DenomsMetadata query.
+	DenomsMetadataMethodName = "denomsMetadata"
+	// DenomOwnersMethodName is the ABI name for the DenomOwners query.
+	DenomOwnersMethodName = "denomOwners"
+	// SendEnabledMethodName is the ABI name for the SendEnabled query.
+	SendEnabledMethodName = "sendEnabled"
 )
 
-func (c *Contract) Balance(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(BalanceMethodName)
-
-	var args BalanceArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Balance queries the balance of a single coin for a single account.
+func (p Precompile) Balance(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input BalanceArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &banktypes.QueryBalanceRequest{
-		Address: args.AccountAddress.String(),
-		Denom:   args.Denom,
-	}
 
-	res, err := c.bankKeeper.Balance(ctx, msg)
+	res, err := p.bankKeeper.Balance(ctx, &banktypes.QueryBalanceRequest{
+		Address: input.AccountAddress.String(),
+		Denom:   input.Denom,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -61,342 +57,184 @@ func (c *Contract) Balance(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ 
 	})
 }
 
-func (c *Contract) AllBalances(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(AllBalancesMethodName)
-
-	var args AllBalancesArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// AllBalances queries the balance of all coins for a single account.
+func (p Precompile) AllBalances(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input AllBalancesArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.PageRequest.Key, []byte{0}) {
-		args.PageRequest.Key = nil
-	}
 
-	msg := &banktypes.QueryAllBalancesRequest{
-		Address: args.AccountAddress.String(),
-		Pagination: &query.PageRequest{
-			Key:        args.PageRequest.Key,
-			Offset:     args.PageRequest.Offset,
-			Limit:      args.PageRequest.Limit,
-			CountTotal: args.PageRequest.CountTotal,
-			Reverse:    args.PageRequest.Reverse,
-		},
-	}
-
-	res, err := c.bankKeeper.AllBalances(ctx, msg)
+	res, err := p.bankKeeper.AllBalances(ctx, &banktypes.QueryAllBalancesRequest{
+		Address:    input.AccountAddress.String(),
+		Pagination: pageRequest(input.PageRequest),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var balances []Coin
+	balances := make([]Coin, 0, len(res.Balances))
 	for _, balance := range res.Balances {
-		balances = append(balances, Coin{
-			Denom:  balance.Denom,
-			Amount: balance.Amount.BigInt(),
-		})
+		balances = append(balances, Coin{Denom: balance.Denom, Amount: balance.Amount.BigInt()})
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(balances, pageResponse)
+	return method.Outputs.Pack(balances, pageResponse(res.Pagination))
 }
 
 // TotalSupply queries the total supply of all coins.
-func (c *Contract) TotalSupply(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(TotalSupplyMethodName)
-
-	var args TotalSupplyArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) TotalSupply(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input TotalSupplyArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.PageRequest.Key, []byte{0}) {
-		args.PageRequest.Key = nil
-	}
-
-	msg := &banktypes.QueryTotalSupplyRequest{
-		Pagination: &query.PageRequest{
-			Key:        args.PageRequest.Key,
-			Offset:     args.PageRequest.Offset,
-			Limit:      args.PageRequest.Limit,
-			CountTotal: args.PageRequest.CountTotal,
-			Reverse:    args.PageRequest.Reverse,
-		},
-	}
-
-	res, err := c.bankKeeper.TotalSupply(ctx, msg)
+	res, err := p.bankKeeper.TotalSupply(ctx, &banktypes.QueryTotalSupplyRequest{
+		Pagination: pageRequest(input.PageRequest),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var balances []Coin
+	balances := make([]Coin, 0, len(res.Supply))
 	for _, balance := range res.Supply {
-		balances = append(balances, Coin{
-			Denom:  balance.Denom,
-			Amount: balance.Amount.BigInt(),
-		})
+		balances = append(balances, Coin{Denom: balance.Denom, Amount: balance.Amount.BigInt()})
 	}
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
 
-	return method.Outputs.Pack(balances, pageResponse)
+	return method.Outputs.Pack(balances, pageResponse(res.Pagination))
 }
 
 // SpendableBalanceByDenom queries an account's spendable balance for a specific denom.
-func (c *Contract) SpendableBalanceByDenom(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(SpendableBalanceByDenomMethodName)
-
-	var args SpendableBalanceByDenomArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) SpendableBalanceByDenom(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SpendableBalanceByDenomArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &banktypes.QuerySpendableBalanceByDenomRequest{
-		Address: args.AccountAddress.String(),
-		Denom:   args.Denom,
-	}
-
-	res, err := c.bankKeeper.SpendableBalanceByDenom(ctx, msg)
+	res, err := p.bankKeeper.SpendableBalanceByDenom(ctx, &banktypes.QuerySpendableBalanceByDenomRequest{
+		Address: input.AccountAddress.String(),
+		Denom:   input.Denom,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	balance := Coin{
+	return method.Outputs.Pack(Coin{
 		Denom:  res.Balance.Denom,
 		Amount: res.Balance.Amount.BigInt(),
-	}
-
-	return method.Outputs.Pack(balance)
+	})
 }
 
-// SpendableBalances queries the spenable balance of all coins for a single account.
-func (c *Contract) SpendableBalances(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(SpendableBalancesMethodName)
-
-	var args SpendableBalancesArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// SpendableBalances queries the spendable balance of all coins for a single account.
+func (p Precompile) SpendableBalances(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SpendableBalancesArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.PageRequest.Key, []byte{0}) {
-		args.PageRequest.Key = nil
-	}
 
-	msg := &banktypes.QuerySpendableBalancesRequest{
-		Address: args.AccountAddress.String(),
-		Pagination: &query.PageRequest{
-			Key:        args.PageRequest.Key,
-			Offset:     args.PageRequest.Offset,
-			Limit:      args.PageRequest.Limit,
-			CountTotal: args.PageRequest.CountTotal,
-			Reverse:    args.PageRequest.Reverse,
-		},
-	}
-
-	res, err := c.bankKeeper.SpendableBalances(ctx, msg)
+	res, err := p.bankKeeper.SpendableBalances(ctx, &banktypes.QuerySpendableBalancesRequest{
+		Address:    input.AccountAddress.String(),
+		Pagination: pageRequest(input.PageRequest),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var balances []Coin
+	balances := make([]Coin, 0, len(res.Balances))
 	for _, balance := range res.Balances {
-		balances = append(balances, Coin{
-			Denom:  balance.Denom,
-			Amount: balance.Amount.BigInt(),
-		})
+		balances = append(balances, Coin{Denom: balance.Denom, Amount: balance.Amount.BigInt()})
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(balances, pageResponse)
+	return method.Outputs.Pack(balances, pageResponse(res.Pagination))
 }
 
 // SupplyOf queries the supply of a single coin.
-func (c *Contract) SupplyOf(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(SupplyOfMethodName)
-
-	var args SupplyOfArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) SupplyOf(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SupplyOfArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &banktypes.QuerySupplyOfRequest{
-		Denom: args.Denom,
-	}
-
-	res, err := c.bankKeeper.SupplyOf(ctx, msg)
+	res, err := p.bankKeeper.SupplyOf(ctx, &banktypes.QuerySupplyOfRequest{Denom: input.Denom})
 	if err != nil {
 		return nil, err
 	}
 
-	amount := Coin{
+	return method.Outputs.Pack(Coin{
 		Denom:  res.Amount.Denom,
 		Amount: res.Amount.Amount.BigInt(),
-	}
-
-	return method.Outputs.Pack(amount)
+	})
 }
 
-// Params queries the parameters of x/bank module.
-func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ParamsMethodName)
-
-	msg := &banktypes.QueryParamsRequest{}
-
-	res, err := c.bankKeeper.Params(ctx, msg)
+// Params queries the parameters of the x/bank module.
+func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	res, err := p.bankKeeper.Params(ctx, &banktypes.QueryParamsRequest{})
 	if err != nil {
 		return nil, err
 	}
 
-	var sendEnableds []SendEnabled
+	sendEnableds := make([]SendEnabled, 0, len(res.Params.SendEnabled))
 	for _, sendEnabled := range res.Params.SendEnabled {
-		sendEnableds = append(sendEnableds, SendEnabled{
-			Denom:   sendEnabled.Denom,
-			Enabled: sendEnabled.Enabled,
-		})
+		sendEnableds = append(sendEnableds, SendEnabled{Denom: sendEnabled.Denom, Enabled: sendEnabled.Enabled})
 	}
 
-	params := Params{
+	return method.Outputs.Pack(Params{
 		SendEnabled:        sendEnableds,
 		DefaultSendEnabled: res.Params.DefaultSendEnabled,
-	}
-
-	return method.Outputs.Pack(params)
+	})
 }
 
 // DenomMetadata queries the client metadata of a given coin denomination.
-func (c *Contract) DenomMetadata(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DenomMetadataMethodName)
-
-	var args DenomMetadataArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) DenomMetadata(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DenomMetadataArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &banktypes.QueryDenomMetadataRequest{
-		Denom: args.Denom,
-	}
-
-	res, err := c.bankKeeper.DenomMetadata(ctx, msg)
+	res, err := p.bankKeeper.DenomMetadata(ctx, &banktypes.QueryDenomMetadataRequest{Denom: input.Denom})
 	if err != nil {
 		return nil, err
 	}
 
-	var DenomUnits []DenomUnit
-	for _, denomUnit := range res.Metadata.DenomUnits {
-		DenomUnits = append(DenomUnits, DenomUnit{
-			Denom:    denomUnit.Denom,
-			Exponent: denomUnit.Exponent,
-			Aliases:  denomUnit.Aliases,
-		})
-	}
-
-	metaData := Metadata{
-		Description: res.Metadata.Description,
-		DenomUnits:  DenomUnits,
-		Base:        res.Metadata.Base,
-		Display:     res.Metadata.Display,
-		Name:        res.Metadata.Name,
-		Symbol:      res.Metadata.Symbol,
-		Uri:         res.Metadata.URI,
-		UriHash:     res.Metadata.URIHash,
-	}
-
-	return method.Outputs.Pack(metaData)
+	return method.Outputs.Pack(outputsMetadata(res.Metadata))
 }
 
 // DenomsMetadata queries the client metadata for all registered coin denominations.
-func (c *Contract) DenomsMetadata(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DenomsMetadataMethodName)
-
-	var args DenomsMetadataArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) DenomsMetadata(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DenomsMetadataArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.PageRequest.Key, []byte{0}) {
-		args.PageRequest.Key = nil
-	}
-
-	msg := &banktypes.QueryDenomsMetadataRequest{
-		Pagination: &query.PageRequest{
-			Key:        args.PageRequest.Key,
-			Offset:     args.PageRequest.Offset,
-			Limit:      args.PageRequest.Limit,
-			CountTotal: args.PageRequest.CountTotal,
-			Reverse:    args.PageRequest.Reverse,
-		},
-	}
-
-	res, err := c.bankKeeper.DenomsMetadata(ctx, msg)
+	res, err := p.bankKeeper.DenomsMetadata(ctx, &banktypes.QueryDenomsMetadataRequest{
+		Pagination: pageRequest(input.PageRequest),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var metaDatas []Metadata
+	metaDatas := make([]Metadata, 0, len(res.Metadatas))
 	for _, metaData := range res.Metadatas {
-		var DenomUnits []DenomUnit
-		for _, denomUnit := range metaData.DenomUnits {
-			DenomUnits = append(DenomUnits, DenomUnit{
-				Denom:    denomUnit.Denom,
-				Exponent: denomUnit.Exponent,
-				Aliases:  denomUnit.Aliases,
-			})
-		}
-
-		metaDatas = append(metaDatas, Metadata{
-			Description: metaData.Description,
-			DenomUnits:  DenomUnits,
-			Base:        metaData.Base,
-			Display:     metaData.Display,
-			Name:        metaData.Name,
-			Symbol:      metaData.Symbol,
-			Uri:         metaData.URI,
-			UriHash:     metaData.URIHash,
-		})
+		metaDatas = append(metaDatas, outputsMetadata(metaData))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(metaDatas, pageResponse)
+	return method.Outputs.Pack(metaDatas, pageResponse(res.Pagination))
 }
 
 // DenomOwners queries for all account addresses that own a particular token denomination.
-func (c *Contract) DenomOwners(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DenomOwnersMethodName)
-
-	var args DenomOwnersArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) DenomOwners(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DenomOwnersArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.PageRequest.Key, []byte{0}) {
-		args.PageRequest.Key = nil
-	}
-
-	msg := &banktypes.QueryDenomOwnersRequest{
-		Denom: args.Denom,
-		Pagination: &query.PageRequest{
-			Key:        args.PageRequest.Key,
-			Offset:     args.PageRequest.Offset,
-			Limit:      args.PageRequest.Limit,
-			CountTotal: args.PageRequest.CountTotal,
-			Reverse:    args.PageRequest.Reverse,
-		},
-	}
-
-	res, err := c.bankKeeper.DenomOwners(ctx, msg)
+	res, err := p.bankKeeper.DenomOwners(ctx, &banktypes.QueryDenomOwnersRequest{
+		Denom:      input.Denom,
+		Pagination: pageRequest(input.PageRequest),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var denomOwners []DenomOwner
+	denomOwners := make([]DenomOwner, 0, len(res.DenomOwners))
 	for _, denomOwner := range res.DenomOwners {
 		denomOwners = append(denomOwners, DenomOwner{
 			AccountAddress: utils.AccAddressMustToHexAddress(denomOwner.Address),
@@ -407,53 +245,71 @@ func (c *Contract) DenomOwners(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract
 		})
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(denomOwners, pageResponse)
+	return method.Outputs.Pack(denomOwners, pageResponse(res.Pagination))
 }
 
 // SendEnabled queries for SendEnabled entries.
-func (c *Contract) SendEnabled(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(SendEnabledMethodName)
-
-	var args SendEnabledArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) SendEnabled(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SendEnabledArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(args.PageRequest.Key, []byte{0}) {
-		args.PageRequest.Key = nil
-	}
-
-	msg := &banktypes.QuerySendEnabledRequest{
-		Denoms: args.Denoms,
-		Pagination: &query.PageRequest{
-			Key:        args.PageRequest.Key,
-			Offset:     args.PageRequest.Offset,
-			Limit:      args.PageRequest.Limit,
-			CountTotal: args.PageRequest.CountTotal,
-			Reverse:    args.PageRequest.Reverse,
-		},
-	}
-
-	res, err := c.bankKeeper.SendEnabled(ctx, msg)
+	res, err := p.bankKeeper.SendEnabled(ctx, &banktypes.QuerySendEnabledRequest{
+		Denoms:     input.Denoms,
+		Pagination: pageRequest(input.PageRequest),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var sendEnableds []SendEnabled
+	sendEnableds := make([]SendEnabled, 0, len(res.SendEnabled))
 	for _, sendEnabled := range res.SendEnabled {
-		sendEnableds = append(sendEnableds, SendEnabled{
-			Denom:   sendEnabled.Denom,
-			Enabled: sendEnabled.Enabled,
+		sendEnableds = append(sendEnableds, SendEnabled{Denom: sendEnabled.Denom, Enabled: sendEnabled.Enabled})
+	}
+
+	return method.Outputs.Pack(sendEnableds, pageResponse(res.Pagination))
+}
+
+// pageRequest builds a query.PageRequest from the ABI pagination tuple, treating a
+// single zero byte key as empty.
+func pageRequest(page PageRequestJson) *query.PageRequest {
+	key := page.Key
+	if bytes.Equal(key, []byte{0}) {
+		key = nil
+	}
+	return &query.PageRequest{
+		Key:        key,
+		Offset:     page.Offset,
+		Limit:      page.Limit,
+		CountTotal: page.CountTotal,
+		Reverse:    page.Reverse,
+	}
+}
+
+func pageResponse(res *query.PageResponse) PageResponse {
+	return PageResponse{NextKey: res.NextKey, Total: res.Total}
+}
+
+// outputsMetadata maps bank denom metadata into the ABI tuple.
+func outputsMetadata(metaData banktypes.Metadata) Metadata {
+	denomUnits := make([]DenomUnit, 0, len(metaData.DenomUnits))
+	for _, denomUnit := range metaData.DenomUnits {
+		denomUnits = append(denomUnits, DenomUnit{
+			Denom:    denomUnit.Denom,
+			Exponent: denomUnit.Exponent,
+			Aliases:  denomUnit.Aliases,
 		})
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(sendEnableds, pageResponse)
+	return Metadata{
+		Description: metaData.Description,
+		DenomUnits:  denomUnits,
+		Base:        metaData.Base,
+		Display:     metaData.Display,
+		Name:        metaData.Name,
+		Symbol:      metaData.Symbol,
+		Uri:         metaData.URI,
+		UriHash:     metaData.URIHash,
+	}
 }

@@ -19,10 +19,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/precompiles/bank"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/precompiles/bank"
 )
 
 type PrecompileTestSuite struct {

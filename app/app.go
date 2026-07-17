@@ -1209,7 +1209,10 @@ func GetMaccPerms() map[string][]string {
 // the EVM StateDB at Run time instead of binding it at construction.
 func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContract {
 	return map[common.Address]vm.PrecompiledContract{
-		precompilesbank.GetAddress():  precompilesbank.NewPrecompiledContract(app.BankKeeper, app.PaymentKeeper),
+		precompilesbank.GetAddress(): precompilesbank.NewPrecompile(
+			bankkeeper.NewMsgServerImpl(app.BankKeeper, app.PaymentKeeper),
+			app.BankKeeper,
+		),
 		precompilesauthz.GetAddress(): precompilesauthz.NewPrecompiledContract(app.AuthzKeeper, app.BankKeeper),
 		precompilesgov.GetAddress(): precompilesgov.NewPrecompile(
 			govkeeper.NewMsgServerImpl(&app.GovKeeper),
