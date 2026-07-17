@@ -17,11 +17,10 @@ import (
 	evmtestutil "github.com/cosmos/evm/testutil"
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/precompiles/storageprovider"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/precompiles/storageprovider"
-	evmtypes "github.com/mocachain/moca/v2/precompiles/types"
 	spkeeper "github.com/mocachain/moca/v2/x/sp/keeper"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
@@ -82,8 +81,8 @@ func (s *PrecompileTestSuite) SetupTest() {
 // TestUpdateSPPrice exercises the production updateSPPrice precompile decode +
 // business-logic path WITHOUT routing through the EVM keeper. It packs the ABI
 // calldata exactly as a caller would, decodes it with the same
-// evmtypes.ParseMethodArgs helper the precompile uses, rebuilds the
-// MsgUpdateSpStoragePrice the same way storageprovider.Contract.UpdateSPPrice
+// method.Inputs.Copy mechanism the precompile uses (via cmn.SetupABI), rebuilds
+// the MsgUpdateSpStoragePrice the same way storageprovider.Precompile.UpdateSPPrice
 // does, runs it through the real SP msg server, and asserts the SP price is
 // updated in state.
 //
@@ -113,17 +112,20 @@ func (s *PrecompileTestSuite) TestUpdateSPPrice() {
 	packedArgs, err := method.Inputs.Pack(newReadPrice, freeReadQuota, newStorePrice)
 	s.Require().NoError(err)
 
-	// Decode via the same helper the precompile uses (ParseMethodArgs is invoked
-	// with contract.Input[4:], i.e. the packed args without the 4-byte selector).
+	// Decode via the same mechanism the precompile uses (cmn.SetupABI unpacks the
+	// packed args — contract.Input[4:], i.e. without the 4-byte selector — and copies
+	// them into the arg struct via method.Inputs.Copy).
+	unpacked, err := method.Inputs.Unpack(packedArgs)
+	s.Require().NoError(err)
 	var args storageprovider.UpdateSPPriceArgs
-	err = evmtypes.ParseMethodArgs(method, &args, packedArgs)
+	err = method.Inputs.Copy(&args, unpacked)
 	s.Require().NoError(err)
 	s.Require().Equal(newReadPrice, args.ReadPrice)
 	s.Require().Equal(freeReadQuota, args.FreeReadQuota)
 	s.Require().Equal(newStorePrice, args.StorePrice)
 
 	// Rebuild and execute the MsgUpdateSpStoragePrice exactly as
-	// storageprovider.Contract.UpdateSPPrice does (caller == s.address).
+	// storageprovider.Precompile.UpdateSPPrice does (caller == s.address).
 	msg := &sptypes.MsgUpdateSpStoragePrice{
 		SpAddress:     bech32,
 		ReadPrice:     math.LegacyNewDecFromBigIntWithPrec(args.ReadPrice, math.LegacyPrecision),
