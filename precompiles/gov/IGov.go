@@ -268,6 +268,7 @@ func (_IGov *IGovTransactorRaw) Transact(opts *bind.TransactOpts, method string,
 func (_IGov *IGovCaller) Constitution(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "constitution")
+
 	if err != nil {
 		return *new(string), err
 	}
@@ -275,6 +276,7 @@ func (_IGov *IGovCaller) Constitution(opts *bind.CallOpts) (string, error) {
 	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
+
 }
 
 // Constitution is a free data retrieval call binding the contract method 0xc96b9e29.
@@ -297,6 +299,7 @@ func (_IGov *IGovCallerSession) Constitution() (string, error) {
 func (_IGov *IGovCaller) Deposit(opts *bind.CallOpts, proposalId uint64, depositor common.Address) (DepositData, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "deposit", proposalId, depositor)
+
 	if err != nil {
 		return *new(DepositData), err
 	}
@@ -304,6 +307,7 @@ func (_IGov *IGovCaller) Deposit(opts *bind.CallOpts, proposalId uint64, deposit
 	out0 := *abi.ConvertType(out[0], new(DepositData)).(*DepositData)
 
 	return out0, err
+
 }
 
 // Deposit is a free data retrieval call binding the contract method 0x576bcd2f.
@@ -326,8 +330,7 @@ func (_IGov *IGovCallerSession) Deposit(proposalId uint64, depositor common.Addr
 func (_IGov *IGovCaller) Deposits(opts *bind.CallOpts, proposalId uint64, pagination PageRequest) (struct {
 	Deposits     []DepositData
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "deposits", proposalId, pagination)
 
@@ -343,6 +346,7 @@ func (_IGov *IGovCaller) Deposits(opts *bind.CallOpts, proposalId uint64, pagina
 	outstruct.PageResponse = *abi.ConvertType(out[1], new(PageResponse)).(*PageResponse)
 
 	return *outstruct, err
+
 }
 
 // Deposits is a free data retrieval call binding the contract method 0xeaf16768.
@@ -351,8 +355,7 @@ func (_IGov *IGovCaller) Deposits(opts *bind.CallOpts, proposalId uint64, pagina
 func (_IGov *IGovSession) Deposits(proposalId uint64, pagination PageRequest) (struct {
 	Deposits     []DepositData
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	return _IGov.Contract.Deposits(&_IGov.CallOpts, proposalId, pagination)
 }
 
@@ -362,8 +365,7 @@ func (_IGov *IGovSession) Deposits(proposalId uint64, pagination PageRequest) (s
 func (_IGov *IGovCallerSession) Deposits(proposalId uint64, pagination PageRequest) (struct {
 	Deposits     []DepositData
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	return _IGov.Contract.Deposits(&_IGov.CallOpts, proposalId, pagination)
 }
 
@@ -373,6 +375,7 @@ func (_IGov *IGovCallerSession) Deposits(proposalId uint64, pagination PageReque
 func (_IGov *IGovCaller) Params(opts *bind.CallOpts) (Params, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "params")
+
 	if err != nil {
 		return *new(Params), err
 	}
@@ -380,6 +383,7 @@ func (_IGov *IGovCaller) Params(opts *bind.CallOpts) (Params, error) {
 	out0 := *abi.ConvertType(out[0], new(Params)).(*Params)
 
 	return out0, err
+
 }
 
 // Params is a free data retrieval call binding the contract method 0xcff0ab96.
@@ -402,6 +406,7 @@ func (_IGov *IGovCallerSession) Params() (Params, error) {
 func (_IGov *IGovCaller) Proposal(opts *bind.CallOpts, proposalId uint64) (Proposal, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "proposal", proposalId)
+
 	if err != nil {
 		return *new(Proposal), err
 	}
@@ -409,6 +414,7 @@ func (_IGov *IGovCaller) Proposal(opts *bind.CallOpts, proposalId uint64) (Propo
 	out0 := *abi.ConvertType(out[0], new(Proposal)).(*Proposal)
 
 	return out0, err
+
 }
 
 // Proposal is a free data retrieval call binding the contract method 0x7afa0aa3.
@@ -431,8 +437,7 @@ func (_IGov *IGovCallerSession) Proposal(proposalId uint64) (Proposal, error) {
 func (_IGov *IGovCaller) Proposals(opts *bind.CallOpts, status uint8, voter common.Address, depositor common.Address, pagination PageRequest) (struct {
 	Proposals    []Proposal
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "proposals", status, voter, depositor, pagination)
 
@@ -448,6 +453,7 @@ func (_IGov *IGovCaller) Proposals(opts *bind.CallOpts, status uint8, voter comm
 	outstruct.PageResponse = *abi.ConvertType(out[1], new(PageResponse)).(*PageResponse)
 
 	return *outstruct, err
+
 }
 
 // Proposals is a free data retrieval call binding the contract method 0xefb5152c.
@@ -456,8 +462,7 @@ func (_IGov *IGovCaller) Proposals(opts *bind.CallOpts, status uint8, voter comm
 func (_IGov *IGovSession) Proposals(status uint8, voter common.Address, depositor common.Address, pagination PageRequest) (struct {
 	Proposals    []Proposal
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	return _IGov.Contract.Proposals(&_IGov.CallOpts, status, voter, depositor, pagination)
 }
 
@@ -467,8 +472,7 @@ func (_IGov *IGovSession) Proposals(status uint8, voter common.Address, deposito
 func (_IGov *IGovCallerSession) Proposals(status uint8, voter common.Address, depositor common.Address, pagination PageRequest) (struct {
 	Proposals    []Proposal
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	return _IGov.Contract.Proposals(&_IGov.CallOpts, status, voter, depositor, pagination)
 }
 
@@ -478,6 +482,7 @@ func (_IGov *IGovCallerSession) Proposals(status uint8, voter common.Address, de
 func (_IGov *IGovCaller) TallyResult(opts *bind.CallOpts, proposalId uint64) (TallyResult, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "tallyResult", proposalId)
+
 	if err != nil {
 		return *new(TallyResult), err
 	}
@@ -485,6 +490,7 @@ func (_IGov *IGovCaller) TallyResult(opts *bind.CallOpts, proposalId uint64) (Ta
 	out0 := *abi.ConvertType(out[0], new(TallyResult)).(*TallyResult)
 
 	return out0, err
+
 }
 
 // TallyResult is a free data retrieval call binding the contract method 0x101146be.
@@ -507,6 +513,7 @@ func (_IGov *IGovCallerSession) TallyResult(proposalId uint64) (TallyResult, err
 func (_IGov *IGovCaller) Vote0(opts *bind.CallOpts, proposalId uint64, voter common.Address) (VoteData, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "vote0", proposalId, voter)
+
 	if err != nil {
 		return *new(VoteData), err
 	}
@@ -514,6 +521,7 @@ func (_IGov *IGovCaller) Vote0(opts *bind.CallOpts, proposalId uint64, voter com
 	out0 := *abi.ConvertType(out[0], new(VoteData)).(*VoteData)
 
 	return out0, err
+
 }
 
 // Vote0 is a free data retrieval call binding the contract method 0xca469089.
@@ -536,8 +544,7 @@ func (_IGov *IGovCallerSession) Vote0(proposalId uint64, voter common.Address) (
 func (_IGov *IGovCaller) Votes(opts *bind.CallOpts, proposalId uint64, pagination PageRequest) (struct {
 	Votes        []VoteData
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	var out []interface{}
 	err := _IGov.contract.Call(opts, &out, "votes", proposalId, pagination)
 
@@ -553,6 +560,7 @@ func (_IGov *IGovCaller) Votes(opts *bind.CallOpts, proposalId uint64, paginatio
 	outstruct.PageResponse = *abi.ConvertType(out[1], new(PageResponse)).(*PageResponse)
 
 	return *outstruct, err
+
 }
 
 // Votes is a free data retrieval call binding the contract method 0x8f077f11.
@@ -561,8 +569,7 @@ func (_IGov *IGovCaller) Votes(opts *bind.CallOpts, proposalId uint64, paginatio
 func (_IGov *IGovSession) Votes(proposalId uint64, pagination PageRequest) (struct {
 	Votes        []VoteData
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	return _IGov.Contract.Votes(&_IGov.CallOpts, proposalId, pagination)
 }
 
@@ -572,8 +579,7 @@ func (_IGov *IGovSession) Votes(proposalId uint64, pagination PageRequest) (stru
 func (_IGov *IGovCallerSession) Votes(proposalId uint64, pagination PageRequest) (struct {
 	Votes        []VoteData
 	PageResponse PageResponse
-}, error,
-) {
+}, error) {
 	return _IGov.Contract.Votes(&_IGov.CallOpts, proposalId, pagination)
 }
 
@@ -781,6 +787,7 @@ type IGovCancelProposal struct {
 //
 // Solidity: event CancelProposal(address indexed proposer, uint64 proposalId)
 func (_IGov *IGovFilterer) FilterCancelProposal(opts *bind.FilterOpts, proposer []common.Address) (*IGovCancelProposalIterator, error) {
+
 	var proposerRule []interface{}
 	for _, proposerItem := range proposer {
 		proposerRule = append(proposerRule, proposerItem)
@@ -797,6 +804,7 @@ func (_IGov *IGovFilterer) FilterCancelProposal(opts *bind.FilterOpts, proposer 
 //
 // Solidity: event CancelProposal(address indexed proposer, uint64 proposalId)
 func (_IGov *IGovFilterer) WatchCancelProposal(opts *bind.WatchOpts, sink chan<- *IGovCancelProposal, proposer []common.Address) (event.Subscription, error) {
+
 	var proposerRule []interface{}
 	for _, proposerItem := range proposer {
 		proposerRule = append(proposerRule, proposerItem)
@@ -924,6 +932,7 @@ type IGovDeposit struct {
 //
 // Solidity: event Deposit(address indexed depositor, uint64 proposalId)
 func (_IGov *IGovFilterer) FilterDeposit(opts *bind.FilterOpts, depositor []common.Address) (*IGovDepositIterator, error) {
+
 	var depositorRule []interface{}
 	for _, depositorItem := range depositor {
 		depositorRule = append(depositorRule, depositorItem)
@@ -940,6 +949,7 @@ func (_IGov *IGovFilterer) FilterDeposit(opts *bind.FilterOpts, depositor []comm
 //
 // Solidity: event Deposit(address indexed depositor, uint64 proposalId)
 func (_IGov *IGovFilterer) WatchDeposit(opts *bind.WatchOpts, sink chan<- *IGovDeposit, depositor []common.Address) (event.Subscription, error) {
+
 	var depositorRule []interface{}
 	for _, depositorItem := range depositor {
 		depositorRule = append(depositorRule, depositorItem)
@@ -1067,6 +1077,7 @@ type IGovLegacySubmitProposal struct {
 //
 // Solidity: event LegacySubmitProposal(address indexed proposer, uint64 proposalId)
 func (_IGov *IGovFilterer) FilterLegacySubmitProposal(opts *bind.FilterOpts, proposer []common.Address) (*IGovLegacySubmitProposalIterator, error) {
+
 	var proposerRule []interface{}
 	for _, proposerItem := range proposer {
 		proposerRule = append(proposerRule, proposerItem)
@@ -1083,6 +1094,7 @@ func (_IGov *IGovFilterer) FilterLegacySubmitProposal(opts *bind.FilterOpts, pro
 //
 // Solidity: event LegacySubmitProposal(address indexed proposer, uint64 proposalId)
 func (_IGov *IGovFilterer) WatchLegacySubmitProposal(opts *bind.WatchOpts, sink chan<- *IGovLegacySubmitProposal, proposer []common.Address) (event.Subscription, error) {
+
 	var proposerRule []interface{}
 	for _, proposerItem := range proposer {
 		proposerRule = append(proposerRule, proposerItem)
@@ -1210,6 +1222,7 @@ type IGovSubmitProposal struct {
 //
 // Solidity: event SubmitProposal(address indexed proposer, uint64 proposalId)
 func (_IGov *IGovFilterer) FilterSubmitProposal(opts *bind.FilterOpts, proposer []common.Address) (*IGovSubmitProposalIterator, error) {
+
 	var proposerRule []interface{}
 	for _, proposerItem := range proposer {
 		proposerRule = append(proposerRule, proposerItem)
@@ -1226,6 +1239,7 @@ func (_IGov *IGovFilterer) FilterSubmitProposal(opts *bind.FilterOpts, proposer 
 //
 // Solidity: event SubmitProposal(address indexed proposer, uint64 proposalId)
 func (_IGov *IGovFilterer) WatchSubmitProposal(opts *bind.WatchOpts, sink chan<- *IGovSubmitProposal, proposer []common.Address) (event.Subscription, error) {
+
 	var proposerRule []interface{}
 	for _, proposerItem := range proposer {
 		proposerRule = append(proposerRule, proposerItem)
@@ -1354,6 +1368,7 @@ type IGovVote struct {
 //
 // Solidity: event Vote(address indexed voter, uint64 proposalId, uint8 option)
 func (_IGov *IGovFilterer) FilterVote(opts *bind.FilterOpts, voter []common.Address) (*IGovVoteIterator, error) {
+
 	var voterRule []interface{}
 	for _, voterItem := range voter {
 		voterRule = append(voterRule, voterItem)
@@ -1370,6 +1385,7 @@ func (_IGov *IGovFilterer) FilterVote(opts *bind.FilterOpts, voter []common.Addr
 //
 // Solidity: event Vote(address indexed voter, uint64 proposalId, uint8 option)
 func (_IGov *IGovFilterer) WatchVote(opts *bind.WatchOpts, sink chan<- *IGovVote, voter []common.Address) (event.Subscription, error) {
+
 	var voterRule []interface{}
 	for _, voterItem := range voter {
 		voterRule = append(voterRule, voterItem)
@@ -1497,6 +1513,7 @@ type IGovVoteWeighted struct {
 //
 // Solidity: event VoteWeighted(address indexed voter, uint64 proposalId)
 func (_IGov *IGovFilterer) FilterVoteWeighted(opts *bind.FilterOpts, voter []common.Address) (*IGovVoteWeightedIterator, error) {
+
 	var voterRule []interface{}
 	for _, voterItem := range voter {
 		voterRule = append(voterRule, voterItem)
@@ -1513,6 +1530,7 @@ func (_IGov *IGovFilterer) FilterVoteWeighted(opts *bind.FilterOpts, voter []com
 //
 // Solidity: event VoteWeighted(address indexed voter, uint64 proposalId)
 func (_IGov *IGovFilterer) WatchVoteWeighted(opts *bind.WatchOpts, sink chan<- *IGovVoteWeighted, voter []common.Address) (event.Subscription, error) {
+
 	var voterRule []interface{}
 	for _, voterItem := range voter {
 		voterRule = append(voterRule, voterItem)
