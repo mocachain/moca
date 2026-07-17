@@ -19,18 +19,15 @@ const (
 )
 
 func (c *Contract) Unjail(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(UnjailMethodName)
 
 	msg := &slashingtypes.MsgUnjail{
-		ValidatorAddr: sdk.ValAddress(contract.Caller().Bytes()).String(),
+		ValidatorAddr: sdk.ValAddress(caller.Bytes()).String(),
 	}
 
 	server := slashingkeeper.NewMsgServerImpl(c.slashingkeeper)
@@ -44,7 +41,7 @@ func (c *Contract) Unjail(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 	if err := c.AddLog(
 		evm,
 		MustEvent(UnjailEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}

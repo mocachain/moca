@@ -34,12 +34,9 @@ const (
 )
 
 func (c *Contract) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(EditValidatorMethodName)
@@ -53,7 +50,7 @@ func (c *Contract) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 	msg := &stakingtypes.MsgEditValidator{
 		Description:       stakingtypes.Description(args.Description),
-		ValidatorAddress:  contract.Caller().String(),
+		ValidatorAddress:  caller.String(),
 		CommissionRate:    args.GetCommissionRate(),
 		MinSelfDelegation: args.GetMinSelfDelegation(),
 		RelayerAddress:    args.GetRelayerAddress(),
@@ -72,7 +69,7 @@ func (c *Contract) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	if err := c.AddLog(
 		evm,
 		MustEvent(EditValidatorEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		args.CommissionRate,
 		args.MinSelfDelegation,
 	); err != nil {
@@ -83,12 +80,9 @@ func (c *Contract) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 }
 
 func (c *Contract) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(DelegateMethodName)
@@ -105,7 +99,7 @@ func (c *Contract) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 		return nil, err
 	}
 	msg := &stakingtypes.MsgDelegate{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
+		DelegatorAddress: sdk.AccAddress(caller.Bytes()).String(),
 		ValidatorAddress: args.GetValidator().String(),
 		Amount: sdk.Coin{
 			Denom:  params.BondDenom,
@@ -124,7 +118,7 @@ func (c *Contract) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	if err := c.AddLog(
 		evm,
 		MustEvent(DelegateEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
 		args.Amount,
 	); err != nil {
 		return nil, err
@@ -134,12 +128,9 @@ func (c *Contract) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 }
 
 func (c *Contract) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(UndelegateMethodName)
@@ -155,7 +146,7 @@ func (c *Contract) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		return nil, err
 	}
 	msg := &stakingtypes.MsgUndelegate{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
+		DelegatorAddress: sdk.AccAddress(caller.Bytes()).String(),
 		ValidatorAddress: args.GetValidator().String(),
 		Amount: sdk.Coin{
 			Denom:  params.BondDenom,
@@ -175,7 +166,7 @@ func (c *Contract) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 	if err := c.AddLog(
 		evm,
 		MustEvent(UndelegateEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
 		args.Amount,
 		completionTime,
 	); err != nil {
@@ -186,11 +177,9 @@ func (c *Contract) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 }
 
 func (c *Contract) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 	method := MustMethod(RedelegateMethodName)
 
@@ -206,7 +195,7 @@ func (c *Contract) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		return nil, err
 	}
 	msg := &stakingtypes.MsgBeginRedelegate{
-		DelegatorAddress:    sdk.AccAddress(contract.Caller().Bytes()).String(),
+		DelegatorAddress:    sdk.AccAddress(caller.Bytes()).String(),
 		ValidatorSrcAddress: args.GetSrcValidator().String(),
 		ValidatorDstAddress: args.GetDstValidator().String(),
 		Amount: sdk.Coin{
@@ -227,7 +216,7 @@ func (c *Contract) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 	if err := c.AddLog(
 		evm,
 		MustEvent(RedelegateEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.GetSrcValidator().Bytes()), common.BytesToHash(args.GetDstValidator().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(args.GetSrcValidator().Bytes()), common.BytesToHash(args.GetDstValidator().Bytes())},
 		args.Amount,
 		completionTime,
 	); err != nil {
@@ -238,12 +227,9 @@ func (c *Contract) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 }
 
 func (c *Contract) CancelUnbondingDelegation(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(CancelUnbondingDelegationMethodName)
@@ -260,7 +246,7 @@ func (c *Contract) CancelUnbondingDelegation(ctx sdk.Context, evm *vm.EVM, contr
 		return nil, err
 	}
 	msg := &stakingtypes.MsgCancelUnbondingDelegation{
-		DelegatorAddress: sdk.AccAddress(contract.Caller().Bytes()).String(),
+		DelegatorAddress: sdk.AccAddress(caller.Bytes()).String(),
 		ValidatorAddress: args.GetValidator().String(),
 		Amount: sdk.Coin{
 			Denom:  params.BondDenom,
@@ -280,7 +266,7 @@ func (c *Contract) CancelUnbondingDelegation(ctx sdk.Context, evm *vm.EVM, contr
 	if err := c.AddLog(
 		evm,
 		MustEvent(CancelUnbondingDelegationEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes()), common.BytesToHash(args.GetValidator().Bytes())},
 		args.Amount,
 		args.CreationHeight,
 	); err != nil {

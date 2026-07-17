@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"cosmossdk.io/math"
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,6 +15,8 @@ import (
 	evmtestutil "github.com/cosmos/evm/testutil"
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/holiman/uint256"
 
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/testutil"
@@ -91,6 +94,52 @@ func (s *SupplyTestSuite) TestDeposit_TotalSupplyInvariant() {
 
 	supplyAfter := s.app.BankKeeper.GetSupply(s.ctx, utils.BaseDenom).Amount
 	s.Require().Equal(supplyBefore.String(), supplyAfter.String(), "total bank supply must be unchanged")
+}
+
+// TestDeposit_ContractCallerSupplyInvariant asserts that a deposit driven by
+// a contract caller (an address distinct from the transaction origin) through
+// the full Run/RunNativeAction/BalanceHandler path, committed to the StateDB,
+// leaves total bank supply unchanged. Mirrors
+// bank.TestBankSend_ContractCallerSupplyInvariant for the payment
+// precompile's depositor -> payment module coin move: #362 removed the
+// EOA-only guard so a contract's Caller() can now reach this path directly,
+// and #332's BalanceHandler must still neutralize the delta-mint for that
+// caller.
+func (s *SupplyTestSuite) TestDeposit_ContractCallerSupplyInvariant() {
+	// EthSetup's genesis leaves payment params zero-valued, so install defaults
+	// (DefaultFeeDenom is the base denom "amoca") before depositing.
+	s.Require().NoError(s.app.PaymentKeeper.SetParams(s.ctx, paymenttypes.DefaultParams()))
+
+	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
+	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(caller.Bytes()), 1_000_000))
+
+	supplyBefore := s.app.BankKeeper.GetSupply(s.ctx, utils.BaseDenom).Amount
+
+	// self-deposit: the caller account exists, so a stream record is created
+	to := sdk.AccAddress(caller.Bytes()).String()
+	contract := vm.NewContract(caller, payment.GetAddress(), uint256.NewInt(0), 25_000_000, nil)
+	contract.Input = s.mustPackDepositInput(to, big.NewInt(100_000))
+
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	// Give the caller code and load its stateObject before the call, exactly
+	// like TestDeposit_TotalSupplyInvariant does for the EOA case, so
+	// StateDB.Commit's reconciliation walk actually visits it; otherwise the
+	// invariant would hold trivially regardless of the reconciliation path.
+	stateDB.SetCode(caller, []byte{0x60, 0x00})
+	_ = stateDB.GetBalance(caller)
+
+	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.SetTxContext(vm.TxContext{Origin: s.address})
+
+	c := payment.NewPrecompiledContract(s.app.PaymentKeeper, s.app.BankKeeper)
+	_, err := c.Run(evm, contract, false)
+	s.Require().NoError(err)
+	s.Require().NoError(stateDB.Commit())
+
+	supplyAfter := s.app.BankKeeper.GetSupply(s.ctx, utils.BaseDenom).Amount
+	s.Require().Equal(supplyBefore.String(), supplyAfter.String(), "total bank supply must be unchanged for a contract caller distinct from origin")
+	s.Require().Equal(math.NewInt(900_000), s.app.BankKeeper.GetBalance(s.ctx, sdk.AccAddress(caller.Bytes()), utils.BaseDenom).Amount, "acting contract.Caller() must be debited")
+	s.Require().Equal(math.NewInt(1_000_000_000_000), s.app.BankKeeper.GetBalance(s.ctx, sdk.AccAddress(s.address.Bytes()), utils.BaseDenom).Amount, "transaction origin must be untouched")
 }
 
 func (s *SupplyTestSuite) mustEnableStaticPrecompiles() {

@@ -11,8 +11,8 @@ import (
 	virtualgroupkeeper "github.com/mocachain/moca/v2/x/virtualgroup/keeper"
 	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 
-	mocacommon "github.com/mocachain/moca/v2/types/common"
 	"github.com/mocachain/moca/v2/precompiles/types"
+	mocacommon "github.com/mocachain/moca/v2/types/common"
 )
 
 const (
@@ -56,11 +56,9 @@ const (
 
 // CreateGlobalVirtualGroup defines a method for sp create a global virtual group.
 func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("send method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(CreateGlobalVirtualGroupMethodName)
@@ -72,7 +70,7 @@ func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 	}
 
 	msg := &virtualgrouptypes.MsgCreateGlobalVirtualGroup{
-		StorageProvider: contract.Caller().String(),
+		StorageProvider: caller.String(),
 		FamilyId:        args.FamilyID,
 		SecondarySpIds:  args.SecondarySpIDs,
 		Deposit: sdk.Coin{
@@ -95,7 +93,7 @@ func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 	if err := c.AddLog(
 		evm,
 		MustEvent(CreateGlobalVirtualGroupEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		big.NewInt(int64(args.FamilyID)),
 	); err != nil {
 		return nil, err
@@ -106,11 +104,9 @@ func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 
 // DeleteGlobalVirtualGroup defines a method for sp delete a global virtual group.
 func (c *Contract) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("delete global virtual group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(DeleteGlobalVirtualGroupMethodName)
@@ -122,7 +118,7 @@ func (c *Contract) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 	}
 
 	msg := &virtualgrouptypes.MsgDeleteGlobalVirtualGroup{
-		StorageProvider:      contract.Caller().String(),
+		StorageProvider:      caller.String(),
 		GlobalVirtualGroupId: args.GlobalVirtualGroupId,
 	}
 
@@ -140,7 +136,7 @@ func (c *Contract) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 	if err := c.AddLog(
 		evm,
 		MustEvent(DeleteGlobalVirtualGroupEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -150,11 +146,9 @@ func (c *Contract) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 
 // SwapOut defines a method for sp to remove itself from all Virtual Groups.
 func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("swapout method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(SwapOutMethodName)
@@ -166,7 +160,7 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	}
 
 	msg := &virtualgrouptypes.MsgSwapOut{
-		StorageProvider:            contract.Caller().String(),
+		StorageProvider:            caller.String(),
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
 		GlobalVirtualGroupIds:      args.GvgIds,
 		SuccessorSpId:              args.SuccessorSpId,
@@ -191,7 +185,7 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	if err := c.AddLog(
 		evm,
 		MustEvent(SwapOutEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		big.NewInt(int64(args.GvgFamilyId)),
 	); err != nil {
 		return nil, err
@@ -202,11 +196,9 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 
 // CompleteSwapOut defines a method for sp somplete to remove itself from all Virtual Groups.
 func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("complete swapout method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(CompleteSwapOutMethodName)
@@ -218,7 +210,7 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 	}
 
 	msg := &virtualgrouptypes.MsgCompleteSwapOut{
-		StorageProvider:            contract.Caller().String(),
+		StorageProvider:            caller.String(),
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
 		GlobalVirtualGroupIds:      args.GvgIds,
 	}
@@ -237,7 +229,7 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 	if err := c.AddLog(
 		evm,
 		MustEvent(CompleteSwapOutEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		big.NewInt(int64(args.GvgFamilyId)),
 	); err != nil {
 		return nil, err
@@ -248,11 +240,9 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 
 // SPExit defines a method for sp to exit.
 func (c *Contract) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("sp exit method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(SPExitMethodName)
@@ -264,7 +254,7 @@ func (c *Contract) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 	}
 
 	msg := &virtualgrouptypes.MsgStorageProviderExit{
-		StorageProvider: contract.Caller().String(),
+		StorageProvider: caller.String(),
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
@@ -281,7 +271,7 @@ func (c *Contract) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 	if err := c.AddLog(
 		evm,
 		MustEvent(SPExitEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -291,11 +281,9 @@ func (c *Contract) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 
 // CompleteSPExit defines a method for sp complete to exit.
 func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("complete sp exit method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(CompleteSPExitMethodName)
@@ -307,7 +295,7 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	}
 
 	msg := &virtualgrouptypes.MsgCompleteStorageProviderExit{
-		StorageProvider: contract.Caller().String(),
+		StorageProvider: caller.String(),
 		Operator:        args.Operator,
 	}
 
@@ -326,7 +314,7 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 		evm,
 		MustEvent(CompleteSPExitEventName),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			common.BytesToHash(common.HexToAddress(args.Operator).Bytes()),
 		},
 	); err != nil {
@@ -338,11 +326,9 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 
 // Deposit defines a method to deposit more tokens for the objects stored on it.
 func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("deposit method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(DepositMethodName)
@@ -354,7 +340,7 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	}
 
 	msg := &virtualgrouptypes.MsgDeposit{
-		StorageProvider:      contract.Caller().String(),
+		StorageProvider:      caller.String(),
 		GlobalVirtualGroupId: args.GlobalVirtualGroupId,
 		Deposit: sdk.Coin{
 			Denom:  args.Deposit.Denom,
@@ -376,7 +362,7 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	if err := c.AddLog(
 		evm,
 		MustEvent(DepositEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -386,11 +372,9 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 
 // ReserveSwapIn defines a method to deposit more tokens for the objects stored on it.
 func (c *Contract) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("reserve swapin method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(ReserveSwapInMethodName)
@@ -402,7 +386,7 @@ func (c *Contract) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	}
 
 	msg := &virtualgrouptypes.MsgReserveSwapIn{
-		StorageProvider:            contract.Caller().String(),
+		StorageProvider:            caller.String(),
 		TargetSpId:                 args.TargetSpId,
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
 		GlobalVirtualGroupId:       args.GlobalVirtualGroupId,
@@ -422,7 +406,7 @@ func (c *Contract) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	if err := c.AddLog(
 		evm,
 		MustEvent(ReserveSwapInEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -432,11 +416,9 @@ func (c *Contract) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 // ReserveSwapIn defines a method to deposit more tokens for the objects stored on it.
 func (c *Contract) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("complete swapin method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(CompleteSwapInMethodName)
@@ -448,7 +430,7 @@ func (c *Contract) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	}
 
 	msg := &virtualgrouptypes.MsgCompleteSwapIn{
-		StorageProvider:            contract.Caller().String(),
+		StorageProvider:            caller.String(),
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
 		GlobalVirtualGroupId:       args.GlobalVirtualGroupId,
 	}
@@ -467,7 +449,7 @@ func (c *Contract) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	if err := c.AddLog(
 		evm,
 		MustEvent(CompleteSwapInEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -477,11 +459,9 @@ func (c *Contract) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 
 // CancelSwapIn defines a method to deposit more tokens for the objects stored on it.
 func (c *Contract) CancelSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("cancel swapin method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := MustMethod(CancelSwapInMethodName)
@@ -493,7 +473,7 @@ func (c *Contract) CancelSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	}
 
 	msg := &virtualgrouptypes.MsgCancelSwapIn{
-		StorageProvider:            contract.Caller().String(),
+		StorageProvider:            caller.String(),
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
 		GlobalVirtualGroupId:       args.GlobalVirtualGroupId,
 	}
@@ -512,7 +492,7 @@ func (c *Contract) CancelSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if err := c.AddLog(
 		evm,
 		MustEvent(CancelSwapInEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
