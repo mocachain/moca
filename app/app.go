@@ -1239,7 +1239,7 @@ func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContra
 			app.BankKeeper,
 		),
 		precompilesstorage.GetAddress():      precompilesstorage.NewPrecompiledContract(app.StorageKeeper, app.BankKeeper),
-		precompilesvirtualgroup.GetAddress(): precompilesvirtualgroup.NewPrecompiledContract(app.VirtualgroupKeeper, app.BankKeeper),
+		precompilesvirtualgroup.GetAddress(): precompilesvirtualgroup.NewPrecompile(virtualgroupmodulekeeper.NewMsgServerImpl(app.VirtualgroupKeeper), app.VirtualgroupKeeper, app.BankKeeper),
 		precompilessp.GetAddress(): precompilessp.NewPrecompile(
 			spmodulekeeper.NewMsgServerImpl(app.SpKeeper),
 			app.SpKeeper,

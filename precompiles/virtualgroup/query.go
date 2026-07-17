@@ -5,44 +5,42 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/precompiles/types"
+
 	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 const (
-	GlobalVirtualGroupFamiliesGas = 50_000
-	GlobalVirtualGroupFamilyGas   = 20_000
-
+	// GlobalVirtualGroupFamiliesMethodName is the ABI name for the globalVirtualGroupFamilies query.
 	GlobalVirtualGroupFamiliesMethodName = "globalVirtualGroupFamilies"
-	GlobalVirtualGroupFamilyMethodName   = "globalVirtualGroupFamily"
+	// GlobalVirtualGroupFamilyMethodName is the ABI name for the globalVirtualGroupFamily query.
+	GlobalVirtualGroupFamilyMethodName = "globalVirtualGroupFamily"
 )
 
 // GlobalVirtualGroupFamilies queries all the global virtual group family.
-func (c *Contract) GlobalVirtualGroupFamilies(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(GlobalVirtualGroupFamiliesMethodName)
-
-	// parse args
-	var args GlobalVirtualGroupFamiliesArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) GlobalVirtualGroupFamilies(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input GlobalVirtualGroupFamiliesArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+
+	key := input.Pagination.Key
+	if bytes.Equal(key, []byte{0}) {
+		key = nil
 	}
 
 	msg := &virtualgrouptypes.QueryGlobalVirtualGroupFamiliesRequest{
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
 	}
 
-	res, err := c.virtualGroupKeeper.GlobalVirtualGroupFamilies(ctx, msg)
+	res, err := p.virtualGroupKeeper.GlobalVirtualGroupFamilies(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -57,28 +55,26 @@ func (c *Contract) GlobalVirtualGroupFamilies(ctx sdk.Context, _ *vm.EVM, contra
 		})
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
+	pageResponse := PageResponse{
+		NextKey: res.Pagination.NextKey,
+		Total:   res.Pagination.Total,
+	}
 
 	return method.Outputs.Pack(gvgFamilies, pageResponse)
 }
 
 // GlobalVirtualGroupFamily queries the global virtual group family by family id.
-func (c *Contract) GlobalVirtualGroupFamily(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(GlobalVirtualGroupFamilyMethodName)
-
-	// parse args
-	var args GlobalVirtualGroupFamilyArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) GlobalVirtualGroupFamily(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input GlobalVirtualGroupFamilyArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.QueryGlobalVirtualGroupFamilyRequest{
-		FamilyId: args.FamilyId,
+		FamilyId: input.FamilyID,
 	}
 
-	res, err := c.virtualGroupKeeper.GlobalVirtualGroupFamily(ctx, msg)
+	res, err := p.virtualGroupKeeper.GlobalVirtualGroupFamily(ctx, msg)
 	if err != nil {
 		return nil, err
 	}

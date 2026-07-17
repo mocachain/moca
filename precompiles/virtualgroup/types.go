@@ -1,16 +1,12 @@
 package virtualgroup
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/mocachain/moca/v2/types"
-)
 
-type (
-	ApprovalJSON = Approval
+	"github.com/mocachain/moca/v2/types"
 )
 
 var (
@@ -18,10 +14,12 @@ var (
 	virtualGroupABI     = types.MustABIJson(IVirtualGroupMetaData.ABI)
 )
 
+// GetAddress returns the virtualgroup precompile's fixed hex address.
 func GetAddress() common.Address {
 	return virtualGroupAddress
 }
 
+// GetMethod resolves an ABI method by name.
 func GetMethod(name string) (abi.Method, error) {
 	method := virtualGroupABI.Methods[name]
 	if method.ID == nil {
@@ -30,18 +28,7 @@ func GetMethod(name string) (abi.Method, error) {
 	return method, nil
 }
 
-func GetMethodByID(input []byte) (abi.Method, error) {
-	if len(input) < 4 {
-		return abi.Method{}, fmt.Errorf("input length %d is too short", len(input))
-	}
-	for _, method := range virtualGroupABI.Methods {
-		if bytes.Equal(input[:4], method.ID) {
-			return method, nil
-		}
-	}
-	return abi.Method{}, fmt.Errorf("method id %s is not exist", string(input[:4]))
-}
-
+// MustMethod resolves an ABI method by name and panics if it does not exist.
 func MustMethod(name string) abi.Method {
 	method, err := GetMethod(name)
 	if err != nil {
@@ -50,6 +37,7 @@ func MustMethod(name string) abi.Method {
 	return method
 }
 
+// GetEvent resolves an ABI event by name.
 func GetEvent(name string) (abi.Event, error) {
 	event := virtualGroupABI.Events[name]
 	if event.ID == (common.Hash{}) {
@@ -58,6 +46,7 @@ func GetEvent(name string) (abi.Event, error) {
 	return event, nil
 }
 
+// MustEvent resolves an ABI event by name and panics if it does not exist.
 func MustEvent(name string) abi.Event {
 	event, err := GetEvent(name)
 	if err != nil {
@@ -66,132 +55,75 @@ func MustEvent(name string) abi.Event {
 	return event
 }
 
-type (
-	CoinJSON        = Coin
-	PageRequestJSON = PageRequest
-)
+// The arg structs below are decode targets for cmn.SetupABI's positional args via
+// abi.Arguments.Copy; their fields carry the ABI names. The keeper's msg
+// ValidateBasic validates message contents, so these carry no extra validation.
 
+// CreateGlobalVirtualGroupArgs is the decode target for the createGlobalVirtualGroup calldata.
 type CreateGlobalVirtualGroupArgs struct {
 	FamilyID       uint32   `abi:"familyId"`
 	SecondarySpIDs []uint32 `abi:"secondarySpIds"`
-	Deposit        CoinJSON `abi:"deposit"`
+	Deposit        Coin     `abi:"deposit"`
 }
 
-// Validate CreateGlobalVirtualGroupArgs args
-func (args *CreateGlobalVirtualGroupArgs) Validate() error {
-	return nil
-}
-
+// DeleteGlobalVirtualGroupArgs is the decode target for the deleteGlobalVirtualGroup calldata.
 type DeleteGlobalVirtualGroupArgs struct {
-	// StorageProvider      string `abi:"storageProvider"`
-	GlobalVirtualGroupId uint32 `abi:"globalVirtualGroupId"`
+	GlobalVirtualGroupID uint32 `abi:"globalVirtualGroupId"`
 }
 
-// Validate DeleteGlobalVirtualGroupArgs args
-func (args *DeleteGlobalVirtualGroupArgs) Validate() error {
-	return nil
-}
-
+// GlobalVirtualGroupFamiliesArgs is the decode target for the globalVirtualGroupFamilies calldata.
 type GlobalVirtualGroupFamiliesArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
-// Validate GlobalVirtualGroupFamiliesArgs the args
-func (args *GlobalVirtualGroupFamiliesArgs) Validate() error {
-	return nil
-}
-
+// SwapOutArgs is the decode target for the swapOut calldata.
 type SwapOutArgs struct {
-	GvgFamilyId         uint32       `abi:"gvgFamilyId"`
-	GvgIds              []uint32     `abi:"gvgIds"`
-	SuccessorSpId       uint32       `abi:"successorSpId"`
-	SuccessorSpApproval ApprovalJSON `abi:"successorSpApproval"`
+	GvgFamilyID         uint32   `abi:"gvgFamilyId"`
+	GvgIDs              []uint32 `abi:"gvgIds"`
+	SuccessorSpID       uint32   `abi:"successorSpId"`
+	SuccessorSpApproval Approval `abi:"successorSpApproval"`
 }
 
-// Validate SwapOutArgs the args
-func (args *SwapOutArgs) Validate() error {
-	return nil
-}
-
+// CompleteSwapOutArgs is the decode target for the completeSwapOut calldata.
 type CompleteSwapOutArgs struct {
-	// StorageProvider            string   `abi:"storageProvider"`
-	GvgFamilyId uint32   `abi:"gvgFamilyId"`
-	GvgIds      []uint32 `abi:"gvgIds"`
+	GvgFamilyID uint32   `abi:"gvgFamilyId"`
+	GvgIDs      []uint32 `abi:"gvgIds"`
 }
 
-// Validate CompleteSwapOutArgs the args
-func (args *CompleteSwapOutArgs) Validate() error {
-	return nil
-}
+// SPExitArgs is the decode target for the spExit calldata.
+type SPExitArgs struct{}
 
-type SPExitArgs struct {
-	// StorageProvider string `abi:"storageProvider"`
-}
-
-// Validate SPExitArgs the args
-func (args *SPExitArgs) Validate() error {
-	return nil
-}
-
+// CompleteSPExitArgs is the decode target for the completeSPExit calldata.
 type CompleteSPExitArgs struct {
 	Operator string `abi:"operator"`
 }
 
-// Validate CompleteSPExitArgs the args
-func (args *CompleteSPExitArgs) Validate() error {
-	return nil
-}
-
+// DepositArgs is the decode target for the deposit calldata.
 type DepositArgs struct {
-	// StorageProvider      string        `abi:"storageProvider"`
-	GlobalVirtualGroupId uint32   `abi:"globalVirtualGroupId"`
-	Deposit              CoinJSON `abi:"deposit"`
+	GlobalVirtualGroupID uint32 `abi:"globalVirtualGroupId"`
+	Deposit              Coin   `abi:"deposit"`
 }
 
-// Validate DepositArgs the args
-func (args *DepositArgs) Validate() error {
-	return nil
-}
-
+// ReserveSwapInArgs is the decode target for the reserveSwapIn calldata.
 type ReserveSwapInArgs struct {
-	// StorageProvider            string `abi:"storageProvider"`
-	TargetSpId           uint32 `abi:"targetSpId"`
-	GvgFamilyId          uint32 `abi:"gvgFamilyId"`
-	GlobalVirtualGroupId uint32 `abi:"globalVirtualGroupId"`
+	TargetSpID           uint32 `abi:"targetSpId"`
+	GvgFamilyID          uint32 `abi:"gvgFamilyId"`
+	GlobalVirtualGroupID uint32 `abi:"globalVirtualGroupId"`
 }
 
-// Validate ReserveSwapInArgs the args
-func (args *ReserveSwapInArgs) Validate() error {
-	return nil
-}
-
+// CompleteSwapInArgs is the decode target for the completeSwapIn calldata.
 type CompleteSwapInArgs struct {
-	// StorageProvider            string `abi:"storageProvider"`
-	GvgFamilyId          uint32 `abi:"gvgFamilyId"`
-	GlobalVirtualGroupId uint32 `abi:"globalVirtualGroupId"`
+	GvgFamilyID          uint32 `abi:"gvgFamilyId"`
+	GlobalVirtualGroupID uint32 `abi:"globalVirtualGroupId"`
 }
 
-// Validate CompleteSwapInArgs the args
-func (args *CompleteSwapInArgs) Validate() error {
-	return nil
-}
-
+// CancelSwapInArgs is the decode target for the cancelSwapIn calldata.
 type CancelSwapInArgs struct {
-	// StorageProvider            string `abi:"storageProvider"`
-	GvgFamilyId          uint32 `abi:"gvgFamilyId"`
-	GlobalVirtualGroupId uint32 `abi:"globalVirtualGroupId"`
+	GvgFamilyID          uint32 `abi:"gvgFamilyId"`
+	GlobalVirtualGroupID uint32 `abi:"globalVirtualGroupId"`
 }
 
-// Validate CancelSwapInArgs the args
-func (args *CancelSwapInArgs) Validate() error {
-	return nil
-}
-
+// GlobalVirtualGroupFamilyArgs is the decode target for the globalVirtualGroupFamily calldata.
 type GlobalVirtualGroupFamilyArgs struct {
-	FamilyId uint32 `abi:"familyId"`
-}
-
-// Validate GlobalVirtualGroupFamily the args
-func (args *GlobalVirtualGroupFamilyArgs) Validate() error {
-	return nil
+	FamilyID uint32 `abi:"familyId"`
 }
