@@ -2,6 +2,7 @@ package distribution
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/math"
@@ -111,6 +112,16 @@ func NewMsgFundCommunityPool(args []interface{}, caller common.Address) (*distri
 	coins, err := cmn.ToCoins(args[0])
 	if err != nil {
 		return nil, fmt.Errorf(ErrInvalidAmount, err)
+	}
+	// Preserve the pre-conversion FundCommunityPoolArgs.Validate checks: the keeper and
+	// sdk.Coins.Validate accept an empty (and zero-amount) coin set, so reject them here.
+	if len(coins) == 0 {
+		return nil, errors.New("no coin send")
+	}
+	for _, coin := range coins {
+		if coin.Amount.Sign() <= 0 {
+			return nil, fmt.Errorf("coin amount is %s less than or equal 0", coin.Amount.String())
+		}
 	}
 	amount, err := cmn.NewSdkCoinsFromCoins(coins)
 	if err != nil {
