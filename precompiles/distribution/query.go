@@ -1,304 +1,107 @@
 package distribution
 
 import (
-	"bytes"
+	"fmt"
 
-	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
-	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
+
+	cmn "github.com/cosmos/evm/precompiles/common"
+
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/precompiles/types"
 )
 
 const (
-	ValidatorDistributionInfoGas   = 30_000
-	ValidatorOutstandingRewardsGas = 30_000
-	ValidatorCommissionGas         = 30_000
-	DelegationRewardsGas           = 30_000
-	DelegationTotalRewardsGas      = 30_000
-	CommunityPoolGas               = 30_000
-	ParamsGas                      = 30_000
-	ValidatorSlashesGas            = 30_000
-	DelegatorValidatorsGas         = 30_000
-	delegatorWithdrawAddressGas    = 30_000
-
-	ValidatorDistributionInfoMethodName   = "validatorDistributionInfo"
-	ValidatorOutstandingRewardsMethodName = "validatorOutstandingRewards"
-	ValidatorCommissionMethodName         = "validatorCommission"
-	DelegationRewardsMethodName           = "delegationRewards"
-	DelegationTotalRewardsMethodName      = "delegationTotalRewards"
-	CommunityPoolMethodName               = "communityPool"
-	ParamsMethodName                      = "params"
-	ValidatorSlashesMethodName            = "validatorSlashes"
-	DelegatorValidatorsMethodName         = "delegatorValidators"
-	delegatorWithdrawAddressMethodName    = "delegatorWithdrawAddress"
+	// ValidatorDistributionInfoMethod is the ABI name for the ValidatorDistributionInfo query.
+	ValidatorDistributionInfoMethod = "validatorDistributionInfo"
+	// ValidatorOutstandingRewardsMethod is the ABI name for the ValidatorOutstandingRewards query.
+	ValidatorOutstandingRewardsMethod = "validatorOutstandingRewards"
+	// ValidatorCommissionMethod is the ABI name for the ValidatorCommission query.
+	ValidatorCommissionMethod = "validatorCommission"
+	// ValidatorSlashesMethod is the ABI name for the ValidatorSlashes query.
+	ValidatorSlashesMethod = "validatorSlashes"
+	// DelegationRewardsMethod is the ABI name for the DelegationRewards query.
+	DelegationRewardsMethod = "delegationRewards"
+	// DelegationTotalRewardsMethod is the ABI name for the DelegationTotalRewards query.
+	DelegationTotalRewardsMethod = "delegationTotalRewards"
+	// DelegatorValidatorsMethod is the ABI name for the DelegatorValidators query.
+	DelegatorValidatorsMethod = "delegatorValidators"
+	// DelegatorWithdrawAddressMethod is the ABI name for the DelegatorWithdrawAddress query.
+	DelegatorWithdrawAddressMethod = "delegatorWithdrawAddress"
+	// CommunityPoolMethod is the ABI name for the CommunityPool query.
+	CommunityPoolMethod = "communityPool"
+	// ParamsMethod is the ABI name for the Params query.
+	ParamsMethod = "params"
 )
 
-// ValidatorDistributionInfo queries validator commision and self-delegation rewards for validator
-func (c *Contract) ValidatorDistributionInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ValidatorDistributionInfoMethodName)
-
-	var args ValidatorAddressArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
+// ValidatorDistributionInfo queries a validator's commission and self-delegation rewards.
+func (p Precompile) ValidatorDistributionInfo(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	validatorAddr, err := hexAddressArg(args, "validator address")
 	if err != nil {
 		return nil, err
 	}
 
-	msg := &distributiontypes.QueryValidatorDistributionInfoRequest{
-		ValidatorAddress: args.ValidatorAddress.String(),
-	}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.ValidatorDistributionInfo(ctx, msg)
+	res, err := p.distributionQuerier.ValidatorDistributionInfo(ctx, &distributiontypes.QueryValidatorDistributionInfoRequest{
+		ValidatorAddress: validatorAddr.String(),
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	operatorAddress := utils.AccAddressMustToHexAddress(res.OperatorAddress)
 
-	var selfBondRewards []DecCoin
-	for _, reward := range res.SelfBondRewards {
-		selfBondRewards = append(selfBondRewards, DecCoin{
-			Denom:     reward.Denom,
-			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(math.LegacyPrecision),
-		})
-	}
-
-	var commission []DecCoin
-	for _, reward := range res.Commission {
-		commission = append(commission, DecCoin{
-			Denom:     reward.Denom,
-			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(math.LegacyPrecision),
-		})
-	}
-
-	return method.Outputs.Pack(operatorAddress, selfBondRewards, commission)
+	return method.Outputs.Pack(operatorAddress, newDecCoins(res.SelfBondRewards), newDecCoins(res.Commission))
 }
 
-// ValidatorOutstandingRewards queries rewards of a validator address.
-func (c *Contract) ValidatorOutstandingRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ValidatorOutstandingRewardsMethodName)
-
-	var args ValidatorAddressArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
+// ValidatorOutstandingRewards queries the outstanding rewards of a validator.
+func (p Precompile) ValidatorOutstandingRewards(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	validatorAddr, err := hexAddressArg(args, "validator address")
 	if err != nil {
 		return nil, err
 	}
 
-	msg := &distributiontypes.QueryValidatorOutstandingRewardsRequest{
-		ValidatorAddress: args.ValidatorAddress.String(),
-	}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.ValidatorOutstandingRewards(ctx, msg)
+	res, err := p.distributionQuerier.ValidatorOutstandingRewards(ctx, &distributiontypes.QueryValidatorOutstandingRewardsRequest{
+		ValidatorAddress: validatorAddr.String(),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var rewards []DecCoin
-	for _, reward := range res.Rewards.Rewards {
-		rewards = append(rewards, DecCoin{
-			Denom:     reward.Denom,
-			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(math.LegacyPrecision),
-		})
-	}
-
-	return method.Outputs.Pack(rewards)
+	return method.Outputs.Pack(newDecCoins(res.Rewards.Rewards))
 }
 
-// ValidatorCommission queries accumulated commission for a validator.
-func (c *Contract) ValidatorCommission(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ValidatorCommissionMethodName)
-
-	var args ValidatorAddressArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
+// ValidatorCommission queries the accumulated commission of a validator.
+func (p Precompile) ValidatorCommission(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	validatorAddr, err := hexAddressArg(args, "validator address")
 	if err != nil {
 		return nil, err
 	}
 
-	msg := &distributiontypes.QueryValidatorCommissionRequest{
-		ValidatorAddress: args.ValidatorAddress.String(),
-	}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.ValidatorCommission(ctx, msg)
+	res, err := p.distributionQuerier.ValidatorCommission(ctx, &distributiontypes.QueryValidatorCommissionRequest{
+		ValidatorAddress: validatorAddr.String(),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var rewards []DecCoin
-	for _, reward := range res.Commission.Commission {
-		rewards = append(rewards, DecCoin{
-			Denom:     reward.Denom,
-			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(math.LegacyPrecision),
-		})
-	}
-
-	return method.Outputs.Pack(rewards)
+	return method.Outputs.Pack(newDecCoins(res.Commission.Commission))
 }
 
-// DelegationRewards queries the total rewards accrued by a delegation.
-func (c *Contract) DelegationRewards(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DelegationRewardsMethodName)
-
-	var args DelegationRewardsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
-		return nil, err
-	}
-	msg := &distributiontypes.QueryDelegationRewardsRequest{
-		DelegatorAddress: args.DelegatorAddress.String(),
-		ValidatorAddress: args.ValidatorAddress.String(),
-	}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.DelegationRewards(ctx, msg)
+// ValidatorSlashes queries the slash events of a validator.
+func (p Precompile) ValidatorSlashes(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	req, err := NewValidatorSlashesRequest(method, args)
 	if err != nil {
 		return nil, err
 	}
 
-	var rewards []DecCoin
-	for _, reward := range res.Rewards {
-		rewards = append(rewards, DecCoin{
-			Denom:     reward.Denom,
-			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(math.LegacyPrecision),
-		})
-	}
-
-	return method.Outputs.Pack(rewards)
-}
-
-// DelegationTotalRewards queries the total rewards accrued by a each validator.
-func (c *Contract) DelegationTotalRewards(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DelegationTotalRewardsMethodName)
-
-	var args DelegatorAddressArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
-		return nil, err
-	}
-	msg := &distributiontypes.QueryDelegationTotalRewardsRequest{
-		DelegatorAddress: args.DelegatorAddress.String(),
-	}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.DelegationTotalRewards(ctx, msg)
+	res, err := p.distributionQuerier.ValidatorSlashes(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	var delegationDelegatorReward []DelegationDelegatorReward
-	for _, reward := range res.Rewards {
-		var rewards []DecCoin
-		for _, r := range reward.Reward {
-			rewards = append(rewards, DecCoin{
-				Denom:     r.Denom,
-				Amount:    r.Amount.BigInt(),
-				Precision: uint8(math.LegacyPrecision),
-			})
-		}
-		delegationDelegatorReward = append(delegationDelegatorReward, DelegationDelegatorReward{
-			ValidatorAddress: common.HexToAddress(reward.ValidatorAddress),
-			Rewards:          rewards,
-		})
-	}
-
-	var total []DecCoin
-	for _, reward := range res.Total {
-		total = append(total, DecCoin{
-			Denom:     reward.Denom,
-			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(math.LegacyPrecision),
-		})
-	}
-
-	return method.Outputs.Pack(delegationDelegatorReward, total)
-}
-
-// CommunityPool queries the community pool coins.
-func (c *Contract) CommunityPool(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(CommunityPoolMethodName)
-
-	msg := &distributiontypes.QueryCommunityPoolRequest{}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.CommunityPool(ctx, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	var rewards []DecCoin
-	for _, reward := range res.Pool {
-		rewards = append(rewards, DecCoin{
-			Denom:     reward.Denom,
-			Amount:    reward.Amount.BigInt(),
-			Precision: uint8(math.LegacyPrecision),
-		})
-	}
-
-	return method.Outputs.Pack(rewards)
-}
-
-// Params queries params of distribution module
-func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ParamsMethodName)
-
-	msg := &distributiontypes.QueryParamsRequest{}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.Params(ctx, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	params := Params{
-		CommunityTax:        res.Params.CommunityTax.BigInt(),
-		BaseProposerReward:  res.Params.BaseProposerReward.BigInt(),
-		BonusProposerReward: res.Params.BonusProposerReward.BigInt(),
-		WithdrawAddrEnabled: res.Params.WithdrawAddrEnabled,
-	}
-
-	return method.Outputs.Pack(params)
-}
-
-// ValidatorSlashes queries slash events of a validator
-func (c *Contract) ValidatorSlashes(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ValidatorSlashesMethodName)
-
-	var args ValidatorSlashesArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
-		return nil, err
-	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
-	msg := &distributiontypes.QueryValidatorSlashesRequest{
-		ValidatorAddress: args.ValidatorAddress.String(),
-		StartingHeight:   args.StartingHeight,
-		EndingHeight:     args.EndingHeight,
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
-	}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.ValidatorSlashes(ctx, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	var slashEvents []ValidatorSlashEvent
+	slashEvents := make([]ValidatorSlashEvent, 0, len(res.Slashes))
 	for _, slash := range res.Slashes {
 		slashEvents = append(slashEvents, ValidatorSlashEvent{
 			ValidatorPeriod: slash.ValidatorPeriod,
@@ -306,32 +109,79 @@ func (c *Contract) ValidatorSlashes(ctx sdk.Context, _ *vm.EVM, contract *vm.Con
 		})
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
+	pageResponse := PageResponse{
+		NextKey: res.Pagination.NextKey,
+		Total:   res.Pagination.Total,
+	}
 
 	return method.Outputs.Pack(slashEvents, pageResponse)
 }
 
-// DelegatorValidators queries the validators list of a delegator
-func (c *Contract) DelegatorValidators(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DelegatorValidatorsMethodName)
-
-	var args DelegatorAddressArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
-		return nil, err
+// DelegationRewards queries the rewards accrued by a delegation to a single validator.
+func (p Precompile) DelegationRewards(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf(cmn.ErrInvalidNumberOfArgs, 2, len(args))
 	}
-	msg := &distributiontypes.QueryDelegatorValidatorsRequest{
-		DelegatorAddress: args.DelegatorAddress.String(),
+	delegatorAddr, ok := args[0].(common.Address)
+	if !ok || delegatorAddr == (common.Address{}) {
+		return nil, fmt.Errorf("invalid delegator address: %v", args[0])
+	}
+	validatorAddr, ok := args[1].(common.Address)
+	if !ok || validatorAddr == (common.Address{}) {
+		return nil, fmt.Errorf("invalid validator address: %v", args[1])
 	}
 
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.DelegatorValidators(ctx, msg)
+	res, err := p.distributionQuerier.DelegationRewards(ctx, &distributiontypes.QueryDelegationRewardsRequest{
+		DelegatorAddress: delegatorAddr.String(),
+		ValidatorAddress: validatorAddr.String(),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var validators []common.Address
+	return method.Outputs.Pack(newDecCoins(res.Rewards))
+}
+
+// DelegationTotalRewards queries the total rewards accrued across all of a delegator's validators.
+func (p Precompile) DelegationTotalRewards(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	delegatorAddr, err := hexAddressArg(args, "delegator address")
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := p.distributionQuerier.DelegationTotalRewards(ctx, &distributiontypes.QueryDelegationTotalRewardsRequest{
+		DelegatorAddress: delegatorAddr.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	rewards := make([]DelegationDelegatorReward, 0, len(res.Rewards))
+	for _, reward := range res.Rewards {
+		rewards = append(rewards, DelegationDelegatorReward{
+			ValidatorAddress: common.HexToAddress(reward.ValidatorAddress),
+			Rewards:          newDecCoins(reward.Reward),
+		})
+	}
+
+	return method.Outputs.Pack(rewards, newDecCoins(res.Total))
+}
+
+// DelegatorValidators queries the validators a delegator is bonded to.
+func (p Precompile) DelegatorValidators(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	delegatorAddr, err := hexAddressArg(args, "delegator address")
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := p.distributionQuerier.DelegatorValidators(ctx, &distributiontypes.QueryDelegatorValidatorsRequest{
+		DelegatorAddress: delegatorAddr.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	validators := make([]common.Address, 0, len(res.Validators))
 	for _, validator := range res.Validators {
 		validators = append(validators, common.HexToAddress(validator))
 	}
@@ -339,25 +189,46 @@ func (c *Contract) DelegatorValidators(ctx sdk.Context, _ *vm.EVM, contract *vm.
 	return method.Outputs.Pack(validators)
 }
 
-// DelegatorWithdrawAddress queries Query/delegatorWithdrawAddress
-func (c *Contract) DelegatorWithdrawAddress(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(delegatorWithdrawAddressMethodName)
-
-	var args DelegatorAddressArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
-		return nil, err
-	}
-	msg := &distributiontypes.QueryDelegatorWithdrawAddressRequest{
-		DelegatorAddress: args.DelegatorAddress.String(),
-	}
-
-	querier := distributionkeeper.Querier{Keeper: c.distributionKeeper}
-	res, err := querier.DelegatorWithdrawAddress(ctx, msg)
+// DelegatorWithdrawAddress queries a delegator's configured withdraw address.
+func (p Precompile) DelegatorWithdrawAddress(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	delegatorAddr, err := hexAddressArg(args, "delegator address")
 	if err != nil {
 		return nil, err
 	}
 
-	withdrawAddress := common.HexToAddress(res.WithdrawAddress)
+	res, err := p.distributionQuerier.DelegatorWithdrawAddress(ctx, &distributiontypes.QueryDelegatorWithdrawAddressRequest{
+		DelegatorAddress: delegatorAddr.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return method.Outputs.Pack(withdrawAddress)
+	return method.Outputs.Pack(common.HexToAddress(res.WithdrawAddress))
+}
+
+// CommunityPool queries the community pool balance.
+func (p Precompile) CommunityPool(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	res, err := p.distributionQuerier.CommunityPool(ctx, &distributiontypes.QueryCommunityPoolRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return method.Outputs.Pack(newDecCoins(res.Pool))
+}
+
+// Params queries the distribution module parameters.
+func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	res, err := p.distributionQuerier.Params(ctx, &distributiontypes.QueryParamsRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	params := Params{
+		CommunityTax:        res.Params.CommunityTax.BigInt(),
+		BaseProposerReward:  res.Params.BaseProposerReward.BigInt(),  //nolint:staticcheck // deprecated field returned for ABI compatibility
+		BonusProposerReward: res.Params.BonusProposerReward.BigInt(), //nolint:staticcheck // deprecated field returned for ABI compatibility
+		WithdrawAddrEnabled: res.Params.WithdrawAddrEnabled,
+	}
+
+	return method.Outputs.Pack(params)
 }

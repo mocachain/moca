@@ -12,6 +12,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	teststaking "github.com/cosmos/cosmos-sdk/x/staking/testutil"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	evmtestutil "github.com/cosmos/evm/testutil"
@@ -21,10 +22,10 @@ import (
 	"github.com/holiman/uint256"
 
 	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/precompiles/staking"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/precompiles/staking"
 )
 
 type SupplyTestSuite struct {
@@ -157,7 +158,7 @@ func (s *SupplyTestSuite) TestDelegate_ContractCallerSupplyInvariant() {
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
-	c := staking.NewPrecompiledContract(s.app.StakingKeeper, s.app.BankKeeper)
+	c := staking.NewPrecompile(stakingkeeper.NewMsgServerImpl(s.app.StakingKeeper), stakingkeeper.Querier{Keeper: s.app.StakingKeeper}, s.app.BankKeeper)
 	_, err = c.Run(evm, contract, false)
 	s.Require().NoError(err)
 	s.Require().NoError(stateDB.Commit())

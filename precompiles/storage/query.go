@@ -3,101 +3,99 @@ package storage
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 
 	cmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/precompiles/types"
+
 	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 const (
-	ListBucketsMethodName                            = "listBuckets"
-	ListObjectsMethodName                            = "listObjects"
-	ListGroupsMethodName                             = "listGroups"
-	ListObjectsByBucketIdMethodName                  = "listObjectsByBucketId"
-	HeadBucketMethodName                             = "headBucket"
-	HeadGroupMethodName                              = "headGroup"
-	HeadGroupMemberMethodName                        = "headGroupMember"
-	HeadObjectMethodName                             = "headObject"
-	HeadObjectByIdMethodName                         = "headObjectById"
-	HeadBucketByIdMethodName                         = "headBucketById"
-	HeadBucketNFTMethodName                          = "headBucketNFT"
-	HeadShadowObjectMethodName                       = "headShadowObject"
-	HeadObjectNFTMethodName                          = "headObjectNFT"
-	HeadGroupNFTMethodName                           = "headGroupNFT"
-	HeadBucketExtraMethodName                        = "headBucketExtra"
-	QueryPolicyForGroupMethodName                    = "queryPolicyForGroup"
-	QueryPolicyForAccountMethodName                  = "queryPolicyForAccount"
-	QueryParamsByTimestampMethodName                 = "queryParamsByTimestamp"
-	QueryPolicyByIdMethodName                        = "queryPolicyById"
-	QueryLockFeeMethodName                           = "queryLockFee"
-	QueryIsPriceChangedMethodName                    = "queryIsPriceChanged"
-	QueryQuotaUpdateTimeMethodName                   = "queryQuotaUpdateTime"
-	QueryGroupMembersExistMethodName                 = "queryGroupMembersExist"
-	QueryGroupsExistMethodName                       = "queryGroupsExist"
-	QueryGroupsExistByIdMethodName                   = "queryGroupsExistById"
+	// ListBucketsMethodName is the ABI name for the listBuckets query.
+	ListBucketsMethodName = "listBuckets"
+	// ListObjectsMethodName is the ABI name for the listObjects query.
+	ListObjectsMethodName = "listObjects"
+	// ListGroupsMethodName is the ABI name for the listGroups query.
+	ListGroupsMethodName = "listGroups"
+	// ListObjectsByBucketIDMethodName is the ABI name for the listObjectsByBucketId query.
+	ListObjectsByBucketIDMethodName = "listObjectsByBucketId"
+	// HeadBucketMethodName is the ABI name for the headBucket query.
+	HeadBucketMethodName = "headBucket"
+	// HeadGroupMethodName is the ABI name for the headGroup query.
+	HeadGroupMethodName = "headGroup"
+	// HeadGroupMemberMethodName is the ABI name for the headGroupMember query.
+	HeadGroupMemberMethodName = "headGroupMember"
+	// HeadObjectMethodName is the ABI name for the headObject query.
+	HeadObjectMethodName = "headObject"
+	// HeadObjectByIDMethodName is the ABI name for the headObjectById query.
+	HeadObjectByIDMethodName = "headObjectById"
+	// HeadBucketByIDMethodName is the ABI name for the headBucketById query.
+	HeadBucketByIDMethodName = "headBucketById"
+	// HeadBucketNFTMethodName is the ABI name for the headBucketNFT query.
+	HeadBucketNFTMethodName = "headBucketNFT"
+	// HeadShadowObjectMethodName is the ABI name for the headShadowObject query.
+	HeadShadowObjectMethodName = "headShadowObject"
+	// HeadObjectNFTMethodName is the ABI name for the headObjectNFT query.
+	HeadObjectNFTMethodName = "headObjectNFT"
+	// HeadGroupNFTMethodName is the ABI name for the headGroupNFT query.
+	HeadGroupNFTMethodName = "headGroupNFT"
+	// HeadBucketExtraMethodName is the ABI name for the headBucketExtra query.
+	HeadBucketExtraMethodName = "headBucketExtra"
+	// QueryPolicyForGroupMethodName is the ABI name for the queryPolicyForGroup query.
+	QueryPolicyForGroupMethodName = "queryPolicyForGroup"
+	// QueryPolicyForAccountMethodName is the ABI name for the queryPolicyForAccount query.
+	QueryPolicyForAccountMethodName = "queryPolicyForAccount"
+	// QueryParamsByTimestampMethodName is the ABI name for the queryParamsByTimestamp query.
+	QueryParamsByTimestampMethodName = "queryParamsByTimestamp"
+	// QueryPolicyByIDMethodName is the ABI name for the queryPolicyById query.
+	QueryPolicyByIDMethodName = "queryPolicyById"
+	// QueryLockFeeMethodName is the ABI name for the queryLockFee query.
+	QueryLockFeeMethodName = "queryLockFee"
+	// QueryIsPriceChangedMethodName is the ABI name for the queryIsPriceChanged query.
+	QueryIsPriceChangedMethodName = "queryIsPriceChanged"
+	// QueryQuotaUpdateTimeMethodName is the ABI name for the queryQuotaUpdateTime query.
+	QueryQuotaUpdateTimeMethodName = "queryQuotaUpdateTime"
+	// QueryGroupMembersExistMethodName is the ABI name for the queryGroupMembersExist query.
+	QueryGroupMembersExistMethodName = "queryGroupMembersExist"
+	// QueryGroupsExistMethodName is the ABI name for the queryGroupsExist query.
+	QueryGroupsExistMethodName = "queryGroupsExist"
+	// QueryGroupsExistByIDMethodName is the ABI name for the queryGroupsExistById query.
+	QueryGroupsExistByIDMethodName = "queryGroupsExistById"
+	// QueryPaymentAccountBucketFlowRateLimitMethodName is the ABI name for the
+	// queryPaymentAccountBucketFlowRateLimit query.
 	QueryPaymentAccountBucketFlowRateLimitMethodName = "queryPaymentAccountBucketFlowRateLimit"
-	ParamsMethodName                                 = "params"
-	VerifyPermissionMethodName                       = "verifyPermission"
+	// ParamsMethodName is the ABI name for the params query.
+	ParamsMethodName = "params"
+	// VerifyPermissionMethodName is the ABI name for the verifyPermission query.
+	VerifyPermissionMethodName = "verifyPermission"
 )
 
-func (c *Contract) registerQuery() {
-	c.registerMethod(ListBucketsMethodName, 50_000, c.ListBuckets, "")
-	c.registerMethod(ListObjectsMethodName, 50_000, c.ListObjects, "")
-	c.registerMethod(ListGroupsMethodName, 50_000, c.ListGroups, "")
-	c.registerMethod(ListObjectsByBucketIdMethodName, 50_000, c.ListObjectsByBucketId, "")
-	c.registerMethod(HeadBucketMethodName, 50_000, c.HeadBucket, "")
-	c.registerMethod(HeadGroupMethodName, 50_000, c.HeadGroup, "")
-	c.registerMethod(HeadGroupMemberMethodName, 50_000, c.HeadGroupMember, "")
-	c.registerMethod(HeadObjectMethodName, 50_000, c.HeadObject, "")
-	c.registerMethod(HeadObjectByIdMethodName, 50_000, c.HeadObjectById, "")
-	c.registerMethod(HeadBucketByIdMethodName, 50_000, c.HeadBucketById, "")
-	c.registerMethod(HeadBucketNFTMethodName, 50_000, c.HeadBucketNFT, "")
-	c.registerMethod(HeadShadowObjectMethodName, 50_000, c.HeadShadowObject, "")
-	c.registerMethod(HeadObjectNFTMethodName, 50_000, c.HeadObjectNFT, "")
-	c.registerMethod(HeadGroupNFTMethodName, 50_000, c.HeadGroupNFT, "")
-	c.registerMethod(HeadBucketExtraMethodName, 50_000, c.HeadBucketExtra, "")
-	c.registerMethod(QueryPolicyForGroupMethodName, 50_000, c.QueryPolicyForGroup, "")
-	c.registerMethod(QueryPolicyForAccountMethodName, 50_000, c.QueryPolicyForAccount, "")
-	c.registerMethod(QueryParamsByTimestampMethodName, 50_000, c.QueryParamsByTimestamp, "")
-	c.registerMethod(QueryPolicyByIdMethodName, 50_000, c.QueryPolicyById, "")
-	c.registerMethod(QueryLockFeeMethodName, 50_000, c.QueryLockFee, "")
-	c.registerMethod(QueryIsPriceChangedMethodName, 50_000, c.QueryIsPriceChanged, "")
-	c.registerMethod(QueryQuotaUpdateTimeMethodName, 50_000, c.QueryQuotaUpdateTime, "")
-	c.registerMethod(QueryGroupMembersExistMethodName, 50_000, c.QueryGroupMembersExist, "")
-	c.registerMethod(QueryGroupsExistMethodName, 50_000, c.QueryGroupsExist, "")
-	c.registerMethod(QueryGroupsExistByIdMethodName, 50_000, c.QueryGroupsExistById, "")
-	c.registerMethod(QueryPaymentAccountBucketFlowRateLimitMethodName, 50_000, c.QueryPaymentAccountBucketFlowRateLimit, "")
-	c.registerMethod(ParamsMethodName, 50_000, c.Params, "")
-	c.registerMethod(VerifyPermissionMethodName, 50_000, c.VerifyPermission, "")
-}
-
 // ListBuckets queries the total buckets.
-func (c *Contract) ListBuckets(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(ListBucketsMethodName)
-	// parse args
-	var args ListBucketsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) ListBuckets(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ListBucketsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+	if bytes.Equal(input.Pagination.Key, []byte{0}) {
+		input.Pagination.Key = nil
 	}
 	msg := &storagetypes.QueryListBucketsRequest{
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        input.Pagination.Key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
 	}
-	res, err := c.storageKeeper.ListBuckets(ctx, msg)
+	res, err := p.storageKeeper.ListBuckets(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -122,26 +120,25 @@ func (c *Contract) ListBuckets(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract
 }
 
 // ListObjects queries the total objects.
-func (c *Contract) ListObjects(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(ListObjectsMethodName)
-	var args ListObjectsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) ListObjects(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ListObjectsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+	if bytes.Equal(input.Pagination.Key, []byte{0}) {
+		input.Pagination.Key = nil
 	}
 	msg := &storagetypes.QueryListObjectsRequest{
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        input.Pagination.Key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
-		BucketName: args.BucketName,
+		BucketName: input.BucketName,
 	}
-	res, err := c.storageKeeper.ListObjects(ctx, msg)
+	res, err := p.storageKeeper.ListObjects(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -153,26 +150,25 @@ func (c *Contract) ListObjects(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract
 }
 
 // ListGroups queries the user's total groups.
-func (c *Contract) ListGroups(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(ListGroupsMethodName)
-	var args ListGroupsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) ListGroups(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ListGroupsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+	if bytes.Equal(input.Pagination.Key, []byte{0}) {
+		input.Pagination.Key = nil
 	}
 	msg := &storagetypes.QueryListGroupsRequest{
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        input.Pagination.Key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
-		GroupOwner: args.GroupOwner.String(),
+		GroupOwner: input.GroupOwner.String(),
 	}
-	res, err := c.storageKeeper.ListGroups(ctx, msg)
+	res, err := p.storageKeeper.ListGroups(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -190,27 +186,26 @@ func (c *Contract) ListGroups(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract,
 	return method.Outputs.Pack(groupInfos, outputPageResponse(res.Pagination))
 }
 
-// ListObjects queries a list of object items under the bucket.
-func (c *Contract) ListObjectsByBucketId(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(ListObjectsByBucketIdMethodName)
-	var args ListObjectsByBucketIdArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// ListObjectsByBucketID queries a list of object items under the bucket.
+func (p Precompile) ListObjectsByBucketID(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ListObjectsByBucketIDArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+	if bytes.Equal(input.Pagination.Key, []byte{0}) {
+		input.Pagination.Key = nil
 	}
 	msg := &storagetypes.QueryListObjectsByBucketIdRequest{
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        input.Pagination.Key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
-		BucketId: args.BucketId,
+		BucketId: input.BucketID,
 	}
-	res, err := c.storageKeeper.ListObjectsByBucketId(ctx, msg)
+	res, err := p.storageKeeper.ListObjectsByBucketId(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -222,16 +217,15 @@ func (c *Contract) ListObjectsByBucketId(ctx sdk.Context, _ *vm.EVM, contract *v
 }
 
 // HeadBucket queries the bucket's info.
-func (c *Contract) HeadBucket(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadBucketMethodName)
-	var args HeadBucketArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) HeadBucket(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadBucketArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryHeadBucketRequest{
-		BucketName: args.BucketName,
+		BucketName: input.BucketName,
 	}
-	res, err := c.storageKeeper.HeadBucket(ctx, msg)
+	res, err := p.storageKeeper.HeadBucket(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -258,17 +252,16 @@ func (c *Contract) HeadBucket(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract,
 	return method.Outputs.Pack(bucketInfo, extraInfo)
 }
 
-// HeadBucket queries the bucket's info by id.
-func (c *Contract) HeadBucketById(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadBucketByIdMethodName)
-	var args HeadBucketByIdArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// HeadBucketByID queries the bucket's info by id.
+func (p Precompile) HeadBucketByID(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadBucketByIDArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryHeadBucketByIdRequest{
-		BucketId: args.BucketId,
+		BucketId: input.BucketID,
 	}
-	res, err := c.storageKeeper.HeadBucketById(ctx, msg)
+	res, err := p.storageKeeper.HeadBucketById(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -296,16 +289,15 @@ func (c *Contract) HeadBucketById(ctx sdk.Context, _ *vm.EVM, contract *vm.Contr
 }
 
 // HeadBucketExtra queries a bucket extra info (with gvg bindings and price time) with specify name.
-func (c *Contract) HeadBucketExtra(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadBucketExtraMethodName)
-	var args HeadBucketExtraArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) HeadBucketExtra(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadBucketExtraArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryHeadBucketExtraRequest{
-		BucketName: args.BucketName,
+		BucketName: input.BucketName,
 	}
-	res, err := c.storageKeeper.HeadBucketExtra(ctx, msg)
+	res, err := p.storageKeeper.HeadBucketExtra(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -328,17 +320,16 @@ func (c *Contract) HeadBucketExtra(ctx sdk.Context, _ *vm.EVM, contract *vm.Cont
 	return method.Outputs.Pack(extraInfo)
 }
 
-// HeadBucket queries a bucket with EIP712 standard metadata info.
-func (c *Contract) HeadBucketNFT(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadBucketNFTMethodName)
-	var args HeadBucketNFTArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// HeadBucketNFT queries a bucket with EIP712 standard metadata info.
+func (p Precompile) HeadBucketNFT(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadBucketNFTArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryNFTRequest{
-		TokenId: args.TokenId,
+		TokenId: input.TokenID,
 	}
-	res, err := c.storageKeeper.HeadBucketNFT(ctx, msg)
+	res, err := p.storageKeeper.HeadBucketNFT(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -360,17 +351,16 @@ func (c *Contract) HeadBucketNFT(ctx sdk.Context, _ *vm.EVM, contract *vm.Contra
 	return method.Outputs.Pack(bucketMetaData)
 }
 
-// HeadBucket queries a object with EIP712 standard metadata info.
-func (c *Contract) HeadObjectNFT(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadObjectNFTMethodName)
-	var args HeadObjectNFTArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// HeadObjectNFT queries an object with EIP712 standard metadata info.
+func (p Precompile) HeadObjectNFT(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadObjectNFTArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryNFTRequest{
-		TokenId: args.TokenId,
+		TokenId: input.TokenID,
 	}
-	res, err := c.storageKeeper.HeadObjectNFT(ctx, msg)
+	res, err := p.storageKeeper.HeadObjectNFT(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -392,17 +382,16 @@ func (c *Contract) HeadObjectNFT(ctx sdk.Context, _ *vm.EVM, contract *vm.Contra
 	return method.Outputs.Pack(objectMetaData)
 }
 
-// HeadBucket queries a group with EIP712 standard metadata info.
-func (c *Contract) HeadGroupNFT(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadGroupNFTMethodName)
-	var args HeadGroupNFTArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// HeadGroupNFT queries a group with EIP712 standard metadata info.
+func (p Precompile) HeadGroupNFT(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadGroupNFTArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryNFTRequest{
-		TokenId: args.TokenId,
+		TokenId: input.TokenID,
 	}
-	res, err := c.storageKeeper.HeadGroupNFT(ctx, msg)
+	res, err := p.storageKeeper.HeadGroupNFT(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -425,17 +414,16 @@ func (c *Contract) HeadGroupNFT(ctx sdk.Context, _ *vm.EVM, contract *vm.Contrac
 }
 
 // HeadGroup queries the group's info.
-func (c *Contract) HeadGroup(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadGroupMethodName)
-	var args HeadGroupArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) HeadGroup(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadGroupArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryHeadGroupRequest{
-		GroupOwner: args.GroupOwner.String(),
-		GroupName:  args.GroupName,
+		GroupOwner: input.GroupOwner.String(),
+		GroupName:  input.GroupName,
 	}
-	res, err := c.storageKeeper.HeadGroup(ctx, msg)
+	res, err := p.storageKeeper.HeadGroup(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -451,18 +439,17 @@ func (c *Contract) HeadGroup(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, 
 }
 
 // HeadGroupMember queries the group member's info.
-func (c *Contract) HeadGroupMember(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadGroupMemberMethodName)
-	var args HeadGroupMemberArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) HeadGroupMember(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadGroupMemberArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryHeadGroupMemberRequest{
-		Member:     args.Member.String(),
-		GroupOwner: args.GroupOwner.String(),
-		GroupName:  args.GroupName,
+		Member:     input.Member.String(),
+		GroupOwner: input.GroupOwner.String(),
+		GroupName:  input.GroupName,
 	}
-	res, err := c.storageKeeper.HeadGroupMember(ctx, msg)
+	res, err := p.storageKeeper.HeadGroupMember(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -482,17 +469,22 @@ func (c *Contract) HeadGroupMember(ctx sdk.Context, _ *vm.EVM, contract *vm.Cont
 }
 
 // HeadObject queries the object's info.
-func (c *Contract) HeadObject(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadObjectMethodName)
-	var args HeadObjectArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) HeadObject(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &storagetypes.QueryHeadObjectRequest{
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
+	if input.BucketName == "" {
+		return nil, errors.New("empty bucket name")
 	}
-	res, err := c.storageKeeper.HeadObject(ctx, msg)
+	if input.ObjectName == "" {
+		return nil, errors.New("empty object name")
+	}
+	msg := &storagetypes.QueryHeadObjectRequest{
+		BucketName: input.BucketName,
+		ObjectName: input.ObjectName,
+	}
+	res, err := p.storageKeeper.HeadObject(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -501,17 +493,19 @@ func (c *Contract) HeadObject(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract,
 	return method.Outputs.Pack(objectInfo, gvg)
 }
 
-// HeadObjectById queries the object's info.
-func (c *Contract) HeadObjectById(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) { //nolint
-	method := GetAbiMethod(HeadObjectByIdMethodName)
-	var args HeadObjectByIDArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// HeadObjectByID queries the object's info.
+func (p Precompile) HeadObjectByID(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadObjectByIDArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &storagetypes.QueryHeadObjectByIdRequest{
-		ObjectId: args.ObjectID,
+	if input.ObjectID == "" {
+		return nil, errors.New("empty object id")
 	}
-	res, err := c.storageKeeper.HeadObjectById(ctx, msg)
+	msg := &storagetypes.QueryHeadObjectByIdRequest{
+		ObjectId: input.ObjectID,
+	}
+	res, err := p.storageKeeper.HeadObjectById(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -521,17 +515,22 @@ func (c *Contract) HeadObjectById(ctx sdk.Context, _ *vm.EVM, contract *vm.Contr
 }
 
 // HeadShadowObject queries a shadow object with specify name.
-func (c *Contract) HeadShadowObject(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(HeadShadowObjectMethodName)
-	var args HeadShadowObjectArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) HeadShadowObject(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HeadShadowObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &storagetypes.QueryHeadShadowObjectRequest{
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
+	if input.BucketName == "" {
+		return nil, errors.New("empty bucket name")
 	}
-	res, err := c.storageKeeper.HeadShadowObject(ctx, msg)
+	if input.ObjectName == "" {
+		return nil, errors.New("empty object name")
+	}
+	msg := &storagetypes.QueryHeadShadowObjectRequest{
+		BucketName: input.BucketName,
+		ObjectName: input.ObjectName,
+	}
+	res, err := p.storageKeeper.HeadShadowObject(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -552,176 +551,67 @@ func (c *Contract) HeadShadowObject(ctx sdk.Context, _ *vm.EVM, contract *vm.Con
 }
 
 // QueryPolicyForGroup queries the group's policy.
-func (c *Contract) QueryPolicyForGroup(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryPolicyForGroupMethodName)
-	var args QueryPolicyForGroupArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) QueryPolicyForGroup(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryPolicyForGroupArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryPolicyForGroupRequest{
-		Resource:         args.Resource,
-		PrincipalGroupId: cmath.NewUintFromBigInt(args.GroupId).String(),
+		Resource:         input.Resource,
+		PrincipalGroupId: cmath.NewUintFromBigInt(input.GroupID).String(),
 	}
-	res, err := c.storageKeeper.QueryPolicyForGroup(ctx, msg)
+	res, err := p.storageKeeper.QueryPolicyForGroup(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
-	var expirationTime int64
-	statements := make([]Statement, 0)
-	if res.Policy.Statements != nil {
-		for _, statement := range res.Policy.Statements {
-			actions := make([]int32, 0)
-			for _, action := range statement.Actions {
-				actions = append(actions, int32(action))
-			}
-			if statement.ExpirationTime != nil {
-				expirationTime = statement.ExpirationTime.Unix()
-			} else {
-				expirationTime = 0
-			}
-			statements = append(statements, Statement{
-				Effect:         int32(statement.Effect),
-				Actions:        actions,
-				Resources:      statement.Resources,
-				ExpirationTime: expirationTime,
-				LimitSize:      statement.LimitSize.Value,
-			})
-		}
-	}
-	if res.Policy.ExpirationTime != nil {
-		expirationTime = res.Policy.ExpirationTime.Unix()
-	} else {
-		expirationTime = 0
-	}
-	policyInfo := Policy{
-		Id:             res.Policy.Id.BigInt(),
-		Principal:      Principal{PrincipalType: int32(res.Policy.Principal.Type), Value: res.Policy.Principal.Value},
-		ResourceType:   int32(res.Policy.ResourceType),
-		ResourceId:     res.Policy.ResourceId.BigInt(),
-		Statements:     statements,
-		ExpirationTime: expirationTime,
-	}
-	return method.Outputs.Pack(policyInfo)
+	return method.Outputs.Pack(outputPolicy(res.Policy))
 }
 
 // QueryPolicyForAccount queries the account's policy.
-func (c *Contract) QueryPolicyForAccount(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryPolicyForAccountMethodName)
-	var args QueryPolicyForAccountArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) QueryPolicyForAccount(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryPolicyForAccountArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryPolicyForAccountRequest{
-		Resource:         args.Resource,
-		PrincipalAddress: args.PrincipalAddr,
+		Resource:         input.Resource,
+		PrincipalAddress: input.PrincipalAddr,
 	}
-	res, err := c.storageKeeper.QueryPolicyForAccount(ctx, msg)
+	res, err := p.storageKeeper.QueryPolicyForAccount(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
-	var expirationTime int64
-	statements := make([]Statement, 0)
-	if res.Policy.Statements != nil {
-		for _, statement := range res.Policy.Statements {
-			actions := make([]int32, 0)
-			for _, action := range statement.Actions {
-				actions = append(actions, int32(action))
-			}
-			if statement.ExpirationTime != nil {
-				expirationTime = statement.ExpirationTime.Unix()
-			} else {
-				expirationTime = 0
-			}
-			statements = append(statements, Statement{
-				Effect:         int32(statement.Effect),
-				Actions:        actions,
-				Resources:      statement.Resources,
-				ExpirationTime: expirationTime,
-				LimitSize:      statement.LimitSize.Value,
-			})
-		}
-	}
-	if res.Policy.ExpirationTime != nil {
-		expirationTime = res.Policy.ExpirationTime.Unix()
-	} else {
-		expirationTime = 0
-	}
-	policyInfo := Policy{
-		Id:             res.Policy.Id.BigInt(),
-		Principal:      Principal{PrincipalType: int32(res.Policy.Principal.Type), Value: res.Policy.Principal.Value},
-		ResourceType:   int32(res.Policy.ResourceType),
-		ResourceId:     res.Policy.ResourceId.BigInt(),
-		Statements:     statements,
-		ExpirationTime: expirationTime,
-	}
-	return method.Outputs.Pack(policyInfo)
+	return method.Outputs.Pack(outputPolicy(res.Policy))
 }
 
-// QueryPolicyById queries a policy by policy id.
-func (c *Contract) QueryPolicyById(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryPolicyByIdMethodName)
-	var args QueryPolicyByIdArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// QueryPolicyByID queries a policy by policy id.
+func (p Precompile) QueryPolicyByID(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryPolicyByIDArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryPolicyByIdRequest{
-		PolicyId: args.PolicyId,
+		PolicyId: input.PolicyID,
 	}
-	res, err := c.storageKeeper.QueryPolicyById(ctx, msg)
+	res, err := p.storageKeeper.QueryPolicyById(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
-	var expirationTime int64
-	statements := make([]Statement, 0)
-	if res.Policy.Statements != nil {
-		for _, statement := range res.Policy.Statements {
-			actions := make([]int32, 0)
-			for _, action := range statement.Actions {
-				actions = append(actions, int32(action))
-			}
-			if statement.ExpirationTime != nil {
-				expirationTime = statement.ExpirationTime.Unix()
-			} else {
-				expirationTime = 0
-			}
-			statements = append(statements, Statement{
-				Effect:         int32(statement.Effect),
-				Actions:        actions,
-				Resources:      statement.Resources,
-				ExpirationTime: expirationTime,
-				LimitSize:      statement.LimitSize.Value,
-			})
-		}
-	}
-	if res.Policy.ExpirationTime != nil {
-		expirationTime = res.Policy.ExpirationTime.Unix()
-	} else {
-		expirationTime = 0
-	}
-	policyInfo := Policy{
-		Id:             res.Policy.Id.BigInt(),
-		Principal:      Principal{PrincipalType: int32(res.Policy.Principal.Type), Value: res.Policy.Principal.Value},
-		ResourceType:   int32(res.Policy.ResourceType),
-		ResourceId:     res.Policy.ResourceId.BigInt(),
-		Statements:     statements,
-		ExpirationTime: expirationTime,
-	}
-	return method.Outputs.Pack(policyInfo)
+	return method.Outputs.Pack(outputPolicy(res.Policy))
 }
 
 // QueryLockFee queries lock fee for storing an object.
-func (c *Contract) QueryLockFee(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryLockFeeMethodName)
-	var args QueryLockFeeArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) QueryLockFee(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryLockFeeArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryLockFeeRequest{
-		PrimarySpAddress: args.PrimarySpAddress,
-		CreateAt:         args.CreateAt,
-		PayloadSize:      args.PayloadSize,
+		PrimarySpAddress: input.PrimarySpAddress,
+		CreateAt:         input.CreateAt,
+		PayloadSize:      input.PayloadSize,
 	}
-	res, err := c.storageKeeper.QueryLockFee(ctx, msg)
+	res, err := p.storageKeeper.QueryLockFee(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -730,16 +620,15 @@ func (c *Contract) QueryLockFee(ctx sdk.Context, _ *vm.EVM, contract *vm.Contrac
 }
 
 // QueryIsPriceChanged queries whether read and storage prices changed for the bucket.
-func (c *Contract) QueryIsPriceChanged(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryIsPriceChangedMethodName)
-	var args QueryIsPriceChangedArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) QueryIsPriceChanged(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryIsPriceChangedArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryIsPriceChangedRequest{
-		BucketName: args.BucketName,
+		BucketName: input.BucketName,
 	}
-	res, err := c.storageKeeper.QueryIsPriceChanged(ctx, msg)
+	res, err := p.storageKeeper.QueryIsPriceChanged(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -759,16 +648,15 @@ func (c *Contract) QueryIsPriceChanged(ctx sdk.Context, _ *vm.EVM, contract *vm.
 }
 
 // QueryQuotaUpdateTime queries quota update time for the bucket.
-func (c *Contract) QueryQuotaUpdateTime(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryQuotaUpdateTimeMethodName)
-	var args QueryQuotaUpdateTimeArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) QueryQuotaUpdateTime(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryQuotaUpdateTimeArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryQuoteUpdateTimeRequest{
-		BucketName: args.BucketName,
+		BucketName: input.BucketName,
 	}
-	res, err := c.storageKeeper.QueryQuotaUpdateTime(ctx, msg)
+	res, err := p.storageKeeper.QueryQuotaUpdateTime(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -777,86 +665,82 @@ func (c *Contract) QueryQuotaUpdateTime(ctx sdk.Context, _ *vm.EVM, contract *vm
 }
 
 // QueryGroupMembersExist queries whether some members are in the group.
-func (c *Contract) QueryGroupMembersExist(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryGroupMembersExistMethodName)
-	var args QueryGroupMembersExistArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) QueryGroupMembersExist(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryGroupMembersExistArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryGroupMembersExistRequest{
-		GroupId: args.GroupId,
-		Members: args.Members,
+		GroupId: input.GroupID,
+		Members: input.Members,
 	}
-	res, err := c.storageKeeper.QueryGroupMembersExist(ctx, msg)
+	res, err := p.storageKeeper.QueryGroupMembersExist(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 	exists := make([]bool, 0)
-	for _, member := range args.Members {
+	for _, member := range input.Members {
 		exists = append(exists, res.Exists[member])
 	}
 
-	return method.Outputs.Pack(args.Members, exists)
+	return method.Outputs.Pack(input.Members, exists)
 }
 
-// QueryGroupsExist queries whether some groups are exist.
-func (c *Contract) QueryGroupsExist(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryGroupsExistMethodName)
-	var args QueryGroupsExistArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// QueryGroupsExist queries whether some groups exist.
+func (p Precompile) QueryGroupsExist(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryGroupsExistArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryGroupsExistRequest{
-		GroupOwner: args.GroupOwner,
-		GroupNames: args.GroupNames,
+		GroupOwner: input.GroupOwner,
+		GroupNames: input.GroupNames,
 	}
-	res, err := c.storageKeeper.QueryGroupsExist(ctx, msg)
+	res, err := p.storageKeeper.QueryGroupsExist(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 	exists := make([]bool, 0)
-	for _, groupName := range args.GroupNames {
+	for _, groupName := range input.GroupNames {
 		exists = append(exists, res.Exists[groupName])
 	}
 
-	return method.Outputs.Pack(args.GroupNames, exists)
+	return method.Outputs.Pack(input.GroupNames, exists)
 }
 
-// QueryGroupsExistById queries whether some groups are exist by id.
-func (c *Contract) QueryGroupsExistById(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryGroupsExistByIdMethodName)
-	var args QueryGroupsExistByIdArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// QueryGroupsExistByID queries whether some groups exist by id.
+func (p Precompile) QueryGroupsExistByID(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryGroupsExistByIDArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryGroupsExistByIdRequest{
-		GroupIds: args.GroupIds,
+		GroupIds: input.GroupIDs,
 	}
-	res, err := c.storageKeeper.QueryGroupsExistById(ctx, msg)
+	res, err := p.storageKeeper.QueryGroupsExistById(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 	exists := make([]bool, 0)
-	for _, groupId := range args.GroupIds {
-		exists = append(exists, res.Exists[groupId])
+	for _, groupID := range input.GroupIDs {
+		exists = append(exists, res.Exists[groupID])
 	}
 
-	return method.Outputs.Pack(args.GroupIds, exists)
+	return method.Outputs.Pack(input.GroupIDs, exists)
 }
 
 // QueryPaymentAccountBucketFlowRateLimit queries the flow rate limit of a bucket for a payment account.
-func (c *Contract) QueryPaymentAccountBucketFlowRateLimit(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryPaymentAccountBucketFlowRateLimitMethodName)
-	var args QueryPaymentAccountBucketFlowRateLimitArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) QueryPaymentAccountBucketFlowRateLimit(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryPaymentAccountBucketFlowRateLimitArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryPaymentAccountBucketFlowRateLimitRequest{
-		PaymentAccount: args.PaymentAccount,
-		BucketOwner:    args.BucketOwner,
-		BucketName:     args.BucketName,
+		PaymentAccount: input.PaymentAccount,
+		BucketOwner:    input.BucketOwner,
+		BucketName:     input.BucketName,
 	}
-	res, err := c.storageKeeper.QueryPaymentAccountBucketFlowRateLimit(ctx, msg)
+	res, err := p.storageKeeper.QueryPaymentAccountBucketFlowRateLimit(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -864,119 +748,49 @@ func (c *Contract) QueryPaymentAccountBucketFlowRateLimit(ctx sdk.Context, _ *vm
 	return method.Outputs.Pack(res.IsSet, res.FlowRateLimit.BigInt())
 }
 
-// QueryParamsByTimestamp queries the parameters of the module by timestamp
-func (c *Contract) QueryParamsByTimestamp(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(QueryParamsByTimestampMethodName)
-	var args QueryParamsByTimestampArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// QueryParamsByTimestamp queries the parameters of the module by timestamp.
+func (p Precompile) QueryParamsByTimestamp(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input QueryParamsByTimestampArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryParamsByTimestampRequest{
-		Timestamp: args.Timestamp,
+		Timestamp: input.Timestamp,
 	}
 
-	res, err := c.storageKeeper.QueryParamsByTimestamp(ctx, msg)
+	res, err := p.storageKeeper.QueryParamsByTimestamp(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 
-	params := Params{
-		VersionedParams: VersionedParams{
-			MaxSegmentSize:          res.Params.VersionedParams.MaxSegmentSize,
-			RedundantDataChunkNum:   res.Params.VersionedParams.RedundantDataChunkNum,
-			RedundantParityChunkNum: res.Params.VersionedParams.RedundantParityChunkNum,
-			MinChargeSize:           res.Params.VersionedParams.MinChargeSize,
-		},
-		MaxPayloadSize:                   res.Params.MaxPayloadSize,
-		BscMirrorBucketRelayerFee:        res.Params.BscMirrorBucketRelayerFee,
-		BscMirrorBucketAckRelayerFee:     res.Params.BscMirrorBucketAckRelayerFee,
-		BscMirrorObjectRelayerFee:        res.Params.BscMirrorObjectRelayerFee,
-		BscMirrorObjectAckRelayerFee:     res.Params.BscMirrorObjectAckRelayerFee,
-		BscMirrorGroupRelayerFee:         res.Params.BscMirrorGroupRelayerFee,
-		BscMirrorGroupAckRelayerFee:      res.Params.BscMirrorGroupAckRelayerFee,
-		MaxBucketsPerAccount:             res.Params.MaxBucketsPerAccount,
-		DiscontinueCountingWindow:        res.Params.DiscontinueCountingWindow,
-		DiscontinueObjectMax:             res.Params.DiscontinueObjectMax,
-		DiscontinueBucketMax:             res.Params.DiscontinueBucketMax,
-		DiscontinueConfirmPeriod:         res.Params.DiscontinueConfirmPeriod,
-		DiscontinueDeletionMax:           res.Params.DiscontinueDeletionMax,
-		StalePolicyCleanupMax:            res.Params.StalePolicyCleanupMax,
-		MinQuotaUpdateInterval:           res.Params.MinQuotaUpdateInterval,
-		MaxLocalVirtualGroupNumPerBucket: res.Params.MaxLocalVirtualGroupNumPerBucket,
-		OpMirrorBucketRelayerFee:         res.Params.OpMirrorBucketRelayerFee,
-		OpMirrorBucketAckRelayerFee:      res.Params.OpMirrorBucketAckRelayerFee,
-		OpMirrorObjectRelayerFee:         res.Params.OpMirrorObjectRelayerFee,
-		OpMirrorObjectAckRelayerFee:      res.Params.OpMirrorObjectAckRelayerFee,
-		OpMirrorGroupRelayerFee:          res.Params.OpMirrorGroupRelayerFee,
-		OpMirrorGroupAckRelayerFee:       res.Params.OpMirrorGroupAckRelayerFee,
-		PolygonMirrorBucketRelayerFee:    res.Params.PolygonMirrorBucketRelayerFee,
-		PolygonMirrorBucketAckRelayerFee: res.Params.PolygonMirrorBucketAckRelayerFee,
-	}
-
-	return method.Outputs.Pack(params)
+	return method.Outputs.Pack(outputParams(res.Params))
 }
 
-// Params queries the storage parameters
-func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(ParamsMethodName)
-
+// Params queries the storage parameters.
+func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
 	msg := &storagetypes.QueryParamsRequest{}
 
-	res, err := c.storageKeeper.Params(ctx, msg)
+	res, err := p.storageKeeper.Params(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
 
-	params := Params{
-		VersionedParams: VersionedParams{
-			MaxSegmentSize:          res.Params.VersionedParams.MaxSegmentSize,
-			RedundantDataChunkNum:   res.Params.VersionedParams.RedundantDataChunkNum,
-			RedundantParityChunkNum: res.Params.VersionedParams.RedundantParityChunkNum,
-			MinChargeSize:           res.Params.VersionedParams.MinChargeSize,
-		},
-		MaxPayloadSize:                   res.Params.MaxPayloadSize,
-		BscMirrorBucketRelayerFee:        res.Params.BscMirrorBucketRelayerFee,
-		BscMirrorBucketAckRelayerFee:     res.Params.BscMirrorBucketAckRelayerFee,
-		BscMirrorObjectRelayerFee:        res.Params.BscMirrorObjectRelayerFee,
-		BscMirrorObjectAckRelayerFee:     res.Params.BscMirrorObjectAckRelayerFee,
-		BscMirrorGroupRelayerFee:         res.Params.BscMirrorGroupRelayerFee,
-		BscMirrorGroupAckRelayerFee:      res.Params.BscMirrorGroupAckRelayerFee,
-		MaxBucketsPerAccount:             res.Params.MaxBucketsPerAccount,
-		DiscontinueCountingWindow:        res.Params.DiscontinueCountingWindow,
-		DiscontinueObjectMax:             res.Params.DiscontinueObjectMax,
-		DiscontinueBucketMax:             res.Params.DiscontinueBucketMax,
-		DiscontinueConfirmPeriod:         res.Params.DiscontinueConfirmPeriod,
-		DiscontinueDeletionMax:           res.Params.DiscontinueDeletionMax,
-		StalePolicyCleanupMax:            res.Params.StalePolicyCleanupMax,
-		MinQuotaUpdateInterval:           res.Params.MinQuotaUpdateInterval,
-		MaxLocalVirtualGroupNumPerBucket: res.Params.MaxLocalVirtualGroupNumPerBucket,
-		OpMirrorBucketRelayerFee:         res.Params.OpMirrorBucketRelayerFee,
-		OpMirrorBucketAckRelayerFee:      res.Params.OpMirrorBucketAckRelayerFee,
-		OpMirrorObjectRelayerFee:         res.Params.OpMirrorObjectRelayerFee,
-		OpMirrorObjectAckRelayerFee:      res.Params.OpMirrorObjectAckRelayerFee,
-		OpMirrorGroupRelayerFee:          res.Params.OpMirrorGroupRelayerFee,
-		OpMirrorGroupAckRelayerFee:       res.Params.OpMirrorGroupAckRelayerFee,
-		PolygonMirrorBucketRelayerFee:    res.Params.PolygonMirrorBucketRelayerFee,
-		PolygonMirrorBucketAckRelayerFee: res.Params.PolygonMirrorBucketAckRelayerFee,
-	}
-
-	return method.Outputs.Pack(params)
+	return method.Outputs.Pack(outputParams(res.Params))
 }
 
 // VerifyPermission queries a list of VerifyPermission items.
-func (c *Contract) VerifyPermission(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(VerifyPermissionMethodName)
-	var args VerifyPermissionArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) VerifyPermission(ctx sdk.Context, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input VerifyPermissionArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &storagetypes.QueryVerifyPermissionRequest{
 		Operator:   contract.Caller().String(),
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
-		ActionType: permissiontypes.ActionType(args.ActionType),
+		BucketName: input.BucketName,
+		ObjectName: input.ObjectName,
+		ActionType: permissiontypes.ActionType(input.ActionType),
 	}
-	res, err := c.storageKeeper.VerifyPermission(ctx, msg)
+	res, err := p.storageKeeper.VerifyPermission(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -984,6 +798,7 @@ func (c *Contract) VerifyPermission(ctx sdk.Context, _ *vm.EVM, contract *vm.Con
 	return method.Outputs.Pack(int32(res.Effect))
 }
 
+// outputObjectInfo maps a storage ObjectInfo into the ABI tuple.
 func outputObjectInfo(o *storagetypes.ObjectInfo) *ObjectInfo {
 	n := &ObjectInfo{
 		Owner:               common.HexToAddress(o.Owner),
@@ -1012,6 +827,7 @@ func outputObjectInfo(o *storagetypes.ObjectInfo) *ObjectInfo {
 	return n
 }
 
+// outputsGlobalVirtualGroup maps a virtualgroup GlobalVirtualGroup into the ABI tuple.
 func outputsGlobalVirtualGroup(g *vgtypes.GlobalVirtualGroup) *GlobalVirtualGroup {
 	return &GlobalVirtualGroup{
 		Id:                    g.Id,
@@ -1024,6 +840,7 @@ func outputsGlobalVirtualGroup(g *vgtypes.GlobalVirtualGroup) *GlobalVirtualGrou
 	}
 }
 
+// outputTags maps storage ResourceTags into the ABI tag tuple slice.
 func outputTags(tags *storagetypes.ResourceTags) []Tag {
 	t := make([]Tag, 0)
 	if tags == nil {
@@ -1038,9 +855,84 @@ func outputTags(tags *storagetypes.ResourceTags) []Tag {
 	return t
 }
 
+// outputPageResponse maps a query.PageResponse into the ABI tuple.
 func outputPageResponse(p *query.PageResponse) *PageResponse {
 	return &PageResponse{
 		NextKey: p.NextKey,
 		Total:   p.Total,
+	}
+}
+
+// outputPolicy maps a permission Policy into the ABI Policy tuple, preserving the
+// original statement/expiration flattening.
+func outputPolicy(policy *permissiontypes.Policy) Policy {
+	var expirationTime int64
+	statements := make([]Statement, 0, len(policy.Statements))
+	for _, statement := range policy.Statements {
+		actions := make([]int32, 0, len(statement.Actions))
+		for _, action := range statement.Actions {
+			actions = append(actions, int32(action))
+		}
+		if statement.ExpirationTime != nil {
+			expirationTime = statement.ExpirationTime.Unix()
+		} else {
+			expirationTime = 0
+		}
+		statements = append(statements, Statement{
+			Effect:         int32(statement.Effect),
+			Actions:        actions,
+			Resources:      statement.Resources,
+			ExpirationTime: expirationTime,
+			LimitSize:      statement.LimitSize.Value,
+		})
+	}
+	if policy.ExpirationTime != nil {
+		expirationTime = policy.ExpirationTime.Unix()
+	} else {
+		expirationTime = 0
+	}
+	return Policy{
+		Id:             policy.Id.BigInt(),
+		Principal:      Principal{PrincipalType: int32(policy.Principal.Type), Value: policy.Principal.Value},
+		ResourceType:   int32(policy.ResourceType),
+		ResourceId:     policy.ResourceId.BigInt(),
+		Statements:     statements,
+		ExpirationTime: expirationTime,
+	}
+}
+
+// outputParams maps storage module Params into the ABI Params tuple.
+func outputParams(params storagetypes.Params) Params {
+	return Params{
+		VersionedParams: VersionedParams{
+			MaxSegmentSize:          params.VersionedParams.MaxSegmentSize,
+			RedundantDataChunkNum:   params.VersionedParams.RedundantDataChunkNum,
+			RedundantParityChunkNum: params.VersionedParams.RedundantParityChunkNum,
+			MinChargeSize:           params.VersionedParams.MinChargeSize,
+		},
+		MaxPayloadSize:                   params.MaxPayloadSize,
+		BscMirrorBucketRelayerFee:        params.BscMirrorBucketRelayerFee,
+		BscMirrorBucketAckRelayerFee:     params.BscMirrorBucketAckRelayerFee,
+		BscMirrorObjectRelayerFee:        params.BscMirrorObjectRelayerFee,
+		BscMirrorObjectAckRelayerFee:     params.BscMirrorObjectAckRelayerFee,
+		BscMirrorGroupRelayerFee:         params.BscMirrorGroupRelayerFee,
+		BscMirrorGroupAckRelayerFee:      params.BscMirrorGroupAckRelayerFee,
+		MaxBucketsPerAccount:             params.MaxBucketsPerAccount,
+		DiscontinueCountingWindow:        params.DiscontinueCountingWindow,
+		DiscontinueObjectMax:             params.DiscontinueObjectMax,
+		DiscontinueBucketMax:             params.DiscontinueBucketMax,
+		DiscontinueConfirmPeriod:         params.DiscontinueConfirmPeriod,
+		DiscontinueDeletionMax:           params.DiscontinueDeletionMax,
+		StalePolicyCleanupMax:            params.StalePolicyCleanupMax,
+		MinQuotaUpdateInterval:           params.MinQuotaUpdateInterval,
+		MaxLocalVirtualGroupNumPerBucket: params.MaxLocalVirtualGroupNumPerBucket,
+		OpMirrorBucketRelayerFee:         params.OpMirrorBucketRelayerFee,
+		OpMirrorBucketAckRelayerFee:      params.OpMirrorBucketAckRelayerFee,
+		OpMirrorObjectRelayerFee:         params.OpMirrorObjectRelayerFee,
+		OpMirrorObjectAckRelayerFee:      params.OpMirrorObjectAckRelayerFee,
+		OpMirrorGroupRelayerFee:          params.OpMirrorGroupRelayerFee,
+		OpMirrorGroupAckRelayerFee:       params.OpMirrorGroupAckRelayerFee,
+		PolygonMirrorBucketRelayerFee:    params.PolygonMirrorBucketRelayerFee,
+		PolygonMirrorBucketAckRelayerFee: params.PolygonMirrorBucketAckRelayerFee,
 	}
 }

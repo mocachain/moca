@@ -12,7 +12,7 @@ import (
 // TestRun_RejectsNonzeroValue verifies the value guard fires before any StateDB access.
 // A nil EVM is intentional: if the guard were absent the nil dereference would cause a panic.
 func TestRun_RejectsNonzeroValue(t *testing.T) {
-	c := &Contract{}
+	c := &Precompile{}
 	caller := common.HexToAddress("0x1000000000000000000000000000000000000001")
 
 	t.Run("nonzero value is rejected before dispatch", func(t *testing.T) {

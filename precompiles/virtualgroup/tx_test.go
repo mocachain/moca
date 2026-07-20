@@ -24,6 +24,7 @@ import (
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	virtualgroupkeeper "github.com/mocachain/moca/v2/x/virtualgroup/keeper"
 	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
@@ -95,8 +96,11 @@ func (s *CompleteSPExitTestSuite) TestCompleteSPExit_OperatorIsCaller() {
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
-	c := virtualgroup.NewPrecompiledContract(s.app.VirtualgroupKeeper, s.app.BankKeeper)
-	_, err := c.CompleteSPExit(s.ctx, evm, contract, false)
+	c := virtualgroup.NewPrecompile(virtualgroupkeeper.NewMsgServerImpl(s.app.VirtualgroupKeeper), s.app.VirtualgroupKeeper, s.app.BankKeeper)
+	method := virtualgroup.MustMethod(virtualgroup.CompleteSPExitMethodName)
+	args, err := method.Inputs.Unpack(contract.Input[4:])
+	s.Require().NoError(err)
+	_, err = c.CompleteSPExit(s.ctx, evm, contract, &method, args)
 	s.Require().NoError(err)
 
 	event := s.findCompleteStorageProviderExitEvent()

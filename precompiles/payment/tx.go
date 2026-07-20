@@ -1,179 +1,121 @@
 package payment
 
 import (
-	"errors"
-
 	"cosmossdk.io/math"
-	"github.com/ethereum/go-ethereum/common"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
-	paymentkeeper "github.com/mocachain/moca/v2/x/payment/keeper"
-	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 
-	"github.com/mocachain/moca/v2/precompiles/types"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 
 const (
+	// CreatePaymentAccountMethodName is the ABI name for the CreatePaymentAccount transaction.
 	CreatePaymentAccountMethodName = "createPaymentAccount"
-	DepositMethodName              = "deposit"
-	DisableRefundMethodName        = "disableRefund"
-	WithdrawMethodName             = "withdraw"
+	// DepositMethodName is the ABI name for the Deposit transaction.
+	DepositMethodName = "deposit"
+	// DisableRefundMethodName is the ABI name for the DisableRefund transaction.
+	DisableRefundMethodName = "disableRefund"
+	// WithdrawMethodName is the ABI name for the Withdraw transaction.
+	WithdrawMethodName = "withdraw"
 )
 
-func (c *Contract) registerTx() {
-	c.registerMethod(CreatePaymentAccountMethodName, 60_000, c.CreatePaymentAccount, "CreatePaymentAccount")
-	c.registerMethod(DepositMethodName, 60_000, c.Deposit, "Deposit")
-	c.registerMethod(DisableRefundMethodName, 60_000, c.DisableRefund, "DisableRefund")
-	c.registerMethod(WithdrawMethodName, 60_000, c.Withdraw, "Withdraw")
-}
-
-func (c *Contract) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("create payment account method readonly")
-	}
-	method := GetAbiMethod(CreatePaymentAccountMethodName)
+// CreatePaymentAccount creates a new payment account owned by the caller.
+func (p Precompile) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, _ []interface{}) ([]byte, error) {
 	msg := &paymenttypes.MsgCreatePaymentAccount{
-		Creator: caller.String(),
+		Creator: contract.Caller().String(),
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := paymentkeeper.NewMsgServerImpl(c.paymentKeeper)
-	_, err := server.CreatePaymentAccount(ctx, msg)
-	if err != nil {
+
+	if _, err := p.paymentMsgServer.CreatePaymentAccount(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CreatePaymentAccountMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-		},
-	); err != nil {
+
+	if err := p.EmitCreatePaymentAccountEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("deposit method readonly")
-	}
-	method := GetAbiMethod(DepositMethodName)
-	var args DepositArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Deposit deposits coins from the caller into a payment stream.
+func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DepositArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	msg := &paymenttypes.MsgDeposit{
-		// geth v1.16: vm.Contract.CallerAddress field was replaced by Caller().
-		Creator: caller.String(),
-		To:      args.To,
-		Amount:  math.NewIntFromBigInt(args.Amount),
+		Creator: contract.Caller().String(),
+		To:      input.To,
+		Amount:  math.NewIntFromBigInt(input.Amount),
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := paymentkeeper.NewMsgServerImpl(c.paymentKeeper)
-	if _, err := server.Deposit(ctx, msg); err != nil {
+
+	if _, err := p.paymentMsgServer.Deposit(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DepositMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-		},
-	); err != nil {
+	if err := p.EmitDepositEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("disable refund method readonly")
-	}
-
-	method := GetAbiMethod(DisableRefundMethodName)
-
-	var args DisableRefundArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// DisableRefund disables refunds on a payment account owned by the caller.
+func (p Precompile) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DisableRefundArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &paymenttypes.MsgDisableRefund{
-		Owner: caller.String(),
-		Addr:  args.Addr,
+		Owner: contract.Caller().String(),
+		Addr:  input.Addr,
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := paymentkeeper.NewMsgServerImpl(c.paymentKeeper)
-	_, err = server.DisableRefund(ctx, msg)
-	if err != nil {
+	if _, err := p.paymentMsgServer.DisableRefund(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DisableRefundMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitDisableRefundEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("withdraw method readonly")
-	}
-
-	method := GetAbiMethod(WithdrawMethodName)
-
-	var args WithdrawArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// Withdraw withdraws coins from a payment stream back to the caller.
+func (p Precompile) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input WithdrawArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &paymenttypes.MsgWithdraw{
-		Creator: caller.String(),
-		From:    args.From,
-		Amount:  math.NewIntFromBigInt(args.Amount),
+		Creator: contract.Caller().String(),
+		From:    input.From,
+		Amount:  math.NewIntFromBigInt(input.Amount),
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := paymentkeeper.NewMsgServerImpl(c.paymentKeeper)
-	_, err = server.Withdraw(ctx, msg)
-	if err != nil {
+	if _, err := p.paymentMsgServer.Withdraw(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[WithdrawMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-		},
-	); err != nil {
+	if err := p.EmitWithdrawEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }

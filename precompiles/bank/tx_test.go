@@ -12,6 +12,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	evmtestutil "github.com/cosmos/evm/testutil"
 	"github.com/cosmos/evm/x/vm/statedb"
@@ -92,15 +93,16 @@ func (s *PrecompileTestSuite) TestBankSend_AllowsContractForwarding() {
 	receiver := common.HexToAddress("0x4444444444444444444444444444444444444444")
 	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(caller.Bytes()), 100))
 
-	contract := vm.NewContract(caller, bank.GetAddress(), uint256.NewInt(0), bank.SendGas, nil)
+	contract := vm.NewContract(caller, bank.GetAddress(), uint256.NewInt(0), 1_000_000, nil)
 	contract.Input = s.mustPackBankSendInput(receiver, big.NewInt(40))
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
-	c := bank.NewPrecompiledContract(s.app.BankKeeper, s.app.PaymentKeeper)
-	_, err := c.Send(s.ctx, evm, contract, false)
+	c := bank.NewPrecompile(bankkeeper.NewMsgServerImpl(s.app.BankKeeper, s.app.PaymentKeeper), s.app.BankKeeper)
+	_, err := c.Run(evm, contract, false)
 	s.Require().NoError(err)
+	s.Require().NoError(stateDB.Commit())
 	s.Require().Equal(math.NewInt(60), s.balance(sdk.AccAddress(caller.Bytes())))
 	s.Require().Equal(math.NewInt(40), s.balance(sdk.AccAddress(receiver.Bytes())))
 	s.Require().Equal(math.NewInt(1_000_000_000_000), s.balance(sdk.AccAddress(s.address.Bytes())))
@@ -195,7 +197,7 @@ func (s *PrecompileTestSuite) TestBankSend_ContractCallerSupplyInvariant() {
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
-	c := bank.NewPrecompiledContract(s.app.BankKeeper, s.app.PaymentKeeper)
+	c := bank.NewPrecompile(bankkeeper.NewMsgServerImpl(s.app.BankKeeper, s.app.PaymentKeeper), s.app.BankKeeper)
 	_, err := c.Run(evm, contract, false)
 	s.Require().NoError(err)
 	s.Require().NoError(stateDB.Commit())
@@ -228,7 +230,7 @@ func (s *PrecompileTestSuite) TestBankSend_ContractCallerIsolation() {
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
-	c := bank.NewPrecompiledContract(s.app.BankKeeper, s.app.PaymentKeeper)
+	c := bank.NewPrecompile(bankkeeper.NewMsgServerImpl(s.app.BankKeeper, s.app.PaymentKeeper), s.app.BankKeeper)
 	_, err := c.Run(evm, contract, false)
 	s.Require().NoError(err)
 	s.Require().NoError(stateDB.Commit())
@@ -253,7 +255,7 @@ func (s *PrecompileTestSuite) TestBankSend_ContractCallerRejectsValue() {
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
-	c := bank.NewPrecompiledContract(s.app.BankKeeper, s.app.PaymentKeeper)
+	c := bank.NewPrecompile(bankkeeper.NewMsgServerImpl(s.app.BankKeeper, s.app.PaymentKeeper), s.app.BankKeeper)
 	_, err := c.Run(evm, contract, false)
 	s.Require().Error(err)
 	s.Require().Equal("precompile does not accept value", err.Error())

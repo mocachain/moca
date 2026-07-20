@@ -1,18 +1,15 @@
 package staking
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
 	"math/big"
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/mocachain/moca/v2/types"
 )
 
@@ -21,10 +18,12 @@ var (
 	stakingABI     = types.MustABIJson(IStakingMetaData.ABI)
 )
 
+// GetAddress returns the staking precompile's fixed hex address.
 func GetAddress() common.Address {
 	return stakingAddress
 }
 
+// GetMethod resolves an ABI method by name.
 func GetMethod(name string) (abi.Method, error) {
 	method := stakingABI.Methods[name]
 	if method.ID == nil {
@@ -33,18 +32,7 @@ func GetMethod(name string) (abi.Method, error) {
 	return method, nil
 }
 
-func GetMethodByID(input []byte) (abi.Method, error) {
-	if len(input) < 4 {
-		return abi.Method{}, fmt.Errorf("input length %d is too short", len(input))
-	}
-	for _, method := range stakingABI.Methods {
-		if bytes.Equal(input[:4], method.ID) {
-			return method, nil
-		}
-	}
-	return abi.Method{}, fmt.Errorf("method id %s is not exist", string(input[:4]))
-}
-
+// MustMethod resolves an ABI method by name and panics if it does not exist.
 func MustMethod(name string) abi.Method {
 	method, err := GetMethod(name)
 	if err != nil {
@@ -53,6 +41,7 @@ func MustMethod(name string) abi.Method {
 	return method
 }
 
+// GetEvent resolves an ABI event by name.
 func GetEvent(name string) (abi.Event, error) {
 	event := stakingABI.Events[name]
 	if event.ID == (common.Hash{}) {
@@ -61,6 +50,7 @@ func GetEvent(name string) (abi.Event, error) {
 	return event, nil
 }
 
+// MustEvent resolves an ABI event by name and panics if it does not exist.
 func MustEvent(name string) abi.Event {
 	event, err := GetEvent(name)
 	if err != nil {
@@ -69,25 +59,18 @@ func MustEvent(name string) abi.Event {
 	return event
 }
 
-type (
-	DescriptionJson     = Description
-	CommissionRatesJson = CommissionRates
-	PageRequestJson     = PageRequest
-)
+// The arg structs below are decode targets for cmn.SetupABI's positional args via
+// abi.Arguments.Copy; their fields carry the ABI names (and hex address types). The
+// keeper validates message contents, so these carry only moca PoA/BLS logic helpers.
 
 type EditValidatorArgs struct {
-	Description       DescriptionJson `abi:"description"`
-	CommissionRate    *big.Int        `abi:"commissionRate"`
-	MinSelfDelegation *big.Int        `abi:"minSelfDelegation"`
-	RelayerAddress    common.Address  `abi:"relayerAddress"`
-	ChallengerAddress common.Address  `abi:"challengerAddress"`
-	BlsKey            string          `abi:"blsKey"`
-	BlsProof          string          `abi:"blsProof"`
-}
-
-// Validate validates the args
-func (args *EditValidatorArgs) Validate() error {
-	return nil
+	Description       Description    `abi:"description"`
+	CommissionRate    *big.Int       `abi:"commissionRate"`
+	MinSelfDelegation *big.Int       `abi:"minSelfDelegation"`
+	RelayerAddress    common.Address `abi:"relayerAddress"`
+	ChallengerAddress common.Address `abi:"challengerAddress"`
+	BlsKey            string         `abi:"blsKey"`
+	BlsProof          string         `abi:"blsProof"`
 }
 
 // GetCommissionRate returns the dec commission rate
@@ -137,17 +120,6 @@ type DelegateArgs struct {
 	Amount           *big.Int       `abi:"amount"`
 }
 
-// Validate validates the args
-func (args *DelegateArgs) Validate() error {
-	if args.ValidatorAddress == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddress)
-	}
-	if args.Amount == nil || args.Amount.Sign() <= 0 {
-		return errors.New("invalid amount")
-	}
-	return nil
-}
-
 // GetValidator returns the validator address, caller must ensure the validator address is valid
 func (args *DelegateArgs) GetValidator() sdk.ValAddress {
 	valAddr := sdk.ValAddress(args.ValidatorAddress.Bytes())
@@ -157,18 +129,6 @@ func (args *DelegateArgs) GetValidator() sdk.ValAddress {
 type DelegationArgs struct {
 	DelegatorAddr common.Address `abi:"delegatorAddr"`
 	ValidatorAddr common.Address `abi:"validatorAddr"`
-}
-
-// Validate validates the args
-func (args *DelegationArgs) Validate() error {
-	if args.DelegatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid delegator address: %s", args.DelegatorAddr)
-	}
-	if args.ValidatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddr)
-	}
-
-	return nil
 }
 
 // GetValidator returns the validator address, caller must ensure the validator address is valid
@@ -188,18 +148,6 @@ type UnbondingDelegationArgs struct {
 	ValidatorAddr common.Address `abi:"validatorAddr"`
 }
 
-// Validate validates the args
-func (args *UnbondingDelegationArgs) Validate() error {
-	if args.DelegatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid delegator address: %s", args.DelegatorAddr)
-	}
-	if args.ValidatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddr)
-	}
-
-	return nil
-}
-
 // GetValidator returns the validator address, caller must ensure the validator address is valid
 func (args *UnbondingDelegationArgs) GetValidator() sdk.ValAddress {
 	valAddr := sdk.ValAddress(args.ValidatorAddr.Bytes())
@@ -217,17 +165,6 @@ type UndelegateArgs struct {
 	Amount           *big.Int       `abi:"amount"`
 }
 
-// Validate validates the args
-func (args *UndelegateArgs) Validate() error {
-	if args.ValidatorAddress == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddress)
-	}
-	if args.Amount == nil || args.Amount.Sign() <= 0 {
-		return errors.New("invalid amount")
-	}
-	return nil
-}
-
 // GetValidator returns the validator address, caller must ensure the validator address is valid
 func (args *UndelegateArgs) GetValidator() sdk.ValAddress {
 	valAddr := sdk.ValAddress(args.ValidatorAddress.Bytes())
@@ -238,20 +175,6 @@ type RedelegateArgs struct {
 	ValidatorSrcAddress common.Address `abi:"validatorSrcAddress"`
 	ValidatorDstAddress common.Address `abi:"validatorDstAddress"`
 	Amount              *big.Int       `abi:"amount"`
-}
-
-// Validate validates the args
-func (args *RedelegateArgs) Validate() error {
-	if args.ValidatorSrcAddress == (common.Address{}) {
-		return fmt.Errorf("invalid src validator address: %s", args.ValidatorSrcAddress)
-	}
-	if args.ValidatorDstAddress == (common.Address{}) {
-		return fmt.Errorf("invalid dst validator address: %s", args.ValidatorDstAddress)
-	}
-	if args.Amount == nil || args.Amount.Sign() <= 0 {
-		return errors.New("invalid amount")
-	}
-	return nil
 }
 
 // GetSrcValidator returns the validator src address, caller must ensure the validator address is valid
@@ -272,23 +195,6 @@ type CancelUnbondingDelegationArgs struct {
 	CreationHeight   *big.Int       `abi:"creationHeight"`
 }
 
-// Validate validates the args
-func (args *CancelUnbondingDelegationArgs) Validate() error {
-	if args.ValidatorAddress == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddress)
-	}
-
-	if args.Amount == nil || args.Amount.Sign() <= 0 {
-		return errors.New("invalid amount")
-	}
-
-	if args.CreationHeight == nil || args.CreationHeight.Sign() <= 0 || !args.CreationHeight.IsInt64() {
-		return errors.New("invalid creation height")
-	}
-
-	return nil
-}
-
 // GetValidator returns the validator address
 func (args *CancelUnbondingDelegationArgs) GetValidator() sdk.ValAddress {
 	valAddr := sdk.ValAddress(args.ValidatorAddress.Bytes())
@@ -301,17 +207,8 @@ func (args *CancelUnbondingDelegationArgs) GetCreationHeight() int64 {
 }
 
 type ValidatorsArgs struct {
-	Status     uint8           `abi:"status"`
-	Pagination PageRequestJson `abi:"pagination"`
-}
-
-// Validate validates the args
-func (args *ValidatorsArgs) Validate() error {
-	if args.Status > uint8(stakingtypes.Bonded) {
-		return fmt.Errorf("invalid status: %d", args.Status)
-	}
-
-	return nil
+	Status     uint8       `abi:"status"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
 // GetStatus returns the validator status string
@@ -328,20 +225,10 @@ func (args *ValidatorsArgs) GetStatus() string {
 	default:
 		return ""
 	}
-	return ""
 }
 
 type ValidatorArgs struct {
 	ValidatorAddr common.Address `abi:"validatorAddr"`
-}
-
-// Validate validates the args
-func (args *ValidatorArgs) Validate() error {
-	if args.ValidatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddr)
-	}
-
-	return nil
 }
 
 // GetValidator returns the validator address, caller must ensure the validator address is valid
@@ -351,17 +238,8 @@ func (args *ValidatorArgs) GetValidator() sdk.ValAddress {
 }
 
 type ValidatorDelegationsArgs struct {
-	ValidatorAddr common.Address  `abi:"validatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
-}
-
-// Validate validates the args
-func (args *ValidatorDelegationsArgs) Validate() error {
-	if args.ValidatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddr)
-	}
-
-	return nil
+	ValidatorAddr common.Address `abi:"validatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetValidator returns the validator address, caller must ensure the validator address is valid
@@ -371,17 +249,8 @@ func (args *ValidatorDelegationsArgs) GetValidator() sdk.ValAddress {
 }
 
 type ValidatorUnbondingDelegationsArgs struct {
-	ValidatorAddr common.Address  `abi:"validatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
-}
-
-// Validate validates the args
-func (args *ValidatorUnbondingDelegationsArgs) Validate() error {
-	if args.ValidatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddr)
-	}
-
-	return nil
+	ValidatorAddr common.Address `abi:"validatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetValidator returns the validator address, caller must ensure the validator address is valid
@@ -391,17 +260,8 @@ func (args *ValidatorUnbondingDelegationsArgs) GetValidator() sdk.ValAddress {
 }
 
 type DelegatorDelegationsArgs struct {
-	DelegatorAddr common.Address  `abi:"delegatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
-}
-
-// Validate validates the args
-func (args *DelegatorDelegationsArgs) Validate() error {
-	if args.DelegatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid delegator address: %s", args.DelegatorAddr)
-	}
-
-	return nil
+	DelegatorAddr common.Address `abi:"delegatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid
@@ -411,17 +271,8 @@ func (args *DelegatorDelegationsArgs) GetDelegator() sdk.AccAddress {
 }
 
 type DelegatorUnbondingDelegationsArgs struct {
-	DelegatorAddr common.Address  `abi:"delegatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
-}
-
-// Validate validates the args
-func (args *DelegatorUnbondingDelegationsArgs) Validate() error {
-	if args.DelegatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid delegator address: %s", args.DelegatorAddr)
-	}
-
-	return nil
+	DelegatorAddr common.Address `abi:"delegatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid
@@ -431,15 +282,10 @@ func (args *DelegatorUnbondingDelegationsArgs) GetDelegator() sdk.AccAddress {
 }
 
 type Redelegations struct {
-	DelegatorAddr    common.Address  `abi:"delegatorAddr"`
-	SrcValidatorAddr common.Address  `abi:"srcValidatorAddr"`
-	DstValidatorAddr common.Address  `abi:"dstValidatorAddr"`
-	Pagination       PageRequestJson `abi:"pagination"`
-}
-
-// Validate validates the args
-func (args *Redelegations) Validate() error {
-	return nil
+	DelegatorAddr    common.Address `abi:"delegatorAddr"`
+	SrcValidatorAddr common.Address `abi:"srcValidatorAddr"`
+	DstValidatorAddr common.Address `abi:"dstValidatorAddr"`
+	Pagination       PageRequest    `abi:"pagination"`
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid
@@ -461,17 +307,8 @@ func (args *Redelegations) GetDstValidator() sdk.ValAddress {
 }
 
 type DelegatorValidators struct {
-	DelegatorAddr common.Address  `abi:"delegatorAddr"`
-	Pagination    PageRequestJson `abi:"pagination"`
-}
-
-// Validate validates the args
-func (args *DelegatorValidators) Validate() error {
-	if args.DelegatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid delegator address: %s", args.DelegatorAddr)
-	}
-
-	return nil
+	DelegatorAddr common.Address `abi:"delegatorAddr"`
+	Pagination    PageRequest    `abi:"pagination"`
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid
@@ -483,19 +320,6 @@ func (args *DelegatorValidators) GetDelegator() sdk.AccAddress {
 type DelegatorValidator struct {
 	DelegatorAddr common.Address `abi:"delegatorAddr"`
 	ValidatorAddr common.Address `abi:"validatorAddr"`
-}
-
-// Validate validates the args
-func (args *DelegatorValidator) Validate() error {
-	if args.DelegatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid delegator address: %s", args.DelegatorAddr)
-	}
-
-	if args.ValidatorAddr == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddr)
-	}
-
-	return nil
 }
 
 // GetDelegator returns the delegator address, caller must ensure the delegator address is valid
@@ -512,15 +336,6 @@ func (args *DelegatorValidator) GetValidator() sdk.ValAddress {
 
 type HistoricalInfoRequest struct {
 	Height int64 `abi:"height"`
-}
-
-// Validate validates the args
-func (args *HistoricalInfoRequest) Validate() error {
-	if args.Height < 0 {
-		return fmt.Errorf("invalid height: %v", args.Height)
-	}
-
-	return nil
 }
 
 // GetHeight returns the block height, caller must ensure the block height is valid

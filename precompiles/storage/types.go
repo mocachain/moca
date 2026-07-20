@@ -1,86 +1,87 @@
 package storage
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/mocachain/moca/v2/types"
 )
 
 var (
 	storageAddress = common.HexToAddress(types.StorageAddress)
 	storageABI     = types.MustABIJson(IStorageMetaData.ABI)
-	invalidMethod  = abi.Method{}
 )
 
-const (
-	noBalanceErr = "key not found"
-
-	BucketResourcePrefix = "grn:b::"
-	ObjectResourcePrefix = "grn:o::"
-	GroupResourcePrefix  = "grn:g:"
-
-	ObjectResourceType = 1
-	BucketResourceType = 2
-	GroupResourceType  = 3
-)
-
-type (
-	ResourceType        int
-	NewStatementOptions struct {
-		StatementExpireTime *time.Time
-		LimitSize           uint64
-	}
-)
-
+// GetAddress returns the storage precompile's fixed hex address.
 func GetAddress() common.Address {
 	return storageAddress
 }
 
-func GetMethodByID(input []byte) (abi.Method, error) {
-	if len(input) < 4 {
-		return invalidMethod, fmt.Errorf("input length %d is too short", len(input))
+// GetMethod resolves an ABI method by name.
+func GetMethod(name string) (abi.Method, error) {
+	method := storageABI.Methods[name]
+	if method.ID == nil {
+		return abi.Method{}, fmt.Errorf("method %s is not exist", name)
 	}
-	for _, method := range storageABI.Methods {
-		if bytes.Equal(input[:4], method.ID) {
-			return method, nil
-		}
-	}
-	return invalidMethod, fmt.Errorf("method id %s is not exist", string(input[:4]))
+	return method, nil
 }
 
+// MustMethod resolves an ABI method by name and panics if it does not exist.
+func MustMethod(name string) abi.Method {
+	method, err := GetMethod(name)
+	if err != nil {
+		panic(err)
+	}
+	return method
+}
+
+// GetAbiMethod resolves an ABI method by name (zero method if absent).
 func GetAbiMethod(name string) abi.Method {
 	return storageABI.Methods[name]
 }
 
+// GetEvent resolves an ABI event by name.
+func GetEvent(name string) (abi.Event, error) {
+	event := storageABI.Events[name]
+	if event.ID == (common.Hash{}) {
+		return abi.Event{}, fmt.Errorf("event %s is not exist", name)
+	}
+	return event, nil
+}
+
+// MustEvent resolves an ABI event by name and panics if it does not exist.
+func MustEvent(name string) abi.Event {
+	event, err := GetEvent(name)
+	if err != nil {
+		panic(err)
+	}
+	return event
+}
+
+// GetAbiEvent resolves an ABI event by name (zero event if absent).
 func GetAbiEvent(name string) abi.Event {
 	return storageABI.Events[name]
 }
 
-type (
-	ApprovalJSON    = Approval
-	PageRequestJSON = PageRequest
-)
+// The arg structs below are decode targets for cmn.SetupABI's positional args via
+// abi.Arguments.Copy; their fields carry the ABI names. The keeper's msg
+// ValidateBasic validates message contents, so these carry no extra validation
+// except where a handler inlines a check the original enforced.
 
+// CreateBucketArgs is the decode target for the createBucket calldata.
 type CreateBucketArgs struct {
 	BucketName        string         `abi:"bucketName"`
 	Visibility        uint8          `abi:"visibility"`
 	PaymentAddress    common.Address `abi:"paymentAddress"`
 	PrimarySpAddress  common.Address `abi:"primarySpAddress"`
-	PrimarySpApproval ApprovalJSON   `abi:"primarySpApproval"`
+	PrimarySpApproval Approval       `abi:"primarySpApproval"`
 	ChargedReadQuota  uint64         `abi:"chargedReadQuota"`
 }
 
-// Validate CreateBucketArgs args
-func (args *CreateBucketArgs) Validate() error {
-	return nil
-}
-
+// UpdateBucketInfoArgs is the decode target for the updateBucketInfo calldata.
 type UpdateBucketInfoArgs struct {
 	BucketName       string         `abi:"bucketName"`
 	ChargedReadQuota *big.Int       `abi:"chargedReadQuota"`
@@ -88,141 +89,77 @@ type UpdateBucketInfoArgs struct {
 	Visibility       uint8          `abi:"visibility"`
 }
 
-// Validate CreateBucketArgs args
-func (args *UpdateBucketInfoArgs) Validate() error {
-	if args.BucketName == "" {
-		return errors.New("empty bucket name")
-	}
-
-	if args.ChargedReadQuota.Int64() != -1 && !args.ChargedReadQuota.IsUint64() {
-		return errors.New("charged read quota is invalid")
-	}
-	return nil
-}
-
+// ListBucketsArgs is the decode target for the listBuckets calldata.
 type ListBucketsArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
+	Pagination PageRequest `abi:"pagination"`
 }
 
-// Validate ListBucketsArgs the args
-func (args *ListBucketsArgs) Validate() error {
-	return nil
-}
-
+// HeadBucketArgs is the decode target for the headBucket calldata.
 type HeadBucketArgs struct {
 	BucketName string `abi:"bucketName"`
 }
 
-// Validate HeadBucketArgs the args
-func (args *HeadBucketArgs) Validate() error {
-	return nil
-}
-
+// HeadBucketExtraArgs is the decode target for the headBucketExtra calldata.
 type HeadBucketExtraArgs struct {
 	BucketName string `abi:"bucketName"`
 }
 
-// Validate HeadBucketExtraArgs the args
-func (args *HeadBucketExtraArgs) Validate() error {
-	return nil
+// HeadBucketByIDArgs is the decode target for the headBucketById calldata.
+type HeadBucketByIDArgs struct {
+	BucketID string `abi:"bucketId"`
 }
 
-type HeadBucketByIdArgs struct {
-	BucketId string `abi:"bucketId"`
-}
-
-// Validate HeadBucketByIdArgs the args
-func (args *HeadBucketByIdArgs) Validate() error {
-	return nil
-}
-
+// HeadBucketNFTArgs is the decode target for the headBucketNFT calldata.
 type HeadBucketNFTArgs struct {
-	TokenId string `abi:"tokenId"`
+	TokenID string `abi:"tokenId"`
 }
 
-// Validate HeadBucketNFTArgs the args
-func (args *HeadBucketNFTArgs) Validate() error {
-	return nil
-}
-
+// HeadObjectNFTArgs is the decode target for the headObjectNFT calldata.
 type HeadObjectNFTArgs struct {
-	TokenId string `abi:"tokenId"`
+	TokenID string `abi:"tokenId"`
 }
 
-// Validate HeadObjectNFTArgs the args
-func (args *HeadObjectNFTArgs) Validate() error {
-	return nil
-}
-
+// HeadGroupNFTArgs is the decode target for the headGroupNFT calldata.
 type HeadGroupNFTArgs struct {
-	TokenId string `abi:"tokenId"`
+	TokenID string `abi:"tokenId"`
 }
 
-// Validate HeadGroupNFTArgs the args
-func (args *HeadGroupNFTArgs) Validate() error {
-	return nil
-}
-
+// DeleteBucketArgs is the decode target for the deleteBucket calldata.
 type DeleteBucketArgs struct {
 	BucketName string `abi:"bucketName"`
 }
 
-// Validate DeleteBucketArgs args
-func (args *DeleteBucketArgs) Validate() error {
-	return nil
-}
-
+// DiscontinueBucketArgs is the decode target for the discontinueBucket calldata.
 type DiscontinueBucketArgs struct {
 	BucketName string `abi:"bucketName"`
 	Reason     string `abi:"reason"`
 }
 
-// Validate DiscontinueBucketArgs args
-func (args *DiscontinueBucketArgs) Validate() error {
-	return nil
-}
-
+// MigrateBucketArgs is the decode target for the migrateBucket calldata.
 type MigrateBucketArgs struct {
-	// Operator             string       `abi:"operator"`
-	BucketName           string       `abi:"bucketName"`
-	DstPrimarySpId       uint32       `abi:"dstPrimarySpId"`
-	DstPrimarySpApproval ApprovalJSON `abi:"dstPrimarySpApproval"`
+	BucketName           string   `abi:"bucketName"`
+	DstPrimarySpID       uint32   `abi:"dstPrimarySpId"`
+	DstPrimarySpApproval Approval `abi:"dstPrimarySpApproval"`
 }
 
-// Validate MigrateBucketArgs args
-func (args *MigrateBucketArgs) Validate() error {
-	return nil
-}
-
+// CompleteMigrateBucketArgs is the decode target for the completeMigrateBucket calldata.
 type CompleteMigrateBucketArgs struct {
 	BucketName  string       `abi:"bucketName"`
-	GvgFamilyId uint32       `abi:"gvgFamilyId"`
+	GvgFamilyID uint32       `abi:"gvgFamilyId"`
 	GvgMappings []GVGMapping `abi:"gvgMappings"`
 }
 
-// Validate CompleteMigrateBucketArgs args
-func (args *CompleteMigrateBucketArgs) Validate() error {
-	return nil
-}
-
+// RejectMigrateBucketArgs is the decode target for the rejectMigrateBucket calldata.
 type RejectMigrateBucketArgs struct {
 	BucketName string `abi:"bucketName"`
 }
 
-// Validate RejectMigrateBucketArgs args
-func (args *RejectMigrateBucketArgs) Validate() error {
-	return nil
-}
-
+// CancelMigrateBucketArgs is the decode target for the cancelMigrateBucket calldata.
 type CancelMigrateBucketArgs struct {
 	BucketName string `abi:"bucketName"`
 }
 
-// Validate CancelMigrateBucketArgs args
-func (args *CancelMigrateBucketArgs) Validate() error {
-	return nil
-}
-
+// SetBucketFlowRateLimitArgs is the decode target for the setBucketFlowRateLimit calldata.
 type SetBucketFlowRateLimitArgs struct {
 	BucketName     string   `abi:"bucketName"`
 	BucketOwner    string   `abi:"bucketOwner"`
@@ -230,93 +167,58 @@ type SetBucketFlowRateLimitArgs struct {
 	FlowRateLimit  *big.Int `abi:"flowRateLimit"`
 }
 
-// Validate SetBucketFlowRateLimitArgs args
-func (args *SetBucketFlowRateLimitArgs) Validate() error {
-	return nil
-}
-
+// CreateObjectArgs is the decode target for the createObject calldata.
 type CreateObjectArgs struct {
-	BucketName        string       `abi:"bucketName"`
-	ObjectName        string       `abi:"objectName"`
-	PayloadSize       uint64       `abi:"payloadSize"`
-	Visibility        uint8        `abi:"visibility"`
-	ContentType       string       `abi:"contentType"`
-	PrimarySpApproval ApprovalJSON `abi:"primarySpApproval"`
-	ExpectChecksums   []string     `abi:"expectChecksums"`
-	RedundancyType    uint8        `abi:"redundancyType"`
+	BucketName        string   `abi:"bucketName"`
+	ObjectName        string   `abi:"objectName"`
+	PayloadSize       uint64   `abi:"payloadSize"`
+	Visibility        uint8    `abi:"visibility"`
+	ContentType       string   `abi:"contentType"`
+	PrimarySpApproval Approval `abi:"primarySpApproval"`
+	ExpectChecksums   []string `abi:"expectChecksums"`
+	RedundancyType    uint8    `abi:"redundancyType"`
 }
 
-// Validate CreateObjectArgs args
-func (args *CreateObjectArgs) Validate() error {
-	return nil
-}
-
+// CopyObjectArgs is the decode target for the copyObject calldata.
 type CopyObjectArgs struct {
-	// Operator             string       `abi:"operator"`
-	SrcBucketName        string       `abi:"srcBucketName"`
-	DstBucketName        string       `abi:"dstBucketName"`
-	SrcObjectName        string       `abi:"srcObjectName"`
-	DstObjectName        string       `abi:"dstObjectName"`
-	DstPrimarySpApproval ApprovalJSON `abi:"dstPrimarySpApproval"`
+	SrcBucketName        string   `abi:"srcBucketName"`
+	DstBucketName        string   `abi:"dstBucketName"`
+	SrcObjectName        string   `abi:"srcObjectName"`
+	DstObjectName        string   `abi:"dstObjectName"`
+	DstPrimarySpApproval Approval `abi:"dstPrimarySpApproval"`
 }
 
-// Validate CopyObjectArgs args
-func (args *CopyObjectArgs) Validate() error {
-	return nil
-}
-
+// DeleteObjectArgs is the decode target for the deleteObject calldata.
 type DeleteObjectArgs struct {
-	// Operator   string `abi:"operator"`
 	BucketName string `abi:"bucketName"`
 	ObjectName string `abi:"objectName"`
 }
 
-// Validate DeleteObjectArgs args
-func (args *DeleteObjectArgs) Validate() error {
-	return nil
-}
-
+// CancelCreateObjectArgs is the decode target for the cancelCreateObject calldata.
 type CancelCreateObjectArgs struct {
-	// Operator   string `abi:"operator"`
 	BucketName string `abi:"bucketName"`
 	ObjectName string `abi:"objectName"`
 }
 
-// Validate CancelCreateObjectArgs args
-func (args *CancelCreateObjectArgs) Validate() error {
-	return nil
-}
-
+// CancelUpdateObjectContentArgs is the decode target for the cancelUpdateObjectContent calldata.
 type CancelUpdateObjectContentArgs struct {
 	BucketName string `abi:"bucketName"`
 	ObjectName string `abi:"objectName"`
 }
 
-// Validate CancelUpdateObjectContentArgs args
-func (args *CancelUpdateObjectContentArgs) Validate() error {
-	return nil
-}
-
+// ListObjectsArgs is the decode target for the listObjects calldata.
 type ListObjectsArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
-	BucketName string          `abi:"bucketName"`
+	Pagination PageRequest `abi:"pagination"`
+	BucketName string      `abi:"bucketName"`
 }
 
-// Validate ListObjectsArgs the args
-func (args *ListObjectsArgs) Validate() error {
-	return nil
+// ListObjectsByBucketIDArgs is the decode target for the listObjectsByBucketId calldata.
+type ListObjectsByBucketIDArgs struct {
+	Pagination PageRequest `abi:"pagination"`
+	BucketID   string      `abi:"bucketId"`
 }
 
-type ListObjectsByBucketIdArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
-	BucketId   string          `abi:"bucketId"`
-}
-
-// Validate ListObjectsByBucketIdArgs the args
-func (args *ListObjectsByBucketIdArgs) Validate() error {
-	return nil
-}
-
+// SealObjectArgs is the decode target for the sealObject calldata.
 type SealObjectArgs struct {
 	BucketName                  string `abi:"bucketName"`
 	ObjectName                  string `abi:"objectName"`
@@ -324,11 +226,7 @@ type SealObjectArgs struct {
 	SecondarySpBlsAggSignatures string `abi:"secondarySpBlsAggSignatures"`
 }
 
-// Validate SealObjectArgs args
-func (args *SealObjectArgs) Validate() error {
-	return nil
-}
-
+// SealObjectV2Args is the decode target for the sealObjectV2 calldata.
 type SealObjectV2Args struct {
 	BucketName                  string   `abi:"bucketName"`
 	ObjectName                  string   `abi:"objectName"`
@@ -337,21 +235,13 @@ type SealObjectV2Args struct {
 	ExpectChecksums             []string `abi:"expectChecksums"`
 }
 
-// Validate SealObjectV2Args args
-func (args *SealObjectV2Args) Validate() error {
-	return nil
-}
-
+// RejectSealObjectArgs is the decode target for the rejectSealObject calldata.
 type RejectSealObjectArgs struct {
 	BucketName string `abi:"bucketName"`
 	ObjectName string `abi:"objectName"`
 }
 
-// Validate RejectSealObjectArgs args
-func (args *RejectSealObjectArgs) Validate() error {
-	return nil
-}
-
+// DelegateCreateObjectArgs is the decode target for the delegateCreateObject calldata.
 type DelegateCreateObjectArgs struct {
 	Creator         string   `abi:"creator"`
 	BucketName      string   `abi:"bucketName"`
@@ -363,13 +253,8 @@ type DelegateCreateObjectArgs struct {
 	RedundancyType  uint8    `abi:"redundancyType"`
 }
 
-// Validate DelegateCreateObjectArgs args
-func (args *DelegateCreateObjectArgs) Validate() error {
-	return nil
-}
-
+// DelegateUpdateObjectContentArgs is the decode target for the delegateUpdateObjectContent calldata.
 type DelegateUpdateObjectContentArgs struct {
-	// Operator        string   `abi:"operator"`
 	Updater         string   `abi:"updater"`
 	BucketName      string   `abi:"bucketName"`
 	ObjectName      string   `abi:"objectName"`
@@ -378,22 +263,14 @@ type DelegateUpdateObjectContentArgs struct {
 	ExpectChecksums []string `abi:"expectChecksums"`
 }
 
-// Validate DelegateUpdateObjectContentArgs args
-func (args *DelegateUpdateObjectContentArgs) Validate() error {
-	return nil
-}
-
+// UpdateObjectInfoArgs is the decode target for the updateObjectInfo calldata.
 type UpdateObjectInfoArgs struct {
 	BucketName string `abi:"bucketName"`
 	ObjectName string `abi:"objectName"`
 	Visibility uint8  `abi:"visibility"`
 }
 
-// Validate UpdateObjectInfoArgs args
-func (args *UpdateObjectInfoArgs) Validate() error {
-	return nil
-}
-
+// UpdateObjectContentArgs is the decode target for the updateObjectContent calldata.
 type UpdateObjectContentArgs struct {
 	BucketName      string   `abi:"bucketName"`
 	ObjectName      string   `abi:"objectName"`
@@ -402,43 +279,26 @@ type UpdateObjectContentArgs struct {
 	ExpectChecksums []string `abi:"expectChecksums"`
 }
 
-// Validate UpdateObjectInfoArgs args
-func (args *UpdateObjectContentArgs) Validate() error {
-	return nil
-}
-
+// DiscontinueObjectArgs is the decode target for the discontinueObject calldata.
 type DiscontinueObjectArgs struct {
-	// Operator   string     `abi:"operator"`
 	BucketName string     `abi:"bucketName"`
-	ObjectIds  []*big.Int `abi:"objectIds"`
+	ObjectIDs  []*big.Int `abi:"objectIds"`
 	Reason     string     `abi:"reason"`
 }
 
-// Validate DiscontinueObjectArgs args
-func (args *DiscontinueObjectArgs) Validate() error {
-	return nil
-}
-
+// CreateGroupArgs is the decode target for the createGroup calldata.
 type CreateGroupArgs struct {
 	GroupName string `abi:"groupName"`
 	Extra     string `abi:"extra"`
 }
 
-// Validate CreateGroupArgs args
-func (args *CreateGroupArgs) Validate() error {
-	return nil
-}
-
+// ListGroupsArgs is the decode target for the listGroups calldata.
 type ListGroupsArgs struct {
-	Pagination PageRequestJSON `abi:"pagination"`
-	GroupOwner common.Address  `abi:"groupOwner"`
+	Pagination PageRequest    `abi:"pagination"`
+	GroupOwner common.Address `abi:"groupOwner"`
 }
 
-// Validate ListGroupsArgs the args
-func (args *ListGroupsArgs) Validate() error {
-	return nil
-}
-
+// UpdateGroupArgs is the decode target for the updateGroup calldata.
 type UpdateGroupArgs struct {
 	GroupOwner      common.Address   `abi:"groupOwner"`
 	GroupName       string           `abi:"groupName"`
@@ -447,72 +307,38 @@ type UpdateGroupArgs struct {
 	MembersToDelete []common.Address `abi:"membersToDelete"`
 }
 
-// Validate UpdateGroupArgs the args
-func (args *UpdateGroupArgs) Validate() error {
-	if args.GroupName == "" {
-		return errors.New("group name is empty")
-	}
-	if len(args.MembersToAdd) == 0 && len(args.MembersToDelete) == 0 {
-		return errors.New("no update member")
-	}
-	if args.ExpirationTime != nil && len(args.MembersToAdd) != len(args.ExpirationTime) {
-		return errors.New("please provide expirationTime for every new add member")
-	}
-	return nil
-}
-
+// UpdateGroupExtraArgs is the decode target for the updateGroupExtra calldata.
 type UpdateGroupExtraArgs struct {
-	// Operator string `abi:"operator"`
 	GroupOwner common.Address `abi:"groupOwner"`
 	GroupName  string         `abi:"groupName"`
 	Extra      string         `abi:"extra"`
 }
 
-// Validate UpdateGroupExtraArgs the args
-func (args *UpdateGroupExtraArgs) Validate() error {
-	return nil
-}
-
+// HeadGroupArgs is the decode target for the headGroup calldata.
 type HeadGroupArgs struct {
 	GroupOwner common.Address `abi:"groupOwner"`
 	GroupName  string         `abi:"groupName"`
 }
 
-// Validate HeadGroupArgs the args
-func (args *HeadGroupArgs) Validate() error {
-	return nil
-}
-
+// DeleteGroupArgs is the decode target for the deleteGroup calldata.
 type DeleteGroupArgs struct {
 	GroupName string `abi:"groupName"`
 }
 
-// Validate DeleteGroupArgs the args
-func (args *DeleteGroupArgs) Validate() error {
-	return nil
-}
-
+// LeaveGroupArgs is the decode target for the leaveGroup calldata.
 type LeaveGroupArgs struct {
 	GroupOwner common.Address `abi:"groupOwner"`
 	GroupName  string         `abi:"groupName"`
 }
 
-// Validate LeaveGroupArgs the args
-func (args *LeaveGroupArgs) Validate() error {
-	return nil
-}
-
+// HeadGroupMemberArgs is the decode target for the headGroupMember calldata.
 type HeadGroupMemberArgs struct {
 	Member     common.Address `abi:"member"`
 	GroupOwner common.Address `abi:"groupOwner"`
 	GroupName  string         `abi:"groupName"`
 }
 
-// Validate HeadGroupMemberArgs the args
-func (args *HeadGroupMemberArgs) Validate() error {
-	return nil
-}
-
+// RenewGroupMemberArgs is the decode target for the renewGroupMember calldata.
 type RenewGroupMemberArgs struct {
 	GroupOwner     common.Address   `abi:"groupOwner"`
 	GroupName      string           `abi:"groupName"`
@@ -520,215 +346,115 @@ type RenewGroupMemberArgs struct {
 	ExpirationTime []int64          `abi:"expirationTime"`
 }
 
-// Validate RenewGroupMemberArgs the args
-func (args *RenewGroupMemberArgs) Validate() error {
-	return nil
-}
-
+// ToggleSPAsDelegatedAgentArgs is the decode target for the toggleSPAsDelegatedAgent calldata.
 type ToggleSPAsDelegatedAgentArgs struct {
 	BucketName string `abi:"bucketName"`
 }
 
-// Validate ToggleSPAsDelegatedAgentArgs args
-func (args *ToggleSPAsDelegatedAgentArgs) Validate() error {
-	return nil
-}
-
+// SetTagArgs is the decode target for the setTag calldata.
 type SetTagArgs struct {
 	Resource string `abi:"resource"`
 	Tags     []Tag  `abi:"tags"`
 }
 
-// Validate SetTagArgs the args
-func (args *SetTagArgs) Validate() error {
-	if args.Tags == nil {
-		return errors.New("invalid tags parameter")
-	}
-	return nil
-}
-
+// HeadObjectArgs is the decode target for the headObject calldata.
 type HeadObjectArgs struct {
 	BucketName string `abi:"bucketName"`
 	ObjectName string `abi:"objectName"`
 }
 
-// Validate HeadObjectArgs the args
-func (args *HeadObjectArgs) Validate() error {
-	if args.BucketName == "" {
-		return errors.New("empty bucket name")
-	}
-	if args.ObjectName == "" {
-		return errors.New("empty object name")
-	}
-	return nil
-}
-
+// HeadObjectByIDArgs is the decode target for the headObjectById calldata.
 type HeadObjectByIDArgs struct {
 	ObjectID string `abi:"objectId"`
 }
 
-// Validate HeadObjectByIdArgs the args
-func (args *HeadObjectByIDArgs) Validate() error {
-	if args.ObjectID == "" {
-		return errors.New("empty object id")
-	}
-	return nil
-}
-
+// HeadShadowObjectArgs is the decode target for the headShadowObject calldata.
 type HeadShadowObjectArgs struct {
 	BucketName string `abi:"bucketName"`
 	ObjectName string `abi:"objectName"`
 }
 
-// Validate HeadShadowObjectArgs the args
-func (args *HeadShadowObjectArgs) Validate() error {
-	if args.BucketName == "" {
-		return errors.New("empty bucket name")
-	}
-	if args.ObjectName == "" {
-		return errors.New("empty object name")
-	}
-	return nil
-}
-
+// PutPolicyArgs is the decode target for the putPolicy calldata.
 type PutPolicyArgs struct {
-	// Operator       string      `abi:"operator"`
 	Principal      Principal   `abi:"principal"`
 	Resource       string      `abi:"resource"`
 	Statements     []Statement `abi:"statements"`
 	ExpirationTime int64       `abi:"expirationTime"`
 }
 
-// Validate PutPolicyArgs the args
-func (args *PutPolicyArgs) Validate() error {
-	return nil
-}
-
+// DeletePolicyArgs is the decode target for the deletePolicy calldata.
 type DeletePolicyArgs struct {
-	// Operator  string    `abi:"operator"`
 	Principal Principal `abi:"principal"`
 	Resource  string    `abi:"resource"`
 }
 
-// Validate DeletePolicyArgs the args
-func (args *DeletePolicyArgs) Validate() error {
-	return nil
-}
-
+// QueryPolicyForGroupArgs is the decode target for the queryPolicyForGroup calldata.
 type QueryPolicyForGroupArgs struct {
 	Resource string   `abi:"resource"`
-	GroupId  *big.Int `abi:"groupId"`
+	GroupID  *big.Int `abi:"groupId"`
 }
 
-// Validate QueryPolicyForGroupArgs the args
-func (args *QueryPolicyForGroupArgs) Validate() error {
-	return nil
-}
-
+// QueryPolicyForAccountArgs is the decode target for the queryPolicyForAccount calldata.
 type QueryPolicyForAccountArgs struct {
 	Resource      string `abi:"resource"`
 	PrincipalAddr string `abi:"principalAddr"`
 }
 
-// Validate QueryPolicyForAccountArgs the args
-func (args *QueryPolicyForAccountArgs) Validate() error {
-	return nil
+// QueryPolicyByIDArgs is the decode target for the queryPolicyById calldata.
+type QueryPolicyByIDArgs struct {
+	PolicyID string `abi:"policyId"`
 }
 
-type QueryPolicyByIdArgs struct {
-	PolicyId string `abi:"policyId"`
-}
-
-// Validate QueryPolicyByIdArgs the args
-func (args *QueryPolicyByIdArgs) Validate() error {
-	return nil
-}
-
+// QueryLockFeeArgs is the decode target for the queryLockFee calldata.
 type QueryLockFeeArgs struct {
 	PrimarySpAddress string `abi:"primarySpAddress"`
 	CreateAt         int64  `abi:"createAt"`
 	PayloadSize      uint64 `abi:"payloadSize"`
 }
 
-// Validate QueryLockFeeArgs the args
-func (args *QueryLockFeeArgs) Validate() error {
-	return nil
-}
-
+// QueryIsPriceChangedArgs is the decode target for the queryIsPriceChanged calldata.
 type QueryIsPriceChangedArgs struct {
 	BucketName string `abi:"bucketName"`
 }
 
-// Validate QueryIsPriceChangedArgs the args
-func (args *QueryIsPriceChangedArgs) Validate() error {
-	return nil
-}
-
+// QueryQuotaUpdateTimeArgs is the decode target for the queryQuotaUpdateTime calldata.
 type QueryQuotaUpdateTimeArgs struct {
 	BucketName string `abi:"bucketName"`
 }
 
-// Validate QueryQuotaUpdateTimeArgs the args
-func (args *QueryQuotaUpdateTimeArgs) Validate() error {
-	return nil
-}
-
+// QueryGroupMembersExistArgs is the decode target for the queryGroupMembersExist calldata.
 type QueryGroupMembersExistArgs struct {
-	GroupId string   `abi:"groupId"`
+	GroupID string   `abi:"groupId"`
 	Members []string `abi:"members"`
 }
 
-// Validate QueryGroupMembersExistArgs the args
-func (args *QueryGroupMembersExistArgs) Validate() error {
-	return nil
-}
-
+// QueryGroupsExistArgs is the decode target for the queryGroupsExist calldata.
 type QueryGroupsExistArgs struct {
 	GroupOwner string   `abi:"groupOwner"`
 	GroupNames []string `abi:"groupNames"`
 }
 
-// Validate QueryGroupsExistArgs the args
-func (args *QueryGroupsExistArgs) Validate() error {
-	return nil
+// QueryGroupsExistByIDArgs is the decode target for the queryGroupsExistById calldata.
+type QueryGroupsExistByIDArgs struct {
+	GroupIDs []string `abi:"groupIds"`
 }
 
-type QueryGroupsExistByIdArgs struct {
-	GroupIds []string `abi:"groupIds"`
-}
-
-// Validate QueryGroupsExistByIdArgs the args
-func (args *QueryGroupsExistByIdArgs) Validate() error {
-	return nil
-}
-
+// QueryPaymentAccountBucketFlowRateLimitArgs is the decode target for the
+// queryPaymentAccountBucketFlowRateLimit calldata.
 type QueryPaymentAccountBucketFlowRateLimitArgs struct {
 	PaymentAccount string `abi:"paymentAccount"`
 	BucketOwner    string `abi:"bucketOwner"`
 	BucketName     string `abi:"bucketName"`
 }
 
-// Validate QueryPaymentAccountBucketFlowRateLimitArgs the args
-func (args *QueryPaymentAccountBucketFlowRateLimitArgs) Validate() error {
-	return nil
-}
-
+// QueryParamsByTimestampArgs is the decode target for the queryParamsByTimestamp calldata.
 type QueryParamsByTimestampArgs struct {
 	Timestamp int64 `abi:"timestamp"`
 }
 
-// Validate QueryParamsByTimestampArgs the args
-func (args *QueryParamsByTimestampArgs) Validate() error {
-	return nil
-}
-
+// VerifyPermissionArgs is the decode target for the verifyPermission calldata.
 type VerifyPermissionArgs struct {
 	BucketName string `abi:"bucketName"`
 	ObjectName string `abi:"objectName"`
 	ActionType int32  `abi:"actionType"`
-}
-
-// Validate VerifyPermissionArgs the args
-func (args *VerifyPermissionArgs) Validate() error {
-	return nil
 }

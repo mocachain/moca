@@ -7,63 +7,58 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/precompiles/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
 const (
-	StorageProviderMethodName                  = "storageProvider"
-	StorageProvidersMethodName                 = "storageProviders"
+	// StorageProviderMethodName is the ABI name for the StorageProvider query.
+	StorageProviderMethodName = "storageProvider"
+	// StorageProvidersMethodName is the ABI name for the StorageProviders query.
+	StorageProvidersMethodName = "storageProviders"
+	// StorageProviderByOperatorAddressMethodName is the ABI name for the StorageProviderByOperatorAddress query.
 	StorageProviderByOperatorAddressMethodName = "storageProviderByOperatorAddress"
-	StorageProviderPriceMethodName             = "storageProviderPrice"
+	// StorageProviderPriceMethodName is the ABI name for the StorageProviderPrice query.
+	StorageProviderPriceMethodName = "storageProviderPrice"
 )
 
-func (c *Contract) registerQuery() {
-	c.registerMethod(StorageProviderMethodName, 50_000, c.StorageProvider, "")
-	c.registerMethod(StorageProvidersMethodName, 80_000, c.StorageProviders, "")
-	c.registerMethod(StorageProviderByOperatorAddressMethodName, 80_000, c.StorageProviderByOperatorAddress, "")
-	c.registerMethod(StorageProviderPriceMethodName, 80_000, c.QuerySpStoragePrice, "")
-}
-
 // StorageProvider queries a storage provider with specify id.
-func (c *Contract) StorageProvider(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(StorageProviderMethodName)
-	// parse args
-	var args StorageProviderArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) StorageProvider(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input StorageProviderArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &sptypes.QueryStorageProviderRequest{
-		Id: args.Id,
-	}
-	res, err := c.spKeeper.StorageProvider(ctx, msg)
+
+	res, err := p.spQuerier.StorageProvider(ctx, &sptypes.QueryStorageProviderRequest{
+		Id: input.ID,
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(outputStorageProviderInfo(res.StorageProvider))
 }
 
 // StorageProviders queries a list of GetStorageProviders items.
-func (c *Contract) StorageProviders(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(StorageProvidersMethodName)
-	var args StorageProvidersArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) StorageProviders(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input StorageProvidersArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
+
+	if bytes.Equal(input.Pagination.Key, []byte{0}) {
+		input.Pagination.Key = nil
 	}
-	msg := &sptypes.QueryStorageProvidersRequest{
+	res, err := p.spQuerier.StorageProviders(ctx, &sptypes.QueryStorageProvidersRequest{
 		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
+			Key:        input.Pagination.Key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
 		},
-	}
-	res, err := c.spKeeper.StorageProviders(ctx, msg)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -81,35 +76,36 @@ func (c *Contract) StorageProviders(ctx sdk.Context, _ *vm.EVM, contract *vm.Con
 }
 
 // StorageProviderByOperatorAddress queries a StorageProvider by specify operator address.
-func (c *Contract) StorageProviderByOperatorAddress(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(StorageProviderByOperatorAddressMethodName)
-	var args StorageProviderByOperatorAddressArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) StorageProviderByOperatorAddress(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input StorageProviderByOperatorAddressArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &sptypes.QueryStorageProviderByOperatorAddressRequest{
-		OperatorAddress: args.OperatorAddress.String(),
-	}
-	res, err := c.spKeeper.StorageProviderByOperatorAddress(ctx, msg)
+
+	res, err := p.spQuerier.StorageProviderByOperatorAddress(ctx, &sptypes.QueryStorageProviderByOperatorAddressRequest{
+		OperatorAddress: input.OperatorAddress.String(),
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(outputStorageProviderInfo(res.StorageProvider))
 }
 
-func (c *Contract) QuerySpStoragePrice(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := GetAbiMethod(StorageProviderPriceMethodName)
-	var args StorageProviderPriceArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// QuerySpStoragePrice queries the latest storage price of a specific sp.
+func (p Precompile) QuerySpStoragePrice(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input StorageProviderPriceArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &sptypes.QuerySpStoragePriceRequest{
-		SpAddr: args.OperatorAddress.String(),
-	}
-	res, err := c.spKeeper.QuerySpStoragePrice(ctx, msg)
+
+	res, err := p.spQuerier.QuerySpStoragePrice(ctx, &sptypes.QuerySpStoragePriceRequest{
+		SpAddr: input.OperatorAddress.String(),
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(outputStoragePrice(&res.SpStoragePrice))
 }
 

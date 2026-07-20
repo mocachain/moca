@@ -10,32 +10,16 @@ import (
 	cometbfttypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/precompiles/types"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 const (
-	DelegationGas                    = 30_000
-	UnbondingDelegationGas           = 30_000
-	ValidatorGas                     = 30_000
-	ValidatorsGas                    = 60_000
-	ValidatorDelegationsGas          = 90_000
-	ValidatorUnbondingDelegationsGas = 90_000
-	DelegatorDelegationsGas          = 90_000
-	DelegatorUnbondingDelegationsGas = 90_000
-	RedelegationsGas                 = 90_000
-	DelegatorValidatorsGas           = 60_000
-	DelegatorValidatorGas            = 60_000
-	HistoricalInfoGas                = 60_000
-	PoolGas                          = 30_000
-	ParamsGas                        = 30_000
-
 	DelegationMethodName                    = "delegation"
 	UnbondingDelegationMethodName           = "unbondingDelegation"
 	ValidatorMethodName                     = "validator"
@@ -52,22 +36,18 @@ const (
 	ParamsMethodName                        = "params"
 )
 
-func (c *Contract) Delegation(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DelegationMethodName)
-
-	// parse args
-	var args DelegationArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Delegation queries the delegation info for a given delegator/validator pair.
+func (p Precompile) Delegation(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DelegationArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &stakingtypes.QueryDelegationRequest{
-		DelegatorAddr: args.GetDelegator().String(),
-		ValidatorAddr: args.GetValidator().String(),
+		DelegatorAddr: input.GetDelegator().String(),
+		ValidatorAddr: input.GetValidator().String(),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.Delegation(ctx, msg)
+	res, err := p.stakingQuerier.Delegation(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -75,22 +55,18 @@ func (c *Contract) Delegation(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract,
 	return method.Outputs.Pack(OutputsDelegation(*res.DelegationResponse))
 }
 
-func (c *Contract) UnbondingDelegation(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(UnbondingDelegationMethodName)
-
-	// parse args
-	var args UnbondingDelegationArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// UnbondingDelegation queries the unbonding delegation for a delegator/validator pair.
+func (p Precompile) UnbondingDelegation(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input UnbondingDelegationArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &stakingtypes.QueryUnbondingDelegationRequest{
-		DelegatorAddr: args.GetDelegator().String(),
-		ValidatorAddr: args.GetValidator().String(),
+		DelegatorAddr: input.GetDelegator().String(),
+		ValidatorAddr: input.GetValidator().String(),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.UnbondingDelegation(ctx, msg)
+	res, err := p.stakingQuerier.UnbondingDelegation(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -98,32 +74,19 @@ func (c *Contract) UnbondingDelegation(ctx sdk.Context, _ *vm.EVM, contract *vm.
 	return method.Outputs.Pack(OutputsUnbondingDelegation(res.Unbond))
 }
 
-func (c *Contract) Validators(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ValidatorsMethodName)
-
-	// parse args
-	var args ValidatorsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Validators queries all validators matching the given status.
+func (p Precompile) Validators(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ValidatorsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
-	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
 	}
 
 	msg := &stakingtypes.QueryValidatorsRequest{
-		Status: args.GetStatus(),
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
+		Status:     input.GetStatus(),
+		Pagination: pageRequest(input.Pagination),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.Validators(ctx, msg)
+	res, err := p.stakingQuerier.Validators(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -133,28 +96,20 @@ func (c *Contract) Validators(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract,
 		validators = append(validators, OutputsValidator(validator))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(validators, pageResponse)
+	return method.Outputs.Pack(validators, pageResponse(res.Pagination))
 }
 
-func (c *Contract) Validator(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ValidatorMethodName)
-
-	// parse args
-	var args ValidatorArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// Validator queries a single validator by address.
+func (p Precompile) Validator(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ValidatorArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 	msg := &stakingtypes.QueryValidatorRequest{
-		ValidatorAddr: args.GetValidator().String(),
+		ValidatorAddr: input.GetValidator().String(),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.Validator(ctx, msg)
+	res, err := p.stakingQuerier.Validator(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -163,31 +118,17 @@ func (c *Contract) Validator(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, 
 }
 
 // ValidatorDelegations queries delegate info for given validator.
-func (c *Contract) ValidatorDelegations(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ValidatorDelegationsMethodName)
-
-	// parse args
-	var args ValidatorDelegationsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) ValidatorDelegations(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ValidatorDelegationsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
 	msg := &stakingtypes.QueryValidatorDelegationsRequest{
-		ValidatorAddr: args.GetValidator().String(),
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
+		ValidatorAddr: input.GetValidator().String(),
+		Pagination:    pageRequest(input.Pagination),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.ValidatorDelegations(ctx, msg)
+	res, err := p.stakingQuerier.ValidatorDelegations(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -197,39 +138,21 @@ func (c *Contract) ValidatorDelegations(ctx sdk.Context, _ *vm.EVM, contract *vm
 		delegations = append(delegations, OutputsDelegation(delegation))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(delegations, pageResponse)
+	return method.Outputs.Pack(delegations, pageResponse(res.Pagination))
 }
 
 // ValidatorUnbondingDelegations queries unbonding delegations of a validator.
-func (c *Contract) ValidatorUnbondingDelegations(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ValidatorUnbondingDelegationsMethodName)
-
-	// parse args
-	var args ValidatorDelegationsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) ValidatorUnbondingDelegations(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ValidatorDelegationsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
 	msg := &stakingtypes.QueryValidatorUnbondingDelegationsRequest{
-		ValidatorAddr: args.GetValidator().String(),
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
+		ValidatorAddr: input.GetValidator().String(),
+		Pagination:    pageRequest(input.Pagination),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.ValidatorUnbondingDelegations(ctx, msg)
+	res, err := p.stakingQuerier.ValidatorUnbondingDelegations(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -239,39 +162,21 @@ func (c *Contract) ValidatorUnbondingDelegations(ctx sdk.Context, _ *vm.EVM, con
 		unbondingDelegations = append(unbondingDelegations, OutputsUnbondingDelegation(unbondingDelegation))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(unbondingDelegations, pageResponse)
+	return method.Outputs.Pack(unbondingDelegations, pageResponse(res.Pagination))
 }
 
 // DelegatorDelegations queries all delegations of a given delegator address.
-func (c *Contract) DelegatorDelegations(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DelegatorDelegationsMethodName)
-
-	// parse args
-	var args DelegatorDelegationsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) DelegatorDelegations(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DelegatorDelegationsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
 	msg := &stakingtypes.QueryDelegatorDelegationsRequest{
-		DelegatorAddr: args.GetDelegator().String(),
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
+		DelegatorAddr: input.GetDelegator().String(),
+		Pagination:    pageRequest(input.Pagination),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.DelegatorDelegations(ctx, msg)
+	res, err := p.stakingQuerier.DelegatorDelegations(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -281,40 +186,22 @@ func (c *Contract) DelegatorDelegations(ctx sdk.Context, _ *vm.EVM, contract *vm
 		delegations = append(delegations, OutputsDelegation(delegation))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(delegations, pageResponse)
+	return method.Outputs.Pack(delegations, pageResponse(res.Pagination))
 }
 
 // DelegatorUnbondingDelegations queries all unbonding delegations of a given
 // delegator address.
-func (c *Contract) DelegatorUnbondingDelegations(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DelegatorUnbondingDelegationsMethodName)
-
-	// parse args
-	var args DelegatorDelegationsArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) DelegatorUnbondingDelegations(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DelegatorDelegationsArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
 	msg := &stakingtypes.QueryDelegatorUnbondingDelegationsRequest{
-		DelegatorAddr: args.GetDelegator().String(),
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
+		DelegatorAddr: input.GetDelegator().String(),
+		Pagination:    pageRequest(input.Pagination),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.DelegatorUnbondingDelegations(ctx, msg)
+	res, err := p.stakingQuerier.DelegatorUnbondingDelegations(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -324,55 +211,37 @@ func (c *Contract) DelegatorUnbondingDelegations(ctx sdk.Context, _ *vm.EVM, con
 		unbondingDelegations = append(unbondingDelegations, OutputsUnbondingDelegation(unbondingDelegation))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(unbondingDelegations, pageResponse)
+	return method.Outputs.Pack(unbondingDelegations, pageResponse(res.Pagination))
 }
 
 // Redelegations queries redelegations of given address.
-func (c *Contract) Redelegations(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(RedelegationsMethodName)
-
-	// parse args
-	var args Redelegations
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+func (p Precompile) Redelegations(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input Redelegations
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
 	msg := &stakingtypes.QueryRedelegationsRequest{
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
+		Pagination: pageRequest(input.Pagination),
 	}
 
-	if args.DelegatorAddr == (common.Address{}) {
+	if input.DelegatorAddr == (common.Address{}) {
 		msg.DelegatorAddr = ""
 	} else {
-		msg.DelegatorAddr = args.GetDelegator().String()
+		msg.DelegatorAddr = input.GetDelegator().String()
 	}
-	if args.SrcValidatorAddr == (common.Address{}) {
+	if input.SrcValidatorAddr == (common.Address{}) {
 		msg.SrcValidatorAddr = ""
 	} else {
-		msg.SrcValidatorAddr = args.GetSrcValidator().String()
+		msg.SrcValidatorAddr = input.GetSrcValidator().String()
 	}
 
-	if args.DstValidatorAddr == (common.Address{}) {
+	if input.DstValidatorAddr == (common.Address{}) {
 		msg.DstValidatorAddr = ""
 	} else {
-		msg.DstValidatorAddr = args.GetDstValidator().String()
+		msg.DstValidatorAddr = input.GetDstValidator().String()
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.Redelegations(ctx, msg)
+	res, err := p.stakingQuerier.Redelegations(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -382,41 +251,21 @@ func (c *Contract) Redelegations(ctx sdk.Context, _ *vm.EVM, contract *vm.Contra
 		redelegationResponses = append(redelegationResponses, OutputsRedelegation(redelegationResponse))
 	}
 
-	var pageResponse PageResponse
-	if res.Pagination != nil {
-		pageResponse.NextKey = res.Pagination.NextKey
-		pageResponse.Total = res.Pagination.Total
-	}
-
-	return method.Outputs.Pack(redelegationResponses, pageResponse)
+	return method.Outputs.Pack(redelegationResponses, pageResponse(res.Pagination))
 }
 
-// DelegatorValidators queries all validators info for given delegator address
-func (c *Contract) DelegatorValidators(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DelegatorValidatorsMethodName)
-
-	// parse args
-	var args DelegatorValidators
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DelegatorValidators queries all validators info for given delegator address.
+func (p Precompile) DelegatorValidators(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DelegatorValidators
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(args.Pagination.Key, []byte{0}) {
-		args.Pagination.Key = nil
-	}
 	msg := &stakingtypes.QueryDelegatorValidatorsRequest{
-		DelegatorAddr: args.GetDelegator().String(),
-		Pagination: &query.PageRequest{
-			Key:        args.Pagination.Key,
-			Offset:     args.Pagination.Offset,
-			Limit:      args.Pagination.Limit,
-			CountTotal: args.Pagination.CountTotal,
-			Reverse:    args.Pagination.Reverse,
-		},
+		DelegatorAddr: input.GetDelegator().String(),
+		Pagination:    pageRequest(input.Pagination),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.DelegatorValidators(ctx, msg)
+	res, err := p.stakingQuerier.DelegatorValidators(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -426,31 +275,22 @@ func (c *Contract) DelegatorValidators(ctx sdk.Context, _ *vm.EVM, contract *vm.
 		validators = append(validators, OutputsValidator(validator))
 	}
 
-	var pageResponse PageResponse
-	pageResponse.NextKey = res.Pagination.NextKey
-	pageResponse.Total = res.Pagination.Total
-
-	return method.Outputs.Pack(validators, pageResponse)
+	return method.Outputs.Pack(validators, pageResponse(res.Pagination))
 }
 
-// DelegatorValidator queries validator info for given delegator validator pair
-func (c *Contract) DelegatorValidator(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(DelegatorValidatorMethodName)
-
-	// parse args
-	var args DelegatorValidator
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DelegatorValidator queries validator info for given delegator validator pair.
+func (p Precompile) DelegatorValidator(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DelegatorValidator
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &stakingtypes.QueryDelegatorValidatorRequest{
-		DelegatorAddr: args.GetDelegator().String(),
-		ValidatorAddr: args.GetValidator().String(),
+		DelegatorAddr: input.GetDelegator().String(),
+		ValidatorAddr: input.GetValidator().String(),
 	}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.DelegatorValidator(ctx, msg)
+	res, err := p.stakingQuerier.DelegatorValidator(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -460,21 +300,16 @@ func (c *Contract) DelegatorValidator(ctx sdk.Context, _ *vm.EVM, contract *vm.C
 	return method.Outputs.Pack(validator)
 }
 
-// HistoricalInfo queries the historical info for given height
-func (c *Contract) HistoricalInfo(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(HistoricalInfoMethodName)
-
-	// parse args
-	var args HistoricalInfoRequest
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// HistoricalInfo queries the historical info for given height.
+func (p Precompile) HistoricalInfo(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input HistoricalInfoRequest
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
-	msg := &stakingtypes.QueryHistoricalInfoRequest{Height: args.GetHeight()}
+	msg := &stakingtypes.QueryHistoricalInfoRequest{Height: input.GetHeight()}
 
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.HistoricalInfo(ctx, msg)
+	res, err := p.stakingQuerier.HistoricalInfo(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -492,15 +327,9 @@ func (c *Contract) HistoricalInfo(ctx sdk.Context, _ *vm.EVM, contract *vm.Contr
 	return method.Outputs.Pack(historicalInfo)
 }
 
-// Pool queries the pool info
-func (c *Contract) Pool(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(PoolMethodName)
-
-	msg := &stakingtypes.QueryPoolRequest{}
-
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.Pool(ctx, msg)
+// Pool queries the pool info.
+func (p Precompile) Pool(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	res, err := p.stakingQuerier.Pool(ctx, &stakingtypes.QueryPoolRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -513,15 +342,9 @@ func (c *Contract) Pool(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ boo
 	return method.Outputs.Pack(pool)
 }
 
-// Params queries the staking parameters
-func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ bool) ([]byte, error) {
-	method := MustMethod(ParamsMethodName)
-
-	msg := &stakingtypes.QueryParamsRequest{}
-
-	querier := stakingkeeper.Querier{Keeper: c.stakingKeeper}
-
-	res, err := querier.Params(ctx, msg)
+// Params queries the staking parameters.
+func (p Precompile) Params(ctx sdk.Context, method *abi.Method, _ []interface{}) ([]byte, error) {
+	res, err := p.stakingQuerier.Params(ctx, &stakingtypes.QueryParamsRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -536,6 +359,30 @@ func (c *Contract) Params(ctx sdk.Context, _ *vm.EVM, contract *vm.Contract, _ b
 	}
 
 	return method.Outputs.Pack(params)
+}
+
+// pageRequest builds a query.PageRequest from the ABI pagination tuple, treating a
+// single zero byte key as empty.
+func pageRequest(page PageRequest) *query.PageRequest {
+	key := page.Key
+	if bytes.Equal(key, []byte{0}) {
+		key = nil
+	}
+	return &query.PageRequest{
+		Key:        key,
+		Offset:     page.Offset,
+		Limit:      page.Limit,
+		CountTotal: page.CountTotal,
+		Reverse:    page.Reverse,
+	}
+}
+
+// pageResponse maps a query.PageResponse into the ABI tuple, tolerating a nil response.
+func pageResponse(res *query.PageResponse) PageResponse {
+	if res == nil {
+		return PageResponse{}
+	}
+	return PageResponse{NextKey: res.NextKey, Total: res.Total}
 }
 
 func OutputsValidator(validator stakingtypes.Validator) Validator {
@@ -667,7 +514,7 @@ func OutputsHeader(header cometbfttypes.Header) Header {
 	}
 }
 
-// FormatConsensusPubkey format ConsensusPubkey into a base64 string
+// FormatConsensusPubkey format ConsensusPubkey into a base64 string.
 func FormatConsensusPubkey(consensusPubkey *codectypes.Any) string {
 	ed25519pk, ok := consensusPubkey.GetCachedValue().(cryptotypes.PubKey)
 	if ok {

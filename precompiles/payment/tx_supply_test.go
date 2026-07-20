@@ -19,10 +19,11 @@ import (
 	"github.com/holiman/uint256"
 
 	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/precompiles/payment"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
-	"github.com/mocachain/moca/v2/precompiles/payment"
+	paymentkeeper "github.com/mocachain/moca/v2/x/payment/keeper"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 
@@ -131,7 +132,7 @@ func (s *SupplyTestSuite) TestDeposit_ContractCallerSupplyInvariant() {
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
-	c := payment.NewPrecompiledContract(s.app.PaymentKeeper, s.app.BankKeeper)
+	c := payment.NewPrecompile(paymentkeeper.NewMsgServerImpl(s.app.PaymentKeeper), s.app.PaymentKeeper, s.app.BankKeeper)
 	_, err := c.Run(evm, contract, false)
 	s.Require().NoError(err)
 	s.Require().NoError(stateDB.Commit())
@@ -150,7 +151,7 @@ func (s *SupplyTestSuite) mustEnableStaticPrecompiles() {
 }
 
 func (s *SupplyTestSuite) mustPackDepositInput(to string, amount *big.Int) []byte {
-	method := payment.GetAbiMethod(payment.DepositMethodName)
+	method := payment.MustMethod(payment.DepositMethodName)
 	packedArgs, err := method.Inputs.Pack(to, amount)
 	s.Require().NoError(err)
 	return append(append([]byte{}, method.ID...), packedArgs...)

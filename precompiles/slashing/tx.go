@@ -1,48 +1,29 @@
 package slashing
 
 import (
-	"github.com/mocachain/moca/v2/precompiles/types"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
 const (
-	UnjailGas = 60_000
-
-	UnjailMethodName = "unjail"
-
-	UnjailEventName = "Unjail"
+	// UnjailMethod is the ABI name for the Unjail transaction.
+	UnjailMethod = "unjail"
 )
 
-func (c *Contract) Unjail(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, types.ErrReadOnly
-	}
-
-	method := MustMethod(UnjailMethodName)
-
+// Unjail releases the caller's validator from jail. The validator is the caller,
+// so there are no arguments.
+func (p Precompile) Unjail(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, _ []interface{}) ([]byte, error) {
 	msg := &slashingtypes.MsgUnjail{
-		ValidatorAddr: sdk.ValAddress(caller.Bytes()).String(),
+		ValidatorAddr: sdk.ValAddress(contract.Caller().Bytes()).String(),
 	}
 
-	server := slashingkeeper.NewMsgServerImpl(c.slashingkeeper)
-
-	_, err := server.Unjail(ctx, msg)
-	if err != nil {
+	if _, err := p.slashingMsgServer.Unjail(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add undelegate log
-	if err := c.AddLog(
-		evm,
-		MustEvent(UnjailEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitUnjailEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 

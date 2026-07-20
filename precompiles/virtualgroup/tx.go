@@ -1,81 +1,54 @@
 package virtualgroup
 
 import (
-	"errors"
 	"math/big"
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
-	virtualgroupkeeper "github.com/mocachain/moca/v2/x/virtualgroup/keeper"
-	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 
-	"github.com/mocachain/moca/v2/precompiles/types"
 	mocacommon "github.com/mocachain/moca/v2/types/common"
+	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 const (
-	CreateGlobalVirtualGroupGas = 60_000
-	DeleteGlobalVirtualGroupGas = 60_000
-	SPExitGas                   = 60_000
-	CompleteSPExitGas           = 60_000
-	DepositGas                  = 60_000
-	SwapOutBaseGas              = 60_000
-	SwapOutPerGvgIdGas          = 20_000
-	MaxSwapOutGvgIds            = 50
-	CompleteSwapOutBaseGas      = 60_000
-	CompleteSwapOutPerGvgIdGas  = 10_000
-	MaxCompleteSwapOutGvgIds    = 100
-	ReserveSwapInGas            = 60_000
-	CompleteSwapInGas           = 60_000
-	CancelSwapInGas             = 60_000
-
+	// CreateGlobalVirtualGroupMethodName is the ABI name for the createGlobalVirtualGroup transaction.
 	CreateGlobalVirtualGroupMethodName = "createGlobalVirtualGroup"
+	// DeleteGlobalVirtualGroupMethodName is the ABI name for the deleteGlobalVirtualGroup transaction.
 	DeleteGlobalVirtualGroupMethodName = "deleteGlobalVirtualGroup"
-	SwapOutMethodName                  = "swapOut"
-	CompleteSwapOutMethodName          = "completeSwapOut"
-	SPExitMethodName                   = "spExit"
-	CompleteSPExitMethodName           = "completeSPExit"
-	DepositMethodName                  = "deposit"
-	ReserveSwapInMethodName            = "reserveSwapIn"
-	CompleteSwapInMethodName           = "completeSwapIn"
-	CancelSwapInMethodName             = "cancelSwapIn"
-
-	CreateGlobalVirtualGroupEventName = "CreateGlobalVirtualGroup"
-	DeleteGlobalVirtualGroupEventName = "DeleteGlobalVirtualGroup"
-	SwapOutEventName                  = "SwapOut"
-	CompleteSwapOutEventName          = "CompleteSwapOut"
-	SPExitEventName                   = "SPExit"
-	CompleteSPExitEventName           = "CompleteSPExit"
-	DepositEventName                  = "Deposit"
-	ReserveSwapInEventName            = "ReserveSwapIn"
-	CompleteSwapInEventName           = "CompleteSwapIn"
-	CancelSwapInEventName             = "CancelSwapIn"
+	// SwapOutMethodName is the ABI name for the swapOut transaction.
+	SwapOutMethodName = "swapOut"
+	// CompleteSwapOutMethodName is the ABI name for the completeSwapOut transaction.
+	CompleteSwapOutMethodName = "completeSwapOut"
+	// SPExitMethodName is the ABI name for the spExit transaction.
+	SPExitMethodName = "spExit"
+	// CompleteSPExitMethodName is the ABI name for the completeSPExit transaction.
+	CompleteSPExitMethodName = "completeSPExit"
+	// DepositMethodName is the ABI name for the deposit transaction.
+	DepositMethodName = "deposit"
+	// ReserveSwapInMethodName is the ABI name for the reserveSwapIn transaction.
+	ReserveSwapInMethodName = "reserveSwapIn"
+	// CompleteSwapInMethodName is the ABI name for the completeSwapIn transaction.
+	CompleteSwapInMethodName = "completeSwapIn"
+	// CancelSwapInMethodName is the ABI name for the cancelSwapIn transaction.
+	CancelSwapInMethodName = "cancelSwapIn"
 )
 
 // CreateGlobalVirtualGroup defines a method for sp create a global virtual group.
-func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("send method readonly")
-	}
-
-	method := MustMethod(CreateGlobalVirtualGroupMethodName)
-
-	var args CreateGlobalVirtualGroupArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+func (p Precompile) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CreateGlobalVirtualGroupArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgCreateGlobalVirtualGroup{
-		StorageProvider: caller.String(),
-		FamilyId:        args.FamilyID,
-		SecondarySpIds:  args.SecondarySpIDs,
+		StorageProvider: contract.Caller().String(),
+		FamilyId:        input.FamilyID,
+		SecondarySpIds:  input.SecondarySpIDs,
 		Deposit: sdk.Coin{
-			Denom:  args.Deposit.Denom,
-			Amount: math.NewIntFromBigInt(args.Deposit.Amount),
+			Denom:  input.Deposit.Denom,
+			Amount: math.NewIntFromBigInt(input.Deposit.Amount),
 		},
 	}
 
@@ -83,19 +56,11 @@ func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.CreateGlobalVirtualGroup(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.CreateGlobalVirtualGroup(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(CreateGlobalVirtualGroupEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-		big.NewInt(int64(args.FamilyID)),
-	); err != nil {
+	if err := p.EmitCreateGlobalVirtualGroupEvent(evm, contract.Caller(), big.NewInt(int64(input.FamilyID))); err != nil {
 		return nil, err
 	}
 
@@ -103,41 +68,26 @@ func (c *Contract) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 }
 
 // DeleteGlobalVirtualGroup defines a method for sp delete a global virtual group.
-func (c *Contract) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("delete global virtual group method readonly")
-	}
-
-	method := MustMethod(DeleteGlobalVirtualGroupMethodName)
-
-	var args DeleteGlobalVirtualGroupArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+func (p Precompile) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DeleteGlobalVirtualGroupArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgDeleteGlobalVirtualGroup{
-		StorageProvider:      caller.String(),
-		GlobalVirtualGroupId: args.GlobalVirtualGroupId,
+		StorageProvider:      contract.Caller().String(),
+		GlobalVirtualGroupId: input.GlobalVirtualGroupID,
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.DeleteGlobalVirtualGroup(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.DeleteGlobalVirtualGroup(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(DeleteGlobalVirtualGroupEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitDeleteGlobalVirtualGroupEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 
@@ -145,29 +95,21 @@ func (c *Contract) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contra
 }
 
 // SwapOut defines a method for sp to remove itself from all Virtual Groups.
-func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("swapout method readonly")
-	}
-
-	method := MustMethod(SwapOutMethodName)
-
-	var args SwapOutArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+func (p Precompile) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SwapOutArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgSwapOut{
-		StorageProvider:            caller.String(),
-		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
-		GlobalVirtualGroupIds:      args.GvgIds,
-		SuccessorSpId:              args.SuccessorSpId,
+		StorageProvider:            contract.Caller().String(),
+		GlobalVirtualGroupFamilyId: input.GvgFamilyID,
+		GlobalVirtualGroupIds:      input.GvgIDs,
+		SuccessorSpId:              input.SuccessorSpID,
 		SuccessorSpApproval: &mocacommon.Approval{
-			ExpiredHeight:              args.SuccessorSpApproval.ExpiredHeight,
-			GlobalVirtualGroupFamilyId: args.SuccessorSpApproval.GlobalVirtualGroupFamilyId,
-			Sig:                        args.SuccessorSpApproval.Sig,
+			ExpiredHeight:              input.SuccessorSpApproval.ExpiredHeight,
+			GlobalVirtualGroupFamilyId: input.SuccessorSpApproval.GlobalVirtualGroupFamilyId,
+			Sig:                        input.SuccessorSpApproval.Sig,
 		},
 	}
 
@@ -175,19 +117,11 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.SwapOut(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.SwapOut(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(SwapOutEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-		big.NewInt(int64(args.GvgFamilyId)),
-	); err != nil {
+	if err := p.EmitSwapOutEvent(evm, contract.Caller(), big.NewInt(int64(input.GvgFamilyID))); err != nil {
 		return nil, err
 	}
 
@@ -195,43 +129,27 @@ func (c *Contract) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 }
 
 // CompleteSwapOut defines a method for sp somplete to remove itself from all Virtual Groups.
-func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("complete swapout method readonly")
-	}
-
-	method := MustMethod(CompleteSwapOutMethodName)
-
-	var args CompleteSwapOutArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+func (p Precompile) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CompleteSwapOutArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgCompleteSwapOut{
-		StorageProvider:            caller.String(),
-		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
-		GlobalVirtualGroupIds:      args.GvgIds,
+		StorageProvider:            contract.Caller().String(),
+		GlobalVirtualGroupFamilyId: input.GvgFamilyID,
+		GlobalVirtualGroupIds:      input.GvgIDs,
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.CompleteSwapOut(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.CompleteSwapOut(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(CompleteSwapOutEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-		big.NewInt(int64(args.GvgFamilyId)),
-	); err != nil {
+	if err := p.EmitCompleteSwapOutEvent(evm, contract.Caller(), big.NewInt(int64(input.GvgFamilyID))); err != nil {
 		return nil, err
 	}
 
@@ -239,40 +157,25 @@ func (c *Contract) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 }
 
 // SPExit defines a method for sp to exit.
-func (c *Contract) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("sp exit method readonly")
-	}
-
-	method := MustMethod(SPExitMethodName)
-
-	var args SPExitArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+func (p Precompile) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SPExitArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgStorageProviderExit{
-		StorageProvider: caller.String(),
+		StorageProvider: contract.Caller().String(),
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.StorageProviderExit(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.StorageProviderExit(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(SPExitEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitSPExitEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 
@@ -280,45 +183,27 @@ func (c *Contract) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 }
 
 // CompleteSPExit defines a method for sp complete to exit.
-func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("complete sp exit method readonly")
-	}
-
-	method := MustMethod(CompleteSPExitMethodName)
-
-	var args CompleteSPExitArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+func (p Precompile) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CompleteSPExitArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgCompleteStorageProviderExit{
-		StorageProvider: caller.String(),
-		// Operator is the signer per GetSigners(), so it must be the caller too.
-		Operator: caller.String(),
+		StorageProvider: contract.Caller().String(),
+		// Operator is the signer per GetSigners(), so it must be the caller too (#365).
+		Operator: contract.Caller().String(),
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.CompleteStorageProviderExit(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.CompleteStorageProviderExit(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(CompleteSPExitEventName),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			common.BytesToHash(caller.Bytes()),
-		},
-	); err != nil {
+	if err := p.EmitCompleteSPExitEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 
@@ -326,26 +211,18 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 }
 
 // Deposit defines a method to deposit more tokens for the objects stored on it.
-func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("deposit method readonly")
-	}
-
-	method := MustMethod(DepositMethodName)
-
-	var args DepositArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DepositArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgDeposit{
-		StorageProvider:      caller.String(),
-		GlobalVirtualGroupId: args.GlobalVirtualGroupId,
+		StorageProvider:      contract.Caller().String(),
+		GlobalVirtualGroupId: input.GlobalVirtualGroupID,
 		Deposit: sdk.Coin{
-			Denom:  args.Deposit.Denom,
-			Amount: math.NewIntFromBigInt(args.Deposit.Amount),
+			Denom:  input.Deposit.Denom,
+			Amount: math.NewIntFromBigInt(input.Deposit.Amount),
 		},
 	}
 
@@ -353,148 +230,96 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.Deposit(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.Deposit(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(DepositEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitDepositEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-// ReserveSwapIn defines a method to deposit more tokens for the objects stored on it.
-func (c *Contract) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("reserve swapin method readonly")
-	}
-
-	method := MustMethod(ReserveSwapInMethodName)
-
-	var args ReserveSwapInArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// ReserveSwapIn defines a method for sp to reserve a swap in.
+func (p Precompile) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ReserveSwapInArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgReserveSwapIn{
-		StorageProvider:            caller.String(),
-		TargetSpId:                 args.TargetSpId,
-		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
-		GlobalVirtualGroupId:       args.GlobalVirtualGroupId,
+		StorageProvider:            contract.Caller().String(),
+		TargetSpId:                 input.TargetSpID,
+		GlobalVirtualGroupFamilyId: input.GvgFamilyID,
+		GlobalVirtualGroupId:       input.GlobalVirtualGroupID,
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.ReserveSwapIn(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.ReserveSwapIn(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(ReserveSwapInEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitReserveSwapInEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-// ReserveSwapIn defines a method to deposit more tokens for the objects stored on it.
-func (c *Contract) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("complete swapin method readonly")
-	}
-
-	method := MustMethod(CompleteSwapInMethodName)
-
-	var args CompleteSwapInArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// CompleteSwapIn defines a method for sp to complete a swap in.
+func (p Precompile) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CompleteSwapInArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgCompleteSwapIn{
-		StorageProvider:            caller.String(),
-		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
-		GlobalVirtualGroupId:       args.GlobalVirtualGroupId,
+		StorageProvider:            contract.Caller().String(),
+		GlobalVirtualGroupFamilyId: input.GvgFamilyID,
+		GlobalVirtualGroupId:       input.GlobalVirtualGroupID,
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.CompleteSwapIn(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.CompleteSwapIn(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(CompleteSwapInEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitCompleteSwapInEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-// CancelSwapIn defines a method to deposit more tokens for the objects stored on it.
-func (c *Contract) CancelSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("cancel swapin method readonly")
-	}
-
-	method := MustMethod(CancelSwapInMethodName)
-
-	var args CancelSwapInArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// CancelSwapIn defines a method for sp to cancel a swap in.
+func (p Precompile) CancelSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CancelSwapInArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &virtualgrouptypes.MsgCancelSwapIn{
-		StorageProvider:            caller.String(),
-		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
-		GlobalVirtualGroupId:       args.GlobalVirtualGroupId,
+		StorageProvider:            contract.Caller().String(),
+		GlobalVirtualGroupFamilyId: input.GvgFamilyID,
+		GlobalVirtualGroupId:       input.GlobalVirtualGroupID,
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := virtualgroupkeeper.NewMsgServerImpl(c.virtualGroupKeeper)
-	_, err = server.CancelSwapIn(ctx, msg)
-	if err != nil {
+	if _, err := p.virtualGroupMsgServer.CancelSwapIn(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		MustEvent(CancelSwapInEventName),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitCancelSwapInEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 

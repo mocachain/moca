@@ -2,11 +2,18 @@ package distribution
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/query"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+
+	cmn "github.com/cosmos/evm/precompiles/common"
+
 	"github.com/mocachain/moca/v2/types"
 )
 
@@ -15,50 +22,21 @@ var (
 	distributionABI     = types.MustABIJson(IDistributionMetaData.ABI)
 )
 
-type (
-	PageRequestJson = PageRequest
-)
-
+// GetAddress returns the distribution precompile's fixed hex address.
 func GetAddress() common.Address {
 	return distributionAddress
 }
 
-func GetMethod(name string) (abi.Method, error) {
-	method := distributionABI.Methods[name]
-	if method.ID == nil {
-		return abi.Method{}, fmt.Errorf("method %s is not exist", name)
-	}
-	return method, nil
-}
-
-func GetMethodByID(input []byte) (abi.Method, error) {
-	if len(input) < 4 {
-		return abi.Method{}, fmt.Errorf("input length %d is too short", len(input))
-	}
-	for _, method := range distributionABI.Methods {
-		if bytes.Equal(input[:4], method.ID) {
-			return method, nil
-		}
-	}
-	return abi.Method{}, fmt.Errorf("method id %s is not exist", string(input[:4]))
-}
-
-func MustMethod(name string) abi.Method {
-	method, err := GetMethod(name)
-	if err != nil {
-		panic(err)
-	}
-	return method
-}
-
+// GetEvent resolves an ABI event by name.
 func GetEvent(name string) (abi.Event, error) {
 	event := distributionABI.Events[name]
 	if event.ID == (common.Hash{}) {
-		return abi.Event{}, fmt.Errorf("event %s is not exist", name)
+		return abi.Event{}, fmt.Errorf("event %s does not exist", name)
 	}
 	return event, nil
 }
 
+// MustEvent resolves an ABI event by name and panics if it does not exist.
 func MustEvent(name string) abi.Event {
 	event, err := GetEvent(name)
 	if err != nil {
@@ -67,120 +45,139 @@ func MustEvent(name string) abi.Event {
 	return event
 }
 
-type SetWithdrawAddressArgs struct {
-	WithdrawAddress common.Address `abi:"withdrawAddress"`
+// ValidatorSlashesInput is the decode target for the validatorSlashes query args.
+// The field names match the ABI argument names (camelCased) so abi.Arguments.Copy
+// can populate them, including the nested pagination tuple.
+type ValidatorSlashesInput struct {
+	ValidatorAddress common.Address
+	StartingHeight   uint64
+	EndingHeight     uint64
+	Pagination       PageRequest
 }
 
-// Validate validates the args
-func (args *SetWithdrawAddressArgs) Validate() error {
-	if args.WithdrawAddress == (common.Address{}) {
-		return fmt.Errorf("invalid withdraw address: %s", args.WithdrawAddress)
+// hexAddressArg asserts a single hex-address argument (validator or delegator).
+func hexAddressArg(args []interface{}, name string) (common.Address, error) {
+	if len(args) != 1 {
+		return common.Address{}, fmt.Errorf(cmn.ErrInvalidNumberOfArgs, 1, len(args))
 	}
-	return nil
-}
-
-type DelegationRewardsArgs struct {
-	DelegatorAddress common.Address `abi:"delegatorAddress"`
-	ValidatorAddress common.Address `abi:"validatorAddress"`
-}
-
-// Validate DelegationRewardsArgs the args
-func (args *DelegationRewardsArgs) Validate() error {
-	if args.DelegatorAddress == (common.Address{}) {
-		return fmt.Errorf("invalid delegator address: %s", args.DelegatorAddress)
+	addr, ok := args[0].(common.Address)
+	if !ok || addr == (common.Address{}) {
+		return common.Address{}, fmt.Errorf("invalid %s: %v", name, args[0])
 	}
-	if args.ValidatorAddress == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddress)
+	return addr, nil
+}
+
+// NewMsgSetWithdrawAddress builds a MsgSetWithdrawAddress. The delegator is the
+// caller; the withdraw address is the sole hex argument.
+func NewMsgSetWithdrawAddress(args []interface{}, caller common.Address) (*distributiontypes.MsgSetWithdrawAddress, common.Address, error) {
+	withdrawAddr, err := hexAddressArg(args, "withdraw address")
+	if err != nil {
+		return nil, common.Address{}, err
 	}
-	return nil
-}
-
-// GetValidator returns the validator address, caller must ensure the validator address is valid
-func (args *DelegationRewardsArgs) GetValidator() sdk.ValAddress {
-	valAddr := sdk.ValAddress(args.ValidatorAddress.Bytes())
-	return valAddr
-}
-
-// GetDelegator returns the delegator address, caller must ensure the delegator address is valid
-func (args *DelegationRewardsArgs) GetDelegator() sdk.AccAddress {
-	accAddr := sdk.AccAddress(args.DelegatorAddress.Bytes())
-	return accAddr
-}
-
-type ValidatorAddressArgs struct {
-	ValidatorAddress common.Address `abi:"validatorAddress"`
-}
-
-// Validate WithdrawDelegatorRewardArgs the args
-func (args *ValidatorAddressArgs) Validate() error {
-	if args.ValidatorAddress == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddress)
+	msg := &distributiontypes.MsgSetWithdrawAddress{
+		DelegatorAddress: sdk.AccAddress(caller.Bytes()).String(),
+		WithdrawAddress:  sdk.AccAddress(withdrawAddr.Bytes()).String(),
 	}
-	return nil
+	return msg, withdrawAddr, nil
 }
 
-type DelegatorAddressArgs struct {
-	DelegatorAddress common.Address `abi:"delegatorAddress"`
-}
-
-// Validate WithdrawDelegatorRewardArgs the args
-func (args *DelegatorAddressArgs) Validate() error {
-	if args.DelegatorAddress == (common.Address{}) {
-		return fmt.Errorf("invalid delegator address: %s", args.DelegatorAddress)
+// NewMsgWithdrawDelegatorReward builds a MsgWithdrawDelegatorReward for the caller
+// against the validator hex argument.
+func NewMsgWithdrawDelegatorReward(args []interface{}, caller common.Address) (*distributiontypes.MsgWithdrawDelegatorReward, common.Address, error) {
+	validatorAddr, err := hexAddressArg(args, "validator address")
+	if err != nil {
+		return nil, common.Address{}, err
 	}
-	return nil
-}
-
-// GetDelegator returns the delegator address, caller must ensure the delegator address is valid
-func (args *DelegatorAddressArgs) GetDelegator() sdk.AccAddress {
-	valAddr := sdk.AccAddress(args.DelegatorAddress.Bytes())
-	return valAddr
-}
-
-type CoinJson = Coin
-
-type FundCommunityPoolArgs struct {
-	Amount []CoinJson `abi:"amount"`
-}
-
-// Validate FundCommunityPoolrArgs args
-func (args *FundCommunityPoolArgs) Validate() error {
-	if len(args.Amount) == 0 {
-		return fmt.Errorf("no coin send")
+	msg := &distributiontypes.MsgWithdrawDelegatorReward{
+		DelegatorAddress: sdk.AccAddress(caller.Bytes()).String(),
+		ValidatorAddress: validatorAddr.String(),
 	}
+	return msg, validatorAddr, nil
+}
 
-	for _, coin := range args.Amount {
+// NewMsgWithdrawValidatorCommission builds a MsgWithdrawValidatorCommission for the
+// caller acting as its own validator.
+func NewMsgWithdrawValidatorCommission(caller common.Address) *distributiontypes.MsgWithdrawValidatorCommission {
+	return &distributiontypes.MsgWithdrawValidatorCommission{
+		ValidatorAddress: sdk.ValAddress(caller.Bytes()).String(),
+	}
+}
+
+// NewMsgFundCommunityPool builds a MsgFundCommunityPool from the caller (depositor)
+// and the coins argument.
+func NewMsgFundCommunityPool(args []interface{}, caller common.Address) (*distributiontypes.MsgFundCommunityPool, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf(cmn.ErrInvalidNumberOfArgs, 1, len(args))
+	}
+	coins, err := cmn.ToCoins(args[0])
+	if err != nil {
+		return nil, fmt.Errorf(ErrInvalidAmount, err)
+	}
+	// Preserve the pre-conversion FundCommunityPoolArgs.Validate checks: the keeper and
+	// sdk.Coins.Validate accept an empty (and zero-amount) coin set, so reject them here.
+	if len(coins) == 0 {
+		return nil, errors.New("no coin send")
+	}
+	for _, coin := range coins {
 		if coin.Amount.Sign() <= 0 {
-			return fmt.Errorf("coin amount is %s  less than or equal 0", coin.Amount.String())
+			return nil, fmt.Errorf("coin amount is %s less than or equal 0", coin.Amount.String())
 		}
 	}
-
-	return nil
+	amount, err := cmn.NewSdkCoinsFromCoins(coins)
+	if err != nil {
+		return nil, fmt.Errorf(ErrInvalidAmount, err)
+	}
+	return &distributiontypes.MsgFundCommunityPool{
+		Depositor: sdk.AccAddress(caller.Bytes()).String(),
+		Amount:    amount,
+	}, nil
 }
 
-type ValidatorSlashesArgs struct {
-	ValidatorAddress common.Address  `abi:"validatorAddress"`
-	StartingHeight   uint64          `abi:"startingHeight"`
-	EndingHeight     uint64          `abi:"endingHeight"`
-	Pagination       PageRequestJson `abi:"pagination"`
+// NewValidatorSlashesRequest decodes the validatorSlashes query args, translating the
+// ABI pagination tuple into a query.PageRequest.
+func NewValidatorSlashesRequest(method *abi.Method, args []interface{}) (*distributiontypes.QueryValidatorSlashesRequest, error) {
+	if len(args) != 4 {
+		return nil, fmt.Errorf(cmn.ErrInvalidNumberOfArgs, 4, len(args))
+	}
+
+	var input ValidatorSlashesInput
+	if err := method.Inputs.Copy(&input, args); err != nil {
+		return nil, fmt.Errorf("error while unpacking args to ValidatorSlashesInput struct: %s", err)
+	}
+	if input.StartingHeight > input.EndingHeight {
+		return nil, fmt.Errorf("startingHeight %d is greater than endingHeight %d", input.StartingHeight, input.EndingHeight)
+	}
+	// An empty pagination key can arrive ABI-encoded as a single zero byte.
+	key := input.Pagination.Key
+	if bytes.Equal(key, []byte{0}) {
+		key = nil
+	}
+
+	return &distributiontypes.QueryValidatorSlashesRequest{
+		ValidatorAddress: input.ValidatorAddress.String(),
+		StartingHeight:   input.StartingHeight,
+		EndingHeight:     input.EndingHeight,
+		Pagination: &query.PageRequest{
+			Key:        key,
+			Offset:     input.Pagination.Offset,
+			Limit:      input.Pagination.Limit,
+			CountTotal: input.Pagination.CountTotal,
+			Reverse:    input.Pagination.Reverse,
+		},
+	}, nil
 }
 
-// Validate WithdrawDelegatorRewardArgs the args
-func (args *ValidatorSlashesArgs) Validate() error {
-	if args.ValidatorAddress == (common.Address{}) {
-		return fmt.Errorf("invalid validator address: %s", args.ValidatorAddress)
+// newDecCoins converts sdk.DecCoins into the ABI DecCoin tuple, preserving moca's
+// full-precision Dec representation (amount is the 10^18-scaled integer with an
+// explicit precision) rather than truncating to an integer.
+func newDecCoins(decCoins sdk.DecCoins) []DecCoin {
+	coins := make([]DecCoin, 0, len(decCoins))
+	for _, c := range decCoins {
+		coins = append(coins, DecCoin{
+			Denom:     c.Denom,
+			Amount:    c.Amount.BigInt(),
+			Precision: uint8(math.LegacyPrecision),
+		})
 	}
-	if args.StartingHeight < 0 || args.EndingHeight < 0 {
-		return fmt.Errorf("startingHeight %d is less than 0 or endingHeight %d is less than 0", args.StartingHeight, args.EndingHeight)
-	}
-	if args.StartingHeight > args.EndingHeight {
-		return fmt.Errorf("startingHeight %d is greater than endingHeight %d", args.StartingHeight, args.EndingHeight)
-	}
-	return nil
-}
-
-// GetValidator returns the validator address, caller must ensure the validator address is valid
-func (args *ValidatorSlashesArgs) GetValidator() sdk.ValAddress {
-	valAddr := sdk.ValAddress(args.ValidatorAddress.Bytes())
-	return valAddr
+	return coins
 }

@@ -114,8 +114,11 @@ func (s *CreateGroupTestSuite) TestCreateGroup_AllowsContractForwarding() {
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
-	c := storage.NewPrecompiledContract(s.app.StorageKeeper, s.app.BankKeeper)
-	_, err := c.CreateGroup(s.ctx, evm, contract, false)
+	p := storage.NewPrecompile(storagekeeper.NewMsgServerImpl(s.app.StorageKeeper), s.app.StorageKeeper, s.app.BankKeeper)
+	method := storage.MustMethod(storage.CreateGroupMethodName)
+	args, err := method.Inputs.Unpack(contract.Input[4:])
+	s.Require().NoError(err)
+	_, err = p.CreateGroup(s.ctx, evm, contract, &method, args)
 	s.Require().NoError(err)
 
 	group, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(caller.Bytes()), groupName)

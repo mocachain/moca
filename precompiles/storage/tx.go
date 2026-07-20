@@ -9,167 +9,120 @@ import (
 	"time"
 
 	cmath "cosmossdk.io/math"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/mocachain/moca/v2/contracts"
-	gtypes "github.com/mocachain/moca/v2/types"
+
 	mocacommon "github.com/mocachain/moca/v2/types/common"
 	permTypes "github.com/mocachain/moca/v2/x/permission/types"
-	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
-
-	"github.com/mocachain/moca/v2/precompiles/types"
 )
 
 const (
-	// Gas constants for dynamic gas calculation
-	PutPolicyBaseGas         = 60_000 // Base gas for PutPolicy
-	PutPolicyPerStatementGas = 20_000 // Additional gas per statement
-	PutPolicyPerActionGas    = 5_000  // Additional gas per action in all statements
-	PutPolicyPerResourceGas  = 5_000  // Additional gas per resource in all statements
-	MaxPolicyStatements      = 50     // Maximum number of statements allowed
-
-	RenewGroupMemberBaseGas      = 60_000 // Base gas for RenewGroupMember
-	RenewGroupMemberPerMemberGas = 10_000 // Additional gas per member
-	MaxRenewGroupMembers         = 20     // Maximum number of members to renew (aligned with MaxGroupMemberLimitOnce)
-
-	UpdateGroupBaseGas      = 60_000 // Base gas for UpdateGroup
-	UpdateGroupPerMemberGas = 10_000 // Additional gas per member (add + delete)
-	MaxUpdateGroupMembers   = 20     // Maximum total members to add/delete (aligned with MaxGroupMemberLimitOnce)
-
-	DiscontinueObjectBaseGas  = 60_000 // Base gas for DiscontinueObject
-	DiscontinueObjectPerIdGas = 10_000 // Additional gas per object ID
-	MaxDiscontinueObjectIds   = 128    // Maximum number of object IDs (aligned with MaxDiscontinueObjects)
-
-	CreateBucketMethodName                = "createBucket"
-	DeleteBucketMethodName                = "deleteBucket"
-	DiscontinueBucketMethodName           = "discontinueBucket"
-	MigrateBucketMethodName               = "migrateBucket"
-	CompleteMigrateBucketMethodName       = "completeMigrateBucket"
-	RejectMigrateBucketMethodName         = "rejectMigrateBucket"
-	CancelMigrateBucketMethodName         = "cancelMigrateBucket"
-	SetBucketFlowRateLimitMethodName      = "setBucketFlowRateLimit"
-	CreateObjectMethodName                = "createObject"
-	CopyObjectMethodName                  = "copyObject"
-	DeleteObjectMethodName                = "deleteObject"
-	CancelCreateObjectMethodName          = "cancelCreateObject"
-	SealObjectMethodName                  = "sealObject"
-	SealObjectV2MethodName                = "sealObjectV2"
-	RejectSealObjectMethodName            = "rejectSealObject"
-	DelegateCreateObjectMethodName        = "delegateCreateObject"
+	// CreateBucketMethodName is the ABI name for the createBucket transaction.
+	CreateBucketMethodName = "createBucket"
+	// DeleteBucketMethodName is the ABI name for the deleteBucket transaction.
+	DeleteBucketMethodName = "deleteBucket"
+	// DiscontinueBucketMethodName is the ABI name for the discontinueBucket transaction.
+	DiscontinueBucketMethodName = "discontinueBucket"
+	// MigrateBucketMethodName is the ABI name for the migrateBucket transaction.
+	MigrateBucketMethodName = "migrateBucket"
+	// CompleteMigrateBucketMethodName is the ABI name for the completeMigrateBucket transaction.
+	CompleteMigrateBucketMethodName = "completeMigrateBucket"
+	// RejectMigrateBucketMethodName is the ABI name for the rejectMigrateBucket transaction.
+	RejectMigrateBucketMethodName = "rejectMigrateBucket"
+	// CancelMigrateBucketMethodName is the ABI name for the cancelMigrateBucket transaction.
+	CancelMigrateBucketMethodName = "cancelMigrateBucket"
+	// SetBucketFlowRateLimitMethodName is the ABI name for the setBucketFlowRateLimit transaction.
+	SetBucketFlowRateLimitMethodName = "setBucketFlowRateLimit"
+	// CreateObjectMethodName is the ABI name for the createObject transaction.
+	CreateObjectMethodName = "createObject"
+	// CopyObjectMethodName is the ABI name for the copyObject transaction.
+	CopyObjectMethodName = "copyObject"
+	// DeleteObjectMethodName is the ABI name for the deleteObject transaction.
+	DeleteObjectMethodName = "deleteObject"
+	// CancelCreateObjectMethodName is the ABI name for the cancelCreateObject transaction.
+	CancelCreateObjectMethodName = "cancelCreateObject"
+	// SealObjectMethodName is the ABI name for the sealObject transaction.
+	SealObjectMethodName = "sealObject"
+	// SealObjectV2MethodName is the ABI name for the sealObjectV2 transaction.
+	SealObjectV2MethodName = "sealObjectV2"
+	// RejectSealObjectMethodName is the ABI name for the rejectSealObject transaction.
+	RejectSealObjectMethodName = "rejectSealObject"
+	// DelegateCreateObjectMethodName is the ABI name for the delegateCreateObject transaction.
+	DelegateCreateObjectMethodName = "delegateCreateObject"
+	// DelegateUpdateObjectContentMethodName is the ABI name for the delegateUpdateObjectContent transaction.
 	DelegateUpdateObjectContentMethodName = "delegateUpdateObjectContent"
-	UpdateObjectInfoMethodName            = "updateObjectInfo"
-	UpdateObjectContentMethodName         = "updateObjectContent"
-	DiscontinueObjectMethodName           = "discontinueObject"
-	CreateGroupMethodName                 = "createGroup"
-	UpdateGroupMethodName                 = "updateGroup"
-	UpdateGroupExtraMethodName            = "updateGroupExtra"
-	DeleteGroupMethodName                 = "deleteGroup"
-	LeaveGroupMethodName                  = "leaveGroup"
-	RenewGroupMemberMethodName            = "renewGroupMember"
-	SetTagMethodName                      = "setTag"
-	UpdateBucketInfoMethodName            = "updateBucketInfo"
-	PutPolicyMethodName                   = "putPolicy"
-	DeletePolicyMethodName                = "deletePolicy"
-	ToggleSPAsDelegatedAgentMethodName    = "toggleSPAsDelegatedAgent"
-	CancelUpdateObjectContentMethodName   = "cancelUpdateObjectContent"
+	// UpdateObjectInfoMethodName is the ABI name for the updateObjectInfo transaction.
+	UpdateObjectInfoMethodName = "updateObjectInfo"
+	// UpdateObjectContentMethodName is the ABI name for the updateObjectContent transaction.
+	UpdateObjectContentMethodName = "updateObjectContent"
+	// DiscontinueObjectMethodName is the ABI name for the discontinueObject transaction.
+	DiscontinueObjectMethodName = "discontinueObject"
+	// CreateGroupMethodName is the ABI name for the createGroup transaction.
+	CreateGroupMethodName = "createGroup"
+	// UpdateGroupMethodName is the ABI name for the updateGroup transaction.
+	UpdateGroupMethodName = "updateGroup"
+	// UpdateGroupExtraMethodName is the ABI name for the updateGroupExtra transaction.
+	UpdateGroupExtraMethodName = "updateGroupExtra"
+	// DeleteGroupMethodName is the ABI name for the deleteGroup transaction.
+	DeleteGroupMethodName = "deleteGroup"
+	// LeaveGroupMethodName is the ABI name for the leaveGroup transaction.
+	LeaveGroupMethodName = "leaveGroup"
+	// RenewGroupMemberMethodName is the ABI name for the renewGroupMember transaction.
+	RenewGroupMemberMethodName = "renewGroupMember"
+	// SetTagMethodName is the ABI name for the setTag transaction.
+	SetTagMethodName = "setTag"
+	// UpdateBucketInfoMethodName is the ABI name for the updateBucketInfo transaction.
+	UpdateBucketInfoMethodName = "updateBucketInfo"
+	// PutPolicyMethodName is the ABI name for the putPolicy transaction.
+	PutPolicyMethodName = "putPolicy"
+	// DeletePolicyMethodName is the ABI name for the deletePolicy transaction.
+	DeletePolicyMethodName = "deletePolicy"
+	// ToggleSPAsDelegatedAgentMethodName is the ABI name for the toggleSPAsDelegatedAgent transaction.
+	ToggleSPAsDelegatedAgentMethodName = "toggleSPAsDelegatedAgent"
+	// CancelUpdateObjectContentMethodName is the ABI name for the cancelUpdateObjectContent transaction.
+	CancelUpdateObjectContentMethodName = "cancelUpdateObjectContent"
 )
 
-func (c *Contract) registerTx() {
-	c.registerMethod(CreateBucketMethodName, 60_000, c.CreateBucket, "CreateBucket")
-	c.registerMethod(DeleteBucketMethodName, 60_000, c.DeleteBucket, "DeleteBucket")
-	c.registerMethod(DiscontinueBucketMethodName, 60_000, c.DiscontinueBucket, "DiscontinueBucket")
-	c.registerMethod(MigrateBucketMethodName, 60_000, c.MigrateBucket, "MigrateBucket")
-	c.registerMethod(CompleteMigrateBucketMethodName, 60_000, c.CompleteMigrateBucket, "CompleteMigrateBucket")
-	c.registerMethod(RejectMigrateBucketMethodName, 60_000, c.RejectMigrateBucket, "RejectMigrateBucket")
-	c.registerMethod(CancelMigrateBucketMethodName, 60_000, c.CancelMigrateBucket, "CancelMigrateBucket")
-	c.registerMethod(SetBucketFlowRateLimitMethodName, 60_000, c.SetBucketFlowRateLimit, "SetBucketFlowRateLimit")
-	c.registerMethod(CreateObjectMethodName, 60_000, c.CreateObject, "CreateObject")
-	c.registerMethod(CopyObjectMethodName, 60_000, c.CopyObject, "CopyObject")
-	c.registerMethod(DeleteObjectMethodName, 60_000, c.DeleteObject, "DeleteObject")
-	c.registerMethod(CancelCreateObjectMethodName, 60_000, c.CancelCreateObject, "CancelCreateObject")
-	c.registerMethod(SealObjectMethodName, 100_000, c.SealObject, "SealObject")
-	c.registerMethod(SealObjectV2MethodName, 100_000, c.SealObjectV2, "SealObjectV2")
-	c.registerMethod(RejectSealObjectMethodName, 100_000, c.RejectSealObject, "RejectSealObject")
-	c.registerMethod(DelegateCreateObjectMethodName, 100_000, c.DelegateCreateObject, "DelegateCreateObject")
-	c.registerMethod(DelegateUpdateObjectContentMethodName, 100_000, c.DelegateUpdateObjectContent, "DelegateUpdateObjectContent")
-	c.registerMethod(UpdateObjectInfoMethodName, 60_000, c.UpdateObjectInfo, "UpdateObjectInfo")
-	c.registerMethod(UpdateObjectContentMethodName, 60_000, c.UpdateObjectContent, "UpdateObjectContent")
-	c.registerMethod(DiscontinueObjectMethodName, 60_000, c.DiscontinueObject, "DiscontinueObject")
-	c.registerMethod(CreateGroupMethodName, 60_000, c.CreateGroup, "CreateGroup")
-	c.registerMethod(UpdateGroupMethodName, 60_000, c.UpdateGroup, "UpdateGroup")
-	c.registerMethod(UpdateGroupExtraMethodName, 60_000, c.UpdateGroupExtra, "UpdateGroupExtra")
-	c.registerMethod(DeleteGroupMethodName, 60_000, c.DeleteGroup, "DeleteGroup")
-	c.registerMethod(LeaveGroupMethodName, 60_000, c.LeaveGroup, "LeaveGroup")
-	c.registerMethod(RenewGroupMemberMethodName, 60_000, c.RenewGroupMember, "RenewGroupMember")
-	c.registerMethod(SetTagMethodName, 60_000, c.SetTag, "SetTag")
-	c.registerMethod(UpdateBucketInfoMethodName, 60_000, c.UpdateBucketInfo, "UpdateBucketInfo")
-	c.registerMethod(PutPolicyMethodName, 60_000, c.PutPolicy, "PutPolicy")
-	c.registerMethod(DeletePolicyMethodName, 60_000, c.DeletePolicy, "DeletePolicy")
-	c.registerMethod(ToggleSPAsDelegatedAgentMethodName, 60_000, c.ToggleSPAsDelegatedAgent, "ToggleSPAsDelegatedAgent")
-	c.registerMethod(CancelUpdateObjectContentMethodName, 60_000, c.CancelUpdateObjectContent, "CancelUpdateObjectContent")
-}
-
-func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("create bucket method readonly")
-	}
-	method := GetAbiMethod(CreateBucketMethodName)
-	var args CreateBucketArgs
-
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// CreateBucket creates a new bucket owned by the caller and mirrors the bucket-NFT
+// mint as an ERC721 Transfer log on the bucket token contract.
+func (p Precompile) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CreateBucketArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	msg := &storagetypes.MsgCreateBucket{
-		Creator:          caller.String(),
-		BucketName:       args.BucketName,
-		Visibility:       storagetypes.VisibilityType(args.Visibility),
-		PaymentAddress:   args.PaymentAddress.String(),
-		PrimarySpAddress: args.PrimarySpAddress.String(),
+		Creator:          contract.Caller().String(),
+		BucketName:       input.BucketName,
+		Visibility:       storagetypes.VisibilityType(input.Visibility),
+		PaymentAddress:   input.PaymentAddress.String(),
+		PrimarySpAddress: input.PrimarySpAddress.String(),
 		PrimarySpApproval: &mocacommon.Approval{
-			ExpiredHeight:              args.PrimarySpApproval.ExpiredHeight,
-			GlobalVirtualGroupFamilyId: args.PrimarySpApproval.GlobalVirtualGroupFamilyId,
-			Sig:                        args.PrimarySpApproval.Sig,
+			ExpiredHeight:              input.PrimarySpApproval.ExpiredHeight,
+			GlobalVirtualGroupFamilyId: input.PrimarySpApproval.GlobalVirtualGroupFamilyId,
+			Sig:                        input.PrimarySpApproval.Sig,
 		},
-		ChargedReadQuota: args.ChargedReadQuota,
+		ChargedReadQuota: input.ChargedReadQuota,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	res, err := server.CreateBucket(ctx, msg)
+
+	res, err := p.storageMsgServer.CreateBucket(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CreateBucketMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			common.BytesToHash(args.PaymentAddress.Bytes()),
-			common.BytesToHash(args.PrimarySpAddress.Bytes()),
-		},
-		res.BucketId.BigInt(),
-	); err != nil {
+
+	if err := p.EmitCreateBucketEvent(evm, contract.Caller(), input.PaymentAddress, input.PrimarySpAddress, res.BucketId.BigInt()); err != nil {
 		return nil, err
 	}
 
-	bucketInfo, found := c.storageKeeper.GetBucketInfo(ctx, args.BucketName)
+	bucketInfo, found := p.storageKeeper.GetBucketInfo(ctx, input.BucketName)
 	if found {
-		if err := c.AddOtherLog(
-			evm,
-			GetAbiEvent("Transfer"),
-			contracts.BucketERC721TokenAddress,
-			[]common.Hash{
-				common.BytesToHash(common.HexToAddress(gtypes.EmptyEvmAddress).Bytes()),
-				common.BytesToHash(common.HexToAddress(bucketInfo.Owner).Bytes()),
-				common.BytesToHash(bucketInfo.Id.BigInt().Bytes()),
-			},
-		); err != nil {
+		if err := p.EmitBucketTransferEvent(evm, bucketInfo.Owner, bucketInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}
 	}
@@ -177,585 +130,418 @@ func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("update bucket method readonly")
-	}
-	method := GetAbiMethod(UpdateBucketInfoMethodName)
-	var args UpdateBucketInfoArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// UpdateBucketInfo updates a bucket's visibility, payment address and read quota.
+func (p Precompile) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input UpdateBucketInfoArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	msg := &storagetypes.MsgUpdateBucketInfo{
-		// geth v1.16: vm.Contract.CallerAddress field was replaced by Caller().
-		Operator:       caller.String(),
-		BucketName:     args.BucketName,
-		Visibility:     storagetypes.VisibilityType(args.Visibility),
-		PaymentAddress: args.PaymentAddress.String(),
+	if input.BucketName == "" {
+		return nil, errors.New("empty bucket name")
 	}
-	if args.PaymentAddress == (common.Address{}) {
+	if input.ChargedReadQuota.Int64() != -1 && !input.ChargedReadQuota.IsUint64() {
+		return nil, errors.New("charged read quota is invalid")
+	}
+
+	msg := &storagetypes.MsgUpdateBucketInfo{
+		Operator:       contract.Caller().String(),
+		BucketName:     input.BucketName,
+		Visibility:     storagetypes.VisibilityType(input.Visibility),
+		PaymentAddress: input.PaymentAddress.String(),
+	}
+	if input.PaymentAddress == (common.Address{}) {
 		msg.PaymentAddress = ""
 	}
-	if args.ChargedReadQuota.Int64() == -1 {
+	if input.ChargedReadQuota.Int64() == -1 {
 		msg.ChargedReadQuota = nil
 	} else {
-		msg.ChargedReadQuota = &mocacommon.UInt64Value{Value: args.ChargedReadQuota.Uint64()}
+		msg.ChargedReadQuota = &mocacommon.UInt64Value{Value: input.ChargedReadQuota.Uint64()}
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.UpdateBucketInfo(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.UpdateBucketInfo(ctx, msg); err != nil {
 		return nil, err
 	}
-	bucketNameHash := crypto.Keccak256([]byte(args.BucketName))
-	if err := c.AddLog(evm, GetAbiEvent(c.events[UpdateBucketInfoMethodName]), []common.Hash{
-		common.BytesToHash(caller.Bytes()),
-		common.BytesToHash(bucketNameHash),
-		common.BytesToHash(args.PaymentAddress.Bytes()),
-	}, args.Visibility); err != nil {
+
+	if err := p.EmitUpdateBucketInfoEvent(evm, contract.Caller(), input.BucketName, input.PaymentAddress, input.Visibility); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("delete bucket method readonly")
-	}
-
-	method := GetAbiMethod(DeleteBucketMethodName)
-
-	var args DeleteBucketArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// DeleteBucket deletes a bucket owned by the caller.
+func (p Precompile) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DeleteBucketArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgDeleteBucket{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.DeleteBucket(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.DeleteBucket(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DeleteBucketMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitDeleteBucketEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("discontinue bucket method readonly")
-	}
-
-	method := GetAbiMethod(DiscontinueBucketMethodName)
-
-	var args DiscontinueBucketArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// DiscontinueBucket discontinues a bucket with a reason.
+func (p Precompile) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DiscontinueBucketArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgDiscontinueBucket{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
-		Reason:     strings.TrimSpace(args.Reason),
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
+		Reason:     strings.TrimSpace(input.Reason),
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.DiscontinueBucket(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.DiscontinueBucket(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DiscontinueBucketMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.BucketName)),
-		},
-	); err != nil {
+	if err := p.EmitDiscontinueBucketEvent(evm, contract.Caller(), input.BucketName); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("migrate bucket method readonly")
-	}
-
-	method := GetAbiMethod(MigrateBucketMethodName)
-
-	var args MigrateBucketArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// MigrateBucket migrates a bucket to a destination primary storage provider.
+func (p Precompile) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input MigrateBucketArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgMigrateBucket{
-		Operator:       caller.String(),
-		BucketName:     args.BucketName,
-		DstPrimarySpId: args.DstPrimarySpId,
+		Operator:       contract.Caller().String(),
+		BucketName:     input.BucketName,
+		DstPrimarySpId: input.DstPrimarySpID,
 		DstPrimarySpApproval: &mocacommon.Approval{
-			ExpiredHeight: args.DstPrimarySpApproval.ExpiredHeight,
-			// GlobalVirtualGroupFamilyId: args.DstPrimarySpApproval.GlobalVirtualGroupFamilyId,
-			Sig: args.DstPrimarySpApproval.Sig,
+			ExpiredHeight: input.DstPrimarySpApproval.ExpiredHeight,
+			Sig:           input.DstPrimarySpApproval.Sig,
 		},
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.MigrateBucket(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.MigrateBucket(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[MigrateBucketMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.BucketName)),
-		},
-	); err != nil {
+	if err := p.EmitMigrateBucketEvent(evm, contract.Caller(), input.BucketName); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("complete migrate bucket method readonly")
-	}
-
-	method := GetAbiMethod(CompleteMigrateBucketMethodName)
-
-	var args CompleteMigrateBucketArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// CompleteMigrateBucket completes a bucket migration with the new gvg mappings.
+func (p Precompile) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CompleteMigrateBucketArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	gvgMappings := make([]*storagetypes.GVGMapping, 0)
-	if args.GvgMappings != nil {
-		for _, gvgMapping := range args.GvgMappings {
-			gvgMappings = append(gvgMappings, &storagetypes.GVGMapping{
-				SrcGlobalVirtualGroupId: gvgMapping.SrcGlobalVirtualGroupId,
-				DstGlobalVirtualGroupId: gvgMapping.DstGlobalVirtualGroupId,
-				SecondarySpBlsSignature: gvgMapping.SecondarySpBlsSignature,
-			})
-		}
+	for _, gvgMapping := range input.GvgMappings {
+		gvgMappings = append(gvgMappings, &storagetypes.GVGMapping{
+			SrcGlobalVirtualGroupId: gvgMapping.SrcGlobalVirtualGroupId,
+			DstGlobalVirtualGroupId: gvgMapping.DstGlobalVirtualGroupId,
+			SecondarySpBlsSignature: gvgMapping.SecondarySpBlsSignature,
+		})
 	}
 
 	msg := &storagetypes.MsgCompleteMigrateBucket{
-		Operator:                   caller.String(),
-		BucketName:                 args.BucketName,
-		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
+		Operator:                   contract.Caller().String(),
+		BucketName:                 input.BucketName,
+		GlobalVirtualGroupFamilyId: input.GvgFamilyID,
 		GvgMappings:                gvgMappings,
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.CompleteMigrateBucket(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.CompleteMigrateBucket(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CompleteMigrateBucketMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.BucketName)),
-		},
-	); err != nil {
+	if err := p.EmitCompleteMigrateBucketEvent(evm, contract.Caller(), input.BucketName); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("reject migrate bucket method readonly")
-	}
-
-	method := GetAbiMethod(RejectMigrateBucketMethodName)
-
-	var args RejectMigrateBucketArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// RejectMigrateBucket rejects a pending bucket migration.
+func (p Precompile) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input RejectMigrateBucketArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgRejectMigrateBucket{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.RejectMigrateBucket(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.RejectMigrateBucket(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[RejectMigrateBucketMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitRejectMigrateBucketEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("cancel migrate bucket method readonly")
-	}
-
-	method := GetAbiMethod(CancelMigrateBucketMethodName)
-
-	var args CancelMigrateBucketArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// CancelMigrateBucket cancels a pending bucket migration.
+func (p Precompile) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CancelMigrateBucketArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgCancelMigrateBucket{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.CancelMigrateBucket(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.CancelMigrateBucket(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CancelMigrateBucketMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitCancelMigrateBucketEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("set bucket flow rate limit method readonly")
-	}
-
-	method := GetAbiMethod(SetBucketFlowRateLimitMethodName)
-
-	var args SetBucketFlowRateLimitArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// SetBucketFlowRateLimit sets the payment flow rate limit for a bucket.
+func (p Precompile) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SetBucketFlowRateLimitArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgSetBucketFlowRateLimit{
-		Operator:       caller.String(),
-		BucketName:     args.BucketName,
-		BucketOwner:    args.BucketOwner,
-		PaymentAddress: args.PaymentAddress,
-		FlowRateLimit:  cmath.NewIntFromBigInt(args.FlowRateLimit),
+		Operator:       contract.Caller().String(),
+		BucketName:     input.BucketName,
+		BucketOwner:    input.BucketOwner,
+		PaymentAddress: input.PaymentAddress,
+		FlowRateLimit:  cmath.NewIntFromBigInt(input.FlowRateLimit),
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.SetBucketFlowRateLimit(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.SetBucketFlowRateLimit(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[SetBucketFlowRateLimitMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitSetBucketFlowRateLimitEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("create object method readonly")
-	}
-	method := GetAbiMethod(CreateObjectMethodName)
-	var args CreateObjectArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// CreateObject creates a new object in a bucket owned/authorized to the caller.
+func (p Precompile) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CreateObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	expectChecksums := make([][]byte, 0)
-	for _, checksum := range args.ExpectChecksums {
+	for _, checksum := range input.ExpectChecksums {
 		checksumBytes, err := base64.StdEncoding.DecodeString(checksum)
 		if err != nil {
 			return nil, err
 		}
 		expectChecksums = append(expectChecksums, checksumBytes)
 	}
+
 	msg := &storagetypes.MsgCreateObject{
-		Creator:     caller.String(),
-		BucketName:  args.BucketName,
-		ObjectName:  args.ObjectName,
-		PayloadSize: args.PayloadSize,
-		Visibility:  storagetypes.VisibilityType(args.Visibility),
-		ContentType: args.ContentType,
+		Creator:     contract.Caller().String(),
+		BucketName:  input.BucketName,
+		ObjectName:  input.ObjectName,
+		PayloadSize: input.PayloadSize,
+		Visibility:  storagetypes.VisibilityType(input.Visibility),
+		ContentType: input.ContentType,
 		PrimarySpApproval: &mocacommon.Approval{
-			ExpiredHeight:              args.PrimarySpApproval.ExpiredHeight,
-			GlobalVirtualGroupFamilyId: args.PrimarySpApproval.GlobalVirtualGroupFamilyId,
-			Sig:                        args.PrimarySpApproval.Sig,
+			ExpiredHeight:              input.PrimarySpApproval.ExpiredHeight,
+			GlobalVirtualGroupFamilyId: input.PrimarySpApproval.GlobalVirtualGroupFamilyId,
+			Sig:                        input.PrimarySpApproval.Sig,
 		},
 		ExpectChecksums: expectChecksums,
-		RedundancyType:  storagetypes.RedundancyType(args.RedundancyType),
+		RedundancyType:  storagetypes.RedundancyType(input.RedundancyType),
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	res, err := server.CreateObject(ctx, msg)
+
+	res, err := p.storageMsgServer.CreateObject(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CreateObjectMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-		res.ObjectId.BigInt(),
-	); err != nil {
+
+	if err := p.EmitCreateObjectEvent(evm, contract.Caller(), res.ObjectId.BigInt()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("copy object method readonly")
-	}
-	method := GetAbiMethod(CopyObjectMethodName)
-	var args CopyObjectArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// CopyObject copies an object into a destination bucket.
+func (p Precompile) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CopyObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgCopyObject{
-		Operator:      caller.String(),
-		SrcBucketName: args.SrcBucketName,
-		DstBucketName: args.DstBucketName,
-		SrcObjectName: args.SrcObjectName,
-		DstObjectName: args.DstObjectName,
+		Operator:      contract.Caller().String(),
+		SrcBucketName: input.SrcBucketName,
+		DstBucketName: input.DstBucketName,
+		SrcObjectName: input.SrcObjectName,
+		DstObjectName: input.DstObjectName,
 		DstPrimarySpApproval: &mocacommon.Approval{
-			ExpiredHeight: args.DstPrimarySpApproval.ExpiredHeight,
-			// GlobalVirtualGroupFamilyId: args.DstPrimarySpApproval.GlobalVirtualGroupFamilyId,
-			Sig: args.DstPrimarySpApproval.Sig,
+			ExpiredHeight: input.DstPrimarySpApproval.ExpiredHeight,
+			Sig:           input.DstPrimarySpApproval.Sig,
 		},
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err := server.CopyObject(ctx, msg)
-	if err != nil {
+
+	if _, err := p.storageMsgServer.CopyObject(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CopyObjectMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitCopyObjectEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("delete object method readonly")
-	}
-
-	method := GetAbiMethod(DeleteObjectMethodName)
-
-	var args DeleteObjectArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// DeleteObject deletes an object from a bucket.
+func (p Precompile) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DeleteObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgDeleteObject{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
+		ObjectName: input.ObjectName,
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.DeleteObject(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.DeleteObject(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DeleteObjectMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitDeleteObjectEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("cancel create object method readonly")
-	}
-
-	method := GetAbiMethod(CancelCreateObjectMethodName)
-
-	var args CancelCreateObjectArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// CancelCreateObject cancels an in-progress object creation.
+func (p Precompile) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CancelCreateObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgCancelCreateObject{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
+		ObjectName: input.ObjectName,
 	}
-
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.CancelCreateObject(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.CancelCreateObject(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CancelCreateObjectMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+	if err := p.EmitCancelCreateObjectEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("seal object method readonly")
-	}
-	method := GetAbiMethod(SealObjectMethodName)
-	var args SealObjectArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// SealObject seals an object and mirrors the object-NFT mint as an ERC721 Transfer log.
+func (p Precompile) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SealObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	secondarySpBlsAggSignatures, err := base64.StdEncoding.DecodeString(args.SecondarySpBlsAggSignatures)
+
+	secondarySpBlsAggSignatures, err := base64.StdEncoding.DecodeString(input.SecondarySpBlsAggSignatures)
 	if err != nil {
 		return nil, err
 	}
+
 	msg := &storagetypes.MsgSealObject{
-		Operator:                    caller.String(),
-		BucketName:                  args.BucketName,
-		ObjectName:                  args.ObjectName,
-		GlobalVirtualGroupId:        args.GlobalVirtualGroupID,
+		Operator:                    contract.Caller().String(),
+		BucketName:                  input.BucketName,
+		ObjectName:                  input.ObjectName,
+		GlobalVirtualGroupId:        input.GlobalVirtualGroupID,
 		SecondarySpBlsAggSignatures: secondarySpBlsAggSignatures,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err = server.SealObject(ctx, msg); err != nil {
-		return nil, err
-	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[SealObjectMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-		},
-	); err != nil {
+
+	if _, err = p.storageMsgServer.SealObject(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	objectInfo, found := c.storageKeeper.GetObjectInfo(ctx, args.BucketName, args.ObjectName)
+	if err := p.EmitSealObjectEvent(evm, contract.Caller()); err != nil {
+		return nil, err
+	}
+
+	objectInfo, found := p.storageKeeper.GetObjectInfo(ctx, input.BucketName, input.ObjectName)
 	if found {
-		if err := c.AddOtherLog(
-			evm,
-			GetAbiEvent("Transfer"),
-			contracts.ObjectERC721TokenAddress,
-			[]common.Hash{
-				common.BytesToHash(common.HexToAddress(gtypes.EmptyEvmAddress).Bytes()),
-				common.BytesToHash(common.HexToAddress(objectInfo.Owner).Bytes()),
-				common.BytesToHash(objectInfo.Id.BigInt().Bytes()),
-			},
-		); err != nil {
+		if err := p.EmitObjectTransferEvent(evm, objectInfo.Owner, objectInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}
 	}
@@ -763,104 +549,86 @@ func (c *Contract) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("seal object V2 method readonly")
-	}
-	method := GetAbiMethod(SealObjectV2MethodName)
-	var args SealObjectV2Args
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// SealObjectV2 seals an object with expected checksums.
+func (p Precompile) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SealObjectV2Args
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	secondarySpBlsAggSignatures, err := base64.StdEncoding.DecodeString(args.SecondarySpBlsAggSignatures)
+
+	secondarySpBlsAggSignatures, err := base64.StdEncoding.DecodeString(input.SecondarySpBlsAggSignatures)
 	if err != nil {
 		return nil, err
 	}
+
 	expectChecksums := make([][]byte, 0)
-	for _, checksum := range args.ExpectChecksums {
+	for _, checksum := range input.ExpectChecksums {
 		checksumBytes, err := base64.StdEncoding.DecodeString(checksum)
 		if err != nil {
 			return nil, err
 		}
 		expectChecksums = append(expectChecksums, checksumBytes)
 	}
+
 	msg := &storagetypes.MsgSealObjectV2{
-		Operator:                    caller.String(),
-		BucketName:                  args.BucketName,
-		ObjectName:                  args.ObjectName,
-		GlobalVirtualGroupId:        args.GlobalVirtualGroupID,
+		Operator:                    contract.Caller().String(),
+		BucketName:                  input.BucketName,
+		ObjectName:                  input.ObjectName,
+		GlobalVirtualGroupId:        input.GlobalVirtualGroupID,
 		SecondarySpBlsAggSignatures: secondarySpBlsAggSignatures,
 		ExpectChecksums:             expectChecksums,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err = server.SealObjectV2(ctx, msg); err != nil {
+
+	if _, err = p.storageMsgServer.SealObjectV2(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[SealObjectV2MethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-		},
-	); err != nil {
+
+	if err := p.EmitSealObjectV2Event(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("reject seal object method readonly")
-	}
-	method := GetAbiMethod(RejectSealObjectMethodName)
-	var args RejectSealObjectArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// RejectSealObject rejects the sealing of an object.
+func (p Precompile) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input RejectSealObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgRejectSealObject{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
+		ObjectName: input.ObjectName,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.RejectSealObject(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.RejectSealObject(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[RejectSealObjectMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.ObjectName)),
-		},
-	); err != nil {
+
+	if err := p.EmitRejectSealObjectEvent(evm, contract.Caller(), input.ObjectName); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("delegate create object method readonly")
-	}
-	method := GetAbiMethod(DelegateCreateObjectMethodName)
-	var args DelegateCreateObjectArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DelegateCreateObject creates an object on behalf of a creator via a delegated agent.
+func (p Precompile) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DelegateCreateObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	expectChecksums := make([][]byte, 0)
-	for _, checksum := range args.ExpectChecksums {
+	for _, checksum := range input.ExpectChecksums {
 		checksumBytes, err := base64.StdEncoding.DecodeString(checksum)
 		if err != nil {
 			return nil, err
@@ -869,49 +637,40 @@ func (c *Contract) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *
 	}
 
 	msg := &storagetypes.MsgDelegateCreateObject{
-		Operator:        caller.String(),
-		Creator:         args.Creator,
-		BucketName:      args.BucketName,
-		ObjectName:      args.ObjectName,
-		PayloadSize:     args.PayloadSize,
-		ContentType:     args.ContentType,
-		Visibility:      storagetypes.VisibilityType(args.Visibility),
+		Operator:        contract.Caller().String(),
+		Creator:         input.Creator,
+		BucketName:      input.BucketName,
+		ObjectName:      input.ObjectName,
+		PayloadSize:     input.PayloadSize,
+		ContentType:     input.ContentType,
+		Visibility:      storagetypes.VisibilityType(input.Visibility),
 		ExpectChecksums: expectChecksums,
-		RedundancyType:  storagetypes.RedundancyType(args.RedundancyType),
+		RedundancyType:  storagetypes.RedundancyType(input.RedundancyType),
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.DelegateCreateObject(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.DelegateCreateObject(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DelegateCreateObjectMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.ObjectName)),
-		},
-	); err != nil {
+
+	if err := p.EmitDelegateCreateObjectEvent(evm, contract.Caller(), input.ObjectName); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("delegate update object content method readonly")
-	}
-	method := GetAbiMethod(DelegateUpdateObjectContentMethodName)
-	var args DelegateUpdateObjectContentArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DelegateUpdateObjectContent updates an object's content via a delegated agent.
+func (p Precompile) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DelegateUpdateObjectContentArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	expectChecksums := make([][]byte, 0)
-	for _, checksum := range args.ExpectChecksums {
+	for _, checksum := range input.ExpectChecksums {
 		checksumBytes, err := base64.StdEncoding.DecodeString(checksum)
 		if err != nil {
 			return nil, err
@@ -920,213 +679,162 @@ func (c *Contract) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, con
 	}
 
 	msg := &storagetypes.MsgDelegateUpdateObjectContent{
-		Operator:        caller.String(),
-		Updater:         args.Updater,
-		BucketName:      args.BucketName,
-		ObjectName:      args.ObjectName,
-		PayloadSize:     args.PayloadSize,
-		ContentType:     args.ContentType,
+		Operator:        contract.Caller().String(),
+		Updater:         input.Updater,
+		BucketName:      input.BucketName,
+		ObjectName:      input.ObjectName,
+		PayloadSize:     input.PayloadSize,
+		ContentType:     input.ContentType,
 		ExpectChecksums: expectChecksums,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.DelegateUpdateObjectContent(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.DelegateUpdateObjectContent(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DelegateUpdateObjectContentMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.ObjectName)),
-		},
-	); err != nil {
+
+	if err := p.EmitDelegateUpdateObjectContentEvent(evm, contract.Caller(), input.ObjectName); err != nil {
 		return nil, err
 	}
 
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("update object info method readonly")
-	}
-	method := GetAbiMethod(UpdateObjectInfoMethodName)
-	var args UpdateObjectInfoArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// UpdateObjectInfo updates an object's visibility.
+func (p Precompile) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input UpdateObjectInfoArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	msg := &storagetypes.MsgUpdateObjectInfo{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
-		Visibility: storagetypes.VisibilityType(args.Visibility),
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
+		ObjectName: input.ObjectName,
+		Visibility: storagetypes.VisibilityType(input.Visibility),
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.UpdateObjectInfo(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.UpdateObjectInfo(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[UpdateObjectInfoMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitUpdateObjectInfoEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("update object content method readonly")
-	}
-	method := GetAbiMethod(UpdateObjectContentMethodName)
-	var args UpdateObjectContentArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// UpdateObjectContent updates an object's content with expected checksums.
+func (p Precompile) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input UpdateObjectContentArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	expectChecksums := make([][]byte, 0)
-	for _, checksum := range args.ExpectChecksums {
+	for _, checksum := range input.ExpectChecksums {
 		checksumBytes, err := base64.StdEncoding.DecodeString(checksum)
 		if err != nil {
 			return nil, err
 		}
 		expectChecksums = append(expectChecksums, checksumBytes)
 	}
+
 	msg := &storagetypes.MsgUpdateObjectContent{
-		Operator:        caller.String(),
-		BucketName:      args.BucketName,
-		ObjectName:      args.ObjectName,
-		PayloadSize:     args.PayloadSize,
-		ContentType:     args.ContentType,
+		Operator:        contract.Caller().String(),
+		BucketName:      input.BucketName,
+		ObjectName:      input.ObjectName,
+		PayloadSize:     input.PayloadSize,
+		ContentType:     input.ContentType,
 		ExpectChecksums: expectChecksums,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.UpdateObjectContent(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.UpdateObjectContent(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[UpdateObjectContentMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.ObjectName)),
-		},
-	); err != nil {
+
+	if err := p.EmitUpdateObjectContentEvent(evm, contract.Caller(), input.ObjectName); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("discontinue object method readonly")
-	}
-
-	method := GetAbiMethod(DiscontinueObjectMethodName)
-
-	var args DiscontinueObjectArgs
-	err := types.ParseMethodArgs(method, &args, contract.Input[4:])
-	if err != nil {
+// DiscontinueObject discontinues a set of objects in a bucket with a reason.
+func (p Precompile) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DiscontinueObjectArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	objectIDs := make([]storagetypes.Uint, 0)
-	for _, id := range args.ObjectIds {
+	for _, id := range input.ObjectIDs {
 		if id.Cmp(big.NewInt(0)) < 0 {
 			return nil, fmt.Errorf("object id should not be negative")
 		}
-
 		objectIDs = append(objectIDs, cmath.NewUintFromBigInt(id))
 	}
-	msg := &storagetypes.MsgDiscontinueObject{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
-		ObjectIds:  objectIDs,
-		Reason:     strings.TrimSpace(args.Reason),
-	}
 
+	msg := &storagetypes.MsgDiscontinueObject{
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
+		ObjectIds:  objectIDs,
+		Reason:     strings.TrimSpace(input.Reason),
+	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
 
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	_, err = server.DiscontinueObject(ctx, msg)
-	if err != nil {
+	if _, err := p.storageMsgServer.DiscontinueObject(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	// add log
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DiscontinueObjectMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.BucketName)),
-		},
-	); err != nil {
+	if err := p.EmitDiscontinueObjectEvent(evm, contract.Caller(), input.BucketName); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("create group method readonly")
-	}
-	method := GetAbiMethod(CreateGroupMethodName)
-	var args CreateGroupArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// CreateGroup creates a new group owned by the caller and mirrors the group-NFT
+// mint as an ERC721 Transfer log on the group token contract.
+func (p Precompile) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CreateGroupArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	msg := &storagetypes.MsgCreateGroup{
-		Creator:   caller.String(),
-		GroupName: args.GroupName,
-		Extra:     args.Extra,
+		Creator:   contract.Caller().String(),
+		GroupName: input.GroupName,
+		Extra:     input.Extra,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	res, err := server.CreateGroup(ctx, msg)
+
+	res, err := p.storageMsgServer.CreateGroup(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CreateGroupMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-		res.GroupId.BigInt(),
-	); err != nil {
+
+	if err := p.EmitCreateGroupEvent(evm, contract.Caller(), res.GroupId.BigInt()); err != nil {
 		return nil, err
 	}
 
-	address := sdk.MustAccAddressFromHex(caller.String())
-	groupInfo, found := c.storageKeeper.GetGroupInfo(ctx, address, args.GroupName)
+	address := sdk.MustAccAddressFromHex(contract.Caller().String())
+	groupInfo, found := p.storageKeeper.GetGroupInfo(ctx, address, input.GroupName)
 	if found {
-		if err := c.AddOtherLog(
-			evm,
-			GetAbiEvent("Transfer"),
-			contracts.GroupERC721TokenAddress,
-			[]common.Hash{
-				common.BytesToHash(common.HexToAddress(gtypes.EmptyEvmAddress).Bytes()),
-				common.BytesToHash(common.HexToAddress(groupInfo.Owner).Bytes()),
-				common.BytesToHash(groupInfo.Id.BigInt().Bytes()),
-			},
-		); err != nil {
+		if err := p.EmitGroupTransferEvent(evm, groupInfo.Owner, groupInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}
 	}
@@ -1134,561 +842,364 @@ func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("update group method readonly")
-	}
-	method := GetAbiMethod(UpdateGroupMethodName)
-	var args UpdateGroupArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// UpdateGroup adds and removes members of a group.
+func (p Precompile) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input UpdateGroupArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+	if input.GroupName == "" {
+		return nil, errors.New("group name is empty")
+	}
+	if len(input.MembersToAdd) == 0 && len(input.MembersToDelete) == 0 {
+		return nil, errors.New("no update member")
+	}
+	if input.ExpirationTime != nil && len(input.MembersToAdd) != len(input.ExpirationTime) {
+		return nil, errors.New("please provide expirationTime for every new add member")
+	}
+
 	membersToAdd := make([]*storagetypes.MsgGroupMember, 0)
-	if args.MembersToAdd != nil {
-		for i, members := range args.MembersToAdd {
-			var exp time.Time
-			if args.ExpirationTime[i] != 0 {
-				exp = time.Unix(args.ExpirationTime[i], 0)
-			} else {
-				exp = storagetypes.MaxTimeStamp
-			}
-			membersToAdd = append(membersToAdd, &storagetypes.MsgGroupMember{
-				Member:         members.String(),
-				ExpirationTime: &exp,
-			})
+	for i, members := range input.MembersToAdd {
+		var exp time.Time
+		if input.ExpirationTime[i] != 0 {
+			exp = time.Unix(input.ExpirationTime[i], 0)
+		} else {
+			exp = storagetypes.MaxTimeStamp
 		}
+		membersToAdd = append(membersToAdd, &storagetypes.MsgGroupMember{
+			Member:         members.String(),
+			ExpirationTime: &exp,
+		})
 	}
 	var membersToDelete []string
-	if args.MembersToDelete != nil {
-		for _, members := range args.MembersToDelete {
-			membersToDelete = append(membersToDelete, members.String())
-		}
+	for _, members := range input.MembersToDelete {
+		membersToDelete = append(membersToDelete, members.String())
 	}
+
 	msg := &storagetypes.MsgUpdateGroupMember{
-		Operator:        caller.String(),
-		GroupOwner:      args.GroupOwner.String(),
-		GroupName:       args.GroupName,
+		Operator:        contract.Caller().String(),
+		GroupOwner:      input.GroupOwner.String(),
+		GroupName:       input.GroupName,
 		MembersToAdd:    membersToAdd,
 		MembersToDelete: membersToDelete,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
 
-	if _, err := server.UpdateGroupMember(ctx, msg); err != nil {
+	if _, err := p.storageMsgServer.UpdateGroupMember(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[UpdateGroupMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitUpdateGroupEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("update group extra method readonly")
-	}
-	method := GetAbiMethod(UpdateGroupExtraMethodName)
-	var args UpdateGroupExtraArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// UpdateGroupExtra updates a group's extra metadata.
+func (p Precompile) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input UpdateGroupExtraArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgUpdateGroupExtra{
-		Operator:   caller.String(),
-		GroupOwner: args.GroupOwner.String(),
-		GroupName:  args.GroupName,
-		Extra:      args.Extra,
+		Operator:   contract.Caller().String(),
+		GroupOwner: input.GroupOwner.String(),
+		GroupName:  input.GroupName,
+		Extra:      input.Extra,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
 
-	if _, err := server.UpdateGroupExtra(ctx, msg); err != nil {
+	if _, err := p.storageMsgServer.UpdateGroupExtra(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[UpdateGroupExtraMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitUpdateGroupExtraEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("delete group method readonly")
-	}
-	method := GetAbiMethod(DeleteGroupMethodName)
-	var args DeleteGroupArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DeleteGroup deletes a group owned by the caller.
+func (p Precompile) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DeleteGroupArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	msg := &storagetypes.MsgDeleteGroup{
-		Operator:  caller.String(),
-		GroupName: args.GroupName,
+		Operator:  contract.Caller().String(),
+		GroupName: input.GroupName,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.DeleteGroup(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.DeleteGroup(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DeleteGroupMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitDeleteGroupEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("leave group method readonly")
-	}
-	method := GetAbiMethod(LeaveGroupMethodName)
-	var args LeaveGroupArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// LeaveGroup removes the caller from a group.
+func (p Precompile) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input LeaveGroupArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
+
 	msg := &storagetypes.MsgLeaveGroup{
-		Member:     caller.String(),
-		GroupOwner: args.GroupOwner.String(),
-		GroupName:  args.GroupName,
+		Member:     contract.Caller().String(),
+		GroupOwner: input.GroupOwner.String(),
+		GroupName:  input.GroupName,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.LeaveGroup(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.LeaveGroup(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[LeaveGroupMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.GroupName)),
-		},
-	); err != nil {
+
+	if err := p.EmitLeaveGroupEvent(evm, contract.Caller(), input.GroupName); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("renew group member method readonly")
-	}
-	method := GetAbiMethod(RenewGroupMemberMethodName)
-	var args RenewGroupMemberArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// RenewGroupMember renews the membership expiration of a set of group members.
+func (p Precompile) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input RenewGroupMemberArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
-	if args.GroupName == "" {
+	if input.GroupName == "" {
 		return nil, errors.New("group name is empty")
 	}
-	if len(args.Members) == 0 {
+	if len(input.Members) == 0 {
 		return nil, errors.New("no renew member")
 	}
-	if args.ExpirationTime != nil && len(args.Members) != len(args.ExpirationTime) {
+	if input.ExpirationTime != nil && len(input.Members) != len(input.ExpirationTime) {
 		return nil, errors.New("please provide expirationTime for every renew member")
 	}
+
 	membersToRenew := make([]*storagetypes.MsgGroupMember, 0)
-	if args.Members != nil {
-		for i, members := range args.Members {
-			var exp time.Time
-			if args.ExpirationTime[i] != 0 {
-				exp = time.Unix(args.ExpirationTime[i], 0)
-			} else {
-				exp = storagetypes.MaxTimeStamp
-			}
-			membersToRenew = append(membersToRenew, &storagetypes.MsgGroupMember{
-				Member:         members.String(),
-				ExpirationTime: &exp,
-			})
+	for i, members := range input.Members {
+		var exp time.Time
+		if input.ExpirationTime[i] != 0 {
+			exp = time.Unix(input.ExpirationTime[i], 0)
+		} else {
+			exp = storagetypes.MaxTimeStamp
 		}
+		membersToRenew = append(membersToRenew, &storagetypes.MsgGroupMember{
+			Member:         members.String(),
+			ExpirationTime: &exp,
+		})
 	}
+
 	msg := &storagetypes.MsgRenewGroupMember{
-		Operator:   caller.String(),
-		GroupOwner: args.GroupOwner.String(),
-		GroupName:  args.GroupName,
+		Operator:   contract.Caller().String(),
+		GroupOwner: input.GroupOwner.String(),
+		GroupName:  input.GroupName,
 		Members:    membersToRenew,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.RenewGroupMember(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.RenewGroupMember(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[RenewGroupMemberMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitRenewGroupMemberEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) SetTag(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("set tag for group method readonly")
-	}
-	method := GetAbiMethod(SetTagMethodName)
-	var args SetTagArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// SetTag sets the resource tags for a bucket, object or group resource.
+func (p Precompile) SetTag(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input SetTagArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
+	}
+	if input.Tags == nil {
+		return nil, errors.New("invalid tags parameter")
 	}
 
 	var tags storagetypes.ResourceTags
-	if args.Tags != nil {
-		for _, tag := range args.Tags {
-			tags.Tags = append(tags.Tags, storagetypes.ResourceTags_Tag{
-				Key:   tag.Key,
-				Value: tag.Value,
-			})
-		}
+	for _, tag := range input.Tags {
+		tags.Tags = append(tags.Tags, storagetypes.ResourceTags_Tag{
+			Key:   tag.Key,
+			Value: tag.Value,
+		})
 	}
+
 	msg := &storagetypes.MsgSetTag{
-		Operator: caller.String(),
-		Resource: args.Resource,
+		Operator: contract.Caller().String(),
+		Resource: input.Resource,
 		Tags:     &tags,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.SetTag(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.SetTag(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[SetTagMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitSetTagEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func parseResourceType(resource string) (ResourceType, error) {
-	var resourceType ResourceType
-	if strings.HasPrefix(resource, BucketResourcePrefix) {
-		resourceType = BucketResourceType
-	} else if strings.HasPrefix(resource, ObjectResourcePrefix) {
-		resourceType = ObjectResourceType
-	} else if strings.HasPrefix(resource, GroupResourcePrefix) {
-		resourceType = GroupResourceType
-	} else {
-		return -1, toCmdErr(errors.New("invalid resource name"))
-	}
-	return resourceType, nil
-}
-
-func parseBucketResource(resourceName string) (string, error) {
-	prefixLen := len(BucketResourcePrefix)
-	if len(resourceName) <= prefixLen {
-		return "", errors.New("invalid bucket resource name")
-	}
-
-	return resourceName[prefixLen:], nil
-}
-
-func toCmdErr(err error) error {
-	if strings.Contains(err.Error(), noBalanceErr) {
-		fmt.Println("The operator account have no balance, please transfer token to your account")
-	} else {
-		fmt.Printf("run command error: %s\n", err.Error())
-	}
-	return nil
-}
-
-func getBucketAction(action string) (permTypes.ActionType, bool, error) {
-	switch action {
-	case "update":
-		return permTypes.ACTION_UPDATE_BUCKET_INFO, false, nil
-	case "delete":
-		return permTypes.ACTION_DELETE_BUCKET, false, nil
-	case "list":
-		return permTypes.ACTION_LIST_OBJECT, false, nil
-	case "createObj":
-		return permTypes.ACTION_CREATE_OBJECT, true, nil
-	case "deleteObj":
-		return permTypes.ACTION_DELETE_OBJECT, true, nil
-	case "copyObj":
-		return permTypes.ACTION_COPY_OBJECT, true, nil
-	case "getObj":
-		return permTypes.ACTION_GET_OBJECT, true, nil
-	case "executeObj":
-		return permTypes.ACTION_EXECUTE_OBJECT, true, nil
-	case "all":
-		return permTypes.ACTION_TYPE_ALL, true, nil
-	default:
-		return permTypes.ACTION_UNSPECIFIED, false, errors.New("invalid action :" + action)
-	}
-}
-
-func getObjectAction(action string) (permTypes.ActionType, error) {
-	switch action {
-	case "create":
-		return permTypes.ACTION_CREATE_OBJECT, nil
-	case "delete":
-		return permTypes.ACTION_DELETE_OBJECT, nil
-	case "copy":
-		return permTypes.ACTION_COPY_OBJECT, nil
-	case "get":
-		return permTypes.ACTION_GET_OBJECT, nil
-	case "execute":
-		return permTypes.ACTION_EXECUTE_OBJECT, nil
-	case "list":
-		return permTypes.ACTION_LIST_OBJECT, nil
-	case "update":
-		return permTypes.ACTION_UPDATE_OBJECT_INFO, nil
-	case "all":
-		return permTypes.ACTION_TYPE_ALL, nil
-	default:
-		return permTypes.ACTION_UNSPECIFIED, errors.New("invalid action:" + action)
-	}
-}
-
-func getGroupAction(action string) (permTypes.ActionType, error) {
-	switch action {
-	case "update":
-		return permTypes.ACTION_UPDATE_GROUP_MEMBER, nil
-	case "delete":
-		return permTypes.ACTION_DELETE_GROUP, nil
-	case "all":
-		return permTypes.ACTION_TYPE_ALL, nil
-	default:
-		return permTypes.ACTION_UNSPECIFIED, errors.New("invalid action:" + action)
-	}
-}
-
-func parseActions(actionListStr string, resourceType ResourceType) ([]permTypes.ActionType, bool, error) {
-	actions := make([]permTypes.ActionType, 0)
-	if actionListStr == "" {
-		return nil, false, errors.New("fail to parse actions")
-	}
-
-	actionList := strings.Split(actionListStr, ",")
-	var isObjectActionInBucketPolicy bool
-	for _, v := range actionList {
-		var action permTypes.ActionType
-		var err error
-		if resourceType == ObjectResourceType {
-			action, err = getObjectAction(v)
-		} else if resourceType == BucketResourceType {
-			action, isObjectActionInBucketPolicy, err = getBucketAction(v)
-		} else if resourceType == GroupResourceType {
-			action, err = getGroupAction(v)
-		}
-
-		if err != nil {
-			return nil, isObjectActionInBucketPolicy, err
-		}
-		actions = append(actions, action)
-	}
-
-	return actions, isObjectActionInBucketPolicy, nil
-}
-
-func NewStatement(actions []permTypes.ActionType, effect permTypes.Effect,
-	resource []string, opts NewStatementOptions,
-) permTypes.Statement {
-	statement := permTypes.Statement{
-		Actions:        actions,
-		Effect:         effect,
-		Resources:      resource,
-		ExpirationTime: opts.StatementExpireTime,
-	}
-
-	if opts.LimitSize != 0 {
-		statement.LimitSize = &mocacommon.UInt64Value{Value: opts.LimitSize}
-	}
-
-	return statement
-}
-
-func (c *Contract) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("put policy to group or account method readonly")
-	}
-	method := GetAbiMethod(PutPolicyMethodName)
-	var args PutPolicyArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// PutPolicy attaches an access-control policy to a resource for a principal.
+func (p Precompile) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input PutPolicyArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	statements := make([]*permTypes.Statement, 0)
-	if args.Statements != nil {
-		for _, statement := range args.Statements {
-			actions := make([]permTypes.ActionType, 0)
-			for _, action := range statement.Actions {
-				actions = append(actions, permTypes.ActionType(action))
-			}
-			s := &permTypes.Statement{
-				Effect:    permTypes.Effect(statement.Effect),
-				Actions:   actions,
-				Resources: statement.Resources,
-			}
-			if statement.ExpirationTime != 0 {
-				tm := time.Unix(statement.ExpirationTime, 0)
-				s.ExpirationTime = &tm
-			}
-			if statement.LimitSize != 0 {
-				s.LimitSize = &mocacommon.UInt64Value{Value: statement.LimitSize}
-			}
-			statements = append(statements, s)
+	for _, statement := range input.Statements {
+		actions := make([]permTypes.ActionType, 0)
+		for _, action := range statement.Actions {
+			actions = append(actions, permTypes.ActionType(action))
 		}
+		s := &permTypes.Statement{
+			Effect:    permTypes.Effect(statement.Effect),
+			Actions:   actions,
+			Resources: statement.Resources,
+		}
+		if statement.ExpirationTime != 0 {
+			tm := time.Unix(statement.ExpirationTime, 0)
+			s.ExpirationTime = &tm
+		}
+		if statement.LimitSize != 0 {
+			s.LimitSize = &mocacommon.UInt64Value{Value: statement.LimitSize}
+		}
+		statements = append(statements, s)
 	}
 
 	var tmptr *time.Time
-	if args.ExpirationTime != 0 {
-		tm := time.Unix(args.ExpirationTime, 0)
+	if input.ExpirationTime != 0 {
+		tm := time.Unix(input.ExpirationTime, 0)
 		tmptr = &tm
 	}
 
 	msg := &storagetypes.MsgPutPolicy{
-		Operator:       caller.String(),
-		Principal:      &permTypes.Principal{Type: permTypes.PrincipalType(args.Principal.PrincipalType), Value: args.Principal.Value},
-		Resource:       args.Resource,
+		Operator:       contract.Caller().String(),
+		Principal:      &permTypes.Principal{Type: permTypes.PrincipalType(input.Principal.PrincipalType), Value: input.Principal.Value},
+		Resource:       input.Resource,
 		Statements:     statements,
 		ExpirationTime: tmptr,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.PutPolicy(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.PutPolicy(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[PutPolicyMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitPutPolicyEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("delete policy of principal method readonly")
-	}
-	method := GetAbiMethod(DeletePolicyMethodName)
-	var args DeletePolicyArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// DeletePolicy deletes the access-control policy of a principal on a resource.
+func (p Precompile) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input DeletePolicyArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgDeletePolicy{
-		Operator:  caller.String(),
-		Principal: &permTypes.Principal{Type: permTypes.PrincipalType(args.Principal.PrincipalType), Value: args.Principal.Value},
-		Resource:  args.Resource,
+		Operator:  contract.Caller().String(),
+		Principal: &permTypes.Principal{Type: permTypes.PrincipalType(input.Principal.PrincipalType), Value: input.Principal.Value},
+		Resource:  input.Resource,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.DeletePolicy(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.DeletePolicy(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[DeletePolicyMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitDeletePolicyEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("toggle SP as delegated agent method readonly")
-	}
-	method := GetAbiMethod(ToggleSPAsDelegatedAgentMethodName)
-	var args ToggleSPAsDelegatedAgentArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// ToggleSPAsDelegatedAgent toggles whether the SP acts as a delegated agent for a bucket.
+func (p Precompile) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input ToggleSPAsDelegatedAgentArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgToggleSPAsDelegatedAgent{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.ToggleSPAsDelegatedAgent(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.ToggleSPAsDelegatedAgent(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[ToggleSPAsDelegatedAgentMethodName]),
-		[]common.Hash{common.BytesToHash(caller.Bytes())},
-	); err != nil {
+
+	if err := p.EmitToggleSPAsDelegatedAgentEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
 
-func (c *Contract) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	caller := contract.Caller()
-	if readonly {
-		return nil, errors.New("cancel update object content method readonly")
-	}
-	method := GetAbiMethod(CancelUpdateObjectContentMethodName)
-	var args CancelUpdateObjectContentArgs
-	if err := types.ParseMethodArgs(method, &args, contract.Input[4:]); err != nil {
+// CancelUpdateObjectContent cancels an in-progress object content update.
+func (p Precompile) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	var input CancelUpdateObjectContentArgs
+	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
 	}
 
 	msg := &storagetypes.MsgCancelUpdateObjectContent{
-		Operator:   caller.String(),
-		BucketName: args.BucketName,
-		ObjectName: args.ObjectName,
+		Operator:   contract.Caller().String(),
+		BucketName: input.BucketName,
+		ObjectName: input.ObjectName,
 	}
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err
 	}
-	server := storagekeeper.NewMsgServerImpl(c.storageKeeper)
-	if _, err := server.CancelUpdateObjectContent(ctx, msg); err != nil {
+
+	if _, err := p.storageMsgServer.CancelUpdateObjectContent(ctx, msg); err != nil {
 		return nil, err
 	}
-	if err := c.AddLog(
-		evm,
-		GetAbiEvent(c.events[CancelUpdateObjectContentMethodName]),
-		[]common.Hash{
-			common.BytesToHash(caller.Bytes()),
-			crypto.Keccak256Hash([]byte(args.ObjectName)),
-		},
-	); err != nil {
+
+	if err := p.EmitCancelUpdateObjectContentEvent(evm, contract.Caller(), input.ObjectName); err != nil {
 		return nil, err
 	}
+
 	return method.Outputs.Pack(true)
 }
