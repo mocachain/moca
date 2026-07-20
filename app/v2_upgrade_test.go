@@ -13,7 +13,7 @@ import (
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	mocatypes "github.com/mocachain/moca/v2/types"
-	precompilesstorage "github.com/mocachain/moca/v2/x/evm/precompiles/storage"
+	precompilesstorage "github.com/mocachain/moca/v2/precompiles/storage"
 )
 
 // TestMigrateToV2_ContractSurvivesInPlace proves the v1.3.0 -> v2 in-place

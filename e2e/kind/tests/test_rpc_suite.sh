@@ -9,11 +9,13 @@ fw_start_chain
 
 EVM_RPC="${EVM_RPC:-http://localhost:8545}"
 export EVM_RPC
-EVM_CHAIN_ID="${SRC_CHAIN_ID}"
-cid=$(cast chain-id --rpc-url "$EVM_RPC" 2>/dev/null || echo "")
-if [ -n "$cid" ] && [ "$cid" != "0" ]; then
-    EVM_CHAIN_ID="$cid"
-fi
+# moca's cosmos chain-id is conjoint (moca_<evmid>-<epoch>), so the EIP-155 EVM
+# chain id is its numeric part (moca_5151-1 -> 5151). Derive the EXPECTED value
+# and sign cast txs with it; test_evm_chain_id asserts the node actually reports
+# it. (This previously adopted whatever `cast chain-id` returned, so a node that
+# fell back to cosmos/evm's 262144 default — evm.evm-chain-id unset in app.toml —
+# would sign for 262144 and pass the suite silently.)
+EVM_CHAIN_ID=$(printf '%s' "${CHAIN_ID}" | sed -E 's/.*_([0-9]+)-.*/\1/')
 VAL0_PRIVKEY="0x${VALIDATOR0_PRIKEY}"
 CONTRACTS_DIR="$(cd "$(dirname "$0")/../contracts" && pwd)"
 RPC_NODE="tcp://localhost:26657"
@@ -22,6 +24,41 @@ NUM_EXPECT="${NUM_VALIDATORS:-4}"
 
 _rpc_evm_call() {
     cast call "$@" --rpc-url "$EVM_RPC" 2>/dev/null
+}
+
+# eth_chainId must equal the EVM id derived from the cosmos chain-id on EVERY
+# validator. This is node-local app.toml config: a single validator that fell
+# back to cosmos/evm's 262144 default (evm.evm-chain-id unset) would split
+# consensus, yet stay invisible if only the NodePort endpoint (validator-0) is
+# queried — the other validators keep >2/3 power and the suite passes green. So
+# query each validator pod's own EVM RPC and require them all to match.
+test_evm_chain_id() {
+    local num="${NUM_VALIDATORS:-4}"
+    local i hex reported fail=0
+    for ((i = 0; i < num; i++)); do
+        hex=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
+            curl -sS -m 5 -X POST -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+            http://localhost:8545 2>/dev/null | jq -r '.result // empty' 2>/dev/null) || true
+        if ! printf '%s' "$hex" | grep -qiE '^0x[0-9a-f]+$'; then
+            log_error "  validator-${i}: eth_chainId query failed (got '${hex}')"
+            fail=1
+            continue
+        fi
+        reported=$(( hex )) # 0x141f -> 5151
+        if [ "$reported" != "$EVM_CHAIN_ID" ]; then
+            log_error "  validator-${i}: eth_chainId=${reported}, expected ${EVM_CHAIN_ID} (from ${CHAIN_ID}); 262144 means evm.evm-chain-id is unset in this pod's app.toml"
+            fail=1
+        else
+            log_info "  validator-${i}: eth_chainId = ${reported}"
+        fi
+    done
+    if [ "$fail" -ne 0 ]; then
+        log_error "eth_chainId must be ${EVM_CHAIN_ID} on all ${num} validators (from ${CHAIN_ID})"
+        return 1
+    fi
+    log_info "eth_chainId = ${EVM_CHAIN_ID} on all ${num} validators (matches ${CHAIN_ID})"
+    return 0
 }
 
 test_evm_connectivity() {
@@ -559,6 +596,7 @@ test_validator_info() {
 }
 
 fw_run_test "EVM HTTP connectivity" test_evm_connectivity
+fw_run_test "EVM eth_chainId matches cosmos chain-id" test_evm_chain_id
 fw_run_test "CometBFT /status" test_cometbft_status
 fw_run_test "CometBFT /health" test_cometbft_health
 fw_run_test "EVM eth_blockNumber JSON-RPC 2.0" test_evm_jsonrpc

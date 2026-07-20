@@ -104,20 +104,21 @@ import (
 	// cosmos/evm v0.6.0 EVM keeper + moca's chain-specific precompiles, registered
 	// into the EVM via WithStaticPrecompiles in EvmPrecompiled().
 	evmante "github.com/cosmos/evm/ante"
+	evmantetypes "github.com/cosmos/evm/ante/types"
 	feemarketmodule "github.com/cosmos/evm/x/feemarket"
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmmodule "github.com/cosmos/evm/x/vm"
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
-	precompilesauthz "github.com/mocachain/moca/v2/x/evm/precompiles/authz"
-	precompilesbank "github.com/mocachain/moca/v2/x/evm/precompiles/bank"
-	precompilesgov "github.com/mocachain/moca/v2/x/evm/precompiles/gov"
-	precompilespayment "github.com/mocachain/moca/v2/x/evm/precompiles/payment"
-	precompilespermission "github.com/mocachain/moca/v2/x/evm/precompiles/permission"
-	precompilesstorage "github.com/mocachain/moca/v2/x/evm/precompiles/storage"
-	precompilessp "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
-	precompilesvirtualgroup "github.com/mocachain/moca/v2/x/evm/precompiles/virtualgroup"
+	precompilesauthz "github.com/mocachain/moca/v2/precompiles/authz"
+	precompilesbank "github.com/mocachain/moca/v2/precompiles/bank"
+	precompilesgov "github.com/mocachain/moca/v2/precompiles/gov"
+	precompilespayment "github.com/mocachain/moca/v2/precompiles/payment"
+	precompilespermission "github.com/mocachain/moca/v2/precompiles/permission"
+	precompilesstorage "github.com/mocachain/moca/v2/precompiles/storage"
+	precompilessp "github.com/mocachain/moca/v2/precompiles/storageprovider"
+	precompilesvirtualgroup "github.com/mocachain/moca/v2/precompiles/virtualgroup"
 
 	consensusparamkeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	consensusparamtypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
@@ -134,9 +135,9 @@ import (
 	challengemodule "github.com/mocachain/moca/v2/x/challenge"
 	challengemodulekeeper "github.com/mocachain/moca/v2/x/challenge/keeper"
 	challengemoduletypes "github.com/mocachain/moca/v2/x/challenge/types"
-	precompilesdistribution "github.com/mocachain/moca/v2/x/evm/precompiles/distribution"
-	precompilesslashing "github.com/mocachain/moca/v2/x/evm/precompiles/slashing"
-	precompilesstaking "github.com/mocachain/moca/v2/x/evm/precompiles/staking"
+	precompilesdistribution "github.com/mocachain/moca/v2/precompiles/distribution"
+	precompilesslashing "github.com/mocachain/moca/v2/precompiles/slashing"
+	precompilesstaking "github.com/mocachain/moca/v2/precompiles/staking"
 	"github.com/mocachain/moca/v2/x/gensp"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
 	paymentmodule "github.com/mocachain/moca/v2/x/payment"
@@ -884,7 +885,7 @@ func (app *Moca) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 		Cdc:                    app.appCodec,
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
-		ExtensionOptionChecker: mocatypes.HasDynamicFeeExtensionOption,
+		ExtensionOptionChecker: evmantetypes.HasDynamicFeeExtensionOption,
 		EvmKeeper:              app.EvmKeeper,
 		FeegrantKeeper:         app.FeeGrantKeeper,
 		DistributionKeeper:     app.DistrKeeper,
@@ -1209,16 +1210,16 @@ func GetMaccPerms() map[string][]string {
 func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContract {
 	return map[common.Address]vm.PrecompiledContract{
 		precompilesbank.GetAddress():         precompilesbank.NewPrecompiledContract(app.BankKeeper, app.PaymentKeeper),
-		precompilesauthz.GetAddress():        precompilesauthz.NewPrecompiledContract(app.AuthzKeeper),
-		precompilesgov.GetAddress():          precompilesgov.NewPrecompiledContract(app.GovKeeper, app.AccountKeeper),
-		precompilespayment.GetAddress():      precompilespayment.NewPrecompiledContract(app.PaymentKeeper),
-		precompilespermission.GetAddress():   precompilespermission.NewPrecompiledContract(app.PermissionKeeper),
-		precompilesstaking.GetAddress():      precompilesstaking.NewPrecompiledContract(app.StakingKeeper),
-		precompilesdistribution.GetAddress(): precompilesdistribution.NewPrecompiledContract(app.DistrKeeper),
-		precompilesslashing.GetAddress():     precompilesslashing.NewPrecompiledContract(app.SlashingKeeper),
-		precompilesstorage.GetAddress():      precompilesstorage.NewPrecompiledContract(app.StorageKeeper),
-		precompilesvirtualgroup.GetAddress(): precompilesvirtualgroup.NewPrecompiledContract(app.VirtualgroupKeeper),
-		precompilessp.GetAddress():           precompilessp.NewPrecompiledContract(app.SpKeeper),
+		precompilesauthz.GetAddress():        precompilesauthz.NewPrecompiledContract(app.AuthzKeeper, app.BankKeeper),
+		precompilesgov.GetAddress():          precompilesgov.NewPrecompiledContract(app.GovKeeper, app.AccountKeeper, app.BankKeeper),
+		precompilespayment.GetAddress():      precompilespayment.NewPrecompiledContract(app.PaymentKeeper, app.BankKeeper),
+		precompilespermission.GetAddress():   precompilespermission.NewPrecompiledContract(app.PermissionKeeper, app.BankKeeper),
+		precompilesstaking.GetAddress():      precompilesstaking.NewPrecompiledContract(app.StakingKeeper, app.BankKeeper),
+		precompilesdistribution.GetAddress(): precompilesdistribution.NewPrecompiledContract(app.DistrKeeper, app.BankKeeper),
+		precompilesslashing.GetAddress():     precompilesslashing.NewPrecompiledContract(app.SlashingKeeper, app.BankKeeper),
+		precompilesstorage.GetAddress():      precompilesstorage.NewPrecompiledContract(app.StorageKeeper, app.BankKeeper),
+		precompilesvirtualgroup.GetAddress(): precompilesvirtualgroup.NewPrecompiledContract(app.VirtualgroupKeeper, app.BankKeeper),
+		precompilessp.GetAddress():           precompilessp.NewPrecompiledContract(app.SpKeeper, app.BankKeeper),
 	}
 }
 

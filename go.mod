@@ -17,7 +17,7 @@ require (
 	cosmossdk.io/x/tx v0.14.0
 	cosmossdk.io/x/upgrade v0.2.0
 	github.com/0xPolygon/polygon-edge v1.3.3
-	github.com/bits-and-blooms/bitset v1.24.5
+	github.com/bits-and-blooms/bitset v1.24.6
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil v1.2.0
 	github.com/cometbft/cometbft v0.38.21
@@ -27,13 +27,13 @@ require (
 	github.com/cosmos/evm v0.6.0
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/cosmos/gogoproto v1.7.2
+	github.com/creachadair/tomledit v0.0.28
 	github.com/ethereum/go-ethereum v1.15.11
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/holiman/uint256 v1.3.2
-	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	github.com/pkg/errors v0.9.1
@@ -132,7 +132,6 @@ require (
 	github.com/crate-crypto/go-eth-kzg v1.3.0 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/creachadair/atomicfile v0.3.7 // indirect
-	github.com/creachadair/tomledit v0.0.28 // indirect
 	github.com/danieljoos/wincred v1.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
@@ -201,6 +200,7 @@ require (
 	github.com/huandu/skiplist v1.2.1 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
+	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
@@ -307,14 +307,14 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2.0.20260627064440-06ad3faf98e2
-	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.2.0-rc2.0.20260627064440-06ad3faf98e2
-	cosmossdk.io/math => github.com/mocachain/moca-cosmos-sdk/math v0.0.0-20260627064440-06ad3faf98e2
-	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v1.2.0-rc2.0.20260627064440-06ad3faf98e2
-	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2.0.20260627064440-06ad3faf98e2
-	cosmossdk.io/x/circuit => github.com/mocachain/moca-cosmos-sdk/x/circuit v1.2.0-rc2.0.20260627064440-06ad3faf98e2
-	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2.0.20260627064440-06ad3faf98e2
-	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v1.2.0-rc2.0.20260627064440-06ad3faf98e2
+	cosmossdk.io/api => github.com/mocachain/moca-cosmos-sdk/api v1.2.0-rc2.0.20260702040635-1ff7bfd0e495
+	cosmossdk.io/client/v2 => github.com/mocachain/moca-cosmos-sdk/client/v2 v2.2.0-rc2.0.20260702040635-1ff7bfd0e495
+	cosmossdk.io/math => github.com/mocachain/moca-cosmos-sdk/math v0.0.0-20260702040635-1ff7bfd0e495
+	cosmossdk.io/simapp => github.com/mocachain/moca-cosmos-sdk/simapp v1.2.0-rc2.0.20260702040635-1ff7bfd0e495
+	cosmossdk.io/store => github.com/mocachain/moca-cosmos-sdk/store v1.2.0-rc2.0.20260702040635-1ff7bfd0e495
+	cosmossdk.io/x/circuit => github.com/mocachain/moca-cosmos-sdk/x/circuit v1.2.0-rc2.0.20260702040635-1ff7bfd0e495
+	cosmossdk.io/x/nft => github.com/mocachain/moca-cosmos-sdk/x/nft v1.2.0-rc2.0.20260702040635-1ff7bfd0e495
+	cosmossdk.io/x/tx => github.com/mocachain/moca-cosmos-sdk/x/tx v1.2.0-rc2.0.20260702040635-1ff7bfd0e495
 	// Use standard cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade from ecosystem
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
@@ -323,7 +323,7 @@ replace (
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260525065257-182cd579d91b
 	// use Cosmos-SDK fork to enable Ledger functionality
-	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260627064440-06ad3faf98e2
+	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.2.1-0.20260702040635-1ff7bfd0e495
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// use cosmos flavored protobufs
@@ -338,4 +338,4 @@ replace github.com/confio/ics23/go => github.com/cosmos/ics23/go v0.10.0
 
 replace github.com/ethereum/go-ethereum => github.com/cosmos/go-ethereum v1.16.2-cosmos-1
 
-replace cosmossdk.io/x/feegrant => github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260627064440-06ad3faf98e2
+replace cosmossdk.io/x/feegrant => github.com/mocachain/moca-cosmos-sdk/x/feegrant v1.2.0-rc2.0.20260702040635-1ff7bfd0e495

@@ -347,7 +347,9 @@ generate_genesis() {
     sed -i "s/cors_allowed_origins = \[\]/cors_allowed_origins = \[\"*\"\]/g" "$config"
 
     # ---- app.toml patches ----
-    sed -i "s/minimum-gas-prices = \"0amoca\"/minimum-gas-prices = \"5000000000${BASIC_DENOM}\"/g" "$app"
+    # 25 gwei: `--gas auto` derives the tx fee from the node minimum-gas-prices, so this
+    # must clear the post-v2 feemarket floor (20 gwei) or post-upgrade txs are underpriced.
+    sed -i "s/minimum-gas-prices = \"0amoca\"/minimum-gas-prices = \"25000000000${BASIC_DENOM}\"/g" "$app"
     # cosmos/evm reads the EIP-155 EVM chain id from app.toml [evm] evm-chain-id;
     # if unset it defaults to 262144, so EVM clients (which derive chainId from
     # the cosmos chain-id, e.g. moca_5151-1 -> 5151) mismatch the node. The v2

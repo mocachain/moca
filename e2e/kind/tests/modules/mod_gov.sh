@@ -11,7 +11,6 @@ _GOV_PROP_IDX=0
 _gov_submit_proposal() {
     local proposal_json="$1"
     local tmpfile="$2"
-    local fees="5000000000000000amoca"
 
     # Count proposals before submission
     local before_count
@@ -37,21 +36,20 @@ _gov_submit_proposal() {
 
     # Submit proposal via sync broadcast so we deterministically get a txhash
     local submit_out broadcast_code txhash
-    submit_out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
-        mocad tx gov submit-proposal "${tmpfile}" \
-        --from validator0 \
-        --keyring-backend test \
-        --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 \
-        --fees "$fees" \
-        --home /root/.mocad \
-        --broadcast-mode sync -y --output json 2>&1) || {
+    submit_out=$(cosmos_broadcast validator-0-0 tx gov submit-proposal "${tmpfile}" --from validator0)
+    if ! printf '%s' "$submit_out" | jq -e . >/dev/null 2>&1; then
         log_warn "  [gov] broadcast failed: $submit_out" >&2
         return 1
-    }
+    fi
     broadcast_code=$(echo "$submit_out" | jq -r '.code // empty' 2>/dev/null)
     txhash=$(echo "$submit_out" | jq -r '.txhash // empty' 2>/dev/null)
     log_info "  [gov] broadcast response: code=${broadcast_code:-?} txhash=${txhash:-none}" >&2
+    # A CheckTx rejection returns valid JSON + txhash but code!=0; gate on it so we fail here
+    # instead of on a fw_wait_cosmos_tx timeout for a tx that never lands.
+    if [ -n "$broadcast_code" ] && [ "$broadcast_code" != "0" ]; then
+        log_warn "  [gov] CheckTx rejected (code=${broadcast_code}): $submit_out" >&2
+        return 1
+    fi
     if [ -z "$txhash" ]; then
         log_warn "  [gov] no txhash in broadcast response: $submit_out" >&2
         return 1

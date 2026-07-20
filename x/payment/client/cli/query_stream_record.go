@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	mocatypes "github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/payment"
+	"github.com/mocachain/moca/v2/precompiles/payment"
 	"github.com/mocachain/moca/v2/x/payment/types"
 )
 

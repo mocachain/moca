@@ -8,7 +8,6 @@ import (
 
 	"cosmossdk.io/math"
 	"cosmossdk.io/store/iavl"
-	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
@@ -160,7 +159,7 @@ func (app *Moca) reconPaymentChanges(ctx sdk.Context, paymentIavl *iavl.Store) b
 }
 
 func (app *Moca) saveUnbalancedBlockHeight(ctx sdk.Context) {
-	reconStore := app.CommitMultiStore().GetCommitStore(storetypes.NewKVStoreKey(reconStoreKey)).(*iavl.Store)
+	reconStore := app.CommitMultiStore().GetCommitStore(app.GetKey(reconStoreKey)).(*iavl.Store)
 	bz := make([]byte, 8)
 	binary.BigEndian.PutUint64(bz, uint64(ctx.BlockHeight()))
 	reconStore.Set(unbalancedBlockHeightKey, bz)

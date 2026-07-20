@@ -63,16 +63,11 @@ write_to_pod() {
 # 2>&1 capture instead of being silenced inside the helper.
 cosmos_tx() {
     local out hash
-    out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
-        mocad tx "$@" \
-        --home /root/.mocad \
-        --keyring-backend test --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 \
-        --gas 1000000 --fees 30000000000000000amoca \
-        --broadcast-mode sync -y --output json) || {
+    out=$(cosmos_broadcast validator-0-0 tx "$@")
+    if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         log_error "  cosmos_tx broadcast failed: $out"
         return 1
-    }
+    fi
     if [ "$(echo "$out" | jq -r '.code // 0')" != "0" ]; then
         log_error "  cosmos_tx CheckTx rejected: $out"
         return 1
@@ -88,16 +83,11 @@ cosmos_tx() {
 cosmos_tx_on() {
     local idx="$1"; shift
     local out hash
-    out=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${idx}-0" -c mocad -- \
-        mocad tx "$@" \
-        --home /root/.mocad \
-        --keyring-backend test --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 \
-        --gas 1000000 --fees 30000000000000000amoca \
-        --broadcast-mode sync -y --output json) || {
+    out=$(cosmos_broadcast "validator-${idx}-0" tx "$@")
+    if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         log_error "  cosmos_tx_on broadcast failed: $out"
         return 1
-    }
+    fi
     if [ "$(echo "$out" | jq -r '.code // 0')" != "0" ]; then
         log_error "  cosmos_tx_on CheckTx rejected: $out"
         return 1
@@ -201,7 +191,7 @@ if [ -n "$RELEASE_TAG" ] && [ -z "$RELEASE_IMAGE" ]; then
     log_info "Pulling release image: ${_GHCR_IMAGE}..."
     docker pull "$_GHCR_IMAGE" 2>&1
     echo "FROM ${_GHCR_IMAGE}" | docker build -t "$RELEASE_IMAGE" - 2>&1
-    kind load docker-image "$RELEASE_IMAGE" --name "${KIND_CLUSTER_NAME}" 2>&1
+    kind_load_image "$RELEASE_IMAGE"
 fi
 
 # Get validator operator addresses indexed by validator-N pod number.

@@ -30,25 +30,29 @@ log_info "  Image:  ${NEW_DOCKER_IMAGE}"
 
 # ── Governance mode ──────────────────────────────────────────────────────────
 _upgrade_governance() {
-    local fees="5000000000000000amoca"
-
     log_info "Submitting software-upgrade proposal..."
 
-    # Get the gov module authority address
+    # Get the gov module authority address. Use `if !` (not a bare assignment) so
+    # a failing query under `set -euo pipefail` falls through to the alternative /
+    # diagnostic below instead of terminating the script.
     local gov_authority=""
-    gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+    if ! gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
         mocad query auth module-account gov \
         --node tcp://localhost:26657 \
         --home /root/.mocad \
-        --output json 2>/dev/null | jq -r '.account.base_account.address // .account.value.address // empty' 2>/dev/null) || true
+        --output json 2>/dev/null | jq -r '.account.base_account.address // .account.value.address // empty' 2>/dev/null); then
+        gov_authority=""
+    fi
 
     if [ -z "$gov_authority" ]; then
         log_warn "Could not query gov module address, trying alternative..."
-        gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
+        if ! gov_authority=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
             mocad query auth module-accounts \
             --node tcp://localhost:26657 \
             --home /root/.mocad \
-            --output json 2>/dev/null | jq -r '.accounts[] | select(.name=="gov") | .base_account.address // .value.address // empty' 2>/dev/null) || true
+            --output json 2>/dev/null | jq -r '.accounts[] | select(.name=="gov") | .base_account.address // .value.address // empty' 2>/dev/null); then
+            gov_authority=""
+        fi
     fi
 
     if [ -z "$gov_authority" ]; then
@@ -86,18 +90,16 @@ PROPOSAL_EOF
 
     # Submit proposal via sync broadcast + wait for inclusion
     local submit_out="" submit_hash=""
-    submit_out=$(kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
-        mocad tx gov submit-proposal /tmp/upgrade-proposal.json \
-        --from validator0 \
-        --keyring-backend test \
-        --chain-id "${CHAIN_ID}" \
-        --node tcp://localhost:26657 \
-        --fees "$fees" \
-        --home /root/.mocad \
-        --broadcast-mode sync -y --output json 2>&1) || {
+    submit_out=$(cosmos_broadcast validator-0-0 tx gov submit-proposal /tmp/upgrade-proposal.json --from validator0)
+    if ! printf '%s' "$submit_out" | jq -e . >/dev/null 2>&1; then
         log_error "Upgrade proposal broadcast failed: $submit_out"
         return 1
-    }
+    fi
+    # CheckTx rejection = valid JSON + txhash but code!=0; gate on it (else fw_wait_cosmos_tx times out).
+    if [ "$(echo "$submit_out" | jq -r '.code // 0')" != "0" ]; then
+        log_error "Upgrade proposal CheckTx rejected: $submit_out"
+        return 1
+    fi
     echo "$submit_out"
     submit_hash=$(echo "$submit_out" | jq -r '.txhash // empty' 2>/dev/null)
     if [ -z "$submit_hash" ]; then
@@ -126,29 +128,42 @@ PROPOSAL_EOF
 
     log_info "Proposal ID: ${proposal_id}"
 
-    # Vote YES from all validators (sync broadcast + wait per vote)
+    # Vote YES from all validators (sync broadcast + wait per vote). A proposal needs quorum,
+    # not unanimity, so a minority of failed votes is tolerated — but count the successes and
+    # fail below quorum so a systemic vote regression is loud here, not just a downstream miss.
+    local vote_ok=0
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
         log_info "  validator${i} voting YES..."
         local vote_out="" vote_hash=""
-        vote_out=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
-            mocad tx gov vote "$proposal_id" yes \
-            --from "validator${i}" \
-            --keyring-backend test \
-            --chain-id "${CHAIN_ID}" \
-            --node tcp://localhost:26657 \
-            --fees "$fees" \
-            --home /root/.mocad \
-            --broadcast-mode sync -y --output json 2>&1) || {
+        vote_out=$(cosmos_broadcast "validator-${i}-0" tx gov vote "$proposal_id" yes --from "validator${i}")
+        if ! printf '%s' "$vote_out" | jq -e . >/dev/null 2>&1; then
             log_warn "  validator${i} vote broadcast failed: $vote_out"
             continue
-        }
+        fi
+        if [ "$(echo "$vote_out" | jq -r '.code // 0')" != "0" ]; then
+            log_warn "  validator${i} vote CheckTx rejected: $vote_out"
+            continue
+        fi
         vote_hash=$(echo "$vote_out" | jq -r '.txhash // empty' 2>/dev/null)
-        if [ -n "$vote_hash" ]; then
-            fw_wait_cosmos_tx "$vote_hash" || log_warn "  validator${i} vote not included or failed"
-        else
+        if [ -z "$vote_hash" ]; then
             log_warn "  validator${i} vote returned no txhash: $vote_out"
+            continue
+        fi
+        if fw_wait_cosmos_tx "$vote_hash"; then
+            vote_ok=$((vote_ok + 1))
+        else
+            log_warn "  validator${i} vote not included or failed"
         fi
     done
+
+    # Below ~1/3 turnout the proposal can't reach gov quorum, so the upgrade would never fire.
+    # Fail loudly here — _wait_for_upgrade_halt can't tell "halted for upgrade" from "sailed past".
+    local min_votes=$(( NUM_VALIDATORS / 3 + 1 ))
+    if [ "$vote_ok" -lt "$min_votes" ]; then
+        log_error "Only ${vote_ok}/${NUM_VALIDATORS} votes succeeded (need >= ${min_votes} for quorum); upgrade will not pass"
+        return 1
+    fi
+    log_info "Votes succeeded: ${vote_ok}/${NUM_VALIDATORS} (quorum >= ${min_votes})"
 
     log_info "Waiting for voting period to end and upgrade height ${UPGRADE_HEIGHT}..."
     _wait_for_upgrade_halt
@@ -209,8 +224,10 @@ _wait_for_upgrade_halt() {
 _update_validator_images() {
     log_info "Updating validator images to ${NEW_DOCKER_IMAGE}..."
 
-    # Load new image into Kind if not already loaded
-    kind load docker-image "${NEW_DOCKER_IMAGE}" --name "${KIND_CLUSTER_NAME}" 2>/dev/null || true
+    # Load new image into Kind (docker save | ctr import with verification — see
+    # kind_load_image in lib.sh; the plain `kind load` silently no-op'd on a
+    # failed load, leaving validators to restart into a missing/old image).
+    kind_load_image "${NEW_DOCKER_IMAGE}"
 
     # Patch each validator StatefulSet with the new image
     for ((i = 0; i < NUM_VALIDATORS; i++)); do
@@ -243,8 +260,14 @@ _update_validator_images() {
 
     log_success "All validators restarted with new image"
 
-    # Wait for chain to resume producing blocks
+    # Wait for chain to resume producing blocks (NodePort RPC — a single healthy
+    # pod satisfies this), then gate on EVERY validator's own RPC: a tx broadcast
+    # routed via kubectl exec to a pod whose RPC isn't yet serving fails with
+    # empty stderr, and the EVM JSON-RPC can lag the cosmos /status by several
+    # seconds after a rolling restart ("null response" on the first cast send).
     wait_for_chain_ready "http://localhost:26657" 180
+    wait_for_all_validator_rpcs "$NUM_VALIDATORS" 60
+    wait_for_evm_rpc_ready "http://localhost:8545" 60
     log_success "Chain resumed after upgrade"
 }
 

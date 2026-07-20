@@ -377,21 +377,10 @@ benchmark:
 
 lint:
 	golangci-lint run --new-from-rev=HEAD~1
-	solhint contracts/**/*.sol
-
-lint-contracts:
-	@cd contracts && \
-	npm i && \
-	npm run lint
 
 lint-fix:
 	golangci-lint run --fix --out-format=tab --issues-exit-code=0
 
-lint-fix-contracts:
-	@cd contracts && \
-	npm i && \
-	npm run lint-fix
-	solhint --fix contracts/**/*.sol
 
 .PHONY: lint lint-fix
 
@@ -440,41 +429,8 @@ proto-check-breaking:
 	@echo "Checking Protobuf files for breaking changes"
 	$(protoImage) buf breaking --against $(HTTPS_GIT)#branch=main
 
-SWAGGER_DIR=./swagger-proto
-THIRD_PARTY_DIR=$(SWAGGER_DIR)/third_party
-
 proto-download-deps:
-	mkdir -p "$(THIRD_PARTY_DIR)/cosmos_tmp" && \
-	cd "$(THIRD_PARTY_DIR)/cosmos_tmp" && \
-	git init && \
-	git remote add origin "https://github.com/cosmos/cosmos-sdk.git" && \
-	git config core.sparseCheckout true && \
-	printf "proto\nthird_party\n" > .git/info/sparse-checkout && \
-	git pull origin main && \
-	rm -f ./proto/buf.* && \
-	mv ./proto/* ..
-	rm -rf "$(THIRD_PARTY_DIR)/cosmos_tmp"
-
-	mkdir -p "$(THIRD_PARTY_DIR)/cosmos_proto_tmp" && \
-	cd "$(THIRD_PARTY_DIR)/cosmos_proto_tmp" && \
-	git init && \
-	git remote add origin "https://github.com/cosmos/cosmos-proto.git" && \
-	git config core.sparseCheckout true && \
-	printf "proto\n" > .git/info/sparse-checkout && \
-	git pull origin main && \
-	rm -f ./proto/buf.* && \
-	mv ./proto/* ..
-	rm -rf "$(THIRD_PARTY_DIR)/cosmos_proto_tmp"
-
-	mkdir -p "$(THIRD_PARTY_DIR)/gogoproto" && \
-	curl -SSL https://raw.githubusercontent.com/cosmos/gogoproto/main/gogoproto/gogo.proto > "$(THIRD_PARTY_DIR)/gogoproto/gogo.proto"
-
-	mkdir -p "$(THIRD_PARTY_DIR)/google/api" && \
-	curl -sSL https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto > "$(THIRD_PARTY_DIR)/google/api/annotations.proto"
-	curl -sSL https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto > "$(THIRD_PARTY_DIR)/google/api/http.proto"
-
-	mkdir -p "$(THIRD_PARTY_DIR)/cosmos/ics23/v1" && \
-	curl -sSL https://raw.githubusercontent.com/cosmos/ics23/master/proto/cosmos/ics23/v1/proofs.proto > "$(THIRD_PARTY_DIR)/cosmos/ics23/v1/proofs.proto"
+	bash ./scripts/proto-download-deps.sh
 
 
 .PHONY: proto-all proto-gen proto-pulsar proto-format proto-lint proto-check-breaking proto-swagger-gen
@@ -549,62 +505,6 @@ release:
 .PHONY: release-dry-run release
 
 ###############################################################################
-###                        Compile Solidity Contracts                       ###
-###############################################################################
-
-CONTRACTS_DIR := contracts
-COMPILED_DIR := contracts/compiled_contracts
-TMP := tmp
-TMP_CONTRACTS := $(TMP).contracts
-TMP_COMPILED := $(TMP)/compiled.json
-TMP_JSON := $(TMP)/tmp.json
-
-# Compile and format solidity contracts for the erc20 module. Also install
-# openzeppeling as the contracts are build on top of openzeppelin templates.
-contracts-compile: contracts-clean openzeppelin create-contracts-json
-
-# Install openzeppelin solidity contracts
-openzeppelin:
-	@echo "Importing openzeppelin contracts..."
-	@cd $(CONTRACTS_DIR)
-	@npm install
-	@cd ../../../../
-	@mv node_modules $(TMP)
-	@mv package-lock.json $(TMP)
-	@mv $(TMP)/@openzeppelin $(CONTRACTS_DIR)
-
-# Clean tmp files
-contracts-clean:
-	@rm -rf tmp
-	@rm -rf node_modules
-	@rm -rf $(COMPILED_DIR)
-	@rm -rf $(CONTRACTS_DIR)/@openzeppelin
-
-# Compile, filter out and format contracts into the following format.
-# {
-# 	"abi": "[{\"inpu 			# JSON string
-# 	"bin": "60806040
-# 	"contractName": 			# filename without .sol
-# }
-create-contracts-json:
-	@for c in $(shell ls $(CONTRACTS_DIR) | grep '\.sol' | sed 's/.sol//g'); do \
-		command -v jq > /dev/null 2>&1 || { echo >&2 "jq not installed."; exit 1; } ;\
-		command -v solc > /dev/null 2>&1 || { echo >&2 "solc not installed."; exit 1; } ;\
-		mkdir -p $(COMPILED_DIR) ;\
-		mkdir -p $(TMP) ;\
-		echo "\nCompiling solidity contract $${c}..." ;\
-		solc --combined-json abi,bin $(CONTRACTS_DIR)/$${c}.sol > $(TMP_COMPILED) ;\
-		echo "Formatting JSON..." ;\
-		get_contract=$$(jq '.contracts["$(CONTRACTS_DIR)/'$$c'.sol:'$$c'"]' $(TMP_COMPILED)) ;\
-		add_contract_name=$$(echo $$get_contract | jq '. + { "contractName": "'$$c'" }') ;\
-		echo $$add_contract_name | jq > $(TMP_JSON) ;\
-		abi_string=$$(echo $$add_contract_name | jq -cr '.abi') ;\
-		echo $$add_contract_name | jq --arg newval "$$abi_string" '.abi = $$newval' > $(TMP_JSON) ;\
-		mv $(TMP_JSON) $(COMPILED_DIR)/$${c}.json ;\
-	done
-	@rm -rf tmp
-
-###############################################################################
 ###                        Docker Compose                                   ###
 ###############################################################################
 # build-docker-compose-file
@@ -621,7 +521,7 @@ stop-dc:
 .PHONY: build-dcf start-dc stop-dc
 
 precompile:
-	@cd x/evm/precompiles && sh compile.sh
+	@cd precompiles && sh compile.sh
 
 verify:
 	@cd solidity && node verify.js
