@@ -68,13 +68,13 @@ func (p Precompile) EmitSPExitEvent(evm *vm.EVM, caller common.Address) error {
 		[]common.Hash{common.BytesToHash(caller.Bytes())})
 }
 
-// EmitCompleteSPExitEvent emits the CompleteSPExit event with the caller and the operator
-// address as indexed topics.
-func (p Precompile) EmitCompleteSPExitEvent(evm *vm.EVM, caller common.Address, operator string) error {
+// EmitCompleteSPExitEvent emits the CompleteSPExit event. Per #365 the operator topic is
+// the caller too (it is the GetSigners() signer), so both indexed topics are the caller.
+func (p Precompile) EmitCompleteSPExitEvent(evm *vm.EVM, caller common.Address) error {
 	return p.AddLog(evm, MustEvent(CompleteSPExitEventName),
 		[]common.Hash{
 			common.BytesToHash(caller.Bytes()),
-			common.BytesToHash(common.HexToAddress(operator).Bytes()),
+			common.BytesToHash(caller.Bytes()),
 		})
 }
 

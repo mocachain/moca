@@ -191,7 +191,8 @@ func (p Precompile) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 
 	msg := &virtualgrouptypes.MsgCompleteStorageProviderExit{
 		StorageProvider: contract.Caller().String(),
-		Operator:        input.Operator,
+		// Operator is the signer per GetSigners(), so it must be the caller too (#365).
+		Operator: contract.Caller().String(),
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
@@ -202,7 +203,7 @@ func (p Precompile) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 		return nil, err
 	}
 
-	if err := p.EmitCompleteSPExitEvent(evm, contract.Caller(), input.Operator); err != nil {
+	if err := p.EmitCompleteSPExitEvent(evm, contract.Caller()); err != nil {
 		return nil, err
 	}
 
