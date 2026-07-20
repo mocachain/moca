@@ -296,7 +296,8 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 
 	msg := &virtualgrouptypes.MsgCompleteStorageProviderExit{
 		StorageProvider: caller.String(),
-		Operator:        args.Operator,
+		// Operator is the signer per GetSigners(), so it must be the caller too.
+		Operator: caller.String(),
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
@@ -315,7 +316,7 @@ func (c *Contract) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 		MustEvent(CompleteSPExitEventName),
 		[]common.Hash{
 			common.BytesToHash(caller.Bytes()),
-			common.BytesToHash(common.HexToAddress(args.Operator).Bytes()),
+			common.BytesToHash(caller.Bytes()),
 		},
 	); err != nil {
 		return nil, err
