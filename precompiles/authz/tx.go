@@ -57,10 +57,6 @@ const (
 
 // Grant implements the MsgServer.Grant method to create a new grant.
 func (p Precompile) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input GrantArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -146,10 +142,6 @@ func (p Precompile) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, m
 
 // Revoke implements the MsgServer.Revoke method.
 func (p Precompile) Revoke(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input RevokeArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -174,10 +166,6 @@ func (p Precompile) Revoke(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 
 // Exec implements the MsgServer.Exec method.
 func (p Precompile) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input ExecArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err

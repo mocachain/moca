@@ -6,8 +6,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
-
-	"github.com/mocachain/moca/v2/precompiles/types"
 )
 
 const (
@@ -19,10 +17,6 @@ const (
 
 // Send sends coins from the caller to a single recipient.
 func (p Precompile) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input SendArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -52,10 +46,6 @@ func (p Precompile) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, me
 
 // MultiSend sends coins from the caller to several recipients in a single transaction.
 func (p Precompile) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input MultiSendArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err

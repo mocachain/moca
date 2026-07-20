@@ -6,6 +6,7 @@ package storage_test
 // dispatch/EOA-only/failure behaviors can be pinned cheaply and deterministically.
 
 import (
+	"math/big"
 	"testing"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/contracts"
 	"github.com/mocachain/moca/v2/precompiles/storage"
-	precompiletypes "github.com/mocachain/moca/v2/precompiles/types"
 	"github.com/mocachain/moca/v2/testutil"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	"github.com/mocachain/moca/v2/utils"
@@ -100,23 +100,30 @@ func (s *CreateGroupTestSuite) TestCreateGroup_EVMDispatchSuccess() {
 	s.Require().Equal(sdk.AccAddress(s.address.Bytes()).String(), group.Owner, "group owner == caller")
 }
 
-// TestCreateGroup_RejectsContractForwarding pins the EOA-only guard that #332
-// deliberately keeps: a call whose direct caller differs from the tx origin (a
-// contract forwarding) is rejected before any state change.
-func (s *CreateGroupTestSuite) TestCreateGroup_RejectsContractForwarding() {
+// TestCreateGroup_AllowsContractForwarding asserts that the immediate contract
+// caller, rather than the transaction origin, owns a forwarded native action.
+func (s *CreateGroupTestSuite) TestCreateGroup_AllowsContractForwarding() {
 	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
-	input := s.mustPackCreateGroupInput("regression-group-fwd", "")
+	const groupName = "regression-group-fwd"
+	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(caller.Bytes()), 1))
 
 	contract := vm.NewContract(caller, storage.GetAddress(), uint256.NewInt(0), 60_000, nil)
-	contract.Input = input
+	contract.Input = s.mustPackCreateGroupInput(groupName, "")
 
-	evm := &vm.EVM{}
-	evm.SetTxContext(vm.TxContext{Origin: s.address}) // origin != caller
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	p := storage.NewPrecompile(storagekeeper.NewMsgServerImpl(s.app.StorageKeeper), s.app.StorageKeeper, s.app.BankKeeper)
 	method := storage.MustMethod(storage.CreateGroupMethodName)
-	_, err := p.CreateGroup(s.ctx, evm, contract, &method, nil)
-	s.Require().ErrorIs(err, precompiletypes.ErrInvalidCaller)
+	args, err := method.Inputs.Unpack(contract.Input[4:])
+	s.Require().NoError(err)
+	_, err = p.CreateGroup(s.ctx, evm, contract, &method, args)
+	s.Require().NoError(err)
+
+	group, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(caller.Bytes()), groupName)
+	s.Require().True(found)
+	s.Require().Equal(sdk.AccAddress(caller.Bytes()).String(), group.Owner)
 }
 
 // TestCreateGroup_FailureDoesNotMutateState pre-creates a group, then dispatches

@@ -6,7 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/mocachain/moca/v2/precompiles/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 
@@ -23,10 +22,6 @@ const (
 
 // CreatePaymentAccount creates a new payment account owned by the caller.
 func (p Precompile) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, _ []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	msg := &paymenttypes.MsgCreatePaymentAccount{
 		Creator: contract.Caller().String(),
 	}
@@ -47,10 +42,6 @@ func (p Precompile) CreatePaymentAccount(ctx sdk.Context, evm *vm.EVM, contract 
 
 // Deposit deposits coins from the caller into a payment stream.
 func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DepositArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -78,10 +69,6 @@ func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 
 // DisableRefund disables refunds on a payment account owned by the caller.
 func (p Precompile) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DisableRefundArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -108,10 +95,6 @@ func (p Precompile) DisableRefund(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 
 // Withdraw withdraws coins from a payment stream back to the caller.
 func (p Precompile) Withdraw(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input WithdrawArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err

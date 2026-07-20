@@ -8,8 +8,6 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
-
-	"github.com/mocachain/moca/v2/precompiles/types"
 )
 
 const (
@@ -22,10 +20,6 @@ const (
 
 // EditValidator edits an existing validator's description and moca PoA/BLS fields.
 func (p Precompile) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input EditValidatorArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -55,10 +49,6 @@ func (p Precompile) EditValidator(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 
 // Delegate delegates coins from the caller to a validator.
 func (p Precompile) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DelegateArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -90,10 +80,6 @@ func (p Precompile) Delegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 
 // Undelegate undelegates coins from a validator back to the caller.
 func (p Precompile) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input UndelegateArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -127,10 +113,6 @@ func (p Precompile) Undelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 
 // Redelegate moves a delegation from one validator to another.
 func (p Precompile) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input RedelegateArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -165,10 +147,6 @@ func (p Precompile) Redelegate(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 
 // CancelUnbondingDelegation cancels an unbonding delegation and re-delegates the coins.
 func (p Precompile) CancelUnbondingDelegation(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CancelUnbondingDelegationArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err

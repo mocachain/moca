@@ -6,7 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/mocachain/moca/v2/precompiles/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
@@ -17,10 +16,6 @@ const (
 
 // UpdateSPPrice updates the caller's storage provider read/store price and free read quota.
 func (p Precompile) UpdateSPPrice(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input UpdateSPPriceArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err

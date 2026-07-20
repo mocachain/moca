@@ -17,8 +17,6 @@ import (
 	mocacommon "github.com/mocachain/moca/v2/types/common"
 	permTypes "github.com/mocachain/moca/v2/x/permission/types"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
-
-	"github.com/mocachain/moca/v2/precompiles/types"
 )
 
 const (
@@ -91,10 +89,6 @@ const (
 // CreateBucket creates a new bucket owned by the caller and mirrors the bucket-NFT
 // mint as an ERC721 Transfer log on the bucket token contract.
 func (p Precompile) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CreateBucketArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -138,10 +132,6 @@ func (p Precompile) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 // UpdateBucketInfo updates a bucket's visibility, payment address and read quota.
 func (p Precompile) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input UpdateBucketInfoArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -184,10 +174,6 @@ func (p Precompile) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.
 
 // DeleteBucket deletes a bucket owned by the caller.
 func (p Precompile) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DeleteBucketArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -214,10 +200,6 @@ func (p Precompile) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 // DiscontinueBucket discontinues a bucket with a reason.
 func (p Precompile) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DiscontinueBucketArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -245,10 +227,6 @@ func (p Precompile) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm
 
 // MigrateBucket migrates a bucket to a destination primary storage provider.
 func (p Precompile) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input MigrateBucketArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -280,10 +258,6 @@ func (p Precompile) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 
 // CompleteMigrateBucket completes a bucket migration with the new gvg mappings.
 func (p Precompile) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CompleteMigrateBucketArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -321,10 +295,6 @@ func (p Precompile) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract
 
 // RejectMigrateBucket rejects a pending bucket migration.
 func (p Precompile) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input RejectMigrateBucketArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -351,10 +321,6 @@ func (p Precompile) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *
 
 // CancelMigrateBucket cancels a pending bucket migration.
 func (p Precompile) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CancelMigrateBucketArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -381,10 +347,6 @@ func (p Precompile) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *
 
 // SetBucketFlowRateLimit sets the payment flow rate limit for a bucket.
 func (p Precompile) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input SetBucketFlowRateLimitArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -414,10 +376,6 @@ func (p Precompile) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contrac
 
 // CreateObject creates a new object in a bucket owned/authorized to the caller.
 func (p Precompile) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CreateObjectArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -465,10 +423,6 @@ func (p Precompile) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 // CopyObject copies an object into a destination bucket.
 func (p Precompile) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CopyObjectArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -502,10 +456,6 @@ func (p Precompile) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 
 // DeleteObject deletes an object from a bucket.
 func (p Precompile) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DeleteObjectArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -533,10 +483,6 @@ func (p Precompile) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 // CancelCreateObject cancels an in-progress object creation.
 func (p Precompile) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CancelCreateObjectArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -564,10 +510,6 @@ func (p Precompile) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *v
 
 // SealObject seals an object and mirrors the object-NFT mint as an ERC721 Transfer log.
 func (p Precompile) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input SealObjectArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -609,10 +551,6 @@ func (p Precompile) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 
 // SealObjectV2 seals an object with expected checksums.
 func (p Precompile) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input SealObjectV2Args
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -657,10 +595,6 @@ func (p Precompile) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 // RejectSealObject rejects the sealing of an object.
 func (p Precompile) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input RejectSealObjectArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -688,10 +622,6 @@ func (p Precompile) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.
 
 // DelegateCreateObject creates an object on behalf of a creator via a delegated agent.
 func (p Precompile) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DelegateCreateObjectArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -734,10 +664,6 @@ func (p Precompile) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract 
 
 // DelegateUpdateObjectContent updates an object's content via a delegated agent.
 func (p Precompile) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DelegateUpdateObjectContentArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -778,10 +704,6 @@ func (p Precompile) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, co
 
 // UpdateObjectInfo updates an object's visibility.
 func (p Precompile) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input UpdateObjectInfoArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -810,10 +732,6 @@ func (p Precompile) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.
 
 // UpdateObjectContent updates an object's content with expected checksums.
 func (p Precompile) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input UpdateObjectContentArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -853,10 +771,6 @@ func (p Precompile) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *
 
 // DiscontinueObject discontinues a set of objects in a bucket with a reason.
 func (p Precompile) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DiscontinueObjectArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -894,10 +808,6 @@ func (p Precompile) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm
 // CreateGroup creates a new group owned by the caller and mirrors the group-NFT
 // mint as an ERC721 Transfer log on the group token contract.
 func (p Precompile) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CreateGroupArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -934,10 +844,6 @@ func (p Precompile) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 
 // UpdateGroup adds and removes members of a group.
 func (p Precompile) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input UpdateGroupArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -994,10 +900,6 @@ func (p Precompile) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 
 // UpdateGroupExtra updates a group's extra metadata.
 func (p Precompile) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input UpdateGroupExtraArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -1026,10 +928,6 @@ func (p Precompile) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.
 
 // DeleteGroup deletes a group owned by the caller.
 func (p Precompile) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DeleteGroupArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -1056,10 +954,6 @@ func (p Precompile) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 
 // LeaveGroup removes the caller from a group.
 func (p Precompile) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input LeaveGroupArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -1087,10 +981,6 @@ func (p Precompile) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 
 // RenewGroupMember renews the membership expiration of a set of group members.
 func (p Precompile) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input RenewGroupMemberArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -1142,10 +1032,6 @@ func (p Precompile) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.
 
 // SetTag sets the resource tags for a bucket, object or group resource.
 func (p Precompile) SetTag(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input SetTagArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -1184,10 +1070,6 @@ func (p Precompile) SetTag(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 
 // PutPolicy attaches an access-control policy to a resource for a principal.
 func (p Precompile) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input PutPolicyArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -1244,10 +1126,6 @@ func (p Precompile) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 
 // DeletePolicy deletes the access-control policy of a principal on a resource.
 func (p Precompile) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DeletePolicyArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -1275,10 +1153,6 @@ func (p Precompile) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 // ToggleSPAsDelegatedAgent toggles whether the SP acts as a delegated agent for a bucket.
 func (p Precompile) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input ToggleSPAsDelegatedAgentArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -1305,10 +1179,6 @@ func (p Precompile) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contr
 
 // CancelUpdateObjectContent cancels an in-progress object content update.
 func (p Precompile) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CancelUpdateObjectContentArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err

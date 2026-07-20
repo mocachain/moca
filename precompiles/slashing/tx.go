@@ -5,8 +5,6 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
-
-	"github.com/mocachain/moca/v2/precompiles/types"
 )
 
 const (
@@ -17,10 +15,6 @@ const (
 // Unjail releases the caller's validator from jail. The validator is the caller,
 // so there are no arguments.
 func (p Precompile) Unjail(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, _ []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	msg := &slashingtypes.MsgUnjail{
 		ValidatorAddr: sdk.ValAddress(contract.Caller().Bytes()).String(),
 	}

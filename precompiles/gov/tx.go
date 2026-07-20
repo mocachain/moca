@@ -15,7 +15,6 @@ import (
 
 	cmn "github.com/cosmos/evm/precompiles/common"
 
-	"github.com/mocachain/moca/v2/precompiles/types"
 	"github.com/mocachain/moca/v2/utils"
 )
 
@@ -36,10 +35,6 @@ const (
 
 // LegacySubmitProposal submits a v1beta1 text proposal from the caller.
 func (p Precompile) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input LegacySubmitProposalArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -75,10 +70,6 @@ func (p Precompile) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract 
 // SubmitProposal submits a v1 proposal from the caller. Proposal messages are
 // decoded through the application codec, so any registered message type is accepted.
 func (p Precompile) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input SubmitProposalArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -124,10 +115,6 @@ func (p Precompile) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 
 // Vote casts the caller's vote on a proposal.
 func (p Precompile) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input VoteArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -153,10 +140,6 @@ func (p Precompile) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, me
 
 // VoteWeighted casts the caller's weighted vote on a proposal.
 func (p Precompile) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input VoteWeightedArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -190,10 +173,6 @@ func (p Precompile) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 // Deposit adds a deposit from the caller to a proposal.
 func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DepositArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -221,10 +200,6 @@ func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 
 // CancelProposal cancels a proposal submitted by the caller.
 func (p Precompile) CancelProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	if len(args) != 1 {
 		return nil, fmt.Errorf(cmn.ErrInvalidNumberOfArgs, 1, len(args))
 	}

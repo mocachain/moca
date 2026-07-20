@@ -1,8 +1,6 @@
 package distribution
 
 import (
-	"errors"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -26,16 +24,8 @@ const (
 	FundCommunityPoolMethod = "fundCommunityPool"
 )
 
-// errOnlyEOA is the moca-specific guard: state-changing methods may only be
-// invoked directly by an externally owned account (evm.Origin == caller).
-var errOnlyEOA = errors.New("only allow EOA can call this method")
-
 // SetWithdrawAddress sets the withdraw address for the caller's delegation rewards.
 func (p Precompile) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, errOnlyEOA
-	}
-
 	msg, withdrawAddr, err := NewMsgSetWithdrawAddress(args, contract.Caller())
 	if err != nil {
 		return nil, err
@@ -54,10 +44,6 @@ func (p Precompile) SetWithdrawAddress(ctx sdk.Context, evm *vm.EVM, contract *v
 
 // WithdrawDelegatorReward withdraws the caller's rewards from a single validator.
 func (p Precompile) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, errOnlyEOA
-	}
-
 	msg, _, err := NewMsgWithdrawDelegatorReward(args, contract.Caller())
 	if err != nil {
 		return nil, err
@@ -84,10 +70,6 @@ func (p Precompile) WithdrawDelegatorReward(ctx sdk.Context, evm *vm.EVM, contra
 // WithdrawDelegatorAllRewards withdraws the caller's rewards from every validator it
 // is delegated to. This is a moca-specific convenience method with no cosmos/evm analog.
 func (p Precompile) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, _ []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, errOnlyEOA
-	}
-
 	delegator := contract.Caller().String()
 
 	resQuery, err := p.distributionQuerier.DelegatorValidators(ctx, &distributiontypes.QueryDelegatorValidatorsRequest{
@@ -126,10 +108,6 @@ func (p Precompile) WithdrawDelegatorAllRewards(ctx sdk.Context, evm *vm.EVM, co
 
 // WithdrawValidatorCommission withdraws the caller's accumulated validator commission.
 func (p Precompile) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, _ []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, errOnlyEOA
-	}
-
 	msg := NewMsgWithdrawValidatorCommission(contract.Caller())
 
 	res, err := p.distributionMsgServer.WithdrawValidatorCommission(ctx, msg)
@@ -146,10 +124,6 @@ func (p Precompile) WithdrawValidatorCommission(ctx sdk.Context, evm *vm.EVM, co
 
 // FundCommunityPool funds the community pool from the caller's balance.
 func (p Precompile) FundCommunityPool(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, errOnlyEOA
-	}
-
 	msg, err := NewMsgFundCommunityPool(args, contract.Caller())
 	if err != nil {
 		return nil, err

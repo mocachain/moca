@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/mocachain/moca/v2/precompiles/types"
 	mocacommon "github.com/mocachain/moca/v2/types/common"
 	virtualgrouptypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
@@ -38,10 +37,6 @@ const (
 
 // CreateGlobalVirtualGroup defines a method for sp create a global virtual group.
 func (p Precompile) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CreateGlobalVirtualGroupArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -74,10 +69,6 @@ func (p Precompile) CreateGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contr
 
 // DeleteGlobalVirtualGroup defines a method for sp delete a global virtual group.
 func (p Precompile) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DeleteGlobalVirtualGroupArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -105,10 +96,6 @@ func (p Precompile) DeleteGlobalVirtualGroup(ctx sdk.Context, evm *vm.EVM, contr
 
 // SwapOut defines a method for sp to remove itself from all Virtual Groups.
 func (p Precompile) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input SwapOutArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -143,10 +130,6 @@ func (p Precompile) SwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 
 // CompleteSwapOut defines a method for sp somplete to remove itself from all Virtual Groups.
 func (p Precompile) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CompleteSwapOutArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -175,10 +158,6 @@ func (p Precompile) CompleteSwapOut(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 
 // SPExit defines a method for sp to exit.
 func (p Precompile) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input SPExitArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -205,10 +184,6 @@ func (p Precompile) SPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 
 // CompleteSPExit defines a method for sp complete to exit.
 func (p Precompile) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CompleteSPExitArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -236,10 +211,6 @@ func (p Precompile) CompleteSPExit(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 
 // Deposit defines a method to deposit more tokens for the objects stored on it.
 func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input DepositArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -271,10 +242,6 @@ func (p Precompile) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 
 // ReserveSwapIn defines a method for sp to reserve a swap in.
 func (p Precompile) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input ReserveSwapInArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -304,10 +271,6 @@ func (p Precompile) ReserveSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 
 // CompleteSwapIn defines a method for sp to complete a swap in.
 func (p Precompile) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CompleteSwapInArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
@@ -336,10 +299,6 @@ func (p Precompile) CompleteSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 
 // CancelSwapIn defines a method for sp to cancel a swap in.
 func (p Precompile) CancelSwapIn(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
-	}
-
 	var input CancelSwapInArgs
 	if err := method.Inputs.Copy(&input, args); err != nil {
 		return nil, err
