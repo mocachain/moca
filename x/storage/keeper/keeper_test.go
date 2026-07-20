@@ -138,3 +138,100 @@ func (s *TestSuite) TestUpdateObjectContent_ZeroPayloadRefund() {
 	finalInternalBucketInfo := s.storageKeeper.MustGetInternalBucketInfo(s.ctx, sdkmath.NewUint(bucketID))
 	s.Require().Equal(uint64(0), finalInternalBucketInfo.TotalChargeSize, "TotalChargeSize should be zero after refund")
 }
+
+// setupMigratingBucket stores an empty bucket (no local virtual groups) that is
+// mid-migration to dstSpID, and returns its name. An empty bucket keeps the
+// verifyGVGSignatures / RebindingVirtualGroup loops empty so CompleteMigrateBucket
+// can be driven without constructing BLS signatures.
+func (s *TestSuite) setupMigratingBucket(dstSpID, srcFamilyID uint32) string {
+	owner := sample.RandAccAddress()
+	paymentAddr := sample.RandAccAddress()
+	bucketID := sdkmath.NewUint(1)
+	bucketName := "migrate-victim"
+
+	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
+		Owner:                      owner.String(),
+		BucketName:                 bucketName,
+		Id:                         bucketID,
+		PaymentAddress:             paymentAddr.String(),
+		GlobalVirtualGroupFamilyId: srcFamilyID,
+		BucketStatus:               types.BUCKET_STATUS_MIGRATING,
+		ChargedReadQuota:           0,
+	})
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketID, &types.InternalBucketInfo{TotalChargeSize: 0})
+	store := s.ctx.KVStore(s.storeKey)
+	store.Set(types.GetMigrationBucketKey(bucketID), s.cdc.MustMarshal(&types.MigrationBucketInfo{
+		SrcSpId:                       5,
+		DstSpId:                       dstSpID,
+		SrcGlobalVirtualGroupFamilyId: srcFamilyID,
+		BucketId:                      bucketID,
+	}))
+	return bucketName
+}
+
+// MOCA-741: CompleteMigrateBucket must reject a destination GVG family that does
+// not belong to the destination SP (before the fix, this was accepted and the
+// bucket's primary SP was misattributed to the foreign family's owner).
+func (s *TestSuite) TestCompleteMigrateBucket_RejectsForeignFamily() {
+	const (
+		dstSpID      = uint32(2)
+		srcFamilyID  = uint32(1)
+		foreignFamID = uint32(99)
+		foreignSpID  = uint32(3) // owner of the foreign family, NOT the dst SP
+	)
+	dstOperator := sample.RandAccAddress()
+	bucketName := s.setupMigratingBucket(dstSpID, srcFamilyID)
+
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).
+		Return(&sptypes.StorageProvider{Id: dstSpID, OperatorAddress: dstOperator.String()}, true).AnyTimes()
+	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), foreignFamID).
+		Return(&virtualgroupmoduletypes.GlobalVirtualGroupFamily{Id: foreignFamID, PrimarySpId: foreignSpID}, true).AnyTimes()
+
+	err := s.storageKeeper.CompleteMigrateBucket(s.ctx, dstOperator, bucketName, foreignFamID, nil)
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "does not belong")
+
+	// nothing was mutated: the bucket is still migrating on its source family
+	got, found := s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().True(found)
+	s.Require().Equal(srcFamilyID, got.GlobalVirtualGroupFamilyId)
+	s.Require().Equal(types.BUCKET_STATUS_MIGRATING, got.BucketStatus)
+}
+
+// The fix must not break legitimate migrations: a destination SP completing with
+// its own family (family.PrimarySpId == dstSP.Id) still succeeds.
+func (s *TestSuite) TestCompleteMigrateBucket_AcceptsOwnFamily() {
+	const (
+		dstSpID     = uint32(2)
+		srcFamilyID = uint32(1)
+		srcSpID     = uint32(5)
+		ownFamID    = uint32(7) // family owned by the dst SP
+	)
+	dstOperator := sample.RandAccAddress()
+	bucketName := s.setupMigratingBucket(dstSpID, srcFamilyID)
+
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).
+		Return(&sptypes.StorageProvider{Id: dstSpID, OperatorAddress: dstOperator.String()}, true).AnyTimes()
+	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), ownFamID).
+		Return(&virtualgroupmoduletypes.GlobalVirtualGroupFamily{Id: ownFamID, PrimarySpId: dstSpID}, true).AnyTimes()
+	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), srcFamilyID).
+		Return(&virtualgroupmoduletypes.GlobalVirtualGroupFamily{Id: srcFamilyID, PrimarySpId: srcSpID}, true).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), srcSpID).
+		Return(&sptypes.StorageProvider{Id: srcSpID}, true).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), dstSpID).
+		Return(&sptypes.StorageProvider{Id: dstSpID}, true).AnyTimes()
+	s.paymentKeeper.EXPECT().GetStreamRecord(gomock.Any(), gomock.Any()).
+		Return(&paymenttypes.StreamRecord{Status: paymenttypes.STREAM_ACCOUNT_STATUS_ACTIVE}, true).AnyTimes()
+	s.virtualGroupKeeper.EXPECT().SettleAndDistributeGVGFamily(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	s.paymentKeeper.EXPECT().ApplyUserFlowsList(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	err := s.storageKeeper.CompleteMigrateBucket(s.ctx, dstOperator, bucketName, ownFamID, nil)
+	s.Require().NoError(err)
+
+	got, found := s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().True(found)
+	s.Require().Equal(ownFamID, got.GlobalVirtualGroupFamilyId)
+	s.Require().Equal(types.BUCKET_STATUS_CREATED, got.BucketStatus)
+	primarySP := s.storageKeeper.MustGetPrimarySPForBucket(s.ctx, got)
+	s.Require().Equal(dstSpID, primarySP.Id) // dst SP is now the bucket's primary SP
+}
