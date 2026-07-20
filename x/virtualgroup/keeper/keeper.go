@@ -125,6 +125,13 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 		return types.ErrGVGNotEmpty.Wrap("The virtual payment account still not empty")
 	}
 
+	// Distribute any balance remaining in the GVG's virtual payment account to the
+	// secondary SPs before deletion. Once the GVG is gone, its settlement path is
+	// gone too, so any leftover balance would be permanently unreachable.
+	if err := k.SettleAndDistributeGVG(ctx, gvg); err != nil {
+		return err
+	}
+
 	if !gvg.TotalDeposit.IsZero() {
 		// send back the deposit
 		coins := sdk.NewCoins(sdk.NewCoin(k.DepositDenomForGVG(ctx), gvg.TotalDeposit))
