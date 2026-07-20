@@ -1366,7 +1366,15 @@ func (app *Moca) migrateToV2(ctx sdk.Context) error {
 		return fmt.Errorf("v2 migration: set feemarket params: %w", err)
 	}
 
-	// 5. Backfill the cosmos/evm code-hash index from the existing EthAccounts so
+	// 5. Move the discontinue caps off MaxUint64 to the finite defaults (MOCA-743).
+	storageParams := app.StorageKeeper.GetParams(ctx)
+	storageParams.DiscontinueObjectMax = storagemoduletypes.DefaultDiscontinueObjectMax
+	storageParams.DiscontinueBucketMax = storagemoduletypes.DefaultDiscontinueBucketMax
+	if err := app.StorageKeeper.SetParams(ctx, storageParams); err != nil {
+		return fmt.Errorf("v2 migration: set storage params: %w", err)
+	}
+
+	// 6. Backfill the cosmos/evm code-hash index from the existing EthAccounts so
 	//    contracts deployed under the old x/evm remain executable.
 	app.AccountKeeper.IterateAccounts(ctx, func(acc sdk.AccountI) (stop bool) {
 		ethAcct, ok := acc.(mocatypes.EthAccountI)

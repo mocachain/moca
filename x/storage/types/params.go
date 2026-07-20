@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 
 	"gopkg.in/yaml.v2"
@@ -17,12 +16,15 @@ const (
 	DefaultMaxBucketsPerAccount      uint32 = 100
 	DefaultMinChargeSize             uint64 = 1 * 1024 * 1024 // 1M
 	DefaultDiscontinueCountingWindow uint64 = 10000
-	DefaultDiscontinueObjectMax      uint64 = math.MaxUint64
-	DefaultDiscontinueBucketMax      uint64 = math.MaxUint64
-	DefaultDiscontinueConfirmPeriod  int64  = 604800 // 7 days (in second)
-	DefaultDiscontinueDeletionMax    uint64 = 100
-	DefaultStalePolicyCleanupMax     uint64 = 200
-	DefaultMinUpdateQuotaInterval    uint64 = 2592000 // 30 days (in second)
+	// Finite, not MaxUint64: an unbounded queue fills faster than the ~100/block
+	// drain removes, so it never clears and bloats state (slower blocks). 100k / 10k
+	// per SP per counting window stay well under the window drain (100 x 10000 = 1M).
+	DefaultDiscontinueObjectMax     uint64 = 100000
+	DefaultDiscontinueBucketMax     uint64 = 10000
+	DefaultDiscontinueConfirmPeriod int64  = 604800 // 7 days (in second)
+	DefaultDiscontinueDeletionMax   uint64 = 100
+	DefaultStalePolicyCleanupMax    uint64 = 200
+	DefaultMinUpdateQuotaInterval   uint64 = 2592000 // 30 days (in second)
 
 	// TODO
 	DefaultMaxLocalVirtualGroupNumPerBucket  uint32 = 10
