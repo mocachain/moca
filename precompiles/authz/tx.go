@@ -64,12 +64,16 @@ func (p Precompile) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, m
 
 	var limit sdk.Coins
 	for _, coin := range input.Limit {
-		if coin.Amount.Sign() > 0 {
-			limit = limit.Add(sdk.Coin{
-				Denom:  coin.Denom,
-				Amount: math.NewIntFromBigInt(coin.Amount),
-			})
+		if coin.Amount.Sign() <= 0 {
+			return nil, fmt.Errorf("limit %s amount is %s, need to greater than 0", coin.Denom, coin.Amount.String())
 		}
+		limit = limit.Add(sdk.Coin{
+			Denom:  coin.Denom,
+			Amount: math.NewIntFromBigInt(coin.Amount),
+		})
+	}
+	if input.Expiration < 0 {
+		return nil, fmt.Errorf("expiration is %d, need to greater than or equal 0", input.Expiration)
 	}
 
 	// more details see https://github.com/mocachain/moca-cosmos-sdk/blob/1ad031a3d3a4b73997d72b8012397633b3cdcae2/x/authz/client/cli/tx.go#L56-L202

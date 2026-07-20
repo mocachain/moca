@@ -1,6 +1,8 @@
 package bank
 
 import (
+	"fmt"
+
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -24,6 +26,9 @@ func (p Precompile) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, me
 
 	var amount sdk.Coins
 	for _, coin := range input.Amount {
+		if coin.Amount.Sign() <= 0 {
+			return nil, fmt.Errorf("send %s amount is %s, need to greater than 0", coin.Denom, coin.Amount.String())
+		}
 		amount = amount.Add(sdk.Coin{Denom: coin.Denom, Amount: math.NewIntFromBigInt(coin.Amount)})
 	}
 
@@ -51,11 +56,18 @@ func (p Precompile) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		return nil, err
 	}
 
+	if len(input.Outputs) < 1 {
+		return nil, fmt.Errorf("the number of outputs is %v, need to greater than 1", len(input.Outputs))
+	}
+
 	var totalCoins sdk.Coins
 	var outputs []banktypes.Output
 	for _, output := range input.Outputs {
 		var coins sdk.Coins
 		for _, coin := range output.Amount {
+			if coin.Amount.Sign() <= 0 {
+				return nil, fmt.Errorf("multiSend %s amount is %s, need to greater than 0", coin.Denom, coin.Amount.String())
+			}
 			coins = coins.Add(sdk.Coin{Denom: coin.Denom, Amount: math.NewIntFromBigInt(coin.Amount)})
 		}
 

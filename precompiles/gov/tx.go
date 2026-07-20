@@ -42,9 +42,10 @@ func (p Precompile) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract 
 
 	var amount sdk.Coins
 	for _, deposit := range input.InitialDeposit {
-		if deposit.Amount.Sign() > 0 {
-			amount = amount.Add(sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
+		if deposit.Amount.Sign() < 0 {
+			return nil, fmt.Errorf("deposit %s amount is negative %s", deposit.Denom, deposit.Amount.String())
 		}
+		amount = amount.Add(sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
 	}
 
 	content, _ := govv1beta1.ContentFromProposalType(input.Title, input.Description, govv1beta1.ProposalTypeText)
@@ -91,9 +92,10 @@ func (p Precompile) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 
 	var amount sdk.Coins
 	for _, deposit := range input.InitialDeposit {
-		if deposit.Amount.Sign() > 0 {
-			amount = amount.Add(sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
+		if deposit.Amount.Sign() < 0 {
+			return nil, fmt.Errorf("deposit %s amount is negative %s", deposit.Denom, deposit.Amount.String())
 		}
+		amount = amount.Add(sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
 	}
 
 	msg, err := govv1.NewMsgSubmitProposal(msgs, amount, sdk.AccAddress(contract.Caller().Bytes()).String(), input.Metadata, input.Title, input.Summary, input.Expedited)
