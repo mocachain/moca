@@ -70,6 +70,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### State Machine Breaking
 
+- (precompiles) [#280](https://github.com/mocachain/moca/issues/280) Adopt direct-caller semantics for transaction precompiles: smart contracts can compose with native modules, `contract.Caller()` is the sole acting identity for Cosmos message fields and EVM event topics, and transaction origin is no longer an authorization input. This behavior activates through a coordinated versioned chain upgrade.
 - (erc20) [#221](https://github.com/mocachain/moca/pull/221) Remove the dormant `x/erc20` module and the erc20 precompile; register the `erc20` store for deletion in the `v2.0.0` store upgrade
 - (deps) [#240](https://github.com/mocachain/moca/pull/240) Bump `moca-cosmos-sdk` to the upstream gas meter (remove greenfield RW metering): store writes/deletes now consume tx gas (reads stay free under `KVGasConfigAfterNagqu`), and the `GasInfo.rw_used` / `TxMsgData.extra_data` fields are removed
 

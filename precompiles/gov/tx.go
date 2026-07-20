@@ -6,9 +6,9 @@ import (
 
 	"cosmossdk.io/math"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
+	"github.com/mocachain/moca/v2/precompiles/types"
 	"github.com/mocachain/moca/v2/utils"
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
-	"github.com/mocachain/moca/v2/precompiles/types"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	permissiontypes "github.com/mocachain/moca/v2/x/permission/types"
@@ -67,12 +67,9 @@ const (
 )
 
 func (c *Contract) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(LegacySubmitProposalMethodName)
@@ -94,7 +91,7 @@ func (c *Contract) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *
 	}
 
 	content, _ := govv1beta1.ContentFromProposalType(args.Title, args.Description, govv1beta1.ProposalTypeText)
-	msg, err := govv1beta1.NewMsgSubmitProposal(content, amount, contract.Caller().Bytes())
+	msg, err := govv1beta1.NewMsgSubmitProposal(content, amount, caller.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("invalid message: %w", err)
 	}
@@ -109,7 +106,7 @@ func (c *Contract) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *
 	if err := c.AddLog(
 		evm,
 		MustEvent(LegacySubmitProposalEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		res.ProposalId,
 	); err != nil {
 		return nil, err
@@ -119,12 +116,9 @@ func (c *Contract) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *
 }
 
 func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(SubmitProposalMethodName)
@@ -187,7 +181,7 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 		}
 	}
 
-	msg, err := govv1.NewMsgSubmitProposal(msgs, amount, sdk.AccAddress(contract.Caller().Bytes()).String(), args.Metadata, args.Title, args.Summary, args.Expedited)
+	msg, err := govv1.NewMsgSubmitProposal(msgs, amount, sdk.AccAddress(caller.Bytes()).String(), args.Metadata, args.Title, args.Summary, args.Expedited)
 	if err != nil {
 		return nil, fmt.Errorf("invalid message: %w", err)
 	}
@@ -201,7 +195,7 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 	if err := c.AddLog(
 		evm,
 		MustEvent(SubmitProposalEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		res.ProposalId,
 	); err != nil {
 		return nil, err
@@ -211,12 +205,9 @@ func (c *Contract) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Con
 }
 
 func (c *Contract) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(VoteMethodName)
@@ -229,7 +220,7 @@ func (c *Contract) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 
 	msg := &govv1.MsgVote{
 		ProposalId: args.ProposalId,
-		Voter:      sdk.AccAddress(contract.Caller().Bytes()).String(),
+		Voter:      sdk.AccAddress(caller.Bytes()).String(),
 		Option:     govv1.VoteOption(args.Option),
 		Metadata:   args.Metadata,
 	}
@@ -243,7 +234,7 @@ func (c *Contract) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	if err := c.AddLog(
 		evm,
 		MustEvent(VoteEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		args.ProposalId,
 		args.Option,
 	); err != nil {
@@ -254,12 +245,9 @@ func (c *Contract) Vote(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 }
 
 func (c *Contract) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(VoteWeightedMethodName)
@@ -280,7 +268,7 @@ func (c *Contract) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 
 	msg := &govv1.MsgVoteWeighted{
 		ProposalId: args.ProposalId,
-		Voter:      sdk.AccAddress(contract.Caller().Bytes()).String(),
+		Voter:      sdk.AccAddress(caller.Bytes()).String(),
 		Options:    options,
 		Metadata:   args.Metadata,
 	}
@@ -294,7 +282,7 @@ func (c *Contract) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if err := c.AddLog(
 		evm,
 		MustEvent(VoteWeightedEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		args.ProposalId,
 	); err != nil {
 		return nil, err
@@ -304,12 +292,9 @@ func (c *Contract) VoteWeighted(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, types.ErrReadOnly
-	}
-
-	if evm.Origin != contract.Caller() {
-		return nil, types.ErrInvalidCaller
 	}
 
 	method := MustMethod(DepositMethodName)
@@ -328,7 +313,7 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 
 	msg := &govv1.MsgDeposit{
 		ProposalId: args.ProposalId,
-		Depositor:  sdk.AccAddress(contract.Caller().Bytes()).String(),
+		Depositor:  sdk.AccAddress(caller.Bytes()).String(),
 		Amount:     amount,
 	}
 
@@ -341,7 +326,7 @@ func (c *Contract) Deposit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, 
 	if err := c.AddLog(
 		evm,
 		MustEvent(DepositEventName),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		args.ProposalId,
 	); err != nil {
 		return nil, err

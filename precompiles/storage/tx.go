@@ -114,11 +114,9 @@ func (c *Contract) registerTx() {
 }
 
 func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("create bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(CreateBucketMethodName)
 	var args CreateBucketArgs
@@ -127,7 +125,7 @@ func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		return nil, err
 	}
 	msg := &storagetypes.MsgCreateBucket{
-		Creator:          contract.Caller().String(),
+		Creator:          caller.String(),
 		BucketName:       args.BucketName,
 		Visibility:       storagetypes.VisibilityType(args.Visibility),
 		PaymentAddress:   args.PaymentAddress.String(),
@@ -151,7 +149,7 @@ func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		evm,
 		GetAbiEvent(c.events[CreateBucketMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			common.BytesToHash(args.PaymentAddress.Bytes()),
 			common.BytesToHash(args.PrimarySpAddress.Bytes()),
 		},
@@ -180,11 +178,9 @@ func (c *Contract) CreateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("update bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(UpdateBucketInfoMethodName)
 	var args UpdateBucketInfoArgs
@@ -193,7 +189,7 @@ func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	}
 	msg := &storagetypes.MsgUpdateBucketInfo{
 		// geth v1.16: vm.Contract.CallerAddress field was replaced by Caller().
-		Operator:       contract.Caller().String(),
+		Operator:       caller.String(),
 		BucketName:     args.BucketName,
 		Visibility:     storagetypes.VisibilityType(args.Visibility),
 		PaymentAddress: args.PaymentAddress.String(),
@@ -215,7 +211,7 @@ func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	}
 	bucketNameHash := crypto.Keccak256([]byte(args.BucketName))
 	if err := c.AddLog(evm, GetAbiEvent(c.events[UpdateBucketInfoMethodName]), []common.Hash{
-		common.BytesToHash(contract.Caller().Bytes()),
+		common.BytesToHash(caller.Bytes()),
 		common.BytesToHash(bucketNameHash),
 		common.BytesToHash(args.PaymentAddress.Bytes()),
 	}, args.Visibility); err != nil {
@@ -225,11 +221,9 @@ func (c *Contract) UpdateBucketInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 }
 
 func (c *Contract) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("delete bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DeleteBucketMethodName)
@@ -241,7 +235,7 @@ func (c *Contract) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	}
 
 	msg := &storagetypes.MsgDeleteBucket{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 	}
 
@@ -259,7 +253,7 @@ func (c *Contract) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[DeleteBucketMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -267,11 +261,9 @@ func (c *Contract) DeleteBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (c *Contract) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("discontinue bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DiscontinueBucketMethodName)
@@ -283,7 +275,7 @@ func (c *Contract) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.
 	}
 
 	msg := &storagetypes.MsgDiscontinueBucket{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 		Reason:     strings.TrimSpace(args.Reason),
 	}
@@ -303,7 +295,7 @@ func (c *Contract) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.
 		evm,
 		GetAbiEvent(c.events[DiscontinueBucketMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.BucketName)),
 		},
 	); err != nil {
@@ -313,11 +305,9 @@ func (c *Contract) DiscontinueBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.
 }
 
 func (c *Contract) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("migrate bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(MigrateBucketMethodName)
@@ -329,7 +319,7 @@ func (c *Contract) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	}
 
 	msg := &storagetypes.MsgMigrateBucket{
-		Operator:       contract.Caller().String(),
+		Operator:       caller.String(),
 		BucketName:     args.BucketName,
 		DstPrimarySpId: args.DstPrimarySpId,
 		DstPrimarySpApproval: &mocacommon.Approval{
@@ -354,7 +344,7 @@ func (c *Contract) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 		evm,
 		GetAbiEvent(c.events[MigrateBucketMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.BucketName)),
 		},
 	); err != nil {
@@ -364,11 +354,9 @@ func (c *Contract) MigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 }
 
 func (c *Contract) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("complete migrate bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(CompleteMigrateBucketMethodName)
@@ -390,7 +378,7 @@ func (c *Contract) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract 
 	}
 
 	msg := &storagetypes.MsgCompleteMigrateBucket{
-		Operator:                   contract.Caller().String(),
+		Operator:                   caller.String(),
 		BucketName:                 args.BucketName,
 		GlobalVirtualGroupFamilyId: args.GvgFamilyId,
 		GvgMappings:                gvgMappings,
@@ -411,7 +399,7 @@ func (c *Contract) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract 
 		evm,
 		GetAbiEvent(c.events[CompleteMigrateBucketMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.BucketName)),
 		},
 	); err != nil {
@@ -421,11 +409,9 @@ func (c *Contract) CompleteMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract 
 }
 
 func (c *Contract) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("reject migrate bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(RejectMigrateBucketMethodName)
@@ -437,7 +423,7 @@ func (c *Contract) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 	}
 
 	msg := &storagetypes.MsgRejectMigrateBucket{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 	}
 
@@ -455,7 +441,7 @@ func (c *Contract) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[RejectMigrateBucketMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -463,11 +449,9 @@ func (c *Contract) RejectMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 }
 
 func (c *Contract) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("cancel migrate bucket method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(CancelMigrateBucketMethodName)
@@ -479,7 +463,7 @@ func (c *Contract) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 	}
 
 	msg := &storagetypes.MsgCancelMigrateBucket{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 	}
 
@@ -497,7 +481,7 @@ func (c *Contract) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[CancelMigrateBucketMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -505,11 +489,9 @@ func (c *Contract) CancelMigrateBucket(ctx sdk.Context, evm *vm.EVM, contract *v
 }
 
 func (c *Contract) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("set bucket flow rate limit method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(SetBucketFlowRateLimitMethodName)
@@ -521,7 +503,7 @@ func (c *Contract) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract
 	}
 
 	msg := &storagetypes.MsgSetBucketFlowRateLimit{
-		Operator:       contract.Caller().String(),
+		Operator:       caller.String(),
 		BucketName:     args.BucketName,
 		BucketOwner:    args.BucketOwner,
 		PaymentAddress: args.PaymentAddress,
@@ -542,7 +524,7 @@ func (c *Contract) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[SetBucketFlowRateLimitMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -550,11 +532,9 @@ func (c *Contract) SetBucketFlowRateLimit(ctx sdk.Context, evm *vm.EVM, contract
 }
 
 func (c *Contract) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("create object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(CreateObjectMethodName)
 	var args CreateObjectArgs
@@ -570,7 +550,7 @@ func (c *Contract) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		expectChecksums = append(expectChecksums, checksumBytes)
 	}
 	msg := &storagetypes.MsgCreateObject{
-		Creator:     contract.Caller().String(),
+		Creator:     caller.String(),
 		BucketName:  args.BucketName,
 		ObjectName:  args.ObjectName,
 		PayloadSize: args.PayloadSize,
@@ -595,7 +575,7 @@ func (c *Contract) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[CreateObjectMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		res.ObjectId.BigInt(),
 	); err != nil {
 		return nil, err
@@ -604,11 +584,9 @@ func (c *Contract) CreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (c *Contract) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("copy object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(CopyObjectMethodName)
 	var args CopyObjectArgs
@@ -617,7 +595,7 @@ func (c *Contract) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 	}
 
 	msg := &storagetypes.MsgCopyObject{
-		Operator:      contract.Caller().String(),
+		Operator:      caller.String(),
 		SrcBucketName: args.SrcBucketName,
 		DstBucketName: args.DstBucketName,
 		SrcObjectName: args.SrcObjectName,
@@ -639,7 +617,7 @@ func (c *Contract) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[CopyObjectMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -647,11 +625,9 @@ func (c *Contract) CopyObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 }
 
 func (c *Contract) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("delete object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DeleteObjectMethodName)
@@ -663,7 +639,7 @@ func (c *Contract) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	}
 
 	msg := &storagetypes.MsgDeleteObject{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 		ObjectName: args.ObjectName,
 	}
@@ -682,7 +658,7 @@ func (c *Contract) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[DeleteObjectMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -690,11 +666,9 @@ func (c *Contract) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (c *Contract) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("cancel create object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(CancelCreateObjectMethodName)
@@ -706,7 +680,7 @@ func (c *Contract) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm
 	}
 
 	msg := &storagetypes.MsgCancelCreateObject{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 		ObjectName: args.ObjectName,
 	}
@@ -725,7 +699,7 @@ func (c *Contract) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[CancelCreateObjectMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -733,11 +707,9 @@ func (c *Contract) CancelCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm
 }
 
 func (c *Contract) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("seal object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(SealObjectMethodName)
 	var args SealObjectArgs
@@ -749,7 +721,7 @@ func (c *Contract) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		return nil, err
 	}
 	msg := &storagetypes.MsgSealObject{
-		Operator:                    contract.Caller().String(),
+		Operator:                    caller.String(),
 		BucketName:                  args.BucketName,
 		ObjectName:                  args.ObjectName,
 		GlobalVirtualGroupId:        args.GlobalVirtualGroupID,
@@ -766,7 +738,7 @@ func (c *Contract) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		evm,
 		GetAbiEvent(c.events[SealObjectMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 		},
 	); err != nil {
 		return nil, err
@@ -792,11 +764,9 @@ func (c *Contract) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 }
 
 func (c *Contract) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("seal object V2 method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(SealObjectV2MethodName)
 	var args SealObjectV2Args
@@ -816,7 +786,7 @@ func (c *Contract) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		expectChecksums = append(expectChecksums, checksumBytes)
 	}
 	msg := &storagetypes.MsgSealObjectV2{
-		Operator:                    contract.Caller().String(),
+		Operator:                    caller.String(),
 		BucketName:                  args.BucketName,
 		ObjectName:                  args.ObjectName,
 		GlobalVirtualGroupId:        args.GlobalVirtualGroupID,
@@ -834,7 +804,7 @@ func (c *Contract) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		evm,
 		GetAbiEvent(c.events[SealObjectV2MethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 		},
 	); err != nil {
 		return nil, err
@@ -843,11 +813,9 @@ func (c *Contract) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (c *Contract) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("reject seal object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(RejectSealObjectMethodName)
 	var args RejectSealObjectArgs
@@ -856,7 +824,7 @@ func (c *Contract) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	}
 
 	msg := &storagetypes.MsgRejectSealObject{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 		ObjectName: args.ObjectName,
 	}
@@ -871,7 +839,7 @@ func (c *Contract) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 		evm,
 		GetAbiEvent(c.events[RejectSealObjectMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.ObjectName)),
 		},
 	); err != nil {
@@ -882,11 +850,9 @@ func (c *Contract) RejectSealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 }
 
 func (c *Contract) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("delegate create object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(DelegateCreateObjectMethodName)
 	var args DelegateCreateObjectArgs
@@ -903,7 +869,7 @@ func (c *Contract) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *
 	}
 
 	msg := &storagetypes.MsgDelegateCreateObject{
-		Operator:        contract.Caller().String(),
+		Operator:        caller.String(),
 		Creator:         args.Creator,
 		BucketName:      args.BucketName,
 		ObjectName:      args.ObjectName,
@@ -924,7 +890,7 @@ func (c *Contract) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *
 		evm,
 		GetAbiEvent(c.events[DelegateCreateObjectMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.ObjectName)),
 		},
 	); err != nil {
@@ -935,11 +901,9 @@ func (c *Contract) DelegateCreateObject(ctx sdk.Context, evm *vm.EVM, contract *
 }
 
 func (c *Contract) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("delegate update object content method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(DelegateUpdateObjectContentMethodName)
 	var args DelegateUpdateObjectContentArgs
@@ -956,7 +920,7 @@ func (c *Contract) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, con
 	}
 
 	msg := &storagetypes.MsgDelegateUpdateObjectContent{
-		Operator:        contract.Caller().String(),
+		Operator:        caller.String(),
 		Updater:         args.Updater,
 		BucketName:      args.BucketName,
 		ObjectName:      args.ObjectName,
@@ -975,7 +939,7 @@ func (c *Contract) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, con
 		evm,
 		GetAbiEvent(c.events[DelegateUpdateObjectContentMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.ObjectName)),
 		},
 	); err != nil {
@@ -986,11 +950,9 @@ func (c *Contract) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, con
 }
 
 func (c *Contract) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("update object info method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(UpdateObjectInfoMethodName)
 	var args UpdateObjectInfoArgs
@@ -998,7 +960,7 @@ func (c *Contract) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 		return nil, err
 	}
 	msg := &storagetypes.MsgUpdateObjectInfo{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 		ObjectName: args.ObjectName,
 		Visibility: storagetypes.VisibilityType(args.Visibility),
@@ -1013,7 +975,7 @@ func (c *Contract) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[UpdateObjectInfoMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1021,11 +983,9 @@ func (c *Contract) UpdateObjectInfo(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 }
 
 func (c *Contract) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("update object content method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(UpdateObjectContentMethodName)
 	var args UpdateObjectContentArgs
@@ -1042,7 +1002,7 @@ func (c *Contract) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *v
 		expectChecksums = append(expectChecksums, checksumBytes)
 	}
 	msg := &storagetypes.MsgUpdateObjectContent{
-		Operator:        contract.Caller().String(),
+		Operator:        caller.String(),
 		BucketName:      args.BucketName,
 		ObjectName:      args.ObjectName,
 		PayloadSize:     args.PayloadSize,
@@ -1060,7 +1020,7 @@ func (c *Contract) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *v
 		evm,
 		GetAbiEvent(c.events[UpdateObjectContentMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.ObjectName)),
 		},
 	); err != nil {
@@ -1070,11 +1030,9 @@ func (c *Contract) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *v
 }
 
 func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("discontinue object method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 
 	method := GetAbiMethod(DiscontinueObjectMethodName)
@@ -1094,7 +1052,7 @@ func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.
 		objectIDs = append(objectIDs, cmath.NewUintFromBigInt(id))
 	}
 	msg := &storagetypes.MsgDiscontinueObject{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 		ObjectIds:  objectIDs,
 		Reason:     strings.TrimSpace(args.Reason),
@@ -1115,7 +1073,7 @@ func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.
 		evm,
 		GetAbiEvent(c.events[DiscontinueObjectMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.BucketName)),
 		},
 	); err != nil {
@@ -1125,11 +1083,9 @@ func (c *Contract) DiscontinueObject(ctx sdk.Context, evm *vm.EVM, contract *vm.
 }
 
 func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("create group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(CreateGroupMethodName)
 	var args CreateGroupArgs
@@ -1137,7 +1093,7 @@ func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 		return nil, err
 	}
 	msg := &storagetypes.MsgCreateGroup{
-		Creator:   contract.Caller().String(),
+		Creator:   caller.String(),
 		GroupName: args.GroupName,
 		Extra:     args.Extra,
 	}
@@ -1152,13 +1108,13 @@ func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[CreateGroupMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 		res.GroupId.BigInt(),
 	); err != nil {
 		return nil, err
 	}
 
-	address := sdk.MustAccAddressFromHex(contract.Caller().String())
+	address := sdk.MustAccAddressFromHex(caller.String())
 	groupInfo, found := c.storageKeeper.GetGroupInfo(ctx, address, args.GroupName)
 	if found {
 		if err := c.AddOtherLog(
@@ -1179,11 +1135,9 @@ func (c *Contract) CreateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 }
 
 func (c *Contract) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("update group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(UpdateGroupMethodName)
 	var args UpdateGroupArgs
@@ -1212,7 +1166,7 @@ func (c *Contract) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 		}
 	}
 	msg := &storagetypes.MsgUpdateGroupMember{
-		Operator:        contract.Caller().String(),
+		Operator:        caller.String(),
 		GroupOwner:      args.GroupOwner.String(),
 		GroupName:       args.GroupName,
 		MembersToAdd:    membersToAdd,
@@ -1229,7 +1183,7 @@ func (c *Contract) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[UpdateGroupMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1237,11 +1191,9 @@ func (c *Contract) UpdateGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 }
 
 func (c *Contract) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("update group extra method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(UpdateGroupExtraMethodName)
 	var args UpdateGroupExtraArgs
@@ -1250,7 +1202,7 @@ func (c *Contract) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	}
 
 	msg := &storagetypes.MsgUpdateGroupExtra{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		GroupOwner: args.GroupOwner.String(),
 		GroupName:  args.GroupName,
 		Extra:      args.Extra,
@@ -1266,7 +1218,7 @@ func (c *Contract) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[UpdateGroupExtraMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1274,11 +1226,9 @@ func (c *Contract) UpdateGroupExtra(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 }
 
 func (c *Contract) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("delete group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(DeleteGroupMethodName)
 	var args DeleteGroupArgs
@@ -1286,7 +1236,7 @@ func (c *Contract) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 		return nil, err
 	}
 	msg := &storagetypes.MsgDeleteGroup{
-		Operator:  contract.Caller().String(),
+		Operator:  caller.String(),
 		GroupName: args.GroupName,
 	}
 	if err := msg.ValidateBasic(); err != nil {
@@ -1299,7 +1249,7 @@ func (c *Contract) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[DeleteGroupMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1307,11 +1257,9 @@ func (c *Contract) DeleteGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 }
 
 func (c *Contract) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("leave group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(LeaveGroupMethodName)
 	var args LeaveGroupArgs
@@ -1319,7 +1267,7 @@ func (c *Contract) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		return nil, err
 	}
 	msg := &storagetypes.MsgLeaveGroup{
-		Member:     contract.Caller().String(),
+		Member:     caller.String(),
 		GroupOwner: args.GroupOwner.String(),
 		GroupName:  args.GroupName,
 	}
@@ -1334,7 +1282,7 @@ func (c *Contract) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		evm,
 		GetAbiEvent(c.events[LeaveGroupMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.GroupName)),
 		},
 	); err != nil {
@@ -1344,11 +1292,9 @@ func (c *Contract) LeaveGroup(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 }
 
 func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("renew group member method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(RenewGroupMemberMethodName)
 	var args RenewGroupMemberArgs
@@ -1380,7 +1326,7 @@ func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 		}
 	}
 	msg := &storagetypes.MsgRenewGroupMember{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		GroupOwner: args.GroupOwner.String(),
 		GroupName:  args.GroupName,
 		Members:    membersToRenew,
@@ -1395,7 +1341,7 @@ func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[RenewGroupMemberMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1403,11 +1349,9 @@ func (c *Contract) RenewGroupMember(ctx sdk.Context, evm *vm.EVM, contract *vm.C
 }
 
 func (c *Contract) SetTag(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("set tag for group method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(SetTagMethodName)
 	var args SetTagArgs
@@ -1425,7 +1369,7 @@ func (c *Contract) SetTag(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 		}
 	}
 	msg := &storagetypes.MsgSetTag{
-		Operator: contract.Caller().String(),
+		Operator: caller.String(),
 		Resource: args.Resource,
 		Tags:     &tags,
 	}
@@ -1439,7 +1383,7 @@ func (c *Contract) SetTag(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, r
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[SetTagMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1585,11 +1529,9 @@ func NewStatement(actions []permTypes.ActionType, effect permTypes.Effect,
 }
 
 func (c *Contract) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("put policy to group or account method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(PutPolicyMethodName)
 	var args PutPolicyArgs
@@ -1627,7 +1569,7 @@ func (c *Contract) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 	}
 
 	msg := &storagetypes.MsgPutPolicy{
-		Operator:       contract.Caller().String(),
+		Operator:       caller.String(),
 		Principal:      &permTypes.Principal{Type: permTypes.PrincipalType(args.Principal.PrincipalType), Value: args.Principal.Value},
 		Resource:       args.Resource,
 		Statements:     statements,
@@ -1643,7 +1585,7 @@ func (c *Contract) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[PutPolicyMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1651,11 +1593,9 @@ func (c *Contract) PutPolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 }
 
 func (c *Contract) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("delete policy of principal method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(DeletePolicyMethodName)
 	var args DeletePolicyArgs
@@ -1664,7 +1604,7 @@ func (c *Contract) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	}
 
 	msg := &storagetypes.MsgDeletePolicy{
-		Operator:  contract.Caller().String(),
+		Operator:  caller.String(),
 		Principal: &permTypes.Principal{Type: permTypes.PrincipalType(args.Principal.PrincipalType), Value: args.Principal.Value},
 		Resource:  args.Resource,
 	}
@@ -1678,7 +1618,7 @@ func (c *Contract) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[DeletePolicyMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1686,11 +1626,9 @@ func (c *Contract) DeletePolicy(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (c *Contract) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("toggle SP as delegated agent method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(ToggleSPAsDelegatedAgentMethodName)
 	var args ToggleSPAsDelegatedAgentArgs
@@ -1699,7 +1637,7 @@ func (c *Contract) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contra
 	}
 
 	msg := &storagetypes.MsgToggleSPAsDelegatedAgent{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 	}
 	if err := msg.ValidateBasic(); err != nil {
@@ -1712,7 +1650,7 @@ func (c *Contract) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contra
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[ToggleSPAsDelegatedAgentMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
@@ -1720,11 +1658,9 @@ func (c *Contract) ToggleSPAsDelegatedAgent(ctx sdk.Context, evm *vm.EVM, contra
 }
 
 func (c *Contract) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("cancel update object content method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(CancelUpdateObjectContentMethodName)
 	var args CancelUpdateObjectContentArgs
@@ -1733,7 +1669,7 @@ func (c *Contract) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contr
 	}
 
 	msg := &storagetypes.MsgCancelUpdateObjectContent{
-		Operator:   contract.Caller().String(),
+		Operator:   caller.String(),
 		BucketName: args.BucketName,
 		ObjectName: args.ObjectName,
 	}
@@ -1748,7 +1684,7 @@ func (c *Contract) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contr
 		evm,
 		GetAbiEvent(c.events[CancelUpdateObjectContentMethodName]),
 		[]common.Hash{
-			common.BytesToHash(contract.Caller().Bytes()),
+			common.BytesToHash(caller.Bytes()),
 			crypto.Keccak256Hash([]byte(args.ObjectName)),
 		},
 	); err != nil {

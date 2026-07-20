@@ -23,11 +23,9 @@ func (c *Contract) registerTx() {
 }
 
 func (c *Contract) UpdateSPPrice(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+	caller := contract.Caller()
 	if readonly {
 		return nil, errors.New("update sp price method readonly")
-	}
-	if evm.Origin != contract.Caller() {
-		return nil, errors.New("only allow EOA can call this method")
 	}
 	method := GetAbiMethod(UpdateSPPriceMethodName)
 	var args UpdateSPPriceArgs
@@ -36,7 +34,7 @@ func (c *Contract) UpdateSPPrice(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	}
 
 	msg := &sptypes.MsgUpdateSpStoragePrice{
-		SpAddress:     contract.Caller().String(),
+		SpAddress:     caller.String(),
 		ReadPrice:     math.LegacyNewDecFromBigIntWithPrec(args.ReadPrice, math.LegacyPrecision),
 		FreeReadQuota: args.FreeReadQuota,
 		StorePrice:    math.LegacyNewDecFromBigIntWithPrec(args.StorePrice, math.LegacyPrecision),
@@ -51,7 +49,7 @@ func (c *Contract) UpdateSPPrice(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	if err := c.AddLog(
 		evm,
 		GetAbiEvent(c.events[UpdateSPPriceMethodName]),
-		[]common.Hash{common.BytesToHash(contract.Caller().Bytes())},
+		[]common.Hash{common.BytesToHash(caller.Bytes())},
 	); err != nil {
 		return nil, err
 	}
