@@ -63,25 +63,14 @@ func (s *CompleteSPExitTestSuite) SetupTest() {
 	s.ctx = s.ctx.WithBlockHeader(header).WithChainID(chainID)
 }
 
-// TestCompleteSPExit_OperatorIsCaller asserts that completeSPExit sources
-// both MsgCompleteStorageProviderExit.Operator and the EVM log's operator
-// topic from contract.Caller(), never from the caller-controlled
-// args.Operator. GetSigners() returns Operator ahead of StorageProvider when
-// Operator parses, and the msgServer copies msg.Operator verbatim into the
-// emitted EventCompleteStorageProviderExit.OperatorAddress -- so before the
-// fix, a caller could stamp an arbitrary address as the signer/operator of
-// their own exit, in both the Cosmos event and the EVM log.
+// TestCompleteSPExit_OperatorIsCaller asserts the Cosmos event and EVM log both attribute the operator to caller, never to caller-controlled args.Operator.
 func (s *CompleteSPExitTestSuite) TestCompleteSPExit_OperatorIsCaller() {
 	callerAcc := sdk.AccAddress(s.address.Bytes()).String()
 	deposit := math.NewInt(1_000)
 
-	// EthSetup's genesis leaves sp params zero-valued (DepositDenomForSP would
-	// be ""), so install defaults before the deposit refund.
+	// EthSetup leaves sp params zero-valued, so install defaults for the deposit refund.
 	s.Require().NoError(s.app.SpKeeper.SetParams(s.ctx, sptypes.DefaultParams()))
 
-	// Seed a storage provider already mid-graceful-exit (bypassing the
-	// governance-gated create/exit flow, which is out of scope here) so
-	// CompleteStorageProviderExit's preconditions are met.
 	sp := sptypes.StorageProvider{
 		Id:              1,
 		OperatorAddress: callerAcc,
@@ -97,9 +86,7 @@ func (s *CompleteSPExitTestSuite) TestCompleteSPExit_OperatorIsCaller() {
 	s.Require().NoError(testutil.FundModuleAccount(s.ctx, s.app.BankKeeper, sptypes.ModuleName,
 		sdk.NewCoins(sdk.NewCoin(utils.BaseDenom, deposit))))
 
-	// args.Operator is attacker-controlled EVM calldata; set it to a
-	// different address than caller to prove it cannot leak into either the
-	// Cosmos message or the EVM log.
+	// args.Operator is attacker-controlled; use an address distinct from caller to prove it can't leak through.
 	spoofedOperator := common.HexToAddress("0x9999999999999999999999999999999999999999")
 
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
