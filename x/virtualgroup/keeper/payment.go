@@ -59,10 +59,8 @@ func (k Keeper) SettleAndDistributeGVG(ctx sdk.Context, gvg *types.GlobalVirtual
 		return fmt.Errorf("gvg %d has balance %s but no secondary sp to distribute to", gvg.Id, totalBalance.String())
 	}
 
-	// Pay every secondary SP an equal share. The indivisible remainder (< n) stays
-	// in the virtual payment account and rolls into the next settlement; on GVG
-	// deletion DeleteGVG sweeps it out so nothing is orphaned. Equal payouts keep
-	// EventSettleGlobalVirtualGroup.Amount accurate for every recipient.
+	// Equal share per secondary SP; the < n remainder stays in the account (swept
+	// on delete) and keeps the event Amount accurate for every recipient.
 	amount := totalBalance.QuoRaw(n)
 
 	fundingAddresses := make([]string, 0)

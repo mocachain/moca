@@ -157,11 +157,8 @@ func (s *TestSuite) TestStorageProviderExitable() {
 	require.NoError(s.T(), s.virtualgroupKeeper.StorageProviderExitable(s.ctx, spID))
 }
 
-// TestSettleAndDistributeGVG_DistributesEqualShares asserts every secondary SP is
-// paid an equal share (totalBalance / n) so EventSettleGlobalVirtualGroup.Amount
-// stays accurate for each recipient. 1024 across 3 SPs pays 341 each; the
-// indivisible 1 amoca remainder is left in the account (it rolls into the next
-// settlement, and DeleteGVG sweeps it on teardown).
+// TestSettleAndDistributeGVG_DistributesEqualShares: each secondary gets an equal
+// share (1024/3 = 341); the indivisible remainder stays in the account.
 func (s *TestSuite) TestSettleAndDistributeGVG_DistributesEqualShares() {
 	gvg := &types.GlobalVirtualGroup{
 		Id:                    1,
@@ -191,10 +188,8 @@ func (s *TestSuite) TestSettleAndDistributeGVG_DistributesEqualShares() {
 	}
 }
 
-// TestDeleteGVG_DrainsVPAAndSweepsRemainder asserts DeleteGVG fully drains the
-// GVG's virtual payment account before the record is removed: each secondary SP
-// gets an equal share and the indivisible remainder is swept to the payment
-// governance address, leaving the account at exactly zero (nothing orphaned).
+// TestDeleteGVG_DrainsVPAAndSweepsRemainder: DeleteGVG pays equal shares and sweeps
+// the remainder to the gov address, leaving the account at exactly zero.
 func (s *TestSuite) TestDeleteGVG_DrainsVPAAndSweepsRemainder() {
 	const (
 		gvgID       = uint32(1)
@@ -223,8 +218,7 @@ func (s *TestSuite) TestDeleteGVG_DrainsVPAAndSweepsRemainder() {
 		s.virtualgroupKeeper.SetGVGStatisticsWithSP(s.ctx, &types.GVGStatisticsWithinSP{StorageProviderId: id, SecondaryCount: 1})
 	}
 
-	// Model the virtual payment account draining: QueryDynamicBalance returns the
-	// live balance and each Withdraw debits it, so the sweep sees the true residual.
+	// Model the account draining so the sweep sees the real residual.
 	vpaBalance := math.NewInt(1024)
 	s.paymentKeeper.EXPECT().IsEmptyNetFlow(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).

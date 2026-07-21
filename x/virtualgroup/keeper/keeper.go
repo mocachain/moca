@@ -126,15 +126,11 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 		return types.ErrGVGNotEmpty.Wrap("The virtual payment account still not empty")
 	}
 
-	// Distribute the GVG's virtual payment account to the secondary SPs before
-	// deletion. Once the GVG is gone, its settlement path is gone too, so any
-	// leftover balance would be permanently unreachable.
+	// Settle to the secondary SPs before deletion — the settlement path is gone after.
 	if err := k.SettleAndDistributeGVG(ctx, gvg); err != nil {
 		return err
 	}
-	// SettleAndDistributeGVG pays equal shares and leaves the indivisible remainder
-	// (< number of secondaries) in the account. Sweep that dust to the payment
-	// governance address so the account is fully drained instead of orphaned.
+	// Sweep the < n settlement remainder so the soon-orphaned account drains to zero.
 	vpa := sdk.MustAccAddressFromHex(gvg.VirtualPaymentAddress)
 	residual, err := k.paymentKeeper.QueryDynamicBalance(ctx, vpa)
 	if err != nil {
