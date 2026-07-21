@@ -18,6 +18,7 @@ import (
 
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/challenge"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/virtualgroup/keeper"
 	"github.com/mocachain/moca/v2/x/virtualgroup/types"
@@ -156,10 +157,12 @@ func (s *TestSuite) TestStorageProviderExitable() {
 	require.NoError(s.T(), s.virtualgroupKeeper.StorageProviderExitable(s.ctx, spID))
 }
 
-// TestSettleAndDistributeGVG_DistributesFullBalance asserts the round-robin
-// distribution leaves nothing behind: 1024 across 3 SPs (not divisible) used to
-// strand 1 amoca as StaticBalance; now the full amount is paid out.
-func (s *TestSuite) TestSettleAndDistributeGVG_DistributesFullBalance() {
+// TestSettleAndDistributeGVG_DistributesEqualShares asserts every secondary SP is
+// paid an equal share (totalBalance / n) so EventSettleGlobalVirtualGroup.Amount
+// stays accurate for each recipient. 1024 across 3 SPs pays 341 each; the
+// indivisible 1 amoca remainder is left in the account (it rolls into the next
+// settlement, and DeleteGVG sweeps it on teardown).
+func (s *TestSuite) TestSettleAndDistributeGVG_DistributesEqualShares() {
 	gvg := &types.GlobalVirtualGroup{
 		Id:                    1,
 		VirtualPaymentAddress: sample.RandAccAddress().String(),
@@ -172,22 +175,27 @@ func (s *TestSuite) TestSettleAndDistributeGVG_DistributesFullBalance() {
 			return &sptypes.StorageProvider{Id: id, FundingAddress: sample.RandAccAddress().String()}, true
 		}).AnyTimes()
 
-	distributed := math.ZeroInt()
+	var amounts []math.Int
 	s.paymentKeeper.EXPECT().Withdraw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ sdk.Context, _, _ sdk.AccAddress, amount math.Int) error {
-			distributed = distributed.Add(amount)
+			amounts = append(amounts, amount)
 			return nil
 		}).AnyTimes()
 
 	err := s.virtualgroupKeeper.SettleAndDistributeGVG(s.ctx, gvg)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), math.NewInt(1024), distributed) // full balance paid out, no dust
+
+	require.Len(s.T(), amounts, 3) // one equal payout per secondary SP
+	for _, a := range amounts {
+		require.Equal(s.T(), math.NewInt(341), a) // 1024 / 3, dust not distributed
+	}
 }
 
-// TestDeleteGVG_DistributesVPABeforeDeleting asserts DeleteGVG drains the GVG's
-// virtual payment account to the secondary SPs before the record is removed, so
-// no StaticBalance is stranded.
-func (s *TestSuite) TestDeleteGVG_DistributesVPABeforeDeleting() {
+// TestDeleteGVG_DrainsVPAAndSweepsRemainder asserts DeleteGVG fully drains the
+// GVG's virtual payment account before the record is removed: each secondary SP
+// gets an equal share and the indivisible remainder is swept to the payment
+// governance address, leaving the account at exactly zero (nothing orphaned).
+func (s *TestSuite) TestDeleteGVG_DrainsVPAAndSweepsRemainder() {
 	const (
 		gvgID       = uint32(1)
 		familyID    = uint32(1)
@@ -215,16 +223,28 @@ func (s *TestSuite) TestDeleteGVG_DistributesVPABeforeDeleting() {
 		s.virtualgroupKeeper.SetGVGStatisticsWithSP(s.ctx, &types.GVGStatisticsWithinSP{StorageProviderId: id, SecondaryCount: 1})
 	}
 
+	// Model the virtual payment account draining: QueryDynamicBalance returns the
+	// live balance and each Withdraw debits it, so the sweep sees the true residual.
+	vpaBalance := math.NewInt(1024)
 	s.paymentKeeper.EXPECT().IsEmptyNetFlow(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
-	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.NewInt(1024), nil).AnyTimes()
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, _ sdk.AccAddress) (math.Int, error) {
+			return vpaBalance, nil
+		}).AnyTimes()
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ sdk.Context, id uint32) (*sptypes.StorageProvider, bool) {
 			return &sptypes.StorageProvider{Id: id, FundingAddress: sample.RandAccAddress().String()}, true
 		}).AnyTimes()
-	distributed := math.ZeroInt()
+	toSecondaries := math.ZeroInt()
+	sweptToGov := math.ZeroInt()
 	s.paymentKeeper.EXPECT().Withdraw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ sdk.Context, _, _ sdk.AccAddress, amount math.Int) error {
-			distributed = distributed.Add(amount)
+		DoAndReturn(func(_ sdk.Context, _, to sdk.AccAddress, amount math.Int) error {
+			vpaBalance = vpaBalance.Sub(amount)
+			if to.Equals(paymenttypes.GovernanceAddress) {
+				sweptToGov = sweptToGov.Add(amount)
+			} else {
+				toSecondaries = toSecondaries.Add(amount)
+			}
 			return nil
 		}).AnyTimes()
 
@@ -232,7 +252,9 @@ func (s *TestSuite) TestDeleteGVG_DistributesVPABeforeDeleting() {
 	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, primarySp, gvgID)
 	require.NoError(s.T(), err)
 
-	require.Equal(s.T(), math.NewInt(1024), distributed) // VPA fully drained
+	require.Equal(s.T(), math.NewInt(1023), toSecondaries) // 341 x 3 equal shares
+	require.Equal(s.T(), math.NewInt(1), sweptToGov)       // indivisible remainder swept out
+	require.True(s.T(), vpaBalance.IsZero())               // account fully drained to 0
 	_, found := s.virtualgroupKeeper.GetGVG(s.ctx, gvgID)
 	require.False(s.T(), found) // GVG deleted
 }

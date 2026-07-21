@@ -59,21 +59,17 @@ func (k Keeper) SettleAndDistributeGVG(ctx sdk.Context, gvg *types.GlobalVirtual
 		return fmt.Errorf("gvg %d has balance %s but no secondary sp to distribute to", gvg.Id, totalBalance.String())
 	}
 
-	// Distribute the entire balance, spreading the division remainder round-robin
-	// across the first SPs, so nothing is left stranded in the virtual payment
-	// account (a plain QuoRaw would leave `totalBalance mod n` behind).
-	base := totalBalance.QuoRaw(n)
-	remainder := totalBalance.Sub(base.MulRaw(n)).Int64()
+	// Pay every secondary SP an equal share. The indivisible remainder (< n) stays
+	// in the virtual payment account and rolls into the next settlement; on GVG
+	// deletion DeleteGVG sweeps it out so nothing is orphaned. Equal payouts keep
+	// EventSettleGlobalVirtualGroup.Amount accurate for every recipient.
+	amount := totalBalance.QuoRaw(n)
 
 	fundingAddresses := make([]string, 0)
-	for i, spID := range gvg.SecondarySpIds {
+	for _, spID := range gvg.SecondarySpIds {
 		sp, found := k.spKeeper.GetStorageProvider(ctx, spID)
 		if !found {
 			return fmt.Errorf("fail to find secondary sp: %d", spID)
-		}
-		amount := base
-		if int64(i) < remainder {
-			amount = amount.AddRaw(1) // round-robin distribution of dust (total mod n)
 		}
 		if amount.IsPositive() {
 			err = k.paymentKeeper.Withdraw(ctx, paymentAddress, sdk.MustAccAddressFromHex(sp.FundingAddress), amount)
@@ -89,7 +85,7 @@ func (k Keeper) SettleAndDistributeGVG(ctx sdk.Context, gvg *types.GlobalVirtual
 		Id:                 gvg.Id,
 		SpIds:              gvg.SecondarySpIds,
 		SpFundingAddresses: fundingAddresses,
-		Amount:             base,
+		Amount:             amount,
 	})
 	if err != nil {
 		ctx.Logger().Error("fail to send event for settlement", "gvg", gvg.Id, "err", err)
