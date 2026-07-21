@@ -44,10 +44,24 @@ func (k Keeper) SettleAndDistributeGVG(ctx sdk.Context, gvg *types.GlobalVirtual
 		return fmt.Errorf("fail to query balance: %s, err: %s", paymentAddress.String(), err.Error())
 	}
 
-	amount := totalBalance.QuoRaw(int64(len(gvg.SecondarySpIds)))
-	if !amount.IsPositive() {
+	n := int64(len(gvg.SecondarySpIds))
+	// A negative dynamic balance on an income account is an invariant violation;
+	// surface it instead of silently skipping distribution.
+	if totalBalance.IsNegative() {
+		return fmt.Errorf("gvg %d has a negative virtual payment balance: %s", gvg.Id, totalBalance.String())
+	}
+	if totalBalance.IsZero() {
 		return nil
 	}
+	// A positive balance with no secondary SPs cannot be distributed; erroring
+	// prevents it from being stranded on delete.
+	if n == 0 {
+		return fmt.Errorf("gvg %d has balance %s but no secondary sp to distribute to", gvg.Id, totalBalance.String())
+	}
+
+	// Equal share per secondary SP; the < n remainder stays in the account (swept
+	// on delete) and keeps the event Amount accurate for every recipient.
+	amount := totalBalance.QuoRaw(n)
 
 	fundingAddresses := make([]string, 0)
 	for _, spID := range gvg.SecondarySpIds {
@@ -55,9 +69,11 @@ func (k Keeper) SettleAndDistributeGVG(ctx sdk.Context, gvg *types.GlobalVirtual
 		if !found {
 			return fmt.Errorf("fail to find secondary sp: %d", spID)
 		}
-		err = k.paymentKeeper.Withdraw(ctx, paymentAddress, sdk.MustAccAddressFromHex(sp.FundingAddress), amount)
-		if err != nil {
-			return fmt.Errorf("fail to send coins: %s %s", paymentAddress, sp.FundingAddress)
+		if amount.IsPositive() {
+			err = k.paymentKeeper.Withdraw(ctx, paymentAddress, sdk.MustAccAddressFromHex(sp.FundingAddress), amount)
+			if err != nil {
+				return fmt.Errorf("fail to send coins: %s %s", paymentAddress, sp.FundingAddress)
+			}
 		}
 
 		fundingAddresses = append(fundingAddresses, sp.FundingAddress)

@@ -12,6 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/mocachain/moca/v2/internal/sequence"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
@@ -123,6 +124,22 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 
 	if !k.paymentKeeper.IsEmptyNetFlow(ctx, sdk.MustAccAddressFromHex(gvg.VirtualPaymentAddress)) {
 		return types.ErrGVGNotEmpty.Wrap("The virtual payment account still not empty")
+	}
+
+	// Settle to the secondary SPs before deletion — the settlement path is gone after.
+	if err := k.SettleAndDistributeGVG(ctx, gvg); err != nil {
+		return err
+	}
+	// Sweep the < n settlement remainder so the soon-orphaned account drains to zero.
+	vpa := sdk.MustAccAddressFromHex(gvg.VirtualPaymentAddress)
+	residual, err := k.paymentKeeper.QueryDynamicBalance(ctx, vpa)
+	if err != nil {
+		return err
+	}
+	if residual.IsPositive() {
+		if err := k.paymentKeeper.Withdraw(ctx, vpa, paymenttypes.GovernanceAddress, residual); err != nil {
+			return err
+		}
 	}
 
 	if !gvg.TotalDeposit.IsZero() {
