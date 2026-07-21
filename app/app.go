@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1366,10 +1367,16 @@ func (app *Moca) migrateToV2(ctx sdk.Context) error {
 		return fmt.Errorf("v2 migration: set feemarket params: %w", err)
 	}
 
-	// 5. Move the discontinue caps off MaxUint64 to the finite defaults (MOCA-743).
+	// 5. Move the discontinue caps off the uncapped MaxUint64 sentinel to the
+	//    finite defaults (MOCA-743). Only replace MaxUint64 so any finite value a
+	//    chain already set by governance is preserved, not silently reset.
 	storageParams := app.StorageKeeper.GetParams(ctx)
-	storageParams.DiscontinueObjectMax = storagemoduletypes.DefaultDiscontinueObjectMax
-	storageParams.DiscontinueBucketMax = storagemoduletypes.DefaultDiscontinueBucketMax
+	if storageParams.DiscontinueObjectMax == math.MaxUint64 {
+		storageParams.DiscontinueObjectMax = storagemoduletypes.DefaultDiscontinueObjectMax
+	}
+	if storageParams.DiscontinueBucketMax == math.MaxUint64 {
+		storageParams.DiscontinueBucketMax = storagemoduletypes.DefaultDiscontinueBucketMax
+	}
 	if err := app.StorageKeeper.SetParams(ctx, storageParams); err != nil {
 		return fmt.Errorf("v2 migration: set storage params: %w", err)
 	}

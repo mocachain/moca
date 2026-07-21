@@ -277,3 +277,24 @@ func TestMigrateToV2_CapsDiscontinueQueue(t *testing.T) {
 	require.Less(t, got.DiscontinueObjectMax, uint64(math.MaxUint64), "object discontinue cap must be finite")
 	require.Less(t, got.DiscontinueBucketMax, uint64(math.MaxUint64), "bucket discontinue cap must be finite")
 }
+
+// TestMigrateToV2_PreservesFiniteDiscontinueCaps asserts the migration replaces
+// only the uncapped MaxUint64 sentinel: a chain that already set a finite
+// discontinue cap by governance keeps its own value across the v2 upgrade.
+func TestMigrateToV2_PreservesFiniteDiscontinueCaps(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+
+	// A governance-customized chain: finite, non-default caps already in place.
+	const customObjectMax, customBucketMax = uint64(42), uint64(7)
+	params := storagemoduletypes.DefaultParams()
+	params.DiscontinueObjectMax = customObjectMax
+	params.DiscontinueBucketMax = customBucketMax
+	require.NoError(t, mocaApp.StorageKeeper.SetParams(ctx, params))
+
+	require.NoError(t, mocaApp.migrateToV2(ctx))
+
+	got := mocaApp.StorageKeeper.GetParams(ctx)
+	require.Equal(t, customObjectMax, got.DiscontinueObjectMax, "finite object cap must be preserved")
+	require.Equal(t, customBucketMax, got.DiscontinueBucketMax, "finite bucket cap must be preserved")
+}
