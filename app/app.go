@@ -1367,9 +1367,8 @@ func (app *Moca) migrateToV2(ctx sdk.Context) error {
 		return fmt.Errorf("v2 migration: set feemarket params: %w", err)
 	}
 
-	// 5. Move the discontinue caps off the uncapped MaxUint64 sentinel to the
-	//    finite defaults (MOCA-743). Only replace MaxUint64 so any finite value a
-	//    chain already set by governance is preserved, not silently reset.
+	// 5. Cap the discontinue queue (MOCA-743): replace only the uncapped MaxUint64
+	//    sentinel, so a governance-set finite value is preserved.
 	storageParams := app.StorageKeeper.GetParams(ctx)
 	if storageParams.DiscontinueObjectMax == math.MaxUint64 {
 		storageParams.DiscontinueObjectMax = storagemoduletypes.DefaultDiscontinueObjectMax

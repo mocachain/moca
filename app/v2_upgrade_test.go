@@ -243,12 +243,8 @@ func firstValidatorConsAddr(t *testing.T, app *Moca, ctx sdk.Context) sdk.ConsAd
 	return sdk.ConsAddress(consBz)
 }
 
-// initStorageParamsForUpgrade seeds the storage module's params in the test app.
-// The EVM upgrade harness (NewTestGenesisState) deliberately omits the storage
-// module from genesis, so StorageKeeper.GetParams returns a zero-value struct.
-// migrateToV2 caps the discontinue queue (MOCA-743) by re-validating and
-// re-saving the full storage params, which requires a realistically-initialized
-// set — exactly what any real v1.3.0 chain already has.
+// initStorageParamsForUpgrade seeds storage params — the EVM harness omits storage
+// from genesis, and migrateToV2's cap step re-validates the full params.
 func initStorageParamsForUpgrade(t *testing.T, app *Moca, ctx sdk.Context) {
 	t.Helper()
 	require.NoError(t, app.StorageKeeper.SetParams(ctx, storagemoduletypes.DefaultParams()))
@@ -260,10 +256,7 @@ func TestMigrateToV2_CapsDiscontinueQueue(t *testing.T) {
 	mocaApp := EthSetup(false, nil)
 	ctx := mocaApp.NewContext(false)
 
-	// Pre-upgrade: a realistically-initialized chain whose discontinue queue is
-	// still uncapped at MaxUint64 (the state MOCA-743 fixes). The EVM harness
-	// omits storage from genesis, so start from DefaultParams, not the zero-value
-	// GetParams.
+	// Pre-upgrade: valid params, but the queue still uncapped at MaxUint64.
 	params := storagemoduletypes.DefaultParams()
 	params.DiscontinueObjectMax = math.MaxUint64
 	params.DiscontinueBucketMax = math.MaxUint64
@@ -278,9 +271,8 @@ func TestMigrateToV2_CapsDiscontinueQueue(t *testing.T) {
 	require.Less(t, got.DiscontinueBucketMax, uint64(math.MaxUint64), "bucket discontinue cap must be finite")
 }
 
-// TestMigrateToV2_PreservesFiniteDiscontinueCaps asserts the migration replaces
-// only the uncapped MaxUint64 sentinel: a chain that already set a finite
-// discontinue cap by governance keeps its own value across the v2 upgrade.
+// TestMigrateToV2_PreservesFiniteDiscontinueCaps: a governance-set finite cap
+// survives the upgrade — only the MaxUint64 sentinel is replaced.
 func TestMigrateToV2_PreservesFiniteDiscontinueCaps(t *testing.T) {
 	mocaApp := EthSetup(false, nil)
 	ctx := mocaApp.NewContext(false)
