@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -12,8 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
-	mocatypes "github.com/mocachain/moca/v2/types"
 	precompilesstorage "github.com/mocachain/moca/v2/precompiles/storage"
+	mocatypes "github.com/mocachain/moca/v2/types"
+	storagemoduletypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 // TestMigrateToV2_ContractSurvivesInPlace proves the v1.3.0 -> v2 in-place
@@ -30,6 +32,7 @@ func TestMigrateToV2_ContractSurvivesInPlace(t *testing.T) {
 	// EVM params/coin info itself, which is exactly what we're exercising.
 	mocaApp := EthSetup(false, nil)
 	ctx := mocaApp.NewContext(false)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
 
 	// Minimal runtime bytecode: returns the 32-byte word 0x2a (42).
 	//   PUSH1 0x2a; PUSH1 0x00; MSTORE; PUSH1 0x20; PUSH1 0x00; RETURN
@@ -87,6 +90,7 @@ func TestMigrateToV2_ContractSurvivesInPlace(t *testing.T) {
 func TestMigrateToV2_MultipleContractsAndExecution(t *testing.T) {
 	mocaApp := EthSetup(false, nil)
 	ctx := mocaApp.NewContext(false)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
 
 	// Contract A: SLOAD slot 0, then RETURN it (32 bytes). It reads storage at
 	// execution time, so it only returns the right value if BOTH code and
@@ -191,6 +195,7 @@ func TestMigrateToV2_MultipleContractsAndExecution(t *testing.T) {
 func TestMigrateToV2_ZeroCodeHashSkipped(t *testing.T) {
 	mocaApp := EthSetup(false, nil)
 	ctx := mocaApp.NewContext(false)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
 
 	addr := common.HexToAddress("0x00000000000000000000000000000000000000ee")
 	accI := mocaApp.AccountKeeper.NewAccountWithAddress(ctx, sdk.AccAddress(addr.Bytes()))
@@ -236,4 +241,52 @@ func firstValidatorConsAddr(t *testing.T, app *Moca, ctx sdk.Context) sdk.ConsAd
 	consBz, err := vals[0].GetConsAddr()
 	require.NoError(t, err)
 	return sdk.ConsAddress(consBz)
+}
+
+// initStorageParamsForUpgrade seeds storage params — the EVM harness omits storage
+// from genesis, and migrateToV2's cap step re-validates the full params.
+func initStorageParamsForUpgrade(t *testing.T, app *Moca, ctx sdk.Context) {
+	t.Helper()
+	require.NoError(t, app.StorageKeeper.SetParams(ctx, storagemoduletypes.DefaultParams()))
+}
+
+// TestMigrateToV2_CapsDiscontinueQueue asserts the v2 upgrade replaces the
+// uncapped MaxUint64 discontinue quotas with the finite defaults (MOCA-743).
+func TestMigrateToV2_CapsDiscontinueQueue(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+
+	// Pre-upgrade: valid params, but the queue still uncapped at MaxUint64.
+	params := storagemoduletypes.DefaultParams()
+	params.DiscontinueObjectMax = math.MaxUint64
+	params.DiscontinueBucketMax = math.MaxUint64
+	require.NoError(t, mocaApp.StorageKeeper.SetParams(ctx, params))
+
+	require.NoError(t, mocaApp.migrateToV2(ctx))
+
+	got := mocaApp.StorageKeeper.GetParams(ctx)
+	require.Equal(t, storagemoduletypes.DefaultDiscontinueObjectMax, got.DiscontinueObjectMax)
+	require.Equal(t, storagemoduletypes.DefaultDiscontinueBucketMax, got.DiscontinueBucketMax)
+	require.Less(t, got.DiscontinueObjectMax, uint64(math.MaxUint64), "object discontinue cap must be finite")
+	require.Less(t, got.DiscontinueBucketMax, uint64(math.MaxUint64), "bucket discontinue cap must be finite")
+}
+
+// TestMigrateToV2_PreservesFiniteDiscontinueCaps: a governance-set finite cap
+// survives the upgrade — only the MaxUint64 sentinel is replaced.
+func TestMigrateToV2_PreservesFiniteDiscontinueCaps(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+
+	// A governance-customized chain: finite, non-default caps already in place.
+	const customObjectMax, customBucketMax = uint64(42), uint64(7)
+	params := storagemoduletypes.DefaultParams()
+	params.DiscontinueObjectMax = customObjectMax
+	params.DiscontinueBucketMax = customBucketMax
+	require.NoError(t, mocaApp.StorageKeeper.SetParams(ctx, params))
+
+	require.NoError(t, mocaApp.migrateToV2(ctx))
+
+	got := mocaApp.StorageKeeper.GetParams(ctx)
+	require.Equal(t, customObjectMax, got.DiscontinueObjectMax, "finite object cap must be preserved")
+	require.Equal(t, customBucketMax, got.DiscontinueBucketMax, "finite bucket cap must be preserved")
 }
