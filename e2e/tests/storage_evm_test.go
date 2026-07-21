@@ -2,24 +2,13 @@ package tests
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"encoding/json"
 	"math"
 	"math/big"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/cosmos/cosmos-sdk/types/query"
 
@@ -31,153 +20,19 @@ import (
 	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
+// gvgDepositAmount is 1000 MOCA in amoca base units, mirroring the retired
+// e2e/core suite's own default GVG deposit.
+const gvgDepositAmount = "1000000000000000000000"
+
 // TestStorageEvmFlow drives moca's storage/virtualgroup modules entirely
 // through their EVM precompiles (createGlobalVirtualGroup, createBucket,
-// updateBucketInfo), exercising the same functional path as the legacy
-// Eip712TestSuite.TestMultiMessages but over real signed EVM transactions
-// against a live node, instead of the now-broken SIGN_MODE_EIP_712 Cosmos
-// path. Run against a chain started via:
-//
-//	deployment/localup/localup.sh all 1 7
-//	deployment/localup/localup.sh export_sps 1 7
-const (
-	evmRPCAddr        = "http://127.0.0.1:8545"
-	grpcAddr          = "localhost:9090"
-	evmChainIDNum     = 5151
-	spExportRelPath   = "../../deployment/localup/.local/sp_export.json"
-	oneMocaInAmoca    = "1000000000000000000"
-	gvgDepositAmount  = "1000000000000000000000" // 1000 MOCA in amoca base units, mirrors e2e/core's default GVG deposit.
-	fundingAmountMOCA = 10
-)
-
-// devAccountPrivateKeyHex is deployment/localup/localup.sh's own hardcoded
-// well-known local-devnet key (devaccount_prikey), pre-funded at genesis for
-// every localup chain purely for test purposes -- not a secret.
-const devAccountPrivateKeyHex = "2228e392584d902843272c37fd62b8c73c10c81a5ecb901773c9ebe366e937bb"
-
-type spExportEntry struct {
-	OperatorAddress    string `json:"OperatorAddress"`
-	ApprovalAddress    string `json:"ApprovalAddress"`
-	OperatorPrivateKey string `json:"OperatorPrivateKey"`
-	ApprovalPrivateKey string `json:"ApprovalPrivateKey"`
-}
-
-func loadSPExport(t *testing.T) map[string]spExportEntry {
-	t.Helper()
-	data, err := os.ReadFile(spExportRelPath) //nolint:gosec // fixed relative path to local test fixture
-	require.NoError(t, err, "run `localup.sh export_sps 1 7` before this test")
-	var out map[string]spExportEntry
-	require.NoError(t, json.Unmarshal(data, &out))
-	return out
-}
-
-func mustHexKey(t *testing.T, hexKey string) *ecdsa.PrivateKey {
-	t.Helper()
-	key, err := crypto.HexToECDSA(strings.TrimPrefix(strings.TrimSpace(hexKey), "0x"))
-	require.NoError(t, err)
-	return key
-}
-
-// sendPrecompileTx signs and sends a dynamic-fee tx carrying calldata to a
-// precompile address, waits for the receipt, and asserts success.
-func sendPrecompileTx(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, key *ecdsa.PrivateKey, to common.Address, calldata []byte) *types.Receipt {
-	t.Helper()
-	from := crypto.PubkeyToAddress(key.PublicKey)
-
-	nonce, err := client.PendingNonceAt(ctx, from)
-	require.NoError(t, err)
-
-	tipCap, err := client.SuggestGasTipCap(ctx)
-	require.NoError(t, err)
-
-	header, err := client.HeaderByNumber(ctx, nil)
-	require.NoError(t, err)
-	feeCap := new(big.Int).Add(tipCap, new(big.Int).Mul(header.BaseFee, big.NewInt(2)))
-
-	gas, err := client.EstimateGas(ctx, ethereum.CallMsg{
-		From: from,
-		To:   &to,
-		Data: calldata,
-	})
-	if err != nil {
-		// Precompile gas estimation can be unreliable; fall back to a
-		// generous fixed limit rather than failing the whole tx upfront.
-		gas = 2_000_000
-	} else {
-		gas += gas / 5 // 20% headroom
-	}
-
-	tx := types.NewTx(&types.DynamicFeeTx{
-		ChainID:   chainID,
-		Nonce:     nonce,
-		GasTipCap: tipCap,
-		GasFeeCap: feeCap,
-		Gas:       gas,
-		To:        &to,
-		Data:      calldata,
-	})
-
-	signedTx, err := types.SignTx(tx, types.LatestSignerForChainID(chainID), key)
-	require.NoError(t, err)
-	require.NoError(t, client.SendTransaction(ctx, signedTx))
-
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	receipt, err := bind.WaitMined(waitCtx, client, signedTx)
-	require.NoError(t, err)
-	if receipt.Status != 1 {
-		// Re-simulate at the reverting block to surface the revert reason;
-		// go-ethereum doesn't attach it to the mined receipt.
-		_, callErr := client.CallContract(ctx, ethereum.CallMsg{
-			From: from, To: &to, Data: calldata,
-		}, receipt.BlockNumber)
-		t.Fatalf("tx %s reverted; revert reason: %v", signedTx.Hash(), callErr)
-	}
-	return receipt
-}
-
-func fundAccount(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, funder *ecdsa.PrivateKey, to common.Address, amount *big.Int) {
-	t.Helper()
-	from := crypto.PubkeyToAddress(funder.PublicKey)
-	nonce, err := client.PendingNonceAt(ctx, from)
-	require.NoError(t, err)
-	tipCap, err := client.SuggestGasTipCap(ctx)
-	require.NoError(t, err)
-	header, err := client.HeaderByNumber(ctx, nil)
-	require.NoError(t, err)
-	feeCap := new(big.Int).Add(tipCap, new(big.Int).Mul(header.BaseFee, big.NewInt(2)))
-
-	tx := types.NewTx(&types.DynamicFeeTx{
-		ChainID:   chainID,
-		Nonce:     nonce,
-		GasTipCap: tipCap,
-		GasFeeCap: feeCap,
-		Gas:       21_000,
-		To:        &to,
-		Value:     amount,
-	})
-	signedTx, err := types.SignTx(tx, types.LatestSignerForChainID(chainID), funder)
-	require.NoError(t, err)
-	require.NoError(t, client.SendTransaction(ctx, signedTx))
-
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	receipt, err := bind.WaitMined(waitCtx, client, signedTx)
-	require.NoError(t, err)
-	require.Equal(t, uint64(1), receipt.Status)
-}
-
+// updateBucketInfo), exercising the same functional path as the retired
+// suite's eip712_test.go (create a bucket, then flip its visibility) but
+// over real signed EVM transactions against a live node.
 func TestStorageEvmFlow(t *testing.T) {
 	ctx := context.Background()
 	chainID := big.NewInt(evmChainIDNum)
-
-	client, err := ethclient.Dial(evmRPCAddr)
-	require.NoError(t, err, "no live chain at %s -- run localup.sh first", evmRPCAddr)
-	defer client.Close()
-
-	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	defer conn.Close()
+	client, conn := dialChain(t)
 
 	spClient := sptypes.NewQueryClient(conn)
 	storageClient := storagetypes.NewQueryClient(conn)
@@ -207,12 +62,10 @@ func TestStorageEvmFlow(t *testing.T) {
 
 	sp0OperatorKey := mustHexKey(t, sp0Export.OperatorPrivateKey)
 	sp0ApprovalKey := mustHexKey(t, sp0Export.ApprovalPrivateKey)
-	devKey := mustHexKey(t, devAccountPrivateKeyHex)
 
 	// Fund sp0's operator account for gas -- it holds its self-deposit but
 	// may have no free spendable balance for tx fees.
-	fundAccount(t, ctx, client, chainID, devKey, crypto.PubkeyToAddress(sp0OperatorKey.PublicKey),
-		new(big.Int).Mul(big.NewInt(fundingAmountMOCA), mustBigInt(t, oneMocaInAmoca)))
+	fundMoca(t, ctx, client, chainID, crypto.PubkeyToAddress(sp0OperatorKey.PublicKey), fundingAmountMOCA)
 
 	// 1) Create a fresh GVG family for sp0 via the virtualgroup precompile.
 	vgPrecompile := virtualgroup.Precompile{}
@@ -249,8 +102,7 @@ func TestStorageEvmFlow(t *testing.T) {
 	userKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	userAddr := crypto.PubkeyToAddress(userKey.PublicKey)
-	fundAccount(t, ctx, client, chainID, devKey, userAddr,
-		new(big.Int).Mul(big.NewInt(fundingAmountMOCA), mustBigInt(t, oneMocaInAmoca)))
+	fundMoca(t, ctx, client, chainID, userAddr, fundingAmountMOCA)
 
 	// 4) Compute the SP approval signature the same way the storage keeper
 	// verifies it: Keccak256(MsgCreateBucket.GetApprovalBytes()), ECDSA-signed.
@@ -300,11 +152,4 @@ func TestStorageEvmFlow(t *testing.T) {
 	headResp, err := storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})
 	require.NoError(t, err)
 	require.Equal(t, storagetypes.VISIBILITY_TYPE_PRIVATE, headResp.BucketInfo.Visibility)
-}
-
-func mustBigInt(t *testing.T, s string) *big.Int {
-	t.Helper()
-	n, ok := new(big.Int).SetString(s, 10)
-	require.True(t, ok, "invalid integer literal: %s", s)
-	return n
 }
