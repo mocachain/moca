@@ -118,6 +118,11 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 		return types.ErrGVGNotExist
 	}
 
+	// Only the GVG's own primary SP may delete it and receive the deposit refund.
+	if gvg.PrimarySpId != primarySp.Id {
+		return types.ErrNotPrimarySP
+	}
+
 	if gvg.StoredSize != 0 {
 		return types.ErrGVGNotEmpty
 	}
