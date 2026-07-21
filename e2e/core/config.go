@@ -32,6 +32,13 @@ type Config struct {
 	ValidatorTmRPCAddr   string        `yaml:"ValidatorTmRPCAddr"`
 }
 
+// InitConfig backs e2e/tests, a suite for moca's older, pre-EVM precompile
+// interface. It signs everything via the now-unsupported EIP-712 Cosmos path
+// and expects a plain-text mnemonic file layout that current localup tooling
+// no longer produces, so it no longer runs. It is being replaced module by
+// module with EVM/precompile-driven tests in this same package (e.g.
+// storage_evm_test.go) and e2e/kind; remaining files here are kept as a
+// scenario reference until ported, then removed.
 func InitConfig() *Config {
 	// TODO: support qa and testnet config
 	return InitE2eConfig()
