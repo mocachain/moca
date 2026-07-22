@@ -108,8 +108,9 @@ func setupPrimarySP(t *testing.T, ctx context.Context, client *ethclient.Client,
 
 // createTestBucket creates a fresh bucket in familyID via the storage
 // precompile's createBucket method, owned and signed by owner (which must
-// already be funded), approved by sp. Returns the generated bucket name.
-func createTestBucket(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, sp spHandle, familyID uint32, owner *ecdsa.PrivateKey, visibility storagetypes.VisibilityType) string {
+// already be funded), approved by sp, with the given charged read quota.
+// Returns the generated bucket name.
+func createTestBucket(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, sp spHandle, familyID uint32, owner *ecdsa.PrivateKey, visibility storagetypes.VisibilityType, chargedReadQuota uint64) string {
 	t.Helper()
 	ownerAddr := crypto.PubkeyToAddress(owner.PublicKey)
 
@@ -119,7 +120,7 @@ func createTestBucket(t *testing.T, ctx context.Context, client *ethclient.Clien
 	fakeMsg := storagetypes.NewMsgCreateBucket(
 		ownerAddr.Bytes(), bucketName, visibility,
 		sp.OperatorAddr.Bytes(), ownerAddr.Bytes(),
-		math.MaxUint, nil, 0,
+		math.MaxUint, nil, chargedReadQuota,
 	)
 	fakeMsg.PrimarySpApproval.GlobalVirtualGroupFamilyId = familyID
 	approvalDigest := crypto.Keccak256(fakeMsg.GetApprovalBytes())
@@ -138,7 +139,7 @@ func createTestBucket(t *testing.T, ctx context.Context, client *ethclient.Clien
 			GlobalVirtualGroupFamilyId: familyID,
 			Sig:                        approvalSig,
 		},
-		uint64(0),
+		chargedReadQuota,
 	)
 	require.NoError(t, err)
 	calldata := append(append([]byte{}, createMethod.ID...), createArgs...)
