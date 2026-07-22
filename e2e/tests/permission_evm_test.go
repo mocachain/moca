@@ -113,15 +113,21 @@ func TestPermissionStaleGroupDenialEvmFlow(t *testing.T) {
 	// inside the storage precompile's deleteGroup, with:
 	//   "kv store with key TransientStoreKey{..., transient_storage} has not
 	//    been registered in stores"
-	// This is narrower than it first looks: the identical CreateGroup mint
-	// and a separately-verified DeleteBucket burn (same k.CallEVM path, same
-	// precompile-execution context) both succeed fine. So this isn't nested
-	// EVM calls from a precompile being broken in general -- it looks
-	// specific to whatever the deployed Group ERC721 contract's burn
-	// bytecode does differently (a transient-storage opcode the bucket/mint
-	// paths don't hit). Object deletion untested. Left unfixed here -- out
-	// of scope for the e2e-test rewrite -- but worth its own look.
+	//
+	// The trigger isn't cleanly isolated yet -- three data points, not
+	// fully reconciled:
+	//   - Owner-called DeleteBucket: succeeds (verified separately).
+	//   - Owner-called DeleteGroup (here): fails.
+	//   - Grantee-called DeleteBucket via a real policy grant: also fails
+	//     (see TestPermissionAccountGrantEvmFlow in this package).
+	// VerifyGroupPermission and VerifyBucketPermission both have an
+	// identical "operator == owner, return ALLOW immediately" shortcut
+	// ahead of any real policy lookup, so this isn't simply "delegated
+	// calls reach a policy-evaluation code path that owner calls skip" --
+	// owner-called DeleteGroup takes that same shortcut and still fails.
+	// Left unfixed here, out of scope for the e2e-test rewrite; worth its
+	// own investigation given three different call shapes all reach it.
 	t.Skip("BLOCKED: deleteGroup precompile call fails with " +
 		`"kv store with key TransientStoreKey{..., transient_storage} has not been registered in stores" ` +
-		"-- Keeper.DeleteGroup's nested k.CallEVM (ERC721 burn) fails from inside a precompile's own EVM tx; DeleteBucket's equivalent burn call does not, see comment above")
+		"-- owner-called deleteBucket does not fail the same way, but owner-called deleteGroup does; trigger not fully isolated, see comment above")
 }
