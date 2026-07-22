@@ -54,6 +54,7 @@ type spExportEntry struct {
 	OperatorAddress    string `json:"OperatorAddress"`
 	ApprovalAddress    string `json:"ApprovalAddress"`
 	GcAddress          string `json:"GcAddress"`
+	FundingAddress     string `json:"FundingAddress"`
 	OperatorPrivateKey string `json:"OperatorPrivateKey"`
 	ApprovalPrivateKey string `json:"ApprovalPrivateKey"`
 	GcPrivateKey       string `json:"GcPrivateKey"`
