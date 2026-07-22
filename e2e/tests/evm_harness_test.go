@@ -27,7 +27,13 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+
+	sdkmath "cosmossdk.io/math"
+
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 )
 
 const (
@@ -185,4 +191,27 @@ func fundMoca(t *testing.T, ctx context.Context, client *ethclient.Client, chain
 	t.Helper()
 	devKey := mustHexKey(t, devAccountPrivateKeyHex)
 	fundAccount(t, ctx, client, chainID, devKey, to, new(big.Int).Mul(big.NewInt(wholeMoca), mustBigInt(t, oneMocaInAmoca)))
+}
+
+// getStreamRecord fetches an account's payment stream record, treating a
+// not-found response as an implicit all-zero record -- an account that has
+// never had any payment activity has no row at all yet, same tolerance the
+// retired suite's own getStreamRecord helper had.
+func getStreamRecord(t *testing.T, ctx context.Context, paymentClient paymenttypes.QueryClient, account string) paymenttypes.StreamRecord {
+	t.Helper()
+	resp, err := paymentClient.StreamRecord(ctx, &paymenttypes.QueryGetStreamRecordRequest{Account: account})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return paymenttypes.StreamRecord{
+				Account:           account,
+				NetflowRate:       sdkmath.ZeroInt(),
+				StaticBalance:     sdkmath.ZeroInt(),
+				BufferBalance:     sdkmath.ZeroInt(),
+				LockBalance:       sdkmath.ZeroInt(),
+				FrozenNetflowRate: sdkmath.ZeroInt(),
+			}
+		}
+		require.NoError(t, err)
+	}
+	return resp.StreamRecord
 }

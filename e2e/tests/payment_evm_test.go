@@ -84,10 +84,7 @@ func TestPaymentDepositEvmFlow(t *testing.T) {
 	sendPrecompileTx(t, ctx, client, chainID, userKey, precompile.Address(),
 		append(append([]byte{}, depositMethod.ID...), depositArgs...))
 
-	streamResp, err := paymentClient.StreamRecord(ctx, &paymenttypes.QueryGetStreamRecordRequest{
-		Account: userAddr.String(),
-	})
-	require.NoError(t, err)
-	require.True(t, streamResp.StreamRecord.NetflowRate.IsZero(), "no bucket/quota is attached, so nothing should be streaming")
-	require.Equal(t, depositAmount, streamResp.StreamRecord.StaticBalance.BigInt())
+	streamRecord := getStreamRecord(t, ctx, paymentClient, userAddr.String())
+	require.True(t, streamRecord.NetflowRate.IsZero(), "no bucket/quota is attached, so nothing should be streaming")
+	require.Equal(t, depositAmount, streamRecord.StaticBalance.BigInt())
 }

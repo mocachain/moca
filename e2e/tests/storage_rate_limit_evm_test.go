@@ -85,4 +85,6 @@ func TestStorageRateLimitEvmFlow(t *testing.T) {
 		From: ownerAddr, To: &precompileAddr, Data: createObjCalldata,
 	}, nil)
 	require.Error(t, callErr, "creating an object against a zero-rate-limited bucket must be rejected")
+	require.Contains(t, callErr.Error(), "greater than the flow rate limit",
+		"must fail specifically because of the rate limit, not some other validation error (e.g. a blank approval signature)")
 }
