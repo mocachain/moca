@@ -30,7 +30,7 @@ func TestStorageEvmFlow(t *testing.T) {
 	userAddr := crypto.PubkeyToAddress(userKey.PublicKey)
 	fundMoca(t, ctx, client, chainID, userAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, userKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ)
+	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, userKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 0)
 
 	// updateBucketInfo via the storage precompile: flip to private.
 	storagePrecompile := storage.Precompile{}

@@ -41,7 +41,7 @@ func TestPermissionStaleGroupDenialEvmFlow(t *testing.T) {
 	memberAddr := crypto.PubkeyToAddress(memberKey.PublicKey)
 	fundMoca(t, ctx, client, chainID, memberAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE)
+	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	// 1) Baseline: the member has no grant at all, so deleting the bucket
 	// must already be denied.
