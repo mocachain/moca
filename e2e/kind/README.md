@@ -218,6 +218,26 @@ Comprehensive upgrade (`test_upgrade_comprehensive.sh`) also runs **`mod_validat
 validator height spread (<= 2) and on-chain staking count vs `NUM_VALIDATORS` (parity with devcontainer
 upgrade validator verification; cosmovisor checks are N/A in Kind).
 
+### EIP-7702 (`tests/test_eip7702.sh`)
+
+Confirms EIP-7702 (set-EOA-code / account abstraction, active from genesis via cosmos/evm's Prague
+activation) against a live multi-validator cluster: a real signed `SetCodeTx` correctly delegates an
+EOA to a deployed contract, a third party invoking the delegated EOA executes the contract's logic
+against the EOA's own storage (not the underlying contract's), and native-token supply/balances stay
+correct throughout -- the same class of invariant #332 fixed for precompile calls, now checked for the
+generic EIP-7702 path. Uses Foundry's native `cast wallet sign-auth` / `cast send --auth` support.
+
+```bash
+make e2e-fw-test TEST=eip7702
+```
+
+| Kind test | Checks |
+|-----------|--------|
+| Fresh EOA has no code before delegation | Baseline: `eth_getCode` is `0x` pre-delegation |
+| SetCodeTx delegates EOA to deployed Counter | `eth_getCode` becomes the `0xef0100` + address delegation designator |
+| Third party invokes delegated EOA | Account abstraction: a different signer calls the EOA's address, `count`/`lastCaller` land in the EOA's own storage, the underlying contract's storage is untouched |
+| Delegated EOA native transfer + supply invariant | The delegated EOA sends real amoca; receiver credited exactly, total supply unchanged |
+
 ### Smoke Suite
 
 | Test | Description |
