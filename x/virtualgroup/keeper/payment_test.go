@@ -157,6 +157,91 @@ func (s *TestSuite) TestStorageProviderExitable() {
 	require.NoError(s.T(), s.virtualgroupKeeper.StorageProviderExitable(s.ctx, spID))
 }
 
+const (
+	deleteGVGID       = uint32(100)
+	deleteGVGFamilyID = uint32(1)
+	primarySPID       = uint32(1)
+	otherSPID         = uint32(2)
+)
+
+// seedEmptyGVG stores an empty GVG (StoredSize == 0) that still holds a deposit,
+// owned by primarySPID, together with the family that references it and the
+// owning SP's GVG statistics. Returns the deposit amount.
+func (s *TestSuite) seedEmptyGVG() math.Int {
+	deposit := math.NewInt(1_000_000)
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id:                    deleteGVGID,
+		FamilyId:              deleteGVGFamilyID,
+		PrimarySpId:           primarySPID,
+		StoredSize:            0,
+		TotalDeposit:          deposit,
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+		SecondarySpIds:        []uint32{},
+	})
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{
+		Id:                    deleteGVGFamilyID,
+		PrimarySpId:           primarySPID,
+		GlobalVirtualGroupIds: []uint32{deleteGVGID},
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.virtualgroupKeeper.SetGVGStatisticsWithSP(s.ctx, &types.GVGStatisticsWithinSP{
+		StorageProviderId: primarySPID,
+		PrimaryCount:      1,
+	})
+	return deposit
+}
+
+// A storage provider that is not the GVG's primary SP cannot delete it, and no
+// deposit refund is made (the strict mock controller fails on any bank call).
+func (s *TestSuite) TestDeleteGVG_RejectsNonPrimarySP() {
+	s.seedEmptyGVG()
+
+	otherSP := &sptypes.StorageProvider{
+		Id:             otherSPID,
+		FundingAddress: sample.RandAccAddress().String(),
+	}
+
+	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, otherSP, deleteGVGID)
+	require.ErrorIs(s.T(), err, types.ErrNotPrimarySP)
+
+	// The GVG is left intact.
+	_, found := s.virtualgroupKeeper.GetGVG(s.ctx, deleteGVGID)
+	require.True(s.T(), found)
+}
+
+// The GVG's own primary SP can delete it; the deposit is refunded to that SP's
+// funding address and the GVG is removed.
+func (s *TestSuite) TestDeleteGVG_PrimarySPSucceeds() {
+	deposit := s.seedEmptyGVG()
+
+	primarySP := &sptypes.StorageProvider{
+		Id:             primarySPID,
+		FundingAddress: sample.RandAccAddress().String(),
+	}
+
+	s.paymentKeeper.EXPECT().IsEmptyNetFlow(gomock.Any(), gomock.Any()).
+		Return(true).AnyTimes()
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).
+		Return(math.ZeroInt(), nil).AnyTimes()
+
+	var gotRecipient sdk.AccAddress
+	s.bankKeeper.EXPECT().
+		SendCoinsFromModuleToAccount(gomock.Any(), types.ModuleName, gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, _ string, recipient sdk.AccAddress, coins sdk.Coins) error {
+			gotRecipient = recipient
+			require.Equal(s.T(), deposit, coins.AmountOf(s.virtualgroupKeeper.DepositDenomForGVG(s.ctx)))
+			return nil
+		}).Times(1)
+
+	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, primarySP, deleteGVGID)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), sdk.MustAccAddressFromHex(primarySP.FundingAddress).Bytes(), gotRecipient.Bytes())
+
+	_, found := s.virtualgroupKeeper.GetGVG(s.ctx, deleteGVGID)
+	require.False(s.T(), found)
+}
+
 // TestSettleAndDistributeGVG_DistributesEqualShares: each secondary gets an equal
 // share (1024/3 = 341); the indivisible remainder stays in the account.
 func (s *TestSuite) TestSettleAndDistributeGVG_DistributesEqualShares() {
