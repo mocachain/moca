@@ -53,8 +53,10 @@ const devAccountPrivateKeyHex = "2228e392584d902843272c37fd62b8c73c10c81a5ecb901
 type spExportEntry struct {
 	OperatorAddress    string `json:"OperatorAddress"`
 	ApprovalAddress    string `json:"ApprovalAddress"`
+	GcAddress          string `json:"GcAddress"`
 	OperatorPrivateKey string `json:"OperatorPrivateKey"`
 	ApprovalPrivateKey string `json:"ApprovalPrivateKey"`
+	GcPrivateKey       string `json:"GcPrivateKey"`
 }
 
 func loadSPExport(t *testing.T) map[string]spExportEntry {
