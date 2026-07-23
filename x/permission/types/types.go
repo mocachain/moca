@@ -182,6 +182,13 @@ func (s *Statement) ValidateBasic(resType resource.ResourceType) error {
 	case resource.RESOURCE_TYPE_UNSPECIFIED:
 		return ErrInvalidStatement.Wrap("Please specify the ResourceType explicitly. Not allowed set RESOURCE_TYPE_UNSPECIFIED")
 	case resource.RESOURCE_TYPE_BUCKET:
+		if len(s.Resources) == 0 {
+			for _, a := range s.Actions {
+				if bucketActionRequiresResources(a) {
+					return ErrInvalidStatement.Wrapf("%s requires Resources when used on a bucket.", a.String())
+				}
+			}
+		}
 		for _, r := range s.Resources {
 			var grn gnfd.GRN
 			err := grn.ParseFromString(r, true)
@@ -211,6 +218,21 @@ func (s *Statement) ValidateBasic(resType resource.ResourceType) error {
 		return ErrInvalidStatement.Wrap("unknown resource type.")
 	}
 	return nil
+}
+
+func bucketActionRequiresResources(action ActionType) bool {
+	switch action {
+	case ACTION_DELETE_OBJECT,
+		ACTION_COPY_OBJECT,
+		ACTION_GET_OBJECT,
+		ACTION_EXECUTE_OBJECT,
+		ACTION_UPDATE_OBJECT_INFO,
+		ACTION_UPDATE_OBJECT_CONTENT,
+		ACTION_TYPE_ALL:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Statement) ValidateRuntime(_ sdk.Context, resType resource.ResourceType) error {
