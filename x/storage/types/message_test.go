@@ -327,6 +327,19 @@ func TestMsgPutPolicy_ValidateBasic(t *testing.T) {
 				}},
 			},
 		},
+		{
+			name: "bucket object action without resources",
+			msg: MsgPutPolicy{
+				Operator:  sample.RandAccAddressHex(),
+				Resource:  types2.NewBucketGRN(testBucketName).String(),
+				Principal: types.NewPrincipalWithAccount(sdk.MustAccAddressFromHex(sample.RandAccAddressHex())),
+				Statements: []*types.Statement{{
+					Effect:  types.EFFECT_DENY,
+					Actions: []types.ActionType{types.ACTION_GET_OBJECT},
+				}},
+			},
+			err: types.ErrInvalidStatement,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
