@@ -311,6 +311,7 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 			continue
 		}
 
+		forceSettled := false
 		if streamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE {
 			count++ // add one for a stream record
 			err := k.UpdateStreamRecord(ctx, streamRecord, types.NewDefaultStreamRecordChangeWithAddr(addr))
@@ -322,16 +323,18 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 			if streamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE {
 				continue
 			}
-			if count >= max {
-				return
-			}
+			forceSettled = true
 		}
 
 		if k.ExistsAutoResumeRecord(ctx, record.Timestamp, addr) { // this check should be cheap usually
 			continue // skip the one if the stream account is in resuming
 		}
 
-		settled, totalRate, fullySettled, newCount := k.settleActiveOutFlows(ctx, addr, count, max)
+		flowMax := max
+		if forceSettled {
+			flowMax = math.MaxUint64
+		}
+		settled, totalRate, fullySettled, newCount := k.settleActiveOutFlows(ctx, addr, count, flowMax)
 		count = newCount
 
 		for _, o := range settled {
