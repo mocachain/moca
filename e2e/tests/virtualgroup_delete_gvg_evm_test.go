@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -17,9 +18,11 @@ import (
 // immediately, assert the deposit refunds to the owning SP).
 //
 // BLOCKED: a freshly-created GVG is not actually "empty" in the sense
-// deleteGlobalVirtualGroup requires. Verified live: right after creation,
-// the GVG's virtual payment account already carries a positive
-// netflow_rate (e.g. 2516582400), not zero, even with StoredSize still 0 --
+// deleteGlobalVirtualGroup requires. Verified live: shortly after creation
+// (immediately on a long-running chain; within a few blocks on a
+// freshly-started one), the GVG's virtual payment account already carries a
+// positive netflow_rate (e.g. 2516582400), not zero, even with StoredSize
+// still 0 --
 // so DeleteGlobalVirtualGroup's k.paymentKeeper.IsEmptyNetFlow check
 // rejects it with "the store size of gvg is not zero" (a reused, somewhat
 // misleading error registered originally for the StoredSize check, also
@@ -51,9 +54,20 @@ func TestVirtualGroupDeleteGvgEvmFlow(t *testing.T) {
 	gvgResp, err := vgClient.GlobalVirtualGroup(ctx, &virtualgroupmoduletypes.QueryGlobalVirtualGroupRequest{GlobalVirtualGroupId: gvgID})
 	require.NoError(t, err)
 
-	streamResp, err := paymentClient.StreamRecord(ctx, &paymenttypes.QueryGetStreamRecordRequest{Account: gvgResp.GlobalVirtualGroup.VirtualPaymentAddress})
-	require.NoError(t, err)
-	require.False(t, streamResp.StreamRecord.NetflowRate.IsZero(),
+	// The rate doesn't necessarily show up in the very same block as GVG
+	// creation -- observed on a fresh, low-height chain that the first query
+	// can still see an all-zero (or not-yet-existing) record. Poll a few
+	// blocks rather than asserting on the very first read; getStreamRecord
+	// already tolerates NotFound as an implicit all-zero record.
+	netflowRate := paymenttypes.StreamRecord{}
+	for i := 0; i < 10; i++ {
+		netflowRate = getStreamRecord(t, ctx, paymentClient, gvgResp.GlobalVirtualGroup.VirtualPaymentAddress)
+		if !netflowRate.NetflowRate.IsZero() {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	require.False(t, netflowRate.NetflowRate.IsZero(),
 		"reproduces the blocker: a freshly-created GVG already has a non-zero netflow rate, sp %d", sp.SPID)
 
 	t.Skip("BLOCKED: deleteGlobalVirtualGroup requires the GVG's netflow rate at zero, " +
