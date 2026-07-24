@@ -4,48 +4,52 @@ import (
 	"context"
 	"math/big"
 	"testing"
-	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
-	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	"github.com/mocachain/moca/v2/precompiles/virtualgroup"
 	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
-// TestVirtualGroupDeleteGvgEvmFlow was meant to drive x/virtualgroup's GVG
-// deletion through the virtualgroup precompile's deleteGlobalVirtualGroup
-// method (create a fresh, empty GVG via setupPrimarySP, delete it
-// immediately, assert the deposit refunds to the owning SP).
+// TestVirtualGroupDeleteGvgEvmFlow drives x/virtualgroup's GVG deletion
+// through the virtualgroup precompile's deleteGlobalVirtualGroup method:
+// the owning SP attempts to delete its own freshly-created, empty GVG.
 //
-// BLOCKED: a freshly-created GVG is not actually "empty" in the sense
-// deleteGlobalVirtualGroup requires. Verified live: shortly after creation
-// (immediately on a long-running chain; within a few blocks on a
-// freshly-started one), the GVG's virtual payment account already carries a
-// positive netflow_rate (e.g. 2516582400), not zero, even with StoredSize
-// still 0 --
-// so DeleteGlobalVirtualGroup's k.paymentKeeper.IsEmptyNetFlow check
-// rejects it with "the store size of gvg is not zero" (a reused, somewhat
-// misleading error registered originally for the StoredSize check, also
-// wrapped onto the netflow-rate check). This rate appears to represent an
-// ongoing commitment to the family's secondary SPs from the moment of
-// creation, not something tied to actual stored objects.
+// Whether this succeeds turns out to depend on chain history in a way this
+// test adapts to rather than assumes: deleteGlobalVirtualGroup requires the
+// GVG's virtual payment account to have a zero netflow rate
+// (k.paymentKeeper.IsEmptyNetFlow), and a freshly-created GVG's rate isn't
+// reliably zero -- verified live on a long-running chain that it's already
+// non-zero (e.g. 2516582400) immediately after creation, apparently an
+// ongoing commitment to the family's secondary SPs rather than something
+// tied to actual stored objects (StoredSize is still 0) -- but on a
+// freshly-started chain with little accumulated history the same GVG's
+// rate can still read as zero. Rather than asserting one or the other,
+// this test takes whichever branch the live chain actually produces:
 //
-// Unwinding it back to zero isn't a single precompile call: swapOut
-// requires negotiating a specific successor SP to take over each GVG
-// (msgServer.SwapOut resolves the caller by operator/funding address and
-// expects a target family + successor, not a simple self-service exit), and
-// the fuller SP-exit lifecycle (spExit -> completeSPExit) changes the SP's
-// own registration status too. Actually reaching a deletable GVG needs that
-// multi-step, multi-SP flow modeled end-to-end -- out of scope for this
-// pass; worth its own investigation.
+//   - If the delete is rejected for that specific reason, it's the known,
+//     documented blocker (skipped -- unwinding the rate back to zero isn't a
+//     single precompile call: swapOut requires negotiating a specific
+//     successor SP per GVG, and the fuller SP-exit lifecycle (spExit ->
+//     completeSPExit) changes the SP's own registration status too; out of
+//     scope for this pass, worth its own investigation).
+//   - If it succeeds, that's the legitimate self-delete path, verified
+//     normally (deposit refunds to the owning SP's funding address, the GVG
+//     is gone).
 func TestVirtualGroupDeleteGvgEvmFlow(t *testing.T) {
 	ctx := context.Background()
 	chainID := big.NewInt(evmChainIDNum)
 	client, conn := dialChain(t)
 	vgClient := virtualgroupmoduletypes.NewQueryClient(conn)
-	paymentClient := paymenttypes.NewQueryClient(conn)
+	precompile := virtualgroup.Precompile{}
+	precompileAddr := precompile.Address()
 
 	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp0Export, ok := loadSPExport(t)["sp0"]
+	require.True(t, ok)
+	fundingAddr := common.HexToAddress(sp0Export.FundingAddress)
 
 	familyResp, err := vgClient.GlobalVirtualGroupFamily(ctx, &virtualgroupmoduletypes.QueryGlobalVirtualGroupFamilyRequest{FamilyId: familyID})
 	require.NoError(t, err)
@@ -53,24 +57,34 @@ func TestVirtualGroupDeleteGvgEvmFlow(t *testing.T) {
 
 	gvgResp, err := vgClient.GlobalVirtualGroup(ctx, &virtualgroupmoduletypes.QueryGlobalVirtualGroupRequest{GlobalVirtualGroupId: gvgID})
 	require.NoError(t, err)
+	deposit := gvgResp.GlobalVirtualGroup.TotalDeposit.BigInt()
+	require.True(t, deposit.Sign() > 0, "a freshly-created GVG should carry the deposit charged at creation")
 
-	// The rate doesn't necessarily show up in the very same block as GVG
-	// creation -- observed on a fresh, low-height chain that the first query
-	// can still see an all-zero (or not-yet-existing) record. Poll a few
-	// blocks rather than asserting on the very first read; getStreamRecord
-	// already tolerates NotFound as an implicit all-zero record.
-	netflowRate := paymenttypes.StreamRecord{}
-	for i := 0; i < 10; i++ {
-		netflowRate = getStreamRecord(t, ctx, paymentClient, gvgResp.GlobalVirtualGroup.VirtualPaymentAddress)
-		if !netflowRate.NetflowRate.IsZero() {
-			break
-		}
-		time.Sleep(1 * time.Second)
+	balanceBefore, err := client.BalanceAt(ctx, fundingAddr, nil)
+	require.NoError(t, err)
+
+	deleteMethod, err := virtualgroup.GetMethod(virtualgroup.DeleteGlobalVirtualGroupMethodName)
+	require.NoError(t, err)
+	deleteArgs, err := deleteMethod.Inputs.Pack(gvgID)
+	require.NoError(t, err)
+	calldata := append(append([]byte{}, deleteMethod.ID...), deleteArgs...)
+
+	_, callErr := client.CallContract(ctx, ethereum.CallMsg{
+		From: sp.OperatorAddr, To: &precompileAddr, Data: calldata,
+	}, nil)
+	if callErr != nil {
+		require.Contains(t, callErr.Error(), "the store size of gvg is not zero",
+			"if delete fails, it must be for the known non-zero-netflow-rate reason, not something else")
+		t.Skip("BLOCKED (this chain/run): deleteGlobalVirtualGroup rejected because the GVG's netflow " +
+			"rate isn't zero yet -- see the doc comment above for why this varies by chain history")
 	}
-	require.False(t, netflowRate.NetflowRate.IsZero(),
-		"reproduces the blocker: a freshly-created GVG already has a non-zero netflow rate, sp %d", sp.SPID)
 
-	t.Skip("BLOCKED: deleteGlobalVirtualGroup requires the GVG's netflow rate at zero, " +
-		"which a freshly-created GVG never has -- reaching that state needs the full " +
-		"swapOut/spExit lifecycle modeled end-to-end, see comment above")
+	sendPrecompileTx(t, ctx, client, chainID, sp.OperatorKey, precompileAddr, calldata)
+
+	_, err = vgClient.GlobalVirtualGroup(ctx, &virtualgroupmoduletypes.QueryGlobalVirtualGroupRequest{GlobalVirtualGroupId: gvgID})
+	require.Error(t, err, "deleted GVG should no longer exist")
+
+	balanceAfter, err := client.BalanceAt(ctx, fundingAddr, nil)
+	require.NoError(t, err)
+	require.Equal(t, deposit, new(big.Int).Sub(balanceAfter, balanceBefore), "the exact deposit must refund to the owning SP's funding address")
 }
