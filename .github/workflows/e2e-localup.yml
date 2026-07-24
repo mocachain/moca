@@ -1,0 +1,90 @@
+name: E2E Localup Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+env:
+  CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
+  CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
+
+jobs:
+  e2e-localup:
+    name: EVM/precompile e2e (localup)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.25.10"
+
+      - name: Build mocad
+        run: make build
+
+      - name: Start local devnet (1 validator, 7 SPs)
+        run: |
+          cd deployment/localup
+          bash localup.sh all 1 7
+          bash localup.sh export_sps 1 7
+
+      - name: Wait for chain liveness
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s -X POST -H "Content-Type: application/json" \
+              --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+              http://127.0.0.1:8545 | grep -q result; then
+              echo "chain is live"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "chain never became live"
+          exit 1
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      # sdk/client's tests all sign as this one well-known private key
+      # (sdk/client/test/config.go's TestPrivateKey); it isn't a genesis
+      # account on a fresh localup chain, so fund it here rather than
+      # changing the test suite itself. The sending key is localup.sh's own
+      # hardcoded local-devnet dev account (devaccount_prikey), pre-funded
+      # at genesis for every localup chain purely for test purposes -- not
+      # a secret.
+      - name: Fund sdk/client's test account
+        run: |
+          cast send 0xF03Af05bE1a3ADF6Df23E7ee9A151718284FAE1a \
+            --value 1000ether \
+            --rpc-url http://127.0.0.1:8545 \
+            --private-key 0x2228e392584d902843272c37fd62b8c73c10c81a5ecb901773c9ebe366e937bb
+
+      - name: Run sdk/client tests
+        run: go test ./sdk/client/... -v -timeout 5m
+
+      - name: Run e2e/tests suite
+        run: go test ./e2e/tests/... -v -timeout 5m
+
+      - name: Collect chain logs
+        if: failure()
+        run: |
+          mkdir -p /tmp/e2e-localup-logs
+          cp deployment/localup/.local/validator0/logs/node.log /tmp/e2e-localup-logs/ 2>/dev/null || true
+          cp -r deployment/localup/.local/logs /tmp/e2e-localup-logs/session-logs 2>/dev/null || true
+          cp deployment/localup/.local/sp_export.json /tmp/e2e-localup-logs/ 2>/dev/null || true
+
+      - name: Upload chain logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-localup-logs
+          path: /tmp/e2e-localup-logs
+          retention-days: 7
+
+      - name: Stop devnet
+        if: always()
+        run: cd deployment/localup && bash localup.sh stop || true
