@@ -239,6 +239,9 @@ func (k Keeper) ForceSettle(ctx sdk.Context, streamRecord *types.StreamRecord) e
 		telemetry.IncrCounter(1, types.GovernanceAddressLackBalanceLabel)
 		return fmt.Errorf("update governance stream record failed: %w", err)
 	}
+	if err := k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
+		return fmt.Errorf("freeze active out-flows failed: %w", err)
+	}
 	// force settle
 	streamRecord.StaticBalance = sdkmath.ZeroInt()
 	streamRecord.BufferBalance = sdkmath.ZeroInt()
@@ -248,6 +251,42 @@ func (k Keeper) ForceSettle(ctx sdk.Context, streamRecord *types.StreamRecord) e
 		Addr:           streamRecord.Account,
 		SettledBalance: totalBalance,
 	})
+	return nil
+}
+
+func (k Keeper) freezeAllActiveOutFlows(ctx sdk.Context, streamRecord *types.StreamRecord) error {
+	addr := sdk.MustAccAddressFromHex(streamRecord.Account)
+	activeFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_ACTIVE, nil)
+	flowStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.OutFlowKeyPrefix)
+	flowIterator := flowStore.Iterator(activeFlowKey, nil)
+	defer flowIterator.Close()
+
+	totalRate := sdkmath.ZeroInt()
+	toUpdate := make([]types.OutFlow, 0)
+	for ; flowIterator.Valid(); flowIterator.Next() {
+		addrInKey, outFlow := types.ParseOutFlowKey(flowIterator.Key())
+		if !addrInKey.Equals(addr) || outFlow.Status == types.OUT_FLOW_STATUS_FROZEN {
+			break
+		}
+		outFlow.Rate = types.ParseOutFlowValue(flowIterator.Value())
+
+		toAddr := sdk.MustAccAddressFromHex(outFlow.ToAddress)
+		change := types.NewDefaultStreamRecordChangeWithAddr(toAddr).WithRateChange(outFlow.Rate.Neg())
+		if _, err := k.UpdateStreamRecordByAddr(ctx, change); err != nil {
+			return fmt.Errorf("update recipient stream record %s: %w", outFlow.ToAddress, err)
+		}
+
+		flowStore.Delete(flowIterator.Key())
+		outFlow.Status = types.OUT_FLOW_STATUS_FROZEN
+		toUpdate = append(toUpdate, outFlow)
+		totalRate = totalRate.Add(outFlow.Rate)
+	}
+
+	for _, outFlow := range toUpdate {
+		k.SetOutFlow(ctx, addr, &outFlow)
+	}
+	streamRecord.NetflowRate = streamRecord.NetflowRate.Add(totalRate)
+	streamRecord.FrozenNetflowRate = streamRecord.FrozenNetflowRate.Add(totalRate.Neg())
 	return nil
 }
 

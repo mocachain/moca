@@ -7,8 +7,8 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/payment/types"
@@ -268,22 +268,22 @@ func TestTryResumeStreamRecord_ResumeInMultipleBlocks_BalanceNotEnoughFinally(t 
 	keeper.AutoResume(ctx)
 	userStreamRecord, _ = keeper.GetStreamRecord(ctx, user)
 	require.True(t, userStreamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN)
-	require.Equal(t, userStreamRecord.NetflowRate, rate.Neg())
-	require.Equal(t, userStreamRecord.FrozenNetflowRate, sdkmath.ZeroInt())
+	require.True(t, userStreamRecord.NetflowRate.IsZero())
+	require.Equal(t, userStreamRecord.FrozenNetflowRate, rate.Neg())
 
 	gvg1StreamRecord, _ := keeper.GetStreamRecord(ctx, gvg1)
 	require.True(t, gvg1StreamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE)
-	require.Equal(t, gvg1StreamRecord.NetflowRate, gvg1Rate)
+	require.True(t, gvg1StreamRecord.NetflowRate.IsZero())
 	require.Equal(t, gvg1StreamRecord.FrozenNetflowRate, sdkmath.ZeroInt())
 
 	gvg2StreamRecord, _ := keeper.GetStreamRecord(ctx, gvg2)
 	require.True(t, gvg2StreamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE)
-	require.Equal(t, gvg2StreamRecord.NetflowRate, gvg2Rate)
+	require.True(t, gvg2StreamRecord.NetflowRate.IsZero())
 	require.Equal(t, gvg2StreamRecord.FrozenNetflowRate, sdkmath.ZeroInt())
 
 	gvg3StreamRecord, _ := keeper.GetStreamRecord(ctx, gvg3)
 	require.True(t, gvg3StreamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE)
-	require.Equal(t, gvg3StreamRecord.NetflowRate, gvg3Rate)
+	require.True(t, gvg3StreamRecord.NetflowRate.IsZero())
 	require.Equal(t, gvg3StreamRecord.FrozenNetflowRate, sdkmath.ZeroInt())
 
 	// there will be an auto settle record
@@ -468,11 +468,11 @@ func TestAutoSettle_SettleInOneBlock(t *testing.T) {
 	require.Equal(t, gvgOutFlow.Rate, rate)
 }
 
-func TestAutoSettle_SettleInMultipleBlocks(t *testing.T) {
+func TestAutoSettle_ForceSettleFreezesAllOutFlowsInOneBlock(t *testing.T) {
 	keeper, ctx, depKeepers := makePaymentKeeper(t)
 	ctx = ctx.WithBlockTime(time.Now())
 
-	// freeze account in multiple blocks
+	// A force-settled account must freeze all of its out-flows in the same block.
 	params := keeper.GetParams(ctx)
 	params.MaxAutoSettleFlowCount = 1
 	_ = keeper.SetParams(ctx, params)
@@ -564,22 +564,6 @@ func TestAutoSettle_SettleInMultipleBlocks(t *testing.T) {
 	})
 
 	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
-	keeper.AutoSettle(ctx) // this is for settle stream, it is counted
-	userStreamRecord, _ = keeper.GetStreamRecord(ctx, user)
-	require.True(t, userStreamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN)
-
-	keeper.AutoSettle(ctx)
-	userStreamRecord, _ = keeper.GetStreamRecord(ctx, user)
-	require.True(t, userStreamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN)
-	require.True(t, !userStreamRecord.NetflowRate.IsZero())
-	require.True(t, !userStreamRecord.FrozenNetflowRate.IsZero())
-
-	keeper.AutoSettle(ctx)
-	userStreamRecord, _ = keeper.GetStreamRecord(ctx, user)
-	require.True(t, userStreamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN)
-	require.True(t, !userStreamRecord.NetflowRate.IsZero())
-	require.True(t, !userStreamRecord.FrozenNetflowRate.IsZero())
-
 	keeper.AutoSettle(ctx)
 	userStreamRecord, _ = keeper.GetStreamRecord(ctx, user)
 	require.True(t, userStreamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN)
@@ -918,4 +902,46 @@ func TestAutoForceSettle(t *testing.T) {
 	require.True(t, found)
 	t.Logf("gov stream record: %+v", govStreamRecord)
 	require.Equal(t, govStreamRecord.StaticBalance.Add(spStreamRecord.StaticBalance), userInitBalance.Add(userAddBalance))
+}
+
+func TestForceSettle_FreezesAllActiveOutFlows(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(100, 0))
+
+	payer := sample.RandAccAddress()
+	recipient1 := sample.RandAccAddress()
+	recipient2 := sample.RandAccAddress()
+	rate := sdkmath.NewInt(100)
+
+	payerRecord := types.NewStreamRecord(payer, ctx.BlockTime().Unix())
+	payerRecord.NetflowRate = rate.MulRaw(-2)
+	payerRecord.OutFlowCount = 2
+	keeper.SetStreamRecord(ctx, payerRecord)
+
+	governanceRecord := types.NewStreamRecord(types.GovernanceAddress, ctx.BlockTime().Unix())
+	keeper.SetStreamRecord(ctx, governanceRecord)
+
+	for _, recipient := range []sdk.AccAddress{recipient1, recipient2} {
+		recipientRecord := types.NewStreamRecord(recipient, ctx.BlockTime().Unix())
+		recipientRecord.NetflowRate = rate
+		keeper.SetStreamRecord(ctx, recipientRecord)
+		keeper.SetOutFlow(ctx, payer, &types.OutFlow{
+			ToAddress: recipient.String(),
+			Rate:      rate,
+			Status:    types.OUT_FLOW_STATUS_ACTIVE,
+		})
+	}
+
+	require.NoError(t, keeper.ForceSettle(ctx, payerRecord))
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, payerRecord.Status)
+	require.True(t, payerRecord.NetflowRate.IsZero())
+	require.Equal(t, rate.MulRaw(-2), payerRecord.FrozenNetflowRate)
+
+	for _, recipient := range []sdk.AccAddress{recipient1, recipient2} {
+		require.Nil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_ACTIVE, recipient))
+		require.NotNil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_FROZEN, recipient))
+
+		recipientRecord, _ := keeper.GetStreamRecord(ctx, recipient)
+		require.True(t, recipientRecord.NetflowRate.IsZero())
+	}
 }
