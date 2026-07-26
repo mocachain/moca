@@ -10,7 +10,7 @@ option go_package = "github.com/mocachain/moca/v2/x/payment/types";
 // The EndBlocker of payment module will scan the list of AutoResumeRecord
 // and resume the stream account one by one.
 message AutoResumeRecord {
-  option (amino.name) = "evmos/x/payment/AutoResumeRecord";
+  option (amino.name) = "moca/x/payment/AutoResumeRecord";
   // timestamp is the unix timestamp to order the records
   int64 timestamp = 1;
   // the stream account address

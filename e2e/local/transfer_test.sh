@@ -66,7 +66,7 @@ echo "初始余额: ${INITIAL_BALANCE}amoca"
 # 执行转账
 echo "执行转账..."
 TRANSFER_AMOUNT="2000000000000000000000amoca"
-FEES="200000000000000amoca"
+FEES="5000000000000000amoca"
 
 TX_RESULT=$(./build/mocad tx bank send validator0 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 "$TRANSFER_AMOUNT" \
     --keyring-backend test \

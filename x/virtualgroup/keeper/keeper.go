@@ -12,6 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/mocachain/moca/v2/internal/sequence"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
@@ -117,12 +118,33 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 		return types.ErrGVGNotExist
 	}
 
+	// Only the GVG's own primary SP may delete it and receive the deposit refund.
+	if gvg.PrimarySpId != primarySp.Id {
+		return types.ErrNotPrimarySP
+	}
+
 	if gvg.StoredSize != 0 {
 		return types.ErrGVGNotEmpty
 	}
 
 	if !k.paymentKeeper.IsEmptyNetFlow(ctx, sdk.MustAccAddressFromHex(gvg.VirtualPaymentAddress)) {
 		return types.ErrGVGNotEmpty.Wrap("The virtual payment account still not empty")
+	}
+
+	// Settle to the secondary SPs before deletion — the settlement path is gone after.
+	if err := k.SettleAndDistributeGVG(ctx, gvg); err != nil {
+		return err
+	}
+	// Sweep the < n settlement remainder so the soon-orphaned account drains to zero.
+	vpa := sdk.MustAccAddressFromHex(gvg.VirtualPaymentAddress)
+	residual, err := k.paymentKeeper.QueryDynamicBalance(ctx, vpa)
+	if err != nil {
+		return err
+	}
+	if residual.IsPositive() {
+		if err := k.paymentKeeper.Withdraw(ctx, vpa, paymenttypes.GovernanceAddress, residual); err != nil {
+			return err
+		}
 	}
 
 	if !gvg.TotalDeposit.IsZero() {
@@ -475,6 +497,13 @@ func (k Keeper) StorageProviderExitable(ctx sdk.Context, spID uint32) error {
 		if stat.SecondaryCount != 0 {
 			return types.ErrSPCanNotExit.Wrapf("not swap out from all the gvgs, stat: %s", stat.String())
 		}
+	}
+
+	// An SP that is still the primary of a GVG family must not be allowed to exit:
+	// downstream resolution of that family assumes the SP still exists. Note this also
+	// covers empty families (no GVGs) -- they must be swapped out to a successor too.
+	if familyStats, found := k.GetGVGFamilyStatisticsWithinSP(ctx, spID); found && len(familyStats.GlobalVirtualGroupFamilyIds) != 0 {
+		return types.ErrSPCanNotExit.Wrapf("still primary of %d GVG family(ies); swap them out to a successor SP (including empty families) before exiting", len(familyStats.GlobalVirtualGroupFamilyIds))
 	}
 	return nil
 }

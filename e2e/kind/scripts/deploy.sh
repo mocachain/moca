@@ -6,6 +6,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib.sh"
 
 MANIFESTS_DIR="${E2E_DIR}/manifests/base"
@@ -82,6 +83,10 @@ log_success "Chain init completed"
 
 # ── 6. Extract configs from init pod ────────────────────────────────────────
 log_info "Extracting validator configs from init pod..."
+# Clear any stale extraction from a previous local run. CI starts fresh each
+# time, but local re-runs with FW_SKIP_CLEANUP can leave an old chain DB and
+# priv_validator_state here, causing validators to resume/halt on the next run.
+rm -rf "${INIT_DIR}/data" "${INIT_DIR}"/validator*
 for i in $(seq 0 $((NUM_VALIDATORS - 1))); do
     log_info "  Extracting validator${i} config..."
     mkdir -p "${INIT_DIR}/validator${i}/config"

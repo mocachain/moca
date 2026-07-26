@@ -20,6 +20,8 @@ paths = [
 stopwords = [
     '''secp256k1''',
     '''mcpub1addwnpepqgcxazmq6wgt2j4rdfumsfwla0zfk8e5sws3p3zg5dkm9007hmfysxas0u2''',
+    # example pubkey in `debug pubkey` help text (client/debug/debug.go), not a secret
+    '''AurroA7jvfPd1AadmmOvWM2rJSwipXfRf8yD6pLbA2DJ''',
 ]
 
 [[rules]]

@@ -8,7 +8,7 @@ option go_package = "github.com/mocachain/moca/v2/x/storage/types";
 
 // Params defines the parameters for the module.
 message Params {
-  option (amino.name) = "evmos/x/storage/Params";
+  option (amino.name) = "moca/x/storage/Params";
   option (gogoproto.goproto_stringer) = false;
   VersionedParams versioned_params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
 

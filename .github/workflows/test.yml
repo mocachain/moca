@@ -18,11 +18,11 @@ jobs:
   test-unit-cover:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
-          go-version: "1.23.x"
+          go-version: "1.25.10"
           check-latest: true
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
@@ -34,8 +34,8 @@ jobs:
         run: |
           make test-unit-cover
         if: env.GIT_DIFF
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         with:
-          file: ./coverage.txt
+          files: ./coverage.txt
           fail_ci_if_error: false
         if: env.GIT_DIFF

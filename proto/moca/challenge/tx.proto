@@ -25,7 +25,7 @@ service Msg {
 
 // MsgSubmit defines the message for submitting challenges.
 message MsgSubmit {
-  option (amino.name) = "evmos/x/challenge/MsgSubmit";
+  option (amino.name) = "moca/x/challenge/MsgSubmit";
   option (cosmos.msg.v1.signer) = "challenger";
 
   // The challenger address.
@@ -55,7 +55,7 @@ message MsgSubmitResponse {
 
 // MsgSubmit defines the message for attesting challenges.
 message MsgAttest {
-  option (amino.name) = "evmos/x/challenge/MsgAttest";
+  option (amino.name) = "moca/x/challenge/MsgAttest";
   option (cosmos.msg.v1.signer) = "submitter";
 
   // The submitter address.
@@ -93,7 +93,7 @@ message MsgAttestResponse {}
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
 message MsgUpdateParams {
-  option (amino.name) = "evmos/x/challenge/MsgUpdateParams";
+  option (amino.name) = "moca/x/challenge/MsgUpdateParams";
   option (cosmos.msg.v1.signer) = "authority";
 
   // authority is the address that controls the module (defaults to x/gov unless overwritten).

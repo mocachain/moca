@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/challenge/types"

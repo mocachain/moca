@@ -30,11 +30,6 @@ func MocaLedgerDerivation() Secp256k1DerivationFn {
 	}
 }
 
-// EvmosLedgerDerivation is kept as a compatibility alias for existing callers.
-func EvmosLedgerDerivation() Secp256k1DerivationFn {
-	return MocaLedgerDerivation()
-}
-
 var _ sdkledger.SECP256K1 = &MocaSECP256K1{}
 
 // MocaSECP256K1 defines a wrapper of the Ethereum App to
@@ -43,9 +38,6 @@ type MocaSECP256K1 struct {
 	*usbwallet.Hub
 	PrimaryWallet accounts.Wallet
 }
-
-// EvmosSECP256K1 is kept as a compatibility alias for existing callers.
-type EvmosSECP256K1 = MocaSECP256K1
 
 // Close closes the associated primary wallet. Any requests on
 // the object after a successful Close() should not work

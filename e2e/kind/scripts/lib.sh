@@ -15,8 +15,9 @@ fi
 # ── Logging ───────────────────────────────────────────────────────────────────
 log_info()    { echo -e "\033[0;34m[INFO]\033[0m $*"; }
 log_success() { echo -e "\033[0;32m[PASS]\033[0m $*"; }
-log_error()   { echo -e "\033[0;31m[FAIL]\033[0m $*"; }
-log_warn()    { echo -e "\033[0;33m[WARN]\033[0m $*"; }
+# Errors/warnings to stderr: else `x=$(fn)` swallows them into x (hidden failure + polluted value).
+log_error()   { echo -e "\033[0;31m[FAIL]\033[0m $*" >&2; }
+log_warn()    { echo -e "\033[0;33m[WARN]\033[0m $*" >&2; }
 
 # ── Chain queries ─────────────────────────────────────────────────────────────
 
@@ -47,6 +48,96 @@ wait_for_chain_ready() {
     return 1
 }
 
+# Wait until every validator pod is actually serving its own RPC. Goes beyond
+# wait_for_chain_ready (which only checks the host's NodePort RPC, so a single
+# healthy pod can satisfy it) by polling each validator's internal RPC. Critical
+# after a rolling restart where pods come back at staggered times.
+#
+# Usage: wait_for_all_validator_rpcs <num> [timeout_seconds=120]
+wait_for_all_validator_rpcs() {
+    local num="$1"
+    local timeout="${2:-120}"
+    local deadline=$(( $(date +%s) + timeout ))
+    local i height now
+    log_info "Waiting for all ${num} validator RPCs to serve /status..."
+    for ((i = 0; i < num; i++)); do
+        while :; do
+            height=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
+                curl -sS -m 5 http://localhost:26657/status 2>/dev/null \
+                | jq -r '.result.sync_info.latest_block_height // empty' 2>/dev/null) || true
+            if [ -n "$height" ] && [ "$height" -gt 0 ] 2>/dev/null; then
+                log_success "  validator-${i} RPC serving (height=${height})"
+                break
+            fi
+            now=$(date +%s)
+            if [ "$now" -ge "$deadline" ]; then
+                log_error "  validator-${i} RPC not serving after timeout"
+                return 1
+            fi
+            sleep 2
+        done
+    done
+}
+
+# wait_for_evm_rpc_ready: poll the EVM JSON-RPC at the host's port-forward
+# until eth_blockNumber returns a non-zero block. The cosmos /status endpoint
+# can be live before the EVM RPC is fully attached, leading to "server returned
+# a null response" errors on the first `cast send` after start.
+#
+# Usage: wait_for_evm_rpc_ready [rpc=http://localhost:8545] [timeout=60]
+wait_for_evm_rpc_ready() {
+    local rpc="${1:-http://localhost:8545}"
+    local timeout="${2:-60}"
+    local deadline=$(( $(date +%s) + timeout ))
+    local block now
+    log_info "Waiting for EVM RPC ${rpc} to serve eth_blockNumber..."
+    while :; do
+        block=$(curl -sS -m 5 -X POST -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+            "$rpc" 2>/dev/null | jq -r '.result // empty' 2>/dev/null) || true
+        if [ -n "$block" ] && [ "$block" != "0x0" ] && [ "$block" != "null" ]; then
+            log_success "EVM RPC ready (block=${block})"
+            return 0
+        fi
+        now=$(date +%s)
+        if [ "$now" -ge "$deadline" ]; then
+            log_error "EVM RPC ${rpc} not ready after ${timeout}s"
+            return 1
+        fi
+        sleep 2
+    done
+}
+
+# kind_load_image: load a local docker image into the Kind cluster's containerd
+# snapshotter. Uses `docker save | docker exec ctr import` instead of the
+# default `kind load docker-image` because the latter can silently fail with
+# the desktop-linux buildx driver — the image manifest gets exported but the
+# image doesn't actually land in the cluster's snapshotter under the expected
+# SHA, leading to ErrImageNeverPull at pod start.
+#
+# Usage: kind_load_image <image:tag>
+kind_load_image() {
+    local image="$1"
+    local node="${KIND_CLUSTER_NAME}-control-plane"
+    if ! docker exec "$node" true 2>/dev/null; then
+        log_error "Kind control-plane container '$node' not running"
+        return 1
+    fi
+    local import_out
+    if ! import_out=$(docker save "$image" | docker exec -i "$node" \
+        ctr --namespace=k8s.io images import - 2>&1); then
+        log_error "Failed to load image $image into Kind: ${import_out}"
+        return 1
+    fi
+    # Verify the image is actually present in containerd — a truncated stream
+    # can "succeed" without importing what we think it did.
+    if ! docker exec "$node" ctr --namespace=k8s.io images ls -q 2>/dev/null | grep -qF "${image}"; then
+        log_error "Image $image not present in Kind containerd after import (got: ${import_out})"
+        return 1
+    fi
+    log_success "Image $image loaded into Kind cluster"
+}
+
 # Wait until the chain reaches a specific block height.
 wait_for_height() {
     local target="$1"
@@ -71,6 +162,54 @@ wait_for_height() {
 exec_mocad() {
     kubectl exec -n "${K8S_NAMESPACE}" validator-0-0 -c mocad -- \
         mocad "$@" --home /root/.mocad 2>/dev/null
+}
+
+# ── Cosmos tx broadcast (--gas auto + retry) ──────────────────────────────────
+# Gas/fee policy for cosmos txs: simulate-derived gas (`--gas auto`) with the fee
+# auto-derived from the node's minimum-gas-prices — never fixed --gas/--fees, and NOT
+# --gas-prices: moca's `--gas auto` already derives the fee internally, so pairing it
+# with --gas-prices errors "cannot provide both fees and gas prices". `--gas auto` adds
+# a simulate round-trip that widens the window in which validator0's account sequence —
+# shared across the suite's cosmos AND EVM txs, because cosmos/evm maps the EVM nonce
+# onto the cosmos account sequence — can be read stale, so we retry on the mismatch.
+# (The node's minimum-gas-prices must clear the post-v2 feemarket floor — init-chain.sh.)
+# 1.5, not 1.3: post-v2 store-write (WriteFlat) gas is ~30% above the simulate estimate,
+# so 1.3 leaves some txs (e.g. distribution withdraw) a few hundred gas short -> out of gas.
+: "${COSMOS_GAS_ADJUSTMENT:=1.5}"
+: "${COSMOS_TX_RETRIES:=6}"
+: "${COSMOS_TX_RETRY_SLEEP:=1.5}"
+
+# Broadcast a cosmos tx (sync mode) with the gas-auto policy, retrying on
+# `account sequence mismatch`. Common flags (home/keyring/chain-id/node/gas/
+# broadcast/output) are added here; callers pass the pod then the mocad args,
+# e.g.  cosmos_broadcast validator-0-0 tx bank send "$a" "$b" "$amt" --from "$a"
+# Echoes the final broadcast JSON (or mocad's error text on hard failure).
+# shellcheck disable=SC2153  # CHAIN_ID is set by callers (workflow env / sourced constants)
+cosmos_broadcast() {
+    local pod="$1"; shift
+    local attempt out
+    for ((attempt = 1; attempt <= COSMOS_TX_RETRIES; attempt++)); do
+        out=$(kubectl exec -n "${K8S_NAMESPACE}" "$pod" -c mocad -- \
+            mocad "$@" \
+            --home /root/.mocad \
+            --keyring-backend test \
+            --chain-id "${CHAIN_ID}" \
+            --node tcp://localhost:26657 \
+            --gas auto --gas-adjustment "${COSMOS_GAS_ADJUSTMENT}" \
+            --broadcast-mode sync -y --output json 2>&1) || true
+        if printf '%s' "$out" | grep -qiE "account sequence mismatch" \
+           && [ "$attempt" -lt "$COSMOS_TX_RETRIES" ]; then
+            sleep "${COSMOS_TX_RETRY_SLEEP}"
+            continue
+        fi
+        break
+    done
+    # `--gas auto` prints "gas estimate: N" to stderr (captured via 2>&1). Return just the
+    # broadcast JSON line when present so callers get clean JSON; otherwise the raw text
+    # (hard-error path, e.g. a build/simulate failure with no JSON — callers surface it).
+    local json
+    json=$(printf '%s\n' "$out" | grep -E '^\{.*\}$' | tail -1)
+    if [ -n "$json" ]; then printf '%s' "$json"; else printf '%s' "$out"; fi
 }
 
 # Poll a Cosmos tx hash until it's included in a block (or timeout).

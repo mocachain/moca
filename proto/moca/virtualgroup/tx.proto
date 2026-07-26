@@ -42,7 +42,7 @@ service Msg {
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
 message MsgUpdateParams {
-  option (amino.name) = "evmos/x/virtualgroup/MsgUpdateParams";
+  option (amino.name) = "moca/x/virtualgroup/MsgUpdateParams";
   option (cosmos.msg.v1.signer) = "authority";
 
   // authority is the address that controls the module (defaults to x/gov unless overwritten).
@@ -57,7 +57,7 @@ message MsgUpdateParams {
 message MsgUpdateParamsResponse {}
 
 message MsgCreateGlobalVirtualGroup {
-  option (amino.name) = "evmos/x/virtualgroup/MsgCreateGlobalVirtualGroup";
+  option (amino.name) = "moca/x/virtualgroup/MsgCreateGlobalVirtualGroup";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who create the global virtual group.
@@ -74,7 +74,7 @@ message MsgCreateGlobalVirtualGroup {
 message MsgCreateGlobalVirtualGroupResponse {}
 
 message MsgDeleteGlobalVirtualGroup {
-  option (amino.name) = "evmos/x/virtualgroup/MsgDeleteGlobalVirtualGroup";
+  option (amino.name) = "moca/x/virtualgroup/MsgDeleteGlobalVirtualGroup";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who delete the global virtual group.
@@ -86,7 +86,7 @@ message MsgDeleteGlobalVirtualGroup {
 message MsgDeleteGlobalVirtualGroupResponse {}
 
 message MsgDeposit {
-  option (amino.name) = "evmos/x/virtualgroup/MsgDeposit";
+  option (amino.name) = "moca/x/virtualgroup/MsgDeposit";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator/funding account address of the storage provider who deposit to the global virtual group.
@@ -100,7 +100,7 @@ message MsgDeposit {
 message MsgDepositResponse {}
 
 message MsgWithdraw {
-  option (amino.name) = "evmos/x/virtualgroup/MsgWithdraw";
+  option (amino.name) = "moca/x/virtualgroup/MsgWithdraw";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator/funding account address of the storage provider who withdraw from the global virtual group.
@@ -115,7 +115,7 @@ message MsgWithdraw {
 message MsgWithdrawResponse {}
 
 message MsgSwapOut {
-  option (amino.name) = "evmos/x/virtualgroup/MsgSwapOut";
+  option (amino.name) = "moca/x/virtualgroup/MsgSwapOut";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who want to swap out from the global virtual group.
@@ -137,7 +137,7 @@ message MsgSwapOut {
 message MsgSwapOutResponse {}
 
 message MsgCompleteSwapOut {
-  option (amino.name) = "evmos/x/virtualgroup/MsgCompleteSwapOut";
+  option (amino.name) = "moca/x/virtualgroup/MsgCompleteSwapOut";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who complete swap out task.
@@ -154,7 +154,7 @@ message MsgCompleteSwapOut {
 message MsgCompleteSwapOutResponse {}
 
 message MsgCancelSwapOut {
-  option (amino.name) = "evmos/x/virtualgroup/MsgCancelSwapOut";
+  option (amino.name) = "moca/x/virtualgroup/MsgCancelSwapOut";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who cancel the swap out task.
@@ -174,7 +174,7 @@ message MsgCancelSwapOutResponse {}
 // Firstly, the handler will do stream settlement for the payment account; and
 // secondly, the income will be distributed to related storage providers.
 message MsgSettle {
-  option (amino.name) = "evmos/x/virtualgroup/MsgSettle";
+  option (amino.name) = "moca/x/virtualgroup/MsgSettle";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the account address who initiates the settle request.
@@ -189,7 +189,7 @@ message MsgSettle {
 message MsgSettleResponse {}
 
 message MsgStorageProviderExit {
-  option (amino.name) = "evmos/x/virtualgroup/MsgStorageProviderExit";
+  option (amino.name) = "moca/x/virtualgroup/MsgStorageProviderExit";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who want to exit from the moca storage network.
@@ -199,7 +199,7 @@ message MsgStorageProviderExit {
 message MsgStorageProviderExitResponse {}
 
 message MsgCompleteStorageProviderExit {
-  option (amino.name) = "evmos/x/virtualgroup/MsgCompleteStorageProviderExit";
+  option (amino.name) = "moca/x/virtualgroup/MsgCompleteStorageProviderExit";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who will exit
@@ -212,7 +212,7 @@ message MsgCompleteStorageProviderExit {
 message MsgCompleteStorageProviderExitResponse {}
 
 message MsgReserveSwapIn {
-  option (amino.name) = "evmos/x/virtualgroup/MsgReserveSwapIn";
+  option (amino.name) = "moca/x/virtualgroup/MsgReserveSwapIn";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who want to swap into the virtual group family or global virtual group.
@@ -231,7 +231,7 @@ message MsgReserveSwapIn {
 message MsgReserveSwapInResponse {}
 
 message MsgCompleteSwapIn {
-  option (amino.name) = "evmos/x/virtualgroup/MsgCompleteSwapIn";
+  option (amino.name) = "moca/x/virtualgroup/MsgCompleteSwapIn";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who wants to swap into the virtual group family or global virtual group.
@@ -248,7 +248,7 @@ message MsgCompleteSwapIn {
 message MsgCompleteSwapInResponse {}
 
 message MsgCancelSwapIn {
-  option (amino.name) = "evmos/x/virtualgroup/MsgCancelSwapIn";
+  option (amino.name) = "moca/x/virtualgroup/MsgCancelSwapIn";
   option (cosmos.msg.v1.signer) = "storage_provider";
 
   // storage_provider defines the operator account address of the storage provider who want to swap into the virtual group family or global virtual group.
@@ -266,7 +266,7 @@ message MsgCancelSwapInResponse {}
 
 // this line is used by starport scaffolding # proto/tx/message
 message MsgStorageProviderForcedExit {
-  option (amino.name) = "evmos/x/virtualgroup/MsgStorageProviderForcedExit";
+  option (amino.name) = "moca/x/virtualgroup/MsgStorageProviderForcedExit";
   option (cosmos.msg.v1.signer) = "authority";
 
   // authority is the address that controls the module (defaults to x/gov unless overwritten).

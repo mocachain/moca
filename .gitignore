@@ -42,6 +42,9 @@ keyring_test_cosmos
 secret.yml
 artifacts/*
 tmp-swagger-gen
+
+# precompiles/compile.sh codegen scratch dir
+/precompiles/contracts/
 github.com/
 # vue/
 
@@ -121,3 +124,5 @@ e2e/local/ERC20/lib/
 e2e/kind/contracts/out/
 e2e/kind/contracts/cache/
 .env
+
+/mocad

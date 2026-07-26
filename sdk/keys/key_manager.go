@@ -118,11 +118,11 @@ func (km *keyManager) recoveryFromBlsPrivateKey(privateKey string) error {
 		return err
 	}
 
-	if len(priBytes) != 32 {
-		return fmt.Errorf("len of Keybytes is not equal to 32 ")
+	if len(priBytes) == 0 || len(priBytes) > 32 {
+		return fmt.Errorf("len of Keybytes should be between 1 and 32")
 	}
 	var keyBytesArray [32]byte
-	copy(keyBytesArray[:], priBytes[:32])
+	copy(keyBytesArray[32-len(priBytes):], priBytes)
 	priKey := hd.EthBLS.Generate()(keyBytesArray[:]).(*ethbls.PrivKey)
 	km.privKey = priKey
 	km.addr = types.AccAddress(km.privKey.PubKey().Address())

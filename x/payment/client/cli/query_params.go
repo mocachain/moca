@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/payment"
+	mocatypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/precompiles/payment"
 	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
@@ -21,7 +21,7 @@ func CmdEvmQueryParams() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx := client.GetClientContextFromCmd(cmd)
-			contract, err := payment.NewIPayment(common.HexToAddress(evmostypes.PaymentAddress), clientCtx.EvmClient)
+			contract, err := payment.NewIPayment(common.HexToAddress(mocatypes.PaymentAddress), clientCtx.EvmClient)
 			if err != nil {
 				return err
 			}

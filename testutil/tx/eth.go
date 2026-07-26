@@ -1,23 +1,7 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
 package tx
 
 import (
 	"encoding/json"
-	"math/big"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
@@ -31,23 +15,25 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/server/config"
 	"github.com/mocachain/moca/v2/utils"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 // PrepareEthTx creates an ethereum tx and signs it with the provided messages and private key.
 // It returns the signed transaction and an error
 func PrepareEthTx(
 	txCfg client.TxConfig,
-	appEvmos *app.Evmos,
+	appMoca *app.Moca,
 	priv cryptotypes.PrivKey,
 	msgs ...sdk.Msg,
 ) (authsigning.Tx, error) {
 	txBuilder := txCfg.NewTxBuilder()
 
-	signer := ethtypes.LatestSignerForChainID(appEvmos.EvmKeeper.ChainID())
+	// TODO(cosmos-evm): ChainID() removed in v0.6.0; nil yields unprotected signer, OK for test fixtures.
+	_ = appMoca
+	signer := ethtypes.LatestSignerForChainID(nil)
 	txFee := sdk.Coins{}
 	txGasLimit := uint64(0)
 
@@ -65,7 +51,8 @@ func PrepareEthTx(
 			}
 		}
 
-		msg.From = ""
+		// cosmos/evm v0.6.0: MsgEthereumTx.From is now []byte, not string.
+		msg.From = nil
 
 		txGasLimit += msg.GetGas()
 		txFee = txFee.Add(sdk.Coin{Denom: utils.BaseDenom, Amount: sdkmath.NewIntFromBigInt(msg.GetFee())})
@@ -93,53 +80,6 @@ func PrepareEthTx(
 	txBuilder.SetFeeAmount(txFee)
 
 	return txBuilder.GetTx(), nil
-}
-
-// CreateEthTx is a helper function to create and sign an Ethereum transaction.
-//
-// If the given private key is not nil, it will be used to sign the transaction.
-//
-// It offers the ability to increment the nonce by a given amount in case one wants to set up
-// multiple transactions that are supposed to be executed one after another.
-// Should this not be the case, just pass in zero.
-func CreateEthTx(
-	ctx sdk.Context,
-	appEvmos *app.Evmos,
-	privKey cryptotypes.PrivKey,
-	from sdk.AccAddress,
-	dest sdk.AccAddress,
-	amount *big.Int,
-	nonceIncrement int,
-) (*evmtypes.MsgEthereumTx, error) {
-	toAddr := common.BytesToAddress(dest.Bytes())
-	fromAddr := common.BytesToAddress(from.Bytes())
-	chainID := appEvmos.EvmKeeper.ChainID()
-
-	// When we send multiple Ethereum Tx's in one Cosmos Tx, we need to increment the nonce for each one.
-	nonce := appEvmos.EvmKeeper.GetNonce(ctx, fromAddr) + uint64(nonceIncrement)
-	evmTxParams := &evmtypes.EvmTxArgs{
-		ChainID:   chainID,
-		Nonce:     nonce,
-		To:        &toAddr,
-		Amount:    amount,
-		GasLimit:  100000,
-		GasFeeCap: appEvmos.FeeMarketKeeper.GetBaseFee(ctx),
-		GasTipCap: big.NewInt(1),
-		Accesses:  &ethtypes.AccessList{},
-	}
-	msgEthereumTx := evmtypes.NewTx(evmTxParams)
-	msgEthereumTx.From = fromAddr.String()
-
-	// If we are creating multiple eth Tx's with different senders, we need to sign here rather than later.
-	if privKey != nil {
-		signer := ethtypes.LatestSignerForChainID(appEvmos.EvmKeeper.ChainID())
-		err := msgEthereumTx.Sign(signer, NewSigner(privKey))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return msgEthereumTx, nil
 }
 
 // GasLimit estimates the gas limit for the provided parameters. To achieve

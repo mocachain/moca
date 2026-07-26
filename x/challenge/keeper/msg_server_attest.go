@@ -136,6 +136,10 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 			return nil, err
 		}
 	}
+
+	// Retire the attested challenge so duplicate submissions fail the ExistsChallenge gate above.
+	k.RemoveChallenge(ctx, msg.ChallengeId)
+
 	k.AppendAttestedChallenge(ctx, &types.AttestedChallenge{
 		Id:     msg.ChallengeId,
 		Result: msg.VoteResult,

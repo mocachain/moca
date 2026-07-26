@@ -6,41 +6,38 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/app/upgrades"
 	"github.com/mocachain/moca/v2/utils"
-	feemarkettypes "github.com/mocachain/moca/v2/x/feemarket/types"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTestnetGovParamFix_UpdatesGovAndEvmParams(t *testing.T) {
-	evmosApp := app.Setup(false, feemarkettypes.DefaultGenesisState(), utils.TestnetChainID+"-1")
-	sdkCtx := evmosApp.BaseApp.NewContext(false)
+func TestTestnetGovParamFix_UpdatesGovParams(t *testing.T) {
+	mocaApp := app.Setup(false, feemarkettypes.DefaultGenesisState(), utils.TestnetChainID+"-1")
+	sdkCtx := mocaApp.BaseApp.NewContext(false)
 	ctx := sdk.WrapSDKContext(sdkCtx)
 
 	// Force gov param away from the desired value to prove the upgrade changes it.
-	govParams, err := evmosApp.GovKeeper.Params.Get(ctx)
+	govParams, err := mocaApp.GovKeeper.Params.Get(ctx)
 	require.NoError(t, err)
 	govParams.MinDepositRatio = "0.500000000000000000"
 	require.NoError(t, govParams.ValidateBasic())
-	require.NoError(t, evmosApp.GovKeeper.Params.Set(ctx, govParams))
+	require.NoError(t, mocaApp.GovKeeper.Params.Set(ctx, govParams))
 
-	// Force EVM param away from the desired value to prove the upgrade changes it.
-	evmParams := evmosApp.EvmKeeper.GetParams(sdkCtx)
-	evmParams.AllowUnprotectedTxs = false
-	require.NoError(t, evmosApp.EvmKeeper.SetParams(sdkCtx, evmParams))
+	// NOTE(cosmos/evm v0.6.0 migration): the EVM AllowUnprotectedTxs param was
+	// dropped from evmtypes.Params, and TestnetGovParamFix no longer touches EVM
+	// params (see app/upgrades/testnet_gov_param_fix.go). The upgrade now only
+	// fixes the gov MinDepositRatio, so this test asserts that surviving behavior.
 
 	mm := module.NewManager()
-	configurator := module.NewConfigurator(evmosApp.AppCodec(), evmosApp.MsgServiceRouter(), evmosApp.GRPCQueryRouter())
+	configurator := module.NewConfigurator(mocaApp.AppCodec(), mocaApp.MsgServiceRouter(), mocaApp.GRPCQueryRouter())
 
-	handler := upgrades.TestnetGovParamFix(&evmosApp.GovKeeper, evmosApp.EvmKeeper, mm, configurator)
+	handler := upgrades.TestnetGovParamFix(&mocaApp.GovKeeper, mocaApp.EvmKeeper, mm, configurator)
 	_, err = handler(ctx, upgradetypes.Plan{Name: "testnet-gov-param-fix"}, module.VersionMap{})
 	require.NoError(t, err)
 
-	updatedGovParams, err := evmosApp.GovKeeper.Params.Get(ctx)
+	updatedGovParams, err := mocaApp.GovKeeper.Params.Get(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "0.010000000000000000", updatedGovParams.MinDepositRatio)
-
-	updatedEvmParams := evmosApp.EvmKeeper.GetParams(sdkCtx)
-	require.True(t, updatedEvmParams.AllowUnprotectedTxs)
 }

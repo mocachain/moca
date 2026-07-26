@@ -2,9 +2,10 @@ package client
 
 import (
 	"context"
-	sdkmath "cosmossdk.io/math"
 	"testing"
 	"time"
+
+	sdkmath "cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
@@ -78,6 +79,20 @@ func TestErrorOutWhenGasInfoNotFullProvided(t *testing.T) {
 	}
 	_, err = gnfdCli.BroadcastTx(context.Background(), []sdk.Msg{transfer}, txOpt)
 	assert.Equal(t, err, types.ErrGasInfoNotProvided)
+}
+
+func TestSimulatedGasPriceDefaultsWhenMinGasPriceEmpty(t *testing.T) {
+	gasPrice, err := simulatedGasPrice("")
+	assert.NoError(t, err)
+	assert.Equal(t, types.Denom, gasPrice.Denom)
+	assert.Equal(t, sdkmath.NewInt(types.DefaultGasPrice), gasPrice.Amount)
+}
+
+func TestSimulatedGasPriceParsesMinGasPrice(t *testing.T) {
+	gasPrice, err := simulatedGasPrice("123amoca")
+	assert.NoError(t, err)
+	assert.Equal(t, types.Denom, gasPrice.Denom)
+	assert.Equal(t, sdkmath.NewInt(123), gasPrice.Amount)
 }
 
 func TestSimulateTx(t *testing.T) {

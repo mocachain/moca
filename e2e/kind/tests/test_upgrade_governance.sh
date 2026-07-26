@@ -9,12 +9,13 @@
 # Usage:
 #   OLD_VERSION=v1.2.0 bash tests/test_upgrade_governance.sh
 
+# shellcheck source=/dev/null
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
-OLD_VERSION="${OLD_VERSION:-v1.2.0}"
+OLD_VERSION="${OLD_VERSION:-v1.3.0}"
 UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
-FEES="200000000000000amoca"
+FEES="5000000000000000amoca"
 
 # ── Setup: deploy old version ────────────────────────────────────────────────
 fw_start_chain_from_version "$OLD_VERSION"
@@ -26,7 +27,7 @@ exec_mocad keys add gov-upgrade-acct --keyring-backend test 2>/dev/null || true
 UPGRADE_TEST_ADDR=$(exec_mocad keys show gov-upgrade-acct -a --keyring-backend test)
 log_info "Test account: ${UPGRADE_TEST_ADDR}"
 
-fw_tx_send validator0 "$UPGRADE_TEST_ADDR" "5000000000000000000amoca"
+fw_tx_send validator0 "$UPGRADE_TEST_ADDR" "5000000000000000000amoca" "$FEES"
 
 PRE_UPGRADE_HEIGHT=$(get_block_height "http://localhost:26657")
 PRE_UPGRADE_BALANCE=$(exec_mocad query bank balances "$UPGRADE_TEST_ADDR" \
@@ -45,7 +46,10 @@ fw_upgrade_chain --name "$UPGRADE_NAME" --mode governance
 test_chain_producing_blocks_post_upgrade() {
     local h1
     h1=$(get_block_height "http://localhost:26657")
-    sleep 3
+    # Right after an upgrade the restarted binary needs a few seconds to resume
+    # consensus, so poll for the next block instead of a fixed sleep (a single
+    # 3s read can race the first post-upgrade block and spuriously fail).
+    wait_for_height "$((h1 + 1))" "http://localhost:26657"
     local h2
     h2=$(get_block_height "http://localhost:26657")
     assert_gt "$h2" "$h1" "Chain should produce blocks post-upgrade"
@@ -82,7 +86,7 @@ test_send_tokens_post_upgrade() {
     local recv
     recv=$(exec_mocad keys show post-gov-user -a --keyring-backend test)
 
-    fw_tx_send validator0 "$recv" "1000000000000000000amoca"
+    fw_tx_send validator0 "$recv" "1000000000000000000amoca" "$FEES"
 
     local bal
     bal=$(exec_mocad query bank balances "$recv" \

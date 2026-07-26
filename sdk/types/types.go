@@ -26,6 +26,7 @@ const (
 	ReceiptStatusSuccessful = uint64(1)
 
 	DefaultGasLimit = 180000
+	DefaultGasPrice = 20_000_000_000
 	DefaultChainId  = 5151
 	ChainID         = "moca_5151-1"
 	// EvmUrl          = "http://localhost:8545"

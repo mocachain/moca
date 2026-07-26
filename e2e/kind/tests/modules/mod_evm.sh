@@ -102,13 +102,13 @@ evm_erc20_tx() {
         1)
             log_info "  [evm] erc20 transfer 100 Alice -> Bob"
             cast send "$_EVM_ERC20_ADDR" "transfer(address,uint256)" "$_EVM_BOB_ADDR" "100000000000000000000" \
-                --private-key "$_EVM_ALICE_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1 || true
+                --private-key "$_EVM_ALICE_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 > /dev/null 2>&1 || true
             sleep 2
             ;;
         2)
             log_info "  [evm] erc20 transferFrom 50 Alice -> deployer (via Bob)"
             cast send "$_EVM_ERC20_ADDR" "transferFrom(address,address,uint256)" "$_EVM_ALICE_ADDR" "$val0_addr" "50000000000000000000" \
-                --private-key "$_EVM_BOB_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1 || true
+                --private-key "$_EVM_BOB_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 > /dev/null 2>&1 || true
             sleep 2
             ;;
         3)
@@ -154,7 +154,7 @@ _evm_verify_fresh_transfer() {
     local recv_addr; recv_addr=$(cast wallet address "$recv_key" 2>/dev/null)
     cast send "$recv_addr" --value 0.1ether \
         --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" > /dev/null 2>&1
+        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 > /dev/null 2>&1
     sleep 3
     local bal; bal=$(cast balance "$recv_addr" --rpc-url "$EVM_RPC" 2>/dev/null || echo "0")
     assert_eq "$bal" "100000000000000000" "Fresh EVM transfer works post-upgrade"

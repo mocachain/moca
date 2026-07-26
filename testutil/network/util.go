@@ -1,19 +1,3 @@
-// Copyright 2022 Evmos Foundation
-// This file is part of the Evmos Network packages.
-//
-// Evmos is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The Evmos packages are distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the Evmos packages. If not, see https://github.com/evmos/evmos/blob/main/LICENSE
-
 package network
 
 import (
@@ -49,8 +33,8 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/server"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func startInProcess(cfg Config, val *Validator) error {
@@ -144,10 +128,12 @@ func startInProcess(cfg Config, val *Validator) error {
 			return fmt.Errorf("validator %s context is nil", val.Moniker)
 		}
 
-		tmEndpoint := "/websocket"
-		tmRPCAddr := fmt.Sprintf("tcp://%s", val.AppConfig.GRPC.Address)
+		pendingTxApp, ok := app.(server.AppWithPendingTxStream)
+		if !ok {
+			return fmt.Errorf("app %T does not implement server.AppWithPendingTxStream", app)
+		}
 
-		val.jsonrpc, val.jsonrpcDone, err = server.StartJSONRPC(val.Ctx, val.ClientCtx, tmRPCAddr, tmEndpoint, val.AppConfig, nil)
+		val.jsonrpc, val.jsonrpcDone, err = server.StartJSONRPC(val.Ctx, val.ClientCtx, val.AppConfig, nil, pendingTxApp)
 		if err != nil {
 			return err
 		}

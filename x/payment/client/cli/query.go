@@ -8,7 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/spf13/cobra"
 
-	"github.com/mocachain/moca/v2/x/evm/precompiles/payment"
+	"github.com/mocachain/moca/v2/precompiles/payment"
 	"github.com/mocachain/moca/v2/x/payment/types"
 )
 

@@ -4,15 +4,15 @@ import (
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/mint"
-	"go.uber.org/mock/gomock"
+	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/mocachain/moca/v2/testutil/nullify"
 	"github.com/mocachain/moca/v2/x/sp"

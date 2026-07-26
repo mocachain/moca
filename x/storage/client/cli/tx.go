@@ -23,7 +23,7 @@ import (
 	gnfdSdkTypes "github.com/mocachain/moca/v2/sdk/types"
 	types2 "github.com/mocachain/moca/v2/types"
 	gnfderrors "github.com/mocachain/moca/v2/types/errors"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/storage"
+	"github.com/mocachain/moca/v2/precompiles/storage"
 	"github.com/mocachain/moca/v2/x/storage/types"
 )
 

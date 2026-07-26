@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
-	evmostypes "github.com/mocachain/moca/v2/types"
-	"github.com/mocachain/moca/v2/x/evm/precompiles/payment"
+	mocatypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/precompiles/payment"
 	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
@@ -29,7 +29,7 @@ func CmdEvmDynamicBalance() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contract, err := payment.NewIPayment(common.HexToAddress(evmostypes.PaymentAddress), clientCtx.EvmClient)
+			contract, err := payment.NewIPayment(common.HexToAddress(mocatypes.PaymentAddress), clientCtx.EvmClient)
 			if err != nil {
 				return err
 			}

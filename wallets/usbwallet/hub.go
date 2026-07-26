@@ -67,12 +67,15 @@ func NewLedgerHub() (*Hub, error) {
 		0x0005, /* Ledger Nano S Plus */
 		0x0006, /* Ledger Nano FTS */
 		0x0007, /* Ledger Flex */
+		0x0008, /* Ledger Nano Gen5 */
 
 		// HID-only product IDs (newer firmware)
 		0x1000, /* Ledger Nano S */
 		0x4000, /* Ledger Nano X */
 		0x5000, /* Ledger Nano S Plus */
 		0x6000, /* Ledger Nano FTS */
+		0x7000, /* Ledger Flex */
+		0x8000, /* Ledger Nano Gen5 */
 
 		0x0015, /* HID + U2F + WebUSB Ledger Blue */
 		0x1015, /* HID + U2F + WebUSB Ledger Nano S */

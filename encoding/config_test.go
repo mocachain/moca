@@ -8,9 +8,9 @@ import (
 
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/mocachain/moca/v2/encoding"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
-	evmtypes "github.com/mocachain/moca/v2/x/evm/types"
 )
 
 func TestTxEncoding(t *testing.T) {
@@ -27,7 +27,7 @@ func TestTxEncoding(t *testing.T) {
 		Input:     []byte{},
 	}
 	msg := evmtypes.NewTx(&ethTxParams)
-	msg.From = addr.Hex()
+	msg.From = addr.Bytes()
 
 	ethSigner := ethtypes.LatestSignerForChainID(big.NewInt(1))
 	err := msg.Sign(ethSigner, signer)

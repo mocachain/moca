@@ -23,7 +23,7 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/sdk/client/test"
 	servercfg "github.com/mocachain/moca/v2/server/config"
-	evmostypes "github.com/mocachain/moca/v2/types"
+	mocatypes "github.com/mocachain/moca/v2/types"
 )
 
 func NewTestApp(
@@ -33,7 +33,7 @@ func NewTestApp(
 	loadLatest bool,
 	chainID string,
 	options ...func(baseApp *baseapp.BaseApp),
-) (*app.Evmos, sdktestutil.TestEncodingConfig, error) {
+) (*app.Moca, sdktestutil.TestEncodingConfig, error) {
 	// create public key
 	privVal := mock.NewPV()
 	pubKey, _ := privVal.GetPubKey()
@@ -54,14 +54,14 @@ func NewTestApp(
 
 	encCfg := encoding.MakeConfig()
 	options = append(options, baseapp.SetChainID(chainID))
-	nApp := app.NewEvmos(
+	nApp := app.NewMoca(
 		logger,
 		db,
 		traceStore,
 		loadLatest,
 		map[int64]bool{},
 		app.DefaultNodeHome,
-		servercfg.NewDefaultAppConfig(evmostypes.AttoEvmos),
+		servercfg.NewDefaultAppConfig(mocatypes.AttoMoca),
 		simtestutil.EmptyAppOptions{},
 		options...,
 	)

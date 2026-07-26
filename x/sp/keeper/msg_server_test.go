@@ -13,8 +13,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
-	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/mocachain/moca/v2/sdk/types"
 	"github.com/mocachain/moca/v2/testutil/sample"
@@ -323,51 +323,51 @@ func (s *KeeperTestSuite) TestMsgEditStorageProvider_Uniqueness() {
 }
 
 func (s *KeeperTestSuite) TestEditStorageProvider_OldIndexCleanup() {
-    // Create SP-A
-    spA := s.createTestSP(sample.RandAccAddress())
-    oldSeal := spA.SealAddress
+	// Create SP-A
+	spA := s.createTestSP(sample.RandAccAddress())
+	oldSeal := spA.SealAddress
 
-    // Edit SP-A to set a new unique SealAddress
-    newSeal := sample.RandAccAddress()
-    _, err := s.msgServer.EditStorageProvider(s.ctx, &sptypes.MsgEditStorageProvider{
-        SpAddress:   spA.OperatorAddress,
-        SealAddress: newSeal.String(),
-    })
-    s.Require().NoError(err)
+	// Edit SP-A to set a new unique SealAddress
+	newSeal := sample.RandAccAddress()
+	_, err := s.msgServer.EditStorageProvider(s.ctx, &sptypes.MsgEditStorageProvider{
+		SpAddress:   spA.OperatorAddress,
+		SealAddress: newSeal.String(),
+	})
+	s.Require().NoError(err)
 
-    // Old index should be removed
-    _, found := s.spKeeper.GetStorageProviderBySealAddr(s.ctx, sdk.MustAccAddressFromHex(oldSeal))
-    s.Require().False(found)
+	// Old index should be removed
+	_, found := s.spKeeper.GetStorageProviderBySealAddr(s.ctx, sdk.MustAccAddressFromHex(oldSeal))
+	s.Require().False(found)
 
-    // Now create SP-B using the oldSeal; it should succeed (address is released)
-    opB := sample.RandAccAddress()
-    fundingB := sample.RandAccAddress()
-    approvalB := sample.RandAccAddress()
-    gcB := sample.RandAccAddress()
-    maintenanceB := sample.RandAccAddress()
+	// Now create SP-B using the oldSeal; it should succeed (address is released)
+	opB := sample.RandAccAddress()
+	fundingB := sample.RandAccAddress()
+	approvalB := sample.RandAccAddress()
+	gcB := sample.RandAccAddress()
+	maintenanceB := sample.RandAccAddress()
 
-    // mocks for SP-B
-    s.accountKeeper.EXPECT().GetAccount(gomock.Any(), fundingB).Return(authtypes.NewBaseAccountWithAddress(fundingB)).AnyTimes()
-    s.bankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	// mocks for SP-B
+	s.accountKeeper.EXPECT().GetAccount(gomock.Any(), fundingB).Return(authtypes.NewBaseAccountWithAddress(fundingB)).AnyTimes()
+	s.bankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-    blsHex, blsProof, err := newTestBlsKeyAndProof()
-    s.Require().NoError(err)
+	blsHex, blsProof, err := newTestBlsKeyAndProof()
+	s.Require().NoError(err)
 
-    _, err = s.msgServer.CreateStorageProvider(s.ctx, &sptypes.MsgCreateStorageProvider{
-        Creator:            opB.String(),
-        SpAddress:          opB.String(),
-        FundingAddress:     fundingB.String(),
-        SealAddress:        oldSeal, // reuse oldSeal
-        ApprovalAddress:    approvalB.String(),
-        GcAddress:          gcB.String(),
-        MaintenanceAddress: maintenanceB.String(),
-        BlsKey:             blsHex,
-        BlsProof:           blsProof,
-        Endpoint:           "https://sp2.example",
-        Deposit: sdk.Coin{
-            Denom:  types.Denom,
-            Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
-        },
-    })
-    s.Require().NoError(err)
+	_, err = s.msgServer.CreateStorageProvider(s.ctx, &sptypes.MsgCreateStorageProvider{
+		Creator:            opB.String(),
+		SpAddress:          opB.String(),
+		FundingAddress:     fundingB.String(),
+		SealAddress:        oldSeal, // reuse oldSeal
+		ApprovalAddress:    approvalB.String(),
+		GcAddress:          gcB.String(),
+		MaintenanceAddress: maintenanceB.String(),
+		BlsKey:             blsHex,
+		BlsProof:           blsProof,
+		Endpoint:           "https://sp2.example",
+		Deposit: sdk.Coin{
+			Denom:  types.Denom,
+			Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
+		},
+	})
+	s.Require().NoError(err)
 }

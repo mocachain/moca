@@ -2,17 +2,18 @@
   "devDependencies": {
     "@commitlint/cli": "^19.2.2",
     "@commitlint/config-conventional": "^19.2.2",
-    "husky": "^9.0.11",
-    "lint-staged": "^15.2.7"
+    "lefthook": "^1.8.4",
+    "lint-staged": "^15.2.7",
+    "prettier": "^3.6.2"
   },
   "scripts": {
-    "prepare": "husky",
+    "prepare": "lefthook install",
     "test": "make test"
   },
   "type": "module",
   "lint-staged": {
     "*.js": [
-      "prettier --write"
+      "prettier --write --single-quote --no-semi --trailing-comma none"
     ],
     "*.sh": [
       "shfmt -w"

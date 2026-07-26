@@ -27,6 +27,7 @@ var (
 	ErrSwapInInfoNotExist          = errors.Register(ModuleName, 1128, "swap in info not exist.")
 	ErrGVGStatisticsNotExist       = errors.Register(ModuleName, 1129, "global virtual group statistics not exist.")
 	ErrGVGFamilyStatisticsNotExist = errors.Register(ModuleName, 1130, "global virtual group family statistics not exist.")
+	ErrNotPrimarySP                = errors.Register(ModuleName, 1131, "the storage provider is not the primary sp of the global virtual group.")
 
 	ErrInvalidDenom = errors.Register(ModuleName, 2000, "Invalid denom.")
 )

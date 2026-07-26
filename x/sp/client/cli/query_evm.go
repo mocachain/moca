@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	mtypes "github.com/mocachain/moca/v2/types"
-	spp "github.com/mocachain/moca/v2/x/evm/precompiles/storageprovider"
+	spp "github.com/mocachain/moca/v2/precompiles/storageprovider"
 	"github.com/mocachain/moca/v2/x/sp/types"
 	"google.golang.org/grpc"
 )

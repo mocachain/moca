@@ -1,65 +1,27 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "Evmos Chain - gRPC Gateway docs",
+    "title": "Moca Chain - gRPC Gateway docs",
     "description": "A REST interface for state queries and transactions",
     "version": "1.0.0"
   },
   "apis": [
     {
-      "url": "./tmp-swagger-gen/evmos/claims/v1/query.swagger.json",
+      "url": "./tmp-swagger-gen/cosmos/evm/vm/v1/query.swagger.json",
       "operationIds": {
         "rename": {
-          "Params": "ClaimsParams"
-        }
-      }
-    },
-    {
-      "url": "./tmp-swagger-gen/evmos/erc20/v1/query.swagger.json",
-      "operationIds": {
-        "rename": {
-          "Params": "ERC20Params"
-        }
-      }
-    },
-    {
-      "url": "./tmp-swagger-gen/evmos/incentives/v1/query.swagger.json",
-      "operationIds": {
-        "rename": {
-          "Params": "IncentivesParams"
-        }
-      }
-    },
-    {
-      "url": "./tmp-swagger-gen/evmos/inflation/v1/query.swagger.json",
-      "operationIds": {
-        "rename": {
-          "Params": "InflationParams",
-          "TotalSupply": "InflationTotalSupply"
-        }
-      }
-    },
-    {
-      "url": "./tmp-swagger-gen/evmos/vesting/v1/query.swagger.json"
-    },
-    {
-      "url": "./tmp-swagger-gen/evmos/recovery/v1/query.swagger.json",
-      "operationIds": {
-        "rename": {
-          "Params": "RecoveryParams"
-        }
-      }
-    },
-    {
-      "url": "./tmp-swagger-gen/ethermint/evm/v1/query.swagger.json",
-      "operationIds": {
-        "rename": {
+          "Account": "EvmAccount",
+          "Balance": "EvmBalance",
+          "Storage": "EvmStorage",
+          "Code": "EvmCode",
+          "BaseFee": "EvmBaseFee",
+          "Config": "EvmConfig",
           "Params": "EvmParams"
         }
       }
     },
     {
-      "url": "./tmp-swagger-gen/ethermint/feemarket/v1/query.swagger.json",
+      "url": "./tmp-swagger-gen/cosmos/evm/feemarket/v1/query.swagger.json",
       "operationIds": {
         "rename": {
           "Params": "FeeMarketParams",
@@ -68,31 +30,52 @@
       }
     },
     {
-      "url": "./tmp-swagger-gen/ibc/applications/transfer/v1/query.swagger.json",
+      "url": "./tmp-swagger-gen/moca/challenge/query.swagger.json",
       "operationIds": {
         "rename": {
-          "Params": "TransferParams"
+          "Params": "ChallengeParams"
         }
       }
     },
     {
-      "url": "./tmp-swagger-gen/ibc/core/client/v1/query.swagger.json",
+      "url": "./tmp-swagger-gen/moca/payment/query.swagger.json",
       "operationIds": {
         "rename": {
-          "Params": "ClientParams"
+          "Params": "PaymentParams"
         }
       }
     },
     {
-      "url": "./tmp-swagger-gen/ibc/core/connection/v1/query.swagger.json",
+      "url": "./tmp-swagger-gen/moca/permission/query.swagger.json",
       "operationIds": {
         "rename": {
-          "Params": "ConnectionParams"
+          "Params": "PermissionParams"
         }
       }
     },
     {
-      "url": "./tmp-swagger-gen/ibc/core/channel/v1/query.swagger.json"
+      "url": "./tmp-swagger-gen/moca/sp/query.swagger.json",
+      "operationIds": {
+        "rename": {
+          "Params": "SpParams"
+        }
+      }
+    },
+    {
+      "url": "./tmp-swagger-gen/moca/storage/query.swagger.json",
+      "operationIds": {
+        "rename": {
+          "Params": "StorageParams"
+        }
+      }
+    },
+    {
+      "url": "./tmp-swagger-gen/moca/virtualgroup/query.swagger.json",
+      "operationIds": {
+        "rename": {
+          "Params": "VirtualGroupParams"
+        }
+      }
     },
     {
       "url": "./tmp-swagger-gen/cosmos/auth/v1beta1/query.swagger.json",
@@ -185,6 +168,15 @@
       "operationIds": {
         "rename": {
           "Params": "BaseParams"
+        }
+      }
+    },
+    {
+      "url": "./tmp-swagger-gen/cosmos/base/node/v1beta1/query.swagger.json",
+      "operationIds": {
+        "rename": {
+          "Config": "NodeConfig",
+          "Status": "NodeStatus"
         }
       }
     }

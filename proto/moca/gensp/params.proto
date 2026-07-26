@@ -8,6 +8,6 @@ option go_package = "github.com/mocachain/moca/v2/x/gensp/types";
 
 // Params defines the parameters for the module.
 message Params {
-  option (amino.name) = "evmos/x/gensp/Params";
+  option (amino.name) = "moca/x/gensp/Params";
   option (gogoproto.goproto_stringer) = false;
 }

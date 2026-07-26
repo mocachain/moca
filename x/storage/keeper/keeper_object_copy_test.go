@@ -99,12 +99,12 @@ func (s *TestSuite) TestLOW017_CopyObject_NilApproval_MustFail() {
 		msg.PrimarySpApproval.Sig = sig
 
 		_, err := s.storageKeeper.CreateBucket(s.ctx, owner, bucket, primarySpAddr, &types.CreateBucketOptions{
-			Visibility:       types.VISIBILITY_TYPE_PRIVATE,
-			SourceType:       types.SOURCE_TYPE_ORIGIN,
-			ChargedReadQuota: 0,
-			PaymentAddress:   owner.String(),
+			Visibility:        types.VISIBILITY_TYPE_PRIVATE,
+			SourceType:        types.SOURCE_TYPE_ORIGIN,
+			ChargedReadQuota:  0,
+			PaymentAddress:    owner.String(),
 			PrimarySpApproval: msg.PrimarySpApproval,
-			ApprovalMsgBytes: approvalBytes,
+			ApprovalMsgBytes:  approvalBytes,
 		})
 		s.Require().NoError(err)
 	}
@@ -202,12 +202,12 @@ func (s *TestSuite) TestLOW017_CopyObject_ExpiredApproval_MustFail() {
 		msg.PrimarySpApproval.Sig = sig
 
 		_, err := s.storageKeeper.CreateBucket(s.ctx, owner, bucket, primarySpAddr, &types.CreateBucketOptions{
-			Visibility:       types.VISIBILITY_TYPE_PRIVATE,
-			SourceType:       types.SOURCE_TYPE_ORIGIN,
-			ChargedReadQuota: 0,
-			PaymentAddress:   owner.String(),
+			Visibility:        types.VISIBILITY_TYPE_PRIVATE,
+			SourceType:        types.SOURCE_TYPE_ORIGIN,
+			ChargedReadQuota:  0,
+			PaymentAddress:    owner.String(),
 			PrimarySpApproval: msg.PrimarySpApproval,
-			ApprovalMsgBytes: approvalBytes,
+			ApprovalMsgBytes:  approvalBytes,
 		})
 		s.Require().NoError(err)
 	}

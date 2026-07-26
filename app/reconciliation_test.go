@@ -25,3 +25,22 @@ func TestParseDenomFromSupplyKey(t *testing.T) {
 	key, _ := hex.DecodeString("00616d6f6361")
 	require.Equal(t, "amoca", parseDenomFromSupplyKey(key))
 }
+
+// TestSaveUnbalancedBlockHeight_UsesMountedStoreKey is the regression test for MOCA-670.
+// saveUnbalancedBlockHeight resolved the reconciliation commit store with a freshly built
+// storetypes.NewKVStoreKey(reconStoreKey). rootmulti keys its store map by StoreKey identity
+// (rs.stores[key]), so a fresh key is absent -> GetCommitStore returns nil -> the (*iavl.Store)
+// assertion panics ("interface conversion: types.CommitStore is nil, not *iavl.Store").
+// getUnbalancedBlockHeight already uses the mounted app.GetKey and works; this asserts save
+// resolves + round-trips the same way. It panics (fails) on the unfixed code.
+func TestSaveUnbalancedBlockHeight_UsesMountedStoreKey(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false).WithBlockHeight(4242)
+
+	require.NotPanics(t, func() { mocaApp.saveUnbalancedBlockHeight(ctx) },
+		"saveUnbalancedBlockHeight must resolve the recon store via the mounted key (app.GetKey)")
+
+	h, ok := mocaApp.getUnbalancedBlockHeight(ctx)
+	require.True(t, ok, "unbalanced height must be persisted")
+	require.Equal(t, uint64(4242), h)
+}
