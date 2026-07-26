@@ -905,8 +905,10 @@ func TestAutoForceSettle(t *testing.T) {
 }
 
 func TestForceSettle_FreezesAllActiveOutFlows(t *testing.T) {
-	keeper, ctx, _ := makePaymentKeeper(t)
+	keeper, ctx, depKeepers := makePaymentKeeper(t)
 	ctx = ctx.WithBlockTime(time.Unix(100, 0))
+	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
+	depKeepers.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 
 	payer := sample.RandAccAddress()
 	recipient1 := sample.RandAccAddress()
@@ -932,7 +934,9 @@ func TestForceSettle_FreezesAllActiveOutFlows(t *testing.T) {
 		})
 	}
 
-	require.NoError(t, keeper.ForceSettle(ctx, payerRecord))
+	_, err := keeper.UpdateStreamRecordByAddr(ctx, types.NewDefaultStreamRecordChangeWithAddr(payer))
+	require.NoError(t, err)
+	payerRecord, _ = keeper.GetStreamRecord(ctx, payer)
 	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, payerRecord.Status)
 	require.True(t, payerRecord.NetflowRate.IsZero())
 	require.Equal(t, rate.MulRaw(-2), payerRecord.FrozenNetflowRate)
@@ -944,4 +948,33 @@ func TestForceSettle_FreezesAllActiveOutFlows(t *testing.T) {
 		recipientRecord, _ := keeper.GetStreamRecord(ctx, recipient)
 		require.True(t, recipientRecord.NetflowRate.IsZero())
 	}
+}
+
+func TestForceSettle_SelfOutFlowDoesNotReenter(t *testing.T) {
+	keeper, ctx, depKeepers := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(100, 0))
+	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
+	depKeepers.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+
+	payer := sample.RandAccAddress()
+	rate := sdkmath.NewInt(100)
+	payerRecord := types.NewStreamRecord(payer, ctx.BlockTime().Unix())
+	payerRecord.NetflowRate = rate.Neg()
+	payerRecord.OutFlowCount = 1
+	keeper.SetStreamRecord(ctx, payerRecord)
+
+	governanceRecord := types.NewStreamRecord(types.GovernanceAddress, ctx.BlockTime().Unix())
+	keeper.SetStreamRecord(ctx, governanceRecord)
+	keeper.SetOutFlow(ctx, payer, &types.OutFlow{
+		ToAddress: payer.String(),
+		Rate:      rate,
+		Status:    types.OUT_FLOW_STATUS_ACTIVE,
+	})
+
+	_, err := keeper.UpdateStreamRecordByAddr(ctx, types.NewDefaultStreamRecordChangeWithAddr(payer))
+	require.NoError(t, err)
+	payerRecord, _ = keeper.GetStreamRecord(ctx, payer)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, payerRecord.Status)
+	require.True(t, payerRecord.NetflowRate.IsZero())
+	require.NotNil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_FROZEN, payer))
 }

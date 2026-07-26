@@ -223,11 +223,19 @@ func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRe
 
 func (k Keeper) UpdateStreamRecordByAddr(ctx sdk.Context, change *types.StreamRecordChange) (ret *types.StreamRecord, err error) {
 	streamRecord, _ := k.GetStreamRecord(ctx, change.Addr)
+	wasActive := streamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE
 	err = k.UpdateStreamRecord(ctx, streamRecord, change)
 	if err != nil {
 		return
 	}
 	k.SetStreamRecord(ctx, streamRecord)
+	if wasActive && streamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN {
+		if err = k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
+			err = fmt.Errorf("freeze active out-flows failed: %w", err)
+			return
+		}
+		k.SetStreamRecord(ctx, streamRecord)
+	}
 	return streamRecord, nil
 }
 
@@ -238,9 +246,6 @@ func (k Keeper) ForceSettle(ctx sdk.Context, streamRecord *types.StreamRecord) e
 	if err != nil {
 		telemetry.IncrCounter(1, types.GovernanceAddressLackBalanceLabel)
 		return fmt.Errorf("update governance stream record failed: %w", err)
-	}
-	if err := k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
-		return fmt.Errorf("freeze active out-flows failed: %w", err)
 	}
 	// force settle
 	streamRecord.StaticBalance = sdkmath.ZeroInt()
@@ -324,6 +329,11 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 			if streamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE {
 				continue
 			}
+			if err := k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
+				ctx.Logger().Error("auto settle, freeze active out-flows failed", "err", err.Error())
+				panic("should not happen")
+			}
+			k.SetStreamRecord(ctx, streamRecord)
 			if count >= max {
 				return
 			}
@@ -563,6 +573,13 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 			if err != nil {
 				ctx.Logger().Error("auto resume, update  stream record failed", "err", err.Error())
 				panic("should not happen")
+			}
+			if streamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN {
+				k.SetStreamRecord(ctx, streamRecord)
+				if err := k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
+					ctx.Logger().Error("auto resume, freeze active out-flows failed", "err", err.Error())
+					panic("should not happen")
+				}
 			}
 			k.RemoveAutoResumeRecord(ctx, record.Timestamp, addr)
 		}
