@@ -368,7 +368,7 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 			}
 			if err := k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
 				ctx.Logger().Error("auto settle, freeze active out-flows failed", "err", err.Error())
-				panic("should not happen")
+				continue
 			}
 			k.SetStreamRecord(ctx, streamRecord)
 			if count >= max {
@@ -637,7 +637,7 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 				k.SetStreamRecord(ctx, streamRecord)
 				if err := k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
 					ctx.Logger().Error("auto resume, freeze active out-flows failed", "err", err.Error())
-					panic("should not happen")
+					continue
 				}
 			}
 			k.RemoveAutoResumeRecord(ctx, record.Timestamp, addr)
