@@ -1302,3 +1302,68 @@ func TestForceSettle_SelfOutFlowDoesNotReenter(t *testing.T) {
 	require.True(t, payerRecord.NetflowRate.IsZero())
 	require.NotNil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_FROZEN, payer))
 }
+
+// Freezing a payer removes its rate from each recipient, which can push a
+// recipient that was only solvent on that inflow into a force settle of its
+// own. That second freeze must cascade to the recipient's own out-flows.
+func TestForceSettle_FreezesOutFlowsAcrossCascade(t *testing.T) {
+	keeper, ctx, depKeepers := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(100, 0))
+	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
+	depKeepers.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+
+	payer := sample.RandAccAddress()
+	intermediary := sample.RandAccAddress()
+	leaf := sample.RandAccAddress()
+	rate := sdkmath.NewInt(100)
+
+	governanceRecord := types.NewStreamRecord(types.GovernanceAddress, ctx.BlockTime().Unix())
+	keeper.SetStreamRecord(ctx, governanceRecord)
+
+	payerRecord := types.NewStreamRecord(payer, ctx.BlockTime().Unix())
+	payerRecord.NetflowRate = rate.Neg()
+	payerRecord.OutFlowCount = 1
+	keeper.SetStreamRecord(ctx, payerRecord)
+	keeper.SetOutFlow(ctx, payer, &types.OutFlow{
+		ToAddress: intermediary.String(),
+		Rate:      rate,
+		Status:    types.OUT_FLOW_STATUS_ACTIVE,
+	})
+
+	// Solvent only while the payer's inflow covers its own out-flow.
+	intermediaryRecord := types.NewStreamRecord(intermediary, ctx.BlockTime().Unix())
+	intermediaryRecord.NetflowRate = sdkmath.ZeroInt()
+	intermediaryRecord.OutFlowCount = 1
+	keeper.SetStreamRecord(ctx, intermediaryRecord)
+	keeper.SetOutFlow(ctx, intermediary, &types.OutFlow{
+		ToAddress: leaf.String(),
+		Rate:      rate,
+		Status:    types.OUT_FLOW_STATUS_ACTIVE,
+	})
+
+	leafRecord := types.NewStreamRecord(leaf, ctx.BlockTime().Unix())
+	leafRecord.NetflowRate = rate
+	keeper.SetStreamRecord(ctx, leafRecord)
+
+	_, err := keeper.UpdateStreamRecordByAddr(ctx, types.NewDefaultStreamRecordChangeWithAddr(payer))
+	require.NoError(t, err)
+
+	payerRecord, _ = keeper.GetStreamRecord(ctx, payer)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, payerRecord.Status)
+	require.True(t, payerRecord.NetflowRate.IsZero())
+	require.Equal(t, rate.Neg(), payerRecord.FrozenNetflowRate)
+	require.Nil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_ACTIVE, intermediary))
+	require.NotNil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_FROZEN, intermediary))
+
+	intermediaryRecord, _ = keeper.GetStreamRecord(ctx, intermediary)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, intermediaryRecord.Status)
+	require.True(t, intermediaryRecord.NetflowRate.IsZero())
+	require.Equal(t, rate.Neg(), intermediaryRecord.FrozenNetflowRate)
+	require.Nil(t, keeper.GetOutFlow(ctx, intermediary, types.OUT_FLOW_STATUS_ACTIVE, leaf))
+	require.NotNil(t, keeper.GetOutFlow(ctx, intermediary, types.OUT_FLOW_STATUS_FROZEN, leaf))
+
+	// The leaf keeps no stale rate from the frozen intermediary.
+	leafRecord, _ = keeper.GetStreamRecord(ctx, leaf)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, leafRecord.Status)
+	require.True(t, leafRecord.NetflowRate.IsZero())
+}
