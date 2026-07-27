@@ -1367,3 +1367,62 @@ func TestForceSettle_FreezesOutFlowsAcrossCascade(t *testing.T) {
 	require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, leafRecord.Status)
 	require.True(t, leafRecord.NetflowRate.IsZero())
 }
+
+// A cascade that loops back to the payer updates the payer's record from a
+// nested call, so the freeze must apply its rate delta to that stored state
+// rather than to a copy read before the cascade ran.
+func TestForceSettle_FreezesOutFlowsAcrossCycle(t *testing.T) {
+	keeper, ctx, depKeepers := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(100, 0))
+	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
+	depKeepers.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+
+	payer := sample.RandAccAddress()
+	peer := sample.RandAccAddress()
+	out := sdkmath.NewInt(100)
+	back := sdkmath.NewInt(50)
+
+	governanceRecord := types.NewStreamRecord(types.GovernanceAddress, ctx.BlockTime().Unix())
+	keeper.SetStreamRecord(ctx, governanceRecord)
+
+	payerRecord := types.NewStreamRecord(payer, ctx.BlockTime().Unix())
+	payerRecord.NetflowRate = back.Sub(out)
+	payerRecord.OutFlowCount = 1
+	keeper.SetStreamRecord(ctx, payerRecord)
+	keeper.SetOutFlow(ctx, payer, &types.OutFlow{
+		ToAddress: peer.String(),
+		Rate:      out,
+		Status:    types.OUT_FLOW_STATUS_ACTIVE,
+	})
+
+	peerRecord := types.NewStreamRecord(peer, ctx.BlockTime().Unix())
+	peerRecord.NetflowRate = out.Sub(back)
+	peerRecord.OutFlowCount = 1
+	keeper.SetStreamRecord(ctx, peerRecord)
+	keeper.SetOutFlow(ctx, peer, &types.OutFlow{
+		ToAddress: payer.String(),
+		Rate:      back,
+		Status:    types.OUT_FLOW_STATUS_ACTIVE,
+	})
+
+	_, err := keeper.UpdateStreamRecordByAddr(ctx, types.NewDefaultStreamRecordChangeWithAddr(payer))
+	require.NoError(t, err)
+
+	// Both flows end frozen, so neither account may retain a live rate.
+	payerRecord, _ = keeper.GetStreamRecord(ctx, payer)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, payerRecord.Status)
+	require.True(t, payerRecord.NetflowRate.IsZero(),
+		"payer retains a rate with no active out-flow: %s", payerRecord.NetflowRate)
+	require.Equal(t, out.Neg(), payerRecord.FrozenNetflowRate)
+
+	peerRecord, _ = keeper.GetStreamRecord(ctx, peer)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, peerRecord.Status)
+	require.True(t, peerRecord.NetflowRate.IsZero(),
+		"peer retains a rate with no active out-flow: %s", peerRecord.NetflowRate)
+	require.Equal(t, back.Neg(), peerRecord.FrozenNetflowRate)
+
+	require.Nil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_ACTIVE, peer))
+	require.NotNil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_FROZEN, peer))
+	require.Nil(t, keeper.GetOutFlow(ctx, peer, types.OUT_FLOW_STATUS_ACTIVE, payer))
+	require.NotNil(t, keeper.GetOutFlow(ctx, peer, types.OUT_FLOW_STATUS_FROZEN, payer))
+}

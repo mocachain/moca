@@ -298,38 +298,60 @@ func (k Keeper) ForceSettle(ctx sdk.Context, streamRecord *types.StreamRecord) e
 
 func (k Keeper) freezeAllActiveOutFlows(ctx sdk.Context, streamRecord *types.StreamRecord) error {
 	addr := sdk.MustAccAddressFromHex(streamRecord.Account)
-	activeFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_ACTIVE, nil)
 	flowStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.OutFlowKeyPrefix)
+
+	// Collect before writing: freezing a recipient recurses back into this
+	// function, and the resulting out-flow writes land inside this iterator's
+	// range whenever the recipient sorts after addr, which invalidates it.
+	toFreeze := collectActiveOutFlows(flowStore, addr)
+
+	totalRate := sdkmath.ZeroInt()
+	for i := range toFreeze {
+		outFlow := toFreeze[i]
+		toAddr := sdk.MustAccAddressFromHex(outFlow.ToAddress)
+		// A flow to self carries no rate between accounts, and the payer side is
+		// already covered by totalRate below, so only move the entry.
+		if !toAddr.Equals(addr) {
+			change := types.NewDefaultStreamRecordChangeWithAddr(toAddr).WithRateChange(outFlow.Rate.Neg())
+			if _, err := k.UpdateStreamRecordByAddr(ctx, change); err != nil {
+				return fmt.Errorf("update recipient stream record %s: %w", outFlow.ToAddress, err)
+			}
+		}
+
+		flowStore.Delete(types.OutFlowKey(addr, types.OUT_FLOW_STATUS_ACTIVE, toAddr))
+		outFlow.Status = types.OUT_FLOW_STATUS_FROZEN
+		k.SetOutFlow(ctx, addr, &outFlow)
+		totalRate = totalRate.Add(outFlow.Rate)
+	}
+
+	// Freezing a recipient can recurse back into this account and persist a
+	// newer record. Callers persist before calling here, so re-read and apply
+	// the delta to that state instead of to a copy taken before the recursion.
+	if latest, found := k.GetStreamRecord(ctx, addr); found {
+		*streamRecord = *latest
+	}
+	streamRecord.NetflowRate = streamRecord.NetflowRate.Add(totalRate)
+	streamRecord.FrozenNetflowRate = streamRecord.FrozenNetflowRate.Add(totalRate.Neg())
+	return nil
+}
+
+// collectActiveOutFlows returns addr's active out-flows, buffering only the
+// entries that will be frozen. Keys are rebuilt from ToAddress at write time.
+func collectActiveOutFlows(flowStore prefix.Store, addr sdk.AccAddress) []types.OutFlow {
+	activeFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_ACTIVE, nil)
 	flowIterator := flowStore.Iterator(activeFlowKey, nil)
 	defer flowIterator.Close()
 
-	totalRate := sdkmath.ZeroInt()
-	toUpdate := make([]types.OutFlow, 0)
+	toFreeze := make([]types.OutFlow, 0)
 	for ; flowIterator.Valid(); flowIterator.Next() {
 		addrInKey, outFlow := types.ParseOutFlowKey(flowIterator.Key())
 		if !addrInKey.Equals(addr) || outFlow.Status == types.OUT_FLOW_STATUS_FROZEN {
 			break
 		}
 		outFlow.Rate = types.ParseOutFlowValue(flowIterator.Value())
-
-		toAddr := sdk.MustAccAddressFromHex(outFlow.ToAddress)
-		change := types.NewDefaultStreamRecordChangeWithAddr(toAddr).WithRateChange(outFlow.Rate.Neg())
-		if _, err := k.UpdateStreamRecordByAddr(ctx, change); err != nil {
-			return fmt.Errorf("update recipient stream record %s: %w", outFlow.ToAddress, err)
-		}
-
-		flowStore.Delete(flowIterator.Key())
-		outFlow.Status = types.OUT_FLOW_STATUS_FROZEN
-		toUpdate = append(toUpdate, outFlow)
-		totalRate = totalRate.Add(outFlow.Rate)
+		toFreeze = append(toFreeze, outFlow)
 	}
-
-	for _, outFlow := range toUpdate {
-		k.SetOutFlow(ctx, addr, &outFlow)
-	}
-	streamRecord.NetflowRate = streamRecord.NetflowRate.Add(totalRate)
-	streamRecord.FrozenNetflowRate = streamRecord.FrozenNetflowRate.Add(totalRate.Neg())
-	return nil
+	return toFreeze
 }
 
 func (k Keeper) AutoSettle(ctx sdk.Context) {
