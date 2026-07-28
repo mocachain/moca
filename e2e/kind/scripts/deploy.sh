@@ -44,7 +44,13 @@ kubectl create configmap init-chain-script \
 
 # ── 4. Apply genesis-init-job (patching the image) ──────────────────────────
 log_info "Applying genesis-init job with image ${DEPLOY_IMAGE}..."
-sed "s|image: .*|image: ${DEPLOY_IMAGE}|" "${MANIFESTS_DIR}/genesis-init-job.yaml" \
+if [ -n "${HARDFORK_HEIGHT:-}" ]; then
+    log_info "  Hardfork scheduled: ${HARDFORK_NAME:-} at height ${HARDFORK_HEIGHT}"
+fi
+sed -e "s|image: .*|image: ${DEPLOY_IMAGE}|" \
+    -e "/name: HARDFORK_HEIGHT/{n;s|value: .*|value: \"${HARDFORK_HEIGHT:-}\"|;}" \
+    -e "/name: HARDFORK_NAME/{n;s|value: .*|value: \"${HARDFORK_NAME:-}\"|;}" \
+    "${MANIFESTS_DIR}/genesis-init-job.yaml" \
     | kubectl apply -n "${K8S_NAMESPACE}" -f -
 
 # ── 5. Wait for init pod to be ready ────────────────────────────────────────

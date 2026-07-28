@@ -107,9 +107,18 @@ make e2e-kind-suite SUITE=smoke  # Just run tests (if chain is already deployed)
 
 Tests a binary upgrade from an old version to the current build using the app.toml `[hardforks]` config.
 
+The entry is written to every validator's `app.toml` at init, so the old binary
+schedules an x/upgrade plan and halts them all at the same block before the
+binaries are swapped. `app.toml` is only read at startup, so `HARDFORK_HEIGHT`
+is fixed up front (default `50`) rather than derived from a running height, and
+must stay above the height the pre-upgrade setup reaches.
+
 ```bash
 # Upgrade from a specific release (pulls/builds old version, deploys, upgrades, validates)
 OLD_VERSION=v12.0.1 make e2e-kind-upgrade-hardfork
+
+# Move the scheduled halt if setup needs more room
+HARDFORK_HEIGHT=80 OLD_VERSION=v1.3.0 make e2e-kind-upgrade-hardfork
 ```
 
 ### Upgrade Tests (governance mode)

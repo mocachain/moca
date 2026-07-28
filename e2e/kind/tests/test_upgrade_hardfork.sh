@@ -14,6 +14,16 @@ OLD_VERSION="${OLD_VERSION:-v1.3.0}"
 UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
 FEES="5000000000000000amoca"
 
+# The hardfork height has to be fixed before the chain starts: app.toml is read
+# only at startup, so it cannot be derived from a running height later. Every
+# validator gets this same height, which makes the old binary halt them all at
+# the same block instead of them being stopped wherever they happen to be.
+# Chosen to leave room for the pre-upgrade setup below (~10 blocks); the guard
+# after setup fails loudly rather than silently degrading if that stops holding.
+HARDFORK_HEIGHT="${HARDFORK_HEIGHT:-50}"
+HARDFORK_NAME="$UPGRADE_NAME"
+export HARDFORK_HEIGHT HARDFORK_NAME
+
 # ── Setup: deploy old version ────────────────────────────────────────────────
 fw_start_chain_from_version "$OLD_VERSION"
 
@@ -35,8 +45,17 @@ PRE_UPGRADE_BALANCE=$(exec_mocad query bank balances "$UPGRADE_TEST_ADDR" \
 log_info "Pre-upgrade height:  ${PRE_UPGRADE_HEIGHT}"
 log_info "Pre-upgrade balance: ${PRE_UPGRADE_BALANCE} amoca"
 
+# The scheduled halt only coordinates the validators if the chain hasn't already
+# passed it. Fail here rather than proceeding into an uncoordinated binary swap,
+# which splits the validator set on app hash and deadlocks consensus.
+if [ "$PRE_UPGRADE_HEIGHT" -ge "$HARDFORK_HEIGHT" ]; then
+    log_error "Setup reached height ${PRE_UPGRADE_HEIGHT}, at or past the scheduled hardfork height ${HARDFORK_HEIGHT}"
+    log_error "Raise HARDFORK_HEIGHT so the halt lands after setup"
+    exit 1
+fi
+
 # ── Upgrade (1 line) ─────────────────────────────────────────────────────────
-fw_upgrade_chain --name "$UPGRADE_NAME" --mode hardfork
+fw_upgrade_chain --name "$UPGRADE_NAME" --mode hardfork --height "$HARDFORK_HEIGHT"
 
 # ── Post-upgrade tests ───────────────────────────────────────────────────────
 

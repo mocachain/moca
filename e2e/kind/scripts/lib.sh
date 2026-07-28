@@ -79,6 +79,36 @@ wait_for_all_validator_rpcs() {
     done
 }
 
+# assert_validators_at_same_height: read every validator's own height and require
+# that they agree. Swapping binaries is only safe once they do: a validator left a
+# block behind re-executes that block under the new binary, computes a different
+# app hash than the ones that executed it under the old binary, and the set splits
+# into camps that reject each other's proposals until consensus deadlocks.
+#
+# Usage: assert_validators_at_same_height <num>
+assert_validators_at_same_height() {
+    local num="$1"
+    local i height first="" mismatch=0 report=""
+    for ((i = 0; i < num; i++)); do
+        height=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
+            curl -sS -m 5 http://localhost:26657/status 2>/dev/null \
+            | jq -r '.result.sync_info.latest_block_height // empty' 2>/dev/null) || true
+        [ -z "$height" ] && height="unreachable"
+        report="${report}    validator-${i}: ${height}"$'\n'
+        if [ -z "$first" ]; then
+            first="$height"
+        elif [ "$height" != "$first" ]; then
+            mismatch=1
+        fi
+    done
+    if [ "$mismatch" -ne 0 ]; then
+        log_error "Validators are not at the same height; refusing to swap binaries:"
+        printf '%s' "$report" >&2
+        return 1
+    fi
+    log_success "All ${num} validators halted at the same height (${first})"
+}
+
 # wait_for_evm_rpc_ready: poll the EVM JSON-RPC at the host's port-forward
 # until eth_blockNumber returns a non-zero block. The cosmos /status endpoint
 # can be live before the EVM RPC is fully attached, leading to "server returned

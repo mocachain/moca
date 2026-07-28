@@ -382,6 +382,22 @@ generate_genesis() {
     sed -i "s/pruning = \"default\"/pruning = \"nothing\"/g" "$app"
     sed -i "s/eth,net,web3/eth,txpool,personal,net,debug,web3/g" "$app"
 
+    # Hardfork upgrade schedule. app.toml is read only at startup, so this has to
+    # be written before the chain starts — it cannot be derived from a running
+    # height later. Every validator gets the same entry, which is the point: the
+    # old binary schedules an x/upgrade plan at exactly this height and halts
+    # there, so all validators cross the upgrade boundary at the same block.
+    # Without it there is no halt, validators are stopped at whatever height they
+    # happen to be at, and the ones a block behind re-execute that block under
+    # the new binary — producing a different app hash and a split network.
+    if [ -n "${HARDFORK_HEIGHT:-}" ] && [ -n "${HARDFORK_NAME:-}" ]; then
+      if grep -q "^\[hardforks\]" "$app"; then
+        sed -i "/^\[hardforks\]$/a \"${HARDFORK_HEIGHT}\" = { name = \"${HARDFORK_NAME}\" }" "$app"
+      else
+        printf '\n[hardforks]\n"%s" = { name = "%s" }\n' "${HARDFORK_HEIGHT}" "${HARDFORK_NAME}" >> "$app"
+      fi
+    fi
+
     # ---- client.toml — point at standard RPC port ----
     sed -i "s#node = \"tcp://localhost:26657\"#node = \"tcp://localhost:26657\"#g" "$client"
   done

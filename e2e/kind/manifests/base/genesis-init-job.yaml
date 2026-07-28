@@ -27,6 +27,12 @@ spec:
               value: "/data"
             - name: CHAIN_ID
               value: "moca_5151-1"
+            # Filled in by deploy.sh for hardfork upgrade tests; empty otherwise,
+            # in which case init-chain.sh writes no [hardforks] entry.
+            - name: HARDFORK_HEIGHT
+              value: ""
+            - name: HARDFORK_NAME
+              value: ""
           volumeMounts:
             - name: scripts
               mountPath: /scripts
