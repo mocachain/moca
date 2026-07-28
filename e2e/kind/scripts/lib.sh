@@ -24,7 +24,7 @@ log_warn()    { echo -e "\033[0;33m[WARN]\033[0m $*" >&2; }
 # Get the current block height from an RPC endpoint.
 get_block_height() {
     local rpc_url="${1:-http://localhost:26657}"
-    curl -sf "${rpc_url}/status" 2>/dev/null | jq -r '.result.sync_info.latest_block_height' 2>/dev/null || echo "0"
+    curl -sf --max-time 5 "${rpc_url}/status" 2>/dev/null | jq -r '.result.sync_info.latest_block_height' 2>/dev/null || echo "0"
 }
 
 # Wait until the chain is producing blocks at the given RPC endpoint.
@@ -131,11 +131,29 @@ kind_load_image() {
     fi
     # Verify the image is actually present in containerd — a truncated stream
     # can "succeed" without importing what we think it did.
-    if ! docker exec "$node" ctr --namespace=k8s.io images ls -q 2>/dev/null | grep -qF "${image}"; then
-        log_error "Image $image not present in Kind containerd after import (got: ${import_out})"
-        return 1
-    fi
-    log_success "Image $image loaded into Kind cluster"
+    #
+    # Capture the listing instead of piping into `grep -q`: under `set -o pipefail`
+    # grep exits as soon as it matches, which SIGPIPEs the `docker exec` writer and
+    # fails the whole pipeline even though the image is present. Retry with a bound
+    # too — the listing call itself can hang while containerd digests a fresh import.
+    local listed="" ls_err="" attempt
+    for attempt in 1 2 3; do
+        if listed=$(timeout 30 docker exec "$node" \
+            ctr --namespace=k8s.io images ls -q 2>&1); then
+            if [[ "$listed" == *"${image}"* ]]; then
+                log_success "Image $image loaded into Kind cluster"
+                return 0
+            fi
+        else
+            ls_err="$listed"
+            listed=""
+        fi
+        sleep $((attempt * 2))
+    done
+    log_error "Image $image not present in Kind containerd after import"
+    log_error "  ctr images ls: ${listed:-<failed: ${ls_err}>}"
+    log_error "  import output: ${import_out}"
+    return 1
 }
 
 # Wait until the chain reaches a specific block height.
@@ -145,16 +163,21 @@ wait_for_height() {
     local max_attempts="${3:-120}"
     local attempt=0
 
+    local current="0"
     while [ $attempt -lt $max_attempts ]; do
-        local current
         current=$(get_block_height "$rpc_url")
         if [ "$current" -ge "$target" ] 2>/dev/null; then
             return 0
         fi
         attempt=$((attempt + 1))
+        # Report progress: a stalled chain and an unreachable RPC both read as
+        # height 0 here, and a silent loop leaves nothing to tell them apart.
+        if [ $((attempt % 15)) -eq 0 ]; then
+            log_info "  waiting for height ${target}: ${rpc_url} reports ${current} (${attempt}/${max_attempts})"
+        fi
         sleep 2
     done
-    log_error "Chain did not reach height ${target} within $((max_attempts * 2))s"
+    log_error "Chain did not reach height ${target} within $((max_attempts * 2))s (last observed: ${current})"
     return 1
 }
 
