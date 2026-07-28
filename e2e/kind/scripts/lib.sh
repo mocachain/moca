@@ -19,6 +19,12 @@ log_success() { echo -e "\033[0;32m[PASS]\033[0m $*"; }
 log_error()   { echo -e "\033[0;31m[FAIL]\033[0m $*" >&2; }
 log_warn()    { echo -e "\033[0;33m[WARN]\033[0m $*" >&2; }
 
+# timeout(1) is GNU coreutils and is not on stock macOS. Without a fallback the
+# bounded calls below exit 127 and read as the very failure they exist to catch.
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { shift; "$@"; }
+fi
+
 # ── Chain queries ─────────────────────────────────────────────────────────────
 
 # Get the current block height from an RPC endpoint.
@@ -87,6 +93,11 @@ wait_for_all_validator_rpcs() {
 _validator_heights() {
     local num="$1"
     local i height first="" out="" status=0
+    # A gate that checks nothing must not report agreement.
+    if ! [[ "$num" =~ ^[1-9][0-9]*$ ]]; then
+        printf 'invalid validator count %q' "$num"
+        return 1
+    fi
     for ((i = 0; i < num; i++)); do
         height=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
             curl -sS -m 5 http://localhost:26657/status 2>/dev/null \
@@ -115,11 +126,18 @@ _validator_heights() {
 # within a block of each other and pass through equal heights constantly, so the
 # second sample is what distinguishes halted from merely aligned.
 #
-# Usage: assert_validators_halted_together <num> [settle_seconds=4]
+# The height is checked against the scheduled upgrade height as well, because
+# "stopped" on its own is not enough: a chain that never scheduled the fork and
+# ran past the height only has to stall for one sample cycle to look halted.
+# Module ordering decides whether the halt lands just before or just after the
+# configured height, so allow a small window rather than an exact match.
+#
+# Usage: assert_validators_halted_together <num> <expected_height> [settle_seconds=4]
 assert_validators_halted_together() {
     local num="$1"
-    local settle="${2:-4}"
-    local before after
+    local expected="$2"
+    local settle="${3:-4}"
+    local before after height
     if ! before=$(_validator_heights "$num"); then
         log_error "Validators are not all reporting the same height; refusing to swap binaries:"
         log_error "  ${before}"
@@ -137,7 +155,13 @@ assert_validators_halted_together() {
         log_error "  after:  ${after}"
         return 1
     fi
-    log_success "All ${num} validators halted together (${after})"
+    height="${after##*=}"
+    if [ "$height" -lt "$((expected - 1))" ] || [ "$height" -gt "$((expected + 3))" ]; then
+        log_error "Chain stopped at height ${height}, not the scheduled upgrade height ${expected};"
+        log_error "  it is stalled for some other reason, or the fork was never scheduled."
+        return 1
+    fi
+    log_success "All ${num} validators halted together at the scheduled upgrade (${after})"
 }
 
 # wait_for_evm_rpc_ready: poll the EVM JSON-RPC at the host's port-forward
@@ -197,22 +221,28 @@ kind_load_image() {
     # grep exits as soon as it matches, which SIGPIPEs the `docker exec` writer and
     # fails the whole pipeline even though the image is present. Retry with a bound
     # too — the listing call itself can hang while containerd digests a fresh import.
-    local listed="" ls_err="" attempt
+    local listed="" attempt listed_ok=0
     for attempt in 1 2 3; do
         if listed=$(timeout 30 docker exec "$node" \
             ctr --namespace=k8s.io images ls -q 2>&1); then
+            listed_ok=1
             if [[ "$listed" == *"${image}"* ]]; then
                 log_success "Image $image loaded into Kind cluster"
                 return 0
             fi
         else
-            ls_err="$listed"
-            listed=""
+            listed_ok=0
         fi
-        sleep $((attempt * 2))
+        [ "$attempt" -lt 3 ] && sleep $((attempt * 2))
     done
     log_error "Image $image not present in Kind containerd after import"
-    log_error "  ctr images ls: ${listed:-<failed: ${ls_err}>}"
+    # Distinguish "listing worked and the image wasn't in it" from "listing
+    # failed": collapsing them sends the reader after the wrong problem.
+    if [ "$listed_ok" -eq 1 ]; then
+        log_error "  ctr images ls returned: ${listed:-<empty>}"
+    else
+        log_error "  ctr images ls failed: ${listed:-<no output>}"
+    fi
     log_error "  import output: ${import_out}"
     return 1
 }

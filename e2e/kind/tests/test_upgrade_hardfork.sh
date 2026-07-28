@@ -24,6 +24,19 @@ HARDFORK_HEIGHT="${HARDFORK_HEIGHT:-50}"
 HARDFORK_NAME="$UPGRADE_NAME"
 export HARDFORK_HEIGHT HARDFORK_NAME
 
+# Both values are interpolated into a sed replacement and into TOML. A stray
+# '&', '|', quote or newline silently corrupts the manifest or the generated
+# app.toml, which surfaces as validators failing to boot rather than as bad
+# input, so reject anything outside the shape an upgrade name actually needs.
+if ! [[ "$HARDFORK_HEIGHT" =~ ^[1-9][0-9]*$ ]]; then
+    log_error "HARDFORK_HEIGHT must be a positive integer, got '${HARDFORK_HEIGHT}'"
+    exit 1
+fi
+if ! [[ "$HARDFORK_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    log_error "UPGRADE_NAME must match [A-Za-z0-9._-]+, got '${HARDFORK_NAME}'"
+    exit 1
+fi
+
 # ── Setup: deploy old version ────────────────────────────────────────────────
 fw_start_chain_from_version "$OLD_VERSION"
 
@@ -45,12 +58,21 @@ PRE_UPGRADE_BALANCE=$(exec_mocad query bank balances "$UPGRADE_TEST_ADDR" \
 log_info "Pre-upgrade height:  ${PRE_UPGRADE_HEIGHT}"
 log_info "Pre-upgrade balance: ${PRE_UPGRADE_BALANCE} amoca"
 
+# get_block_height reports 0, null or an empty string when it cannot read the
+# chain, and comparing those numerically just takes the false branch — skipping
+# the check exactly when the input is untrustworthy.
+if ! [[ "$PRE_UPGRADE_HEIGHT" =~ ^[0-9]+$ ]]; then
+    log_error "Could not read the pre-upgrade height (got '${PRE_UPGRADE_HEIGHT}')"
+    exit 1
+fi
+
 # The scheduled halt only coordinates the validators if the chain hasn't already
 # passed it. Fail here rather than proceeding into an uncoordinated binary swap,
-# which splits the validator set on app hash and deadlocks consensus.
-if [ "$PRE_UPGRADE_HEIGHT" -ge "$HARDFORK_HEIGHT" ]; then
-    log_error "Setup reached height ${PRE_UPGRADE_HEIGHT}, at or past the scheduled hardfork height ${HARDFORK_HEIGHT}"
-    log_error "Raise HARDFORK_HEIGHT so the halt lands after setup"
+# which splits the validator set on app hash and deadlocks consensus. The halt
+# lands around the configured height, so treat the block before it as too late.
+if [ "$PRE_UPGRADE_HEIGHT" -ge "$((HARDFORK_HEIGHT - 1))" ]; then
+    log_error "Setup reached height ${PRE_UPGRADE_HEIGHT}, too close to the scheduled hardfork height ${HARDFORK_HEIGHT}"
+    log_error "Raise HARDFORK_HEIGHT so the halt lands after setup, or check that the fork was scheduled at all"
     exit 1
 fi
 
@@ -74,7 +96,7 @@ test_chain_producing_blocks_post_upgrade() {
 test_height_past_upgrade() {
     local current
     current=$(get_block_height "http://localhost:26657")
-    # Upgrade height was auto-computed (current + 20 at time of call)
+    # Upgrade height is the fixed HARDFORK_HEIGHT scheduled before the chain started
     assert_gt "$current" "$PRE_UPGRADE_HEIGHT" "Height should be past pre-upgrade height"
 }
 

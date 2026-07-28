@@ -44,7 +44,7 @@ kubectl create configmap init-chain-script \
 
 # ── 4. Apply genesis-init-job (patching the image) ──────────────────────────
 log_info "Applying genesis-init job with image ${DEPLOY_IMAGE}..."
-if [ -n "${HARDFORK_HEIGHT:-}" ]; then
+if [ -n "${HARDFORK_HEIGHT:-}" ] && [ -n "${HARDFORK_NAME:-}" ]; then
     log_info "  Hardfork scheduled: ${HARDFORK_NAME:-} at height ${HARDFORK_HEIGHT}"
 fi
 sed -e "s|image: .*|image: ${DEPLOY_IMAGE}|" \

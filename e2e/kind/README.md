@@ -118,7 +118,7 @@ must stay above the height the pre-upgrade setup reaches.
 OLD_VERSION=v12.0.1 make e2e-kind-upgrade-hardfork
 
 # Move the scheduled halt if setup needs more room
-HARDFORK_HEIGHT=80 OLD_VERSION=v1.3.0 make e2e-kind-upgrade-hardfork
+HARDFORK_HEIGHT=80 OLD_VERSION=v1.3.0 make e2e-fw-test TEST=upgrade_hardfork
 ```
 
 ### Upgrade Tests (governance mode)
