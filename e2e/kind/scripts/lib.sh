@@ -79,34 +79,65 @@ wait_for_all_validator_rpcs() {
     done
 }
 
-# assert_validators_at_same_height: read every validator's own height and require
-# that they agree. Swapping binaries is only safe once they do: a validator left a
-# block behind re-executes that block under the new binary, computes a different
-# app hash than the ones that executed it under the old binary, and the set splits
-# into camps that reject each other's proposals until consensus deadlocks.
-#
-# Usage: assert_validators_at_same_height <num>
-assert_validators_at_same_height() {
+# _validator_heights: echo "validator-0=<h> validator-1=<h> ..." for every
+# validator. Returns non-zero unless every probe returned a number and all the
+# numbers agree. An unreachable or non-numeric probe is a failed read, never a
+# value: comparing sentinels to each other would make a cluster where every
+# probe fails look unanimous.
+_validator_heights() {
     local num="$1"
-    local i height first="" mismatch=0 report=""
+    local i height first="" out="" status=0
     for ((i = 0; i < num; i++)); do
         height=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
             curl -sS -m 5 http://localhost:26657/status 2>/dev/null \
             | jq -r '.result.sync_info.latest_block_height // empty' 2>/dev/null) || true
-        [ -z "$height" ] && height="unreachable"
-        report="${report}    validator-${i}: ${height}"$'\n'
-        if [ -z "$first" ]; then
+        if ! [[ "$height" =~ ^[0-9]+$ ]]; then
+            height="unreachable"
+            status=1
+        elif [ -z "$first" ]; then
             first="$height"
         elif [ "$height" != "$first" ]; then
-            mismatch=1
+            status=1
         fi
+        out="${out}${out:+ }validator-${i}=${height}"
     done
-    if [ "$mismatch" -ne 0 ]; then
-        log_error "Validators are not at the same height; refusing to swap binaries:"
-        printf '%s' "$report" >&2
+    printf '%s' "$out"
+    return "$status"
+}
+
+# assert_validators_halted_together: require every validator to report the same
+# numeric height, twice, with the value unchanged in between. Swapping binaries
+# is only safe once they have all stopped on the same block: a validator left a
+# block behind re-executes that block under the new binary, computes a different
+# app hash than the ones that executed it under the old binary, and the set
+# splits into camps that reject each other's proposals until consensus
+# deadlocks. Agreement alone is too weak — validators on a running chain sit
+# within a block of each other and pass through equal heights constantly, so the
+# second sample is what distinguishes halted from merely aligned.
+#
+# Usage: assert_validators_halted_together <num> [settle_seconds=4]
+assert_validators_halted_together() {
+    local num="$1"
+    local settle="${2:-4}"
+    local before after
+    if ! before=$(_validator_heights "$num"); then
+        log_error "Validators are not all reporting the same height; refusing to swap binaries:"
+        log_error "  ${before}"
         return 1
     fi
-    log_success "All ${num} validators halted at the same height (${first})"
+    sleep "$settle"
+    if ! after=$(_validator_heights "$num"); then
+        log_error "Validators are not all reporting the same height; refusing to swap binaries:"
+        log_error "  ${after}"
+        return 1
+    fi
+    if [ "$before" != "$after" ]; then
+        log_error "Chain is still advancing, so it has not halted; refusing to swap binaries:"
+        log_error "  before: ${before}"
+        log_error "  after:  ${after}"
+        return 1
+    fi
+    log_success "All ${num} validators halted together (${after})"
 }
 
 # wait_for_evm_rpc_ready: poll the EVM JSON-RPC at the host's port-forward

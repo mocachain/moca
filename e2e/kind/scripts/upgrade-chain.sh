@@ -212,13 +212,13 @@ _wait_for_upgrade_halt() {
     # The halt is what makes the swap safe, so confirm it actually happened on
     # every validator rather than trusting the NodePort RPC, which only reports
     # validator-0. Give stragglers a moment to reach the halt height first.
-    local same_height_wait=0
-    until assert_validators_at_same_height "$NUM_VALIDATORS"; do
-        if [ $same_height_wait -ge 60 ]; then
-            log_error "Validators did not converge on a common height within 60s"
+    local halt_timeout=120
+    local halt_deadline=$(( $(date +%s) + halt_timeout ))
+    until assert_validators_halted_together "$NUM_VALIDATORS"; do
+        if [ "$(date +%s)" -ge "$halt_deadline" ]; then
+            log_error "Validators did not all halt on a common height within ${halt_timeout}s"
             return 1
         fi
-        same_height_wait=$((same_height_wait + 5))
         sleep 5
     done
 
