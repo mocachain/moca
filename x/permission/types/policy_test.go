@@ -286,3 +286,81 @@ func TestPolicy_SubResource(t *testing.T) {
 		})
 	}
 }
+
+func TestPolicy_StatementWithoutResources(t *testing.T) {
+	bucketName := storage.GenRandomBucketName()
+	object := types2.NewObjectGRN(bucketName, "xxx").String()
+	tests := []struct {
+		name            string
+		policyAction    types.ActionType
+		policyEffect    types.Effect
+		operateAction   types.ActionType
+		operateResource string
+		expectEffect    types.Effect
+	}{
+		{
+			name:            "deny_all_reaches_object",
+			policyAction:    types.ACTION_TYPE_ALL,
+			policyEffect:    types.EFFECT_DENY,
+			operateAction:   types.ACTION_GET_OBJECT,
+			operateResource: object,
+			expectEffect:    types.EFFECT_DENY,
+		},
+		{
+			name:            "deny_object_action_reaches_object",
+			policyAction:    types.ACTION_GET_OBJECT,
+			policyEffect:    types.EFFECT_DENY,
+			operateAction:   types.ACTION_GET_OBJECT,
+			operateResource: object,
+			expectEffect:    types.EFFECT_DENY,
+		},
+		{
+			name:            "allow_all_does_not_reach_object",
+			policyAction:    types.ACTION_TYPE_ALL,
+			policyEffect:    types.EFFECT_ALLOW,
+			operateAction:   types.ACTION_GET_OBJECT,
+			operateResource: object,
+			expectEffect:    types.EFFECT_UNSPECIFIED,
+		},
+		{
+			name:            "allow_object_action_does_not_reach_object",
+			policyAction:    types.ACTION_GET_OBJECT,
+			policyEffect:    types.EFFECT_ALLOW,
+			operateAction:   types.ACTION_GET_OBJECT,
+			operateResource: object,
+			expectEffect:    types.EFFECT_UNSPECIFIED,
+		},
+		{
+			name:          "bucket_scoped_allow_unchanged",
+			policyAction:  types.ACTION_TYPE_ALL,
+			policyEffect:  types.EFFECT_ALLOW,
+			operateAction: types.ACTION_UPDATE_BUCKET_INFO,
+			expectEffect:  types.EFFECT_ALLOW,
+		},
+		{
+			name:          "bucket_scoped_deny_unchanged",
+			policyAction:  types.ACTION_TYPE_ALL,
+			policyEffect:  types.EFFECT_DENY,
+			operateAction: types.ACTION_UPDATE_BUCKET_INFO,
+			expectEffect:  types.EFFECT_DENY,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			policy := types.Policy{
+				Principal:    types.NewPrincipalWithAccount(sample.RandAccAddress()),
+				ResourceType: resource.RESOURCE_TYPE_BUCKET,
+				ResourceId:   math.OneUint(),
+				Statements: []*types.Statement{
+					{
+						Effect:  tt.policyEffect,
+						Actions: []types.ActionType{tt.policyAction},
+					},
+				},
+			}
+			effect, _ := policy.Eval(tt.operateAction, time.Now(), &types.VerifyOptions{Resource: tt.operateResource})
+			require.Equal(t, tt.expectEffect, effect)
+		})
+	}
+}

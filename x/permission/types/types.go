@@ -127,9 +127,10 @@ func NewMemberStatement() *Statement {
 }
 
 func (s *Statement) Eval(action ActionType, opts *VerifyOptions) (Effect, *Statement) {
-	// If 'resource' is not nil, it implies that the user intends to access a sub-resource, which would
-	// be specified in 's.Resources'. Therefore, if the sub-resource in the statement is nil, we will ignore this statement.
-	if opts != nil && opts.Resource != "" && s.Resources == nil {
+	// A statement naming no Resources is bucket-scoped. An Allow stays bucket-only, so no
+	// existing grant is widened; a Deny also applies to sub-resources, otherwise an owner's
+	// bucket-wide deny is silently voided by a competing resource-scoped Allow (MOCA-808).
+	if opts != nil && opts.Resource != "" && s.Resources == nil && s.Effect != EFFECT_DENY {
 		return EFFECT_UNSPECIFIED, nil
 	}
 	// If 'resource' is not nil, and 's.Resource' is also not nil, it indicates that we should verify whether
