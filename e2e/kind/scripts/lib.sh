@@ -19,12 +19,18 @@ log_success() { echo -e "\033[0;32m[PASS]\033[0m $*"; }
 log_error()   { echo -e "\033[0;31m[FAIL]\033[0m $*" >&2; }
 log_warn()    { echo -e "\033[0;33m[WARN]\033[0m $*" >&2; }
 
+# timeout(1) is GNU coreutils and is not on stock macOS. Without a fallback the
+# bounded calls below exit 127 and read as the very failure they exist to catch.
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { shift; "$@"; }
+fi
+
 # ── Chain queries ─────────────────────────────────────────────────────────────
 
 # Get the current block height from an RPC endpoint.
 get_block_height() {
     local rpc_url="${1:-http://localhost:26657}"
-    curl -sf "${rpc_url}/status" 2>/dev/null | jq -r '.result.sync_info.latest_block_height' 2>/dev/null || echo "0"
+    curl -sf --max-time 5 "${rpc_url}/status" 2>/dev/null | jq -r '.result.sync_info.latest_block_height' 2>/dev/null || echo "0"
 }
 
 # Wait until the chain is producing blocks at the given RPC endpoint.
@@ -79,6 +85,85 @@ wait_for_all_validator_rpcs() {
     done
 }
 
+# _validator_heights: echo "validator-0=<h> validator-1=<h> ..." for every
+# validator. Returns non-zero unless every probe returned a number and all the
+# numbers agree. An unreachable or non-numeric probe is a failed read, never a
+# value: comparing sentinels to each other would make a cluster where every
+# probe fails look unanimous.
+_validator_heights() {
+    local num="$1"
+    local i height first="" out="" status=0
+    # A gate that checks nothing must not report agreement.
+    if ! [[ "$num" =~ ^[1-9][0-9]*$ ]]; then
+        printf 'invalid validator count %q' "$num"
+        return 1
+    fi
+    for ((i = 0; i < num; i++)); do
+        height=$(kubectl exec -n "${K8S_NAMESPACE}" "validator-${i}-0" -c mocad -- \
+            curl -sS -m 5 http://localhost:26657/status 2>/dev/null \
+            | jq -r '.result.sync_info.latest_block_height // empty' 2>/dev/null) || true
+        if ! [[ "$height" =~ ^[0-9]+$ ]]; then
+            height="unreachable"
+            status=1
+        elif [ -z "$first" ]; then
+            first="$height"
+        elif [ "$height" != "$first" ]; then
+            status=1
+        fi
+        out="${out}${out:+ }validator-${i}=${height}"
+    done
+    printf '%s' "$out"
+    return "$status"
+}
+
+# assert_validators_halted_together: require every validator to report the same
+# numeric height, twice, with the value unchanged in between. Swapping binaries
+# is only safe once they have all stopped on the same block: a validator left a
+# block behind re-executes that block under the new binary, computes a different
+# app hash than the ones that executed it under the old binary, and the set
+# splits into camps that reject each other's proposals until consensus
+# deadlocks. Agreement alone is too weak — validators on a running chain sit
+# within a block of each other and pass through equal heights constantly, so the
+# second sample is what distinguishes halted from merely aligned.
+#
+# The height is checked against the scheduled upgrade height as well, because
+# "stopped" on its own is not enough: a chain that never scheduled the fork and
+# ran past the height only has to stall for one sample cycle to look halted.
+# Module ordering decides whether the halt lands just before or just after the
+# configured height, so allow a small window rather than an exact match.
+#
+# Usage: assert_validators_halted_together <num> <expected_height> [settle_seconds=4]
+assert_validators_halted_together() {
+    local num="$1"
+    local expected="$2"
+    local settle="${3:-4}"
+    local before after height
+    if ! before=$(_validator_heights "$num"); then
+        log_error "Validators are not all reporting the same height; refusing to swap binaries:"
+        log_error "  ${before}"
+        return 1
+    fi
+    sleep "$settle"
+    if ! after=$(_validator_heights "$num"); then
+        log_error "Validators are not all reporting the same height; refusing to swap binaries:"
+        log_error "  ${after}"
+        return 1
+    fi
+    if [ "$before" != "$after" ]; then
+        log_error "Chain is still advancing, so it has not halted; refusing to swap binaries:"
+        log_error "  before: ${before}"
+        log_error "  after:  ${after}"
+        return 1
+    fi
+    height="${after##*=}"
+    if [ "$height" -lt "$((expected - 1))" ] || [ "$height" -gt "$((expected + 3))" ]; then
+        log_error "Chain stopped at height ${height}, not the scheduled upgrade height ${expected};"
+        log_error "  it is stalled for some other reason, or the fork was never scheduled."
+        return 1
+    fi
+    log_success "All ${num} validators halted together at the scheduled upgrade (${after})"
+}
+
 # wait_for_evm_rpc_ready: poll the EVM JSON-RPC at the host's port-forward
 # until eth_blockNumber returns a non-zero block. The cosmos /status endpoint
 # can be live before the EVM RPC is fully attached, leading to "server returned
@@ -131,11 +216,35 @@ kind_load_image() {
     fi
     # Verify the image is actually present in containerd — a truncated stream
     # can "succeed" without importing what we think it did.
-    if ! docker exec "$node" ctr --namespace=k8s.io images ls -q 2>/dev/null | grep -qF "${image}"; then
-        log_error "Image $image not present in Kind containerd after import (got: ${import_out})"
-        return 1
+    #
+    # Capture the listing instead of piping into `grep -q`: under `set -o pipefail`
+    # grep exits as soon as it matches, which SIGPIPEs the `docker exec` writer and
+    # fails the whole pipeline even though the image is present. Retry with a bound
+    # too — the listing call itself can hang while containerd digests a fresh import.
+    local listed="" attempt listed_ok=0
+    for attempt in 1 2 3; do
+        if listed=$(timeout 30 docker exec "$node" \
+            ctr --namespace=k8s.io images ls -q 2>&1); then
+            listed_ok=1
+            if [[ "$listed" == *"${image}"* ]]; then
+                log_success "Image $image loaded into Kind cluster"
+                return 0
+            fi
+        else
+            listed_ok=0
+        fi
+        [ "$attempt" -lt 3 ] && sleep $((attempt * 2))
+    done
+    log_error "Image $image not present in Kind containerd after import"
+    # Distinguish "listing worked and the image wasn't in it" from "listing
+    # failed": collapsing them sends the reader after the wrong problem.
+    if [ "$listed_ok" -eq 1 ]; then
+        log_error "  ctr images ls returned: ${listed:-<empty>}"
+    else
+        log_error "  ctr images ls failed: ${listed:-<no output>}"
     fi
-    log_success "Image $image loaded into Kind cluster"
+    log_error "  import output: ${import_out}"
+    return 1
 }
 
 # Wait until the chain reaches a specific block height.
@@ -145,16 +254,21 @@ wait_for_height() {
     local max_attempts="${3:-120}"
     local attempt=0
 
+    local current="0"
     while [ $attempt -lt $max_attempts ]; do
-        local current
         current=$(get_block_height "$rpc_url")
         if [ "$current" -ge "$target" ] 2>/dev/null; then
             return 0
         fi
         attempt=$((attempt + 1))
+        # Report progress: a stalled chain and an unreachable RPC both read as
+        # height 0 here, and a silent loop leaves nothing to tell them apart.
+        if [ $((attempt % 15)) -eq 0 ]; then
+            log_info "  waiting for height ${target}: ${rpc_url} reports ${current} (${attempt}/${max_attempts})"
+        fi
         sleep 2
     done
-    log_error "Chain did not reach height ${target} within $((max_attempts * 2))s"
+    log_error "Chain did not reach height ${target} within $((max_attempts * 2))s (last observed: ${current})"
     return 1
 }
 

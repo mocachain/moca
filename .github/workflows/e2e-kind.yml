@@ -8,7 +8,7 @@ on:
     inputs:
       old_version:
         description: "Old version tag for upgrade tests (used by hardfork/governance/comprehensive)"
-        default: "v1.1.2"
+        default: "v1.3.0"
         type: string
 
 env:
@@ -130,11 +130,19 @@ jobs:
         run: |
           mkdir -p /tmp/e2e-logs
           for i in 0 1 2 3; do
-            kubectl logs -n moca-e2e "validator-${i}-0" -c mocad --tail=200 \
+            # Full log, not --tail: these chains are only ~60 blocks, and a
+            # truncated tail drops the consensus lines a stall needs explaining.
+            kubectl logs -n moca-e2e "validator-${i}-0" -c mocad --tail=-1 \
               > "/tmp/e2e-logs/validator-${i}.log" 2>/dev/null || true
+            # A container that already restarted leaves its panic/OOM only here.
+            kubectl logs -n moca-e2e "validator-${i}-0" -c mocad --previous --tail=-1 \
+              > "/tmp/e2e-logs/validator-${i}-previous.log" 2>/dev/null || true
             kubectl describe pod -n moca-e2e "validator-${i}-0" \
               > "/tmp/e2e-logs/validator-${i}-describe.txt" 2>/dev/null || true
           done
+          # Surfaces OOMKilled / BackOff, which never appear in the pod log.
+          kubectl get events -n moca-e2e --sort-by=.lastTimestamp \
+            > /tmp/e2e-logs/events.txt 2>/dev/null || true
 
       - name: Upload debug logs
         if: failure()
@@ -142,4 +150,4 @@ jobs:
         with:
           name: e2e-logs-${{ matrix.name }}
           path: /tmp/e2e-logs
-          retention-days: 7
+          retention-days: 30

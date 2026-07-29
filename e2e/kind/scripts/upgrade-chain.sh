@@ -206,8 +206,21 @@ _wait_for_upgrade_halt() {
     done
 
     if [ $elapsed -ge $max_wait ]; then
-        log_warn "Timeout waiting for upgrade height, proceeding with image update anyway"
+        log_warn "Timeout waiting for upgrade height; the halt gate below decides whether to proceed"
     fi
+
+    # The halt is what makes the swap safe, so confirm it actually happened on
+    # every validator rather than trusting the NodePort RPC, which only reports
+    # validator-0. Give stragglers a moment to reach the halt height first.
+    local halt_timeout=120
+    local halt_deadline=$(( $(date +%s) + halt_timeout ))
+    until assert_validators_halted_together "$NUM_VALIDATORS" "$UPGRADE_HEIGHT"; do
+        if [ "$(date +%s)" -ge "$halt_deadline" ]; then
+            log_error "Validators did not all halt on a common height within ${halt_timeout}s"
+            return 1
+        fi
+        sleep 5
+    done
 
     # Chain halts but doesn't exit — scale down, replace binary, scale back up
     log_info "Scaling down validators..."

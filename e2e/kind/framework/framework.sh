@@ -200,16 +200,23 @@ fw_upgrade_chain() {
     # Default new image is the current build
     new_image="${new_image:-${DOCKER_IMAGE}:${DOCKER_TAG}}"
 
+    # A hardfork is scheduled from app.toml, which is read only at startup, so a
+    # height picked now can never reach the nodes. Auto-computing one produces a
+    # chain that never halts and a binary swap at uncoordinated heights, which
+    # splits the validator set on app hash. Require the caller to have scheduled
+    # it before the chain started (see test_upgrade_hardfork.sh).
+    if [ "$mode" = "hardfork" ] && [ -z "$height" ]; then
+        log_error "--mode hardfork requires --height matching the [hardforks] entry written at init"
+        log_error "  export HARDFORK_HEIGHT/HARDFORK_NAME before starting the chain, then pass --height \"\$HARDFORK_HEIGHT\""
+        return 1
+    fi
+
     # Auto-compute upgrade height if not specified
     if [ -z "$height" ]; then
         local current
         current=$(get_block_height "http://localhost:26657")
         # Give enough time for governance voting period (15s) + buffer
-        if [ "$mode" = "governance" ]; then
-            height=$((current + 40))
-        else
-            height=$((current + 20))
-        fi
+        height=$((current + 40))
     fi
 
     log_info "=== Upgrading chain ==="
