@@ -2,7 +2,7 @@ package keeper
 
 import (
 	"context"
-	"slices"
+	"sort"
 
 	sdkerrors "cosmossdk.io/errors"
 	"cosmossdk.io/math"
@@ -10,11 +10,11 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	gnfdtypes "github.com/evmos/evmos/v12/types"
-	"github.com/evmos/evmos/v12/types/errors"
-	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
-	sptypes "github.com/evmos/evmos/v12/x/sp/types"
-	"github.com/evmos/evmos/v12/x/virtualgroup/types"
+	gnfdtypes "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/errors"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
 type msgServer struct {
@@ -76,14 +76,6 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 	if !sp.IsInService() && !sp.IsInMaintenance() {
 		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("sp is not in service or in maintenance, status: %s", sp.Status.String())
 	}
-
-	// The primary SP is implicitly part of the group already; listing it again as a
-	// secondary would make two entries share one statistics record, and the batch
-	// write below is last-write-wins, so one of the two count increments is lost.
-	if _, ok := spIDSet[sp.Id]; ok {
-		return nil, types.ErrDuplicateSecondarySP.Wrapf("the primary SP(id=%d) can not also be a secondary SP of the Global virtual group.", sp.Id)
-	}
-
 	gvgStatisticsWithinSPs := make([]*types.GVGStatisticsWithinSP, 0, 1+len(req.SecondarySpIds))
 	stat := k.GetOrCreateGVGStatisticsWithinSP(ctx, sp.Id)
 	stat.PrimaryCount++
@@ -115,17 +107,18 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 		if !found {
 			return nil, types.ErrGVGNotExist
 		}
-		// Compare the whole list. Matching only as far as the request reached treated
-		// a longer stored group that merely starts with it as a duplicate.
-		if slices.Equal(gvg.SecondarySpIds, secondarySpIDs) {
-			return nil, types.ErrDuplicateGVG.Wrapf("the global virtual group family already has a GVG with same SP in same order")
+		for i, secondarySPId := range gvg.SecondarySpIds {
+			if secondarySPId != secondarySpIDs[i] {
+				break
+			}
+			if i == len(secondarySpIDs)-1 {
+				return nil, types.ErrDuplicateGVG.Wrapf("the global virtual group family already has a GVG with same SP in same order")
+			}
 		}
 	}
 
-	// Each family supports only a limited number of GVGS. The group below is
-	// appended after this check, so the family must be under the limit, not at it.
-	//nolint:gosec // the family length is bounded by the limit this very check enforces
-	if k.MaxGlobalVirtualGroupNumPerFamily(ctx) <= uint32(len(gvgFamily.GlobalVirtualGroupIds)) {
+	// Each family supports only a limited number of GVGS
+	if k.MaxGlobalVirtualGroupNumPerFamily(ctx) < uint32(len(gvgFamily.GlobalVirtualGroupIds)) {
 		return nil, types.ErrLimitationExceed.Wrapf("The gvg number within the family exceeds the limit.")
 	}
 
@@ -402,15 +395,22 @@ func (k msgServer) Settle(goCtx context.Context, req *types.MsgSettle) (*types.M
 			return nil, types.ErrSettleFailed
 		}
 	} else {
-		// Walk the request's id order, which is the same on every node; the map
-		// only skips duplicates, since ranging it randomizes order.
+		// Range a sorted slice rather than the dedup map: Go randomizes map
+		// iteration order, so a request naming a settleable and an unknown GVG
+		// settles a different number of them before erroring on each node, and
+		// the resulting GasUsed difference diverges LastResultsHash.
 		seen := make(map[uint32]struct{}, len(req.GlobalVirtualGroupIds))
+		gvgIDs := make([]uint32, 0, len(req.GlobalVirtualGroupIds))
 		for _, gvgID := range req.GlobalVirtualGroupIds {
 			if _, ok := seen[gvgID]; ok {
 				continue
 			}
 			seen[gvgID] = struct{}{}
+			gvgIDs = append(gvgIDs, gvgID)
+		}
+		sort.Slice(gvgIDs, func(i, j int) bool { return gvgIDs[i] < gvgIDs[j] })
 
+		for _, gvgID := range gvgIDs {
 			gvg, found := k.GetGVG(ctx, gvgID)
 			if !found {
 				return nil, types.ErrGVGNotExist
