@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"sort"
 
 	sdkerrors "cosmossdk.io/errors"
 	"cosmossdk.io/math"
@@ -395,22 +394,16 @@ func (k msgServer) Settle(goCtx context.Context, req *types.MsgSettle) (*types.M
 			return nil, types.ErrSettleFailed
 		}
 	} else {
-		// Range a sorted slice rather than the dedup map: Go randomizes map
-		// iteration order, so a request naming a settleable and an unknown GVG
-		// settles a different number of them before erroring on each node, and
-		// the resulting GasUsed difference diverges LastResultsHash.
+		// Walk the request's own id order, which every node sees identically,
+		// instead of ranging the map, whose order Go randomizes. The map is
+		// still what skips duplicates, as before.
 		seen := make(map[uint32]struct{}, len(req.GlobalVirtualGroupIds))
-		gvgIDs := make([]uint32, 0, len(req.GlobalVirtualGroupIds))
 		for _, gvgID := range req.GlobalVirtualGroupIds {
 			if _, ok := seen[gvgID]; ok {
 				continue
 			}
 			seen[gvgID] = struct{}{}
-			gvgIDs = append(gvgIDs, gvgID)
-		}
-		sort.Slice(gvgIDs, func(i, j int) bool { return gvgIDs[i] < gvgIDs[j] })
 
-		for _, gvgID := range gvgIDs {
 			gvg, found := k.GetGVG(ctx, gvgID)
 			if !found {
 				return nil, types.ErrGVGNotExist
