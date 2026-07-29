@@ -294,6 +294,7 @@ func TestPolicy_StatementWithoutResources(t *testing.T) {
 		name            string
 		policyAction    types.ActionType
 		policyEffect    types.Effect
+		policyResources []string
 		operateAction   types.ActionType
 		operateResource string
 		expectEffect    types.Effect
@@ -344,6 +345,24 @@ func TestPolicy_StatementWithoutResources(t *testing.T) {
 			operateAction: types.ACTION_UPDATE_BUCKET_INFO,
 			expectEffect:  types.EFFECT_DENY,
 		},
+		{
+			name:            "empty_resources_deny_reaches_object",
+			policyAction:    types.ACTION_TYPE_ALL,
+			policyEffect:    types.EFFECT_DENY,
+			policyResources: []string{},
+			operateAction:   types.ACTION_GET_OBJECT,
+			operateResource: object,
+			expectEffect:    types.EFFECT_DENY,
+		},
+		{
+			name:            "empty_resources_allow_does_not_reach_object",
+			policyAction:    types.ACTION_TYPE_ALL,
+			policyEffect:    types.EFFECT_ALLOW,
+			policyResources: []string{},
+			operateAction:   types.ACTION_GET_OBJECT,
+			operateResource: object,
+			expectEffect:    types.EFFECT_UNSPECIFIED,
+		},
 	}
 
 	for _, tt := range tests {
@@ -354,8 +373,9 @@ func TestPolicy_StatementWithoutResources(t *testing.T) {
 				ResourceId:   math.OneUint(),
 				Statements: []*types.Statement{
 					{
-						Effect:  tt.policyEffect,
-						Actions: []types.ActionType{tt.policyAction},
+						Effect:    tt.policyEffect,
+						Actions:   []types.ActionType{tt.policyAction},
+						Resources: tt.policyResources,
 					},
 				},
 			}

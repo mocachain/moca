@@ -130,12 +130,12 @@ func (s *Statement) Eval(action ActionType, opts *VerifyOptions) (Effect, *State
 	// A statement naming no Resources is bucket-scoped. An Allow stays bucket-only, so no
 	// existing grant is widened; a Deny also applies to sub-resources, otherwise an owner's
 	// bucket-wide deny is silently voided by a competing resource-scoped Allow (MOCA-808).
-	if opts != nil && opts.Resource != "" && s.Resources == nil && s.Effect != EFFECT_DENY {
+	if opts != nil && opts.Resource != "" && len(s.Resources) == 0 && s.Effect != EFFECT_DENY {
 		return EFFECT_UNSPECIFIED, nil
 	}
 	// If 'resource' is not nil, and 's.Resource' is also not nil, it indicates that we should verify whether
 	// the resource that the user intends to access matches any items in 's.Resource'
-	if opts != nil && opts.Resource != "" && s.Resources != nil {
+	if opts != nil && opts.Resource != "" && len(s.Resources) > 0 {
 		isMatch := false
 		for _, res := range s.Resources {
 			reg := regexp.MustCompile(res)
