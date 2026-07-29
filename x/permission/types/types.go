@@ -227,8 +227,7 @@ func bucketActionRequiresResources(action ActionType) bool {
 		ACTION_GET_OBJECT,
 		ACTION_EXECUTE_OBJECT,
 		ACTION_UPDATE_OBJECT_INFO,
-		ACTION_UPDATE_OBJECT_CONTENT,
-		ACTION_TYPE_ALL:
+		ACTION_UPDATE_OBJECT_CONTENT:
 		return true
 	default:
 		return false
