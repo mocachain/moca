@@ -42,7 +42,7 @@ rm -rf "$THIRD_PARTY_DIR/cosmos_proto_tmp"
 	git remote add origin "https://github.com/cosmos/evm.git"
 	git config core.sparseCheckout true
 	printf "proto\n" > .git/info/sparse-checkout
-	git pull origin v0.6.0
+	git pull origin v0.6.1
 	mkdir -p ../cosmos
 	cp -r ./proto/cosmos/evm ../cosmos/
 )
