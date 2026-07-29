@@ -394,9 +394,8 @@ func (k msgServer) Settle(goCtx context.Context, req *types.MsgSettle) (*types.M
 			return nil, types.ErrSettleFailed
 		}
 	} else {
-		// Walk the request's own id order, which every node sees identically,
-		// instead of ranging the map, whose order Go randomizes. The map is
-		// still what skips duplicates, as before.
+		// Walk the request's id order, which is the same on every node; the map
+		// only skips duplicates, since ranging it randomizes order.
 		seen := make(map[uint32]struct{}, len(req.GlobalVirtualGroupIds))
 		for _, gvgID := range req.GlobalVirtualGroupIds {
 			if _, ok := seen[gvgID]; ok {

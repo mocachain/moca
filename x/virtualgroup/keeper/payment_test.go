@@ -365,13 +365,9 @@ func (s *TestSuite) TestSettleAndDistributeGVG_Guards() {
 	require.Error(s.T(), s.virtualgroupKeeper.SettleAndDistributeGVG(s.ctx, noSecondaries))
 }
 
-// Settle takes a caller-supplied list of GVG ids and errors on the first one it
-// cannot find. If the ids are visited in a random order, a request naming both a
-// settleable and an unknown GVG settles a varying number of them before failing,
-// so the same message consumes different gas on different nodes. GasUsed feeds
-// LastResultsHash, so that difference diverges the block hash across validators.
-// Drive one such request repeatedly and require the gas to be identical every
-// time; ranging the dedup map directly yields more than one total.
+// A request naming both a settleable and an unknown GVG must consume the same
+// gas every time; settling a varying number of groups before the error would
+// give nodes different GasUsed for the same message.
 func (s *TestSuite) TestSettle_GasIsIndependentOfGVGIDOrder() {
 	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
 
