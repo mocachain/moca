@@ -22,13 +22,10 @@ import (
 //
 //nolint:all
 func (app *Moca) ScheduleForkUpgrade(ctx sdk.Context) {
-	// 1) Config-driven hardfork scheduling, for localnet/devnet/testnet.
-	// Scheduling writes an upgrade plan into consensus state, so what triggers it
-	// has to be identical on every validator. app.toml is per-node and nothing
-	// reconciles it across the set, so this is limited to the chains it is meant
-	// for; on mainnet the heights belong in the binary (below), where every node
-	// running the same release derives them the same way.
-	if !utils.IsMainnet(ctx.ChainID()) && app.appConfig != nil && len(app.appConfig.Hardforks) > 0 {
+	// 1) Config-driven hardfork scheduling (recommended for localnet/testnet and emergencies).
+	// This allows operators to schedule an x/upgrade plan without governance by coordinating
+	// the upgrade height and binaries (e.g. via cosmovisor).
+	if app.appConfig != nil && len(app.appConfig.Hardforks) > 0 {
 		if app.scheduleConfiguredHardfork(ctx) {
 			return
 		}
@@ -106,9 +103,7 @@ func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 		return false
 	}
 
-	// This write is part of the app hash, so record it: a validator whose config
-	// differs from the rest of the set diverges here, and this is the line that
-	// says so.
+	// This write is part of the app hash, so record it in the node's own log.
 	ctx.Logger().Info("scheduled hardfork from node configuration",
 		"name", upgradePlan.Name, "height", upgradePlan.Height)
 

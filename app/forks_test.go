@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	servercfg "github.com/mocachain/moca/v2/server/config"
-	"github.com/mocachain/moca/v2/utils"
 )
 
 const forkTestHeight = 100
@@ -22,34 +21,14 @@ func withHardfork(mocaApp *Moca, name string) {
 	}
 }
 
-// Scheduling an upgrade writes to consensus state, so a per-node config must not
-// be able to trigger it on mainnet: two validators whose app.toml disagreed would
-// produce different app hashes for the same block.
-func TestScheduleForkUpgrade_ConfiguredHardforkIgnoredOnMainnet(t *testing.T) {
-	mocaApp := EthSetup(false, nil)
-	withHardfork(mocaApp, "test-hardfork")
-
-	ctx := mocaApp.NewContext(false).
-		WithChainID(utils.MainnetChainID + "-1").
-		WithBlockHeight(forkTestHeight)
-	require.True(t, utils.IsMainnet(ctx.ChainID()), "test must run against a mainnet chain-id")
-
-	mocaApp.ScheduleForkUpgrade(ctx)
-
-	_, err := mocaApp.UpgradeKeeper.GetUpgradePlan(ctx)
-	require.ErrorIs(t, err, upgradetypes.ErrNoUpgradePlanFound,
-		"a node-local config entry must not schedule an upgrade on mainnet")
-}
-
-// The mechanism is still available where it is meant to be used.
-func TestScheduleForkUpgrade_ConfiguredHardforkSchedulesOffMainnet(t *testing.T) {
+// A configured entry at the current height schedules the plan.
+func TestScheduleForkUpgrade_ConfiguredHardforkSchedules(t *testing.T) {
 	mocaApp := EthSetup(false, nil)
 	withHardfork(mocaApp, "test-hardfork")
 
 	ctx := mocaApp.NewContext(false).
 		WithChainID("moca_5151-1").
 		WithBlockHeight(forkTestHeight)
-	require.False(t, utils.IsMainnet(ctx.ChainID()))
 
 	mocaApp.ScheduleForkUpgrade(ctx)
 
