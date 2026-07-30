@@ -364,3 +364,47 @@ func (s *TestSuite) TestSettleAndDistributeGVG_Guards() {
 	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.NewInt(100), nil)
 	require.Error(s.T(), s.virtualgroupKeeper.SettleAndDistributeGVG(s.ctx, noSecondaries))
 }
+
+// A request naming both a settleable and an unknown GVG must consume the same
+// gas every time; settling a varying number of groups before the error would
+// give nodes different GasUsed for the same message.
+func (s *TestSuite) TestSettle_GasIsIndependentOfGVGIDOrder() {
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+
+	existingGVGID := uint32(1)
+	missingGVGID := uint32(999999)
+	secondarySpID := uint32(10)
+
+	gvg := &types.GlobalVirtualGroup{
+		Id:                    existingGVGID,
+		SecondarySpIds:        []uint32{secondarySpID},
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+		TotalDeposit:          math.ZeroInt(),
+	}
+	s.virtualgroupKeeper.SetGVG(s.ctx, gvg)
+
+	sp := &sptypes.StorageProvider{Id: secondarySpID, FundingAddress: sample.RandAccAddress().String()}
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), secondarySpID).Return(sp, true).AnyTimes()
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.NewInt(100), nil).AnyTimes()
+	s.paymentKeeper.EXPECT().Withdraw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	req := &types.MsgSettle{
+		StorageProvider:       sample.RandAccAddress().String(),
+		GlobalVirtualGroupIds: []uint32{existingGVGID, missingGVGID},
+	}
+
+	baseCtx := s.ctx
+	gasReadings := make(map[uint64]int)
+	const iterations = 200
+
+	for i := 0; i < iterations; i++ {
+		callCtx := baseCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+		_, err := msgServer.Settle(callCtx, req)
+		require.ErrorIs(s.T(), err, types.ErrGVGNotExist)
+		gasReadings[callCtx.GasMeter().GasConsumed()]++
+	}
+
+	require.Lenf(s.T(), gasReadings, 1,
+		"the same MsgSettle must consume the same gas on every node; saw %d different totals over %d calls: %v",
+		len(gasReadings), iterations, gasReadings)
+}
