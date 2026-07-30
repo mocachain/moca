@@ -77,3 +77,23 @@ func TestScheduleForkUpgrade_AlreadyScheduledIsIdempotent(t *testing.T) {
 	require.Equal(t, "test-hardfork", plan.Name)
 	require.Equal(t, int64(forkTestHeight), plan.Height)
 }
+
+// A configured entry claims its height even when it is skipped, so the caller
+// must not fall through to the code-driven fork list. That list is empty today,
+// so this pins the contract before a case is added at a height an operator has
+// also configured.
+func TestScheduleConfiguredHardfork_SkippedEntryStillClaimsHeight(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	withHardfork(mocaApp, "config-hardfork")
+
+	ctx := mocaApp.NewContext(false).
+		WithChainID("moca_5151-1").
+		WithBlockHeight(forkTestHeight)
+
+	// An unrelated plan makes the configured entry take the skip path.
+	require.NoError(t, mocaApp.UpgradeKeeper.ScheduleUpgrade(ctx,
+		upgradetypes.Plan{Name: "gov-upgrade", Height: forkTestHeight + 50}))
+
+	require.True(t, mocaApp.scheduleConfiguredHardfork(ctx),
+		"a skipped entry must still report the height as claimed")
+}

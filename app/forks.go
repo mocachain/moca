@@ -61,8 +61,10 @@ func (app *Moca) ScheduleForkUpgrade(ctx sdk.Context) {
 }
 
 // scheduleConfiguredHardfork checks if theres a hardfork configured for the
-// current block height and schedules it. Returns true if a hardfork was found
-// and handled (either scheduled or already present).
+// current block height and schedules it. Returns true if this height is claimed
+// by configuration — scheduled, already present, or deliberately left alone —
+// which tells the caller not to also consult the code-driven fork list. Only a
+// height with no entry returns false.
 func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 	heightKey := strconv.FormatInt(ctx.BlockHeight(), 10)
 	entry, ok := app.appConfig.Hardforks[heightKey]
@@ -84,11 +86,11 @@ func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 		ctx.Logger().Error("ignoring configured hardfork: an upgrade plan is already set",
 			"configured", entry.Name, "height", ctx.BlockHeight(),
 			"existing", existing.Name, "existingHeight", existing.Height)
-		return false
+		return true
 	case !errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
 		ctx.Logger().Error("skipping configured hardfork: cannot read the existing upgrade plan",
 			"configured", entry.Name, "height", ctx.BlockHeight(), "error", err)
-		return false
+		return true
 	}
 
 	// 3. Schedule the upgrade
@@ -100,7 +102,7 @@ func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 	if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, upgradePlan); err != nil {
 		ctx.Logger().Error("failed to schedule configured hardfork",
 			"configured", entry.Name, "height", ctx.BlockHeight(), "error", err)
-		return false
+		return true
 	}
 
 	// This write is part of the app hash, so record it in the node's own log.
