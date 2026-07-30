@@ -127,14 +127,15 @@ func NewMemberStatement() *Statement {
 }
 
 func (s *Statement) Eval(action ActionType, opts *VerifyOptions) (Effect, *Statement) {
-	// If 'resource' is not nil, it implies that the user intends to access a sub-resource, which would
-	// be specified in 's.Resources'. Therefore, if the sub-resource in the statement is nil, we will ignore this statement.
-	if opts != nil && opts.Resource != "" && s.Resources == nil {
+	// A statement naming no Resources is bucket-scoped. An Allow stays bucket-only, so no
+	// existing grant is widened; a Deny also applies to sub-resources, otherwise an owner's
+	// bucket-wide deny is silently voided by a competing resource-scoped Allow (MOCA-808).
+	if opts != nil && opts.Resource != "" && len(s.Resources) == 0 && s.Effect != EFFECT_DENY {
 		return EFFECT_UNSPECIFIED, nil
 	}
 	// If 'resource' is not nil, and 's.Resource' is also not nil, it indicates that we should verify whether
 	// the resource that the user intends to access matches any items in 's.Resource'
-	if opts != nil && opts.Resource != "" && s.Resources != nil {
+	if opts != nil && opts.Resource != "" && len(s.Resources) > 0 {
 		isMatch := false
 		for _, res := range s.Resources {
 			reg := regexp.MustCompile(res)
@@ -182,6 +183,13 @@ func (s *Statement) ValidateBasic(resType resource.ResourceType) error {
 	case resource.RESOURCE_TYPE_UNSPECIFIED:
 		return ErrInvalidStatement.Wrap("Please specify the ResourceType explicitly. Not allowed set RESOURCE_TYPE_UNSPECIFIED")
 	case resource.RESOURCE_TYPE_BUCKET:
+		if len(s.Resources) == 0 {
+			for _, a := range s.Actions {
+				if bucketActionRequiresResources(a) {
+					return ErrInvalidStatement.Wrapf("%s requires Resources when used on a bucket.", a.String())
+				}
+			}
+		}
 		for _, r := range s.Resources {
 			var grn gnfd.GRN
 			err := grn.ParseFromString(r, true)
@@ -211,6 +219,20 @@ func (s *Statement) ValidateBasic(resType resource.ResourceType) error {
 		return ErrInvalidStatement.Wrap("unknown resource type.")
 	}
 	return nil
+}
+
+func bucketActionRequiresResources(action ActionType) bool {
+	switch action {
+	case ACTION_DELETE_OBJECT,
+		ACTION_COPY_OBJECT,
+		ACTION_GET_OBJECT,
+		ACTION_EXECUTE_OBJECT,
+		ACTION_UPDATE_OBJECT_INFO,
+		ACTION_UPDATE_OBJECT_CONTENT:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Statement) ValidateRuntime(_ sdk.Context, resType resource.ResourceType) error {
