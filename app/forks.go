@@ -73,21 +73,26 @@ func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 		return false
 	}
 
-	// 2. Check for existing upgrade plan. This runs in BeginBlock, so returning an
-	// error is not an option and panicking would stop the chain with no way back;
-	// log and leave the plan alone instead. A plan that is already set was put
-	// there by governance, which is coordinated on-chain, so it takes precedence
-	// over this node's config.
+	// 2. Check for an existing upgrade plan. A configured hardfork is the path for
+	// an emergency that cannot wait on a proposal, so it takes precedence over an
+	// upgrade that is only pending: ScheduleUpgrade below replaces the stored plan
+	// and clears the old plan's IBC state. This used to panic on any mismatch,
+	// which stopped the node in BeginBlock with nothing to recover to.
 	existing, err := app.UpgradeKeeper.GetUpgradePlan(ctx)
 	switch {
 	case err == nil && existing.Name == entry.Name && existing.Height == ctx.BlockHeight():
 		return true // This has already been scheduled..., exit early.
+	case err == nil && existing.Height > ctx.BlockHeight():
+		ctx.Logger().Warn("superseding a pending upgrade plan with the configured hardfork",
+			"superseded", existing.Name, "supersededHeight", existing.Height,
+			"configured", entry.Name, "height", ctx.BlockHeight())
 	case err == nil:
-		ctx.Logger().Error("ignoring configured hardfork: an upgrade plan is already set",
-			"configured", entry.Name, "height", ctx.BlockHeight(),
-			"existing", existing.Name, "existingHeight", existing.Height)
-		return true
+		// At or before this height it cannot still be waiting to be applied.
+		ctx.Logger().Warn("replacing a stale upgrade plan with the configured hardfork",
+			"stale", existing.Name, "staleHeight", existing.Height,
+			"configured", entry.Name, "height", ctx.BlockHeight())
 	case !errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
+		// Nothing about the stored plan can be trusted, so do not overwrite it.
 		ctx.Logger().Error("skipping configured hardfork: cannot read the existing upgrade plan",
 			"configured", entry.Name, "height", ctx.BlockHeight(), "error", err)
 		return true
