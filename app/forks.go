@@ -22,10 +22,13 @@ import (
 //
 //nolint:all
 func (app *Moca) ScheduleForkUpgrade(ctx sdk.Context) {
-	// 1) Config-driven hardfork scheduling (recommended for localnet/testnet and emergencies).
-	// This allows operators to schedule an x/upgrade plan without governance by coordinating
-	// the upgrade height and binaries (e.g. via cosmovisor).
-	if app.appConfig != nil && len(app.appConfig.Hardforks) > 0 {
+	// 1) Config-driven hardfork scheduling, for localnet/devnet/testnet.
+	// Scheduling writes an upgrade plan into consensus state, so what triggers it
+	// has to be identical on every validator. app.toml is per-node and nothing
+	// reconciles it across the set, so this is limited to the chains it is meant
+	// for; on mainnet the heights belong in the binary (below), where every node
+	// running the same release derives them the same way.
+	if !utils.IsMainnet(ctx.ChainID()) && app.appConfig != nil && len(app.appConfig.Hardforks) > 0 {
 		if app.scheduleConfiguredHardfork(ctx) {
 			return
 		}
@@ -71,18 +74,24 @@ func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 		return false
 	}
 
-	// 2. Check for existing upgrade plan
+	// 2. Check for existing upgrade plan. This runs in BeginBlock, so returning an
+	// error is not an option and panicking would stop the chain with no way back;
+	// log and leave the plan alone instead. A plan that is already set was put
+	// there by governance, which is coordinated on-chain, so it takes precedence
+	// over this node's config.
 	existing, err := app.UpgradeKeeper.GetUpgradePlan(ctx)
 	switch {
 	case err == nil && existing.Name == entry.Name && existing.Height == ctx.BlockHeight():
 		return true // This has already been scheduled..., exit early.
 	case err == nil:
-		panic(fmt.Errorf(
-			"hardfork config wants to schedule upgrade %q at height %d but existing upgrade plan is %q at height %d",
-			entry.Name, ctx.BlockHeight(), existing.Name, existing.Height,
-		)) // this should never happen, panic.
+		ctx.Logger().Error("ignoring configured hardfork: an upgrade plan is already set",
+			"configured", entry.Name, "height", ctx.BlockHeight(),
+			"existing", existing.Name, "existingHeight", existing.Height)
+		return false
 	case !errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
-		panic(fmt.Errorf("failed to read existing upgrade plan: %w", err))
+		ctx.Logger().Error("skipping configured hardfork: cannot read the existing upgrade plan",
+			"configured", entry.Name, "height", ctx.BlockHeight(), "error", err)
+		return false
 	}
 
 	// 3. Schedule the upgrade
@@ -92,9 +101,16 @@ func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 		Info:   entry.Info, // optional, empty string if not set
 	}
 	if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, upgradePlan); err != nil {
-		panic(fmt.Errorf("failed to schedule upgrade %s at height %d: %w",
-			upgradePlan.Name, ctx.BlockHeight(), err))
+		ctx.Logger().Error("failed to schedule configured hardfork",
+			"configured", entry.Name, "height", ctx.BlockHeight(), "error", err)
+		return false
 	}
+
+	// This write is part of the app hash, so record it: a validator whose config
+	// differs from the rest of the set diverges here, and this is the line that
+	// says so.
+	ctx.Logger().Info("scheduled hardfork from node configuration",
+		"name", upgradePlan.Name, "height", upgradePlan.Height)
 
 	return true
 }
