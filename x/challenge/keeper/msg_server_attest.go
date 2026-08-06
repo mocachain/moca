@@ -106,7 +106,9 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 			if (slashedAmount.Add(toSlashAmount)).GT(maxSlashAmount) {
 				ctx.Logger().Info("slash amount exceed the max allow amount",
 					"toSlashAmount", toSlashAmount, "slashedAmount", slashedAmount)
-				toSlashAmount = sdkmath.ZeroInt()
+				// Slash whatever room is left under the cap. The first slash in a
+				// window is not capped, so the total can already be over it.
+				toSlashAmount = sdkmath.MaxInt(maxSlashAmount.Sub(slashedAmount), sdkmath.ZeroInt())
 			}
 		}
 
