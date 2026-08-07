@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"slices"
 
 	sdkerrors "cosmossdk.io/errors"
 	"cosmossdk.io/math"
@@ -106,13 +107,10 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 		if !found {
 			return nil, types.ErrGVGNotExist
 		}
-		for i, secondarySPId := range gvg.SecondarySpIds {
-			if secondarySPId != secondarySpIDs[i] {
-				break
-			}
-			if i == len(secondarySpIDs)-1 {
-				return nil, types.ErrDuplicateGVG.Wrapf("the global virtual group family already has a GVG with same SP in same order")
-			}
+		// Compare the whole list. Matching only as far as the request reached treated
+		// a longer stored group that merely starts with it as a duplicate.
+		if slices.Equal(gvg.SecondarySpIds, secondarySpIDs) {
+			return nil, types.ErrDuplicateGVG.Wrapf("the global virtual group family already has a GVG with same SP in same order")
 		}
 	}
 
