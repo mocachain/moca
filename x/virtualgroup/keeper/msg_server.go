@@ -507,7 +507,7 @@ func (k msgServer) CompleteStorageProviderExit(goCtx context.Context, msg *types
 
 	if err = ctx.EventManager().EmitTypedEvents(&types.EventCompleteStorageProviderExit{
 		StorageProviderId:      sp.Id,
-		OperatorAddress:        msg.Operator,
+		OperatorAddress:        sdk.MustAccAddressFromHex(msg.Operator).String(),
 		StorageProviderAddress: sp.OperatorAddress,
 		TotalDeposit:           sp.TotalDeposit,
 		ForcedExit:             forcedExit,
