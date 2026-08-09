@@ -114,8 +114,10 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 		}
 	}
 
-	// Each family supports only a limited number of GVGS
-	if k.MaxGlobalVirtualGroupNumPerFamily(ctx) < uint32(len(gvgFamily.GlobalVirtualGroupIds)) {
+	// Each family supports only a limited number of GVGS. The group below is
+	// appended after this check, so the family must be under the limit, not at it.
+	//nolint:gosec // the family length is bounded by the limit this very check enforces
+	if k.MaxGlobalVirtualGroupNumPerFamily(ctx) <= uint32(len(gvgFamily.GlobalVirtualGroupIds)) {
 		return nil, types.ErrLimitationExceed.Wrapf("The gvg number within the family exceeds the limit.")
 	}
 
