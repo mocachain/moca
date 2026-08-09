@@ -419,7 +419,7 @@ func (s *TestSuite) TestCreateGlobalVirtualGroup_FamilyAtLimitIsRejected() {
 
 	secondarySpIDs := []uint32{2, 3, 4, 5, 6, 7}
 	storageKeeper.EXPECT().GetExpectSecondarySPNumForECObject(gomock.Any(), gomock.Any()).
-		Return(uint32(len(secondarySpIDs))).AnyTimes()
+		Return(uint32(len(secondarySpIDs))).AnyTimes() //nolint:gosec // fixed-size test fixture
 
 	spOperator := sample.RandAccAddress()
 	primarySP := &sptypes.StorageProvider{
