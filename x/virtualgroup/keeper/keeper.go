@@ -513,6 +513,7 @@ func (k Keeper) StorageProviderExitable(ctx sdk.Context, spID uint32) error {
 	// The deposit must stay in the module account while a challenge can still be attested against
 	// the SP, otherwise it is refunded before the slash runs. The lock cannot be extended once the
 	// SP is out of every GVG, because no new challenge can name an SP that stores nothing.
+	//nolint:gosec // block height is never negative
 	if lockedUntil := k.spKeeper.GetDepositLockUntil(ctx, spID); uint64(ctx.BlockHeight()) < lockedUntil {
 		return types.ErrSPCanNotExit.Wrapf("deposit is locked for pending challenges until height %d", lockedUntil)
 	}
