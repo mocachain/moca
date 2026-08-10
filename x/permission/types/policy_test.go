@@ -16,6 +16,13 @@ import (
 	"github.com/mocachain/moca/v2/x/permission/types"
 )
 
+const (
+	objInvoicePDF  = "invoice.pdf"
+	objAlternation = "(draft|final)"
+	objTestPrefix  = "test_*"
+	escalationBkt  = "escalation-bucket"
+)
+
 func TestPolicy_BucketBasic(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -311,26 +318,26 @@ func TestPolicy_SubResourceWildcardMatching(t *testing.T) {
 		},
 		{
 			name:          "dot_is_literal_not_any_character",
-			policyObject:  "invoice.pdf",
+			policyObject:  objInvoicePDF,
 			operateObject: "invoiceXpdf",
 			expectEffect:  types.EFFECT_UNSPECIFIED,
 		},
 		{
 			name:          "dot_still_matches_itself",
-			policyObject:  "invoice.pdf",
-			operateObject: "invoice.pdf",
+			policyObject:  objInvoicePDF,
+			operateObject: objInvoicePDF,
 			expectEffect:  types.EFFECT_ALLOW,
 		},
 		{
 			name:          "alternation_is_literal",
-			policyObject:  "(draft|final)",
+			policyObject:  objAlternation,
 			operateObject: "draft",
 			expectEffect:  types.EFFECT_UNSPECIFIED,
 		},
 		{
 			name:          "alternation_still_matches_itself",
-			policyObject:  "(draft|final)",
-			operateObject: "(draft|final)",
+			policyObject:  objAlternation,
+			operateObject: objAlternation,
 			expectEffect:  types.EFFECT_ALLOW,
 		},
 		{
@@ -341,19 +348,19 @@ func TestPolicy_SubResourceWildcardMatching(t *testing.T) {
 		},
 		{
 			name:          "prefix_wildcard_matches_documented_prefix",
-			policyObject:  "test_*",
+			policyObject:  objTestPrefix,
 			operateObject: "test_abc",
 			expectEffect:  types.EFFECT_ALLOW,
 		},
 		{
 			name:          "prefix_wildcard_does_not_drop_its_last_literal",
-			policyObject:  "test_*",
+			policyObject:  objTestPrefix,
 			operateObject: "testify.pdf",
 			expectEffect:  types.EFFECT_UNSPECIFIED,
 		},
 		{
 			name:          "prefix_wildcard_does_not_match_other_prefix",
-			policyObject:  "test_*",
+			policyObject:  objTestPrefix,
 			operateObject: "prod_abc",
 			expectEffect:  types.EFFECT_UNSPECIFIED,
 		},
@@ -544,7 +551,7 @@ func TestPolicy_StatementWithoutResources(t *testing.T) {
 // used regexp.MustCompile on the stored value directly, which panics on an
 // invalid pattern instead of returning an error; the `if reg == nil` guard
 // right after it is unreachable because MustCompile never returns nil, it
-// panics. This is defence in depth for that already-stored state: Eval must
+// panics. This is defense in depth for that already-stored state: Eval must
 // treat an unparsable pattern as "does not match" rather than crash the
 // caller (a message handler or the unauthenticated VerifyPermission query).
 func TestPolicy_EvalDoesNotPanicOnUnparsableResourceRegex(t *testing.T) {
@@ -582,7 +589,7 @@ func TestPolicy_EvalDoesNotPanicOnUnparsableResourceRegex(t *testing.T) {
 // unanchored. Anchored matching drops that reach, so a bucket-wide Allow in the
 // same policy wins for those names: EFFECT_DENY becomes EFFECT_ALLOW.
 func TestResources_AnchoredDenyNoLongerReachesLongerNames(t *testing.T) {
-	bucket := "escalation-bucket"
+	bucket := escalationBkt
 	policy := types.Policy{
 		Principal:    types.NewPrincipalWithAccount(sample.RandAccAddress()),
 		ResourceType: resource.RESOURCE_TYPE_BUCKET,
@@ -618,7 +625,7 @@ func TestResources_AnchoredDenyNoLongerReachesLongerNames(t *testing.T) {
 // who wrote an actual regular expression, which is what Eval compiled until now.
 // The expression becomes a literal name, so it stops denying anything real.
 func TestResources_RegexpDenyBecomesLiteral(t *testing.T) {
-	bucket := "escalation-bucket"
+	bucket := escalationBkt
 	policy := types.Policy{
 		Principal:    types.NewPrincipalWithAccount(sample.RandAccAddress()),
 		ResourceType: resource.RESOURCE_TYPE_BUCKET,
@@ -645,7 +652,7 @@ func TestResources_RegexpDenyBecomesLiteral(t *testing.T) {
 // naming an object whose real name contains '?' or '*' now also reaches the
 // siblings that character spans, because the pattern syntax has no escape.
 func TestResources_WildcardCharInAnObjectNameWidensAnAllow(t *testing.T) {
-	bucket := "escalation-bucket"
+	bucket := escalationBkt
 	policy := types.Policy{
 		Principal:    types.NewPrincipalWithAccount(sample.RandAccAddress()),
 		ResourceType: resource.RESOURCE_TYPE_BUCKET,

@@ -141,8 +141,8 @@ func (s *TestSuite) TestPutPolicy_MaximumStatementsNum() {
 		return stmts
 	}
 
-	max := s.permissionKeeper.MaximumStatementsNum(s.ctx)
-	s.Require().Equal(types.DefaultMaxStatementsNum, max, "test assumes the default cap is in effect")
+	capNum := int(s.permissionKeeper.MaximumStatementsNum(s.ctx)) //nolint:gosec // a statement cap is small
+	s.Require().Equal(int(types.DefaultMaxStatementsNum), capNum, "test assumes the default cap is in effect")
 
 	// Exactly at the cap must still be accepted.
 	atCap := types.Policy{
@@ -152,7 +152,7 @@ func (s *TestSuite) TestPutPolicy_MaximumStatementsNum() {
 		},
 		ResourceType: 1,
 		ResourceId:   math.NewUint(rand.Uint64()), //nolint: gosec
-		Statements:   makeStatements(int(max)),
+		Statements:   makeStatements(capNum),
 	}
 	_, err := s.permissionKeeper.PutPolicy(s.ctx, &atCap)
 	s.Require().NoError(err, "a policy with exactly MaximumStatementsNum statements must be accepted")
@@ -165,7 +165,7 @@ func (s *TestSuite) TestPutPolicy_MaximumStatementsNum() {
 		},
 		ResourceType: 1,
 		ResourceId:   math.NewUint(rand.Uint64()), //nolint: gosec
-		Statements:   makeStatements(int(max) + 1),
+		Statements:   makeStatements(capNum + 1),
 	}
 	_, err = s.permissionKeeper.PutPolicy(s.ctx, &overCap)
 	s.Require().Error(err, "a policy exceeding MaximumStatementsNum must be rejected")
