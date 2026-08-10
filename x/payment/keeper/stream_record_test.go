@@ -1426,3 +1426,133 @@ func TestForceSettle_FreezesOutFlowsAcrossCycle(t *testing.T) {
 	require.Nil(t, keeper.GetOutFlow(ctx, peer, types.OUT_FLOW_STATUS_ACTIVE, payer))
 	require.NotNil(t, keeper.GetOutFlow(ctx, peer, types.OUT_FLOW_STATUS_FROZEN, payer))
 }
+
+// TestAutoResume_MultiBatch_ChargesOnlyRealActiveWindow reproduces MOCA-1073.
+//
+// When an account's auto-resume spans multiple blocks (OutFlowCount exceeds
+// MaxAutoResumeFlowCount), AutoResume raises NetflowRate one batch per block but
+// leaves CrudTimestamp pinned at resume-start until the final batch flips the
+// account back to ACTIVE and settles. That final settlement debits the
+// fully-restored rate across the whole elapsed window, charging the payer for
+// time during which most flows were not yet active. The excess is destroyed:
+// debited from the payer but credited to no recipient.
+//
+// The existing multi-block tests never advance block time between AutoResume
+// calls, so the stale window is zero and the bug is invisible. This test
+// advances time one block per batch, the way a real chain does.
+func TestAutoResume_MultiBatch_ChargesOnlyRealActiveWindow(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	params := keeper.GetParams(ctx)
+	params.MaxAutoResumeFlowCount = 1 // restore one frozen flow per block
+	_ = keeper.SetParams(ctx, params)
+	reserveTime := sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime)
+
+	const (
+		flowRate    = int64(100)
+		numFlows    = 3
+		blockStride = int64(100) // seconds between resume batches
+	)
+	fullRate := sdkmath.NewInt(flowRate * numFlows) // -(-300) magnitude
+
+	t0 := int64(1_000_000_000)
+	ctx = ctx.WithBlockTime(time.Unix(t0, 0))
+
+	user := sample.RandAccAddress()
+	// Extra static beyond the reserved buffer so the account stays solvent and no
+	// force-settle noise obscures the measurement.
+	extraStatic := sdkmath.NewInt(1_000_000_000)
+
+	streamRecord := &types.StreamRecord{
+		StaticBalance:     sdkmath.ZeroInt(),
+		BufferBalance:     sdkmath.ZeroInt(),
+		LockBalance:       sdkmath.ZeroInt(),
+		Account:           user.String(),
+		Status:            types.STREAM_ACCOUNT_STATUS_FROZEN,
+		NetflowRate:       sdkmath.ZeroInt(),
+		FrozenNetflowRate: fullRate.Neg(),
+		OutFlowCount:      numFlows,
+		CrudTimestamp:     t0,
+	}
+	keeper.SetStreamRecord(ctx, streamRecord)
+
+	recipients := make([]sdk.AccAddress, numFlows)
+	for i := 0; i < numFlows; i++ {
+		recipients[i] = sample.RandAccAddress()
+		keeper.SetOutFlow(ctx, user, &types.OutFlow{
+			ToAddress: recipients[i].String(),
+			Rate:      sdkmath.NewInt(flowRate),
+			Status:    types.OUT_FLOW_STATUS_FROZEN,
+		})
+	}
+
+	// Deposit exactly the reserve buffer plus the extra static.
+	deposit := fullRate.Mul(reserveTime).Add(extraStatic)
+	err := keeper.TryResumeStreamRecord(ctx, streamRecord, deposit)
+	require.NoError(t, err)
+
+	sr, _ := keeper.GetStreamRecord(ctx, user)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, sr.Status,
+		"account must enqueue for multi-batch resume, not resume directly")
+	require.Equal(t, extraStatic, sr.StaticBalance,
+		"after reserving the buffer, static balance is the extra deposit")
+	staticAtResumeStart := sr.StaticBalance
+
+	// Drive one resume batch per block, advancing block time each block.
+	var tn int64
+	for b := 1; b <= numFlows; b++ {
+		tn = t0 + blockStride*int64(b)
+		ctx = ctx.WithBlockTime(time.Unix(tn, 0))
+		keeper.AutoResume(ctx)
+	}
+
+	sr, _ = keeper.GetStreamRecord(ctx, user)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, sr.Status)
+	require.Equal(t, fullRate.Neg(), sr.NetflowRate)
+	require.True(t, sr.FrozenNetflowRate.IsZero())
+
+	// Correct charge: flow restored at block (t0 + stride*b) is active only over
+	// [restore_b, tn]. Equal rates make the total order-independent.
+	correctCharge := int64(0)
+	for b := 1; b <= numFlows; b++ {
+		restore := t0 + blockStride*int64(b)
+		correctCharge += flowRate * (tn - restore)
+	}
+	correctStatic := staticAtResumeStart.SubRaw(correctCharge)
+
+	buggyCharge := fullRate.Int64() * (tn - t0) // full rate across the whole window
+	destroyed := buggyCharge - correctCharge
+
+	t.Logf("resume-start t0=%d  final settle tn=%d  window=%ds", t0, tn, tn-t0)
+	t.Logf("static at resume-start            : %s", staticAtResumeStart)
+	t.Logf("correct charge (per-flow window)  : %d  -> correct static %s", correctCharge, correctStatic)
+	t.Logf("buggy charge (fullRate x window)  : %d -> buggy static  %s", buggyCharge, staticAtResumeStart.SubRaw(buggyCharge))
+	t.Logf("payer static (actual)             : %s", sr.StaticBalance)
+	t.Logf("funds destroyed (debited, credited to nobody): %d", destroyed)
+
+	// Recipients only ever accrue from the block their own flow was restored, so
+	// the total credited across recipients equals the correct charge — never the
+	// buggy full-window charge. This holds before and after the fix and is the
+	// proof the excess debit is destroyed rather than redistributed.
+	creditedToRecipients := int64(0)
+	for _, r := range recipients {
+		_, err := keeper.UpdateStreamRecordByAddr(ctx, types.NewDefaultStreamRecordChangeWithAddr(r))
+		require.NoError(t, err)
+		rr, _ := keeper.GetStreamRecord(ctx, r)
+		creditedToRecipients += rr.StaticBalance.Int64()
+	}
+	require.Equal(t, correctCharge, creditedToRecipients,
+		"recipients are credited only for their real active window")
+
+	// Conservation: everything the payer holds (static + reserved buffer) plus
+	// everything the recipients were credited must equal the deposit that entered
+	// the system. The buggy path leaves this short by exactly `destroyed`.
+	systemHeld := sr.StaticBalance.Add(sr.BufferBalance).AddRaw(creditedToRecipients)
+	require.Equal(t, deposit, systemHeld,
+		"payment accounting must conserve the deposit; short by %d amoca (destroyed)", destroyed)
+
+	// The regression assertion: the payer must be charged only for the windows
+	// each flow was actually active.
+	require.Equal(t, correctStatic, sr.StaticBalance,
+		"payer overcharged by %d amoca over the stale resume window (funds destroyed)", destroyed)
+}
