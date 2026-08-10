@@ -2,6 +2,7 @@ package types
 
 import (
 	"regexp"
+	"strings"
 	"time"
 
 	"cosmossdk.io/math"
@@ -126,6 +127,20 @@ func NewMemberStatement() *Statement {
 	}
 }
 
+// resourceMatcher compiles a statement resource into an anchored matcher. Resources are the
+// wildcard patterns documented on GRN and on the Statement.resources field, not regexps: '*'
+// matches any sequence of characters and '?' matches exactly one, everything else is literal.
+// Escaping first and re-expanding only those two tokens keeps a resource name that happens to
+// contain a metacharacter (object names are near-arbitrary UTF-8) from being read as a regexp,
+// and anchoring keeps a pattern from matching a longer sibling name it merely prefixes.
+func resourceMatcher(res string) (*regexp.Regexp, error) {
+	expr := regexp.QuoteMeta(res)
+	expr = strings.ReplaceAll(expr, `\*`, ".*")
+	expr = strings.ReplaceAll(expr, `\?`, ".")
+	// (?s) so the wildcards also span the newlines an object name is allowed to contain.
+	return regexp.Compile(`^(?s:` + expr + `)$`)
+}
+
 func (s *Statement) Eval(action ActionType, opts *VerifyOptions) (Effect, *Statement) {
 	// A statement naming no Resources is bucket-scoped. An Allow stays bucket-only, so no
 	// existing grant is widened; a Deny also applies to sub-resources, otherwise an owner's
@@ -138,8 +153,11 @@ func (s *Statement) Eval(action ActionType, opts *VerifyOptions) (Effect, *State
 	if opts != nil && opts.Resource != "" && len(s.Resources) > 0 {
 		isMatch := false
 		for _, res := range s.Resources {
-			reg := regexp.MustCompile(res)
-			if reg == nil {
+			// A pattern that cannot compile is treated as "does not match" rather than
+			// panicking, so a Statement already in state cannot crash a message handler or
+			// the VerifyPermission query (MOCA-971).
+			reg, err := resourceMatcher(res)
+			if err != nil {
 				continue
 			}
 			matchRes := reg.MatchString(opts.Resource)
@@ -239,9 +257,9 @@ func (s *Statement) ValidateRuntime(_ sdk.Context, resType resource.ResourceType
 	switch resType {
 	case resource.RESOURCE_TYPE_BUCKET:
 		for _, r := range s.Resources {
-			_, err := regexp.Compile(r)
+			_, err := resourceMatcher(r)
 			if err != nil {
-				return ErrInvalidStatement.Wrapf("The Resources regexp compile failed, err: %s", err)
+				return ErrInvalidStatement.Wrapf("The Resources pattern is not usable, err: %s", err)
 			}
 		}
 	case resource.RESOURCE_TYPE_OBJECT:

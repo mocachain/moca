@@ -140,7 +140,40 @@ func (k Keeper) updatePolicy(ctx sdk.Context, policy, newPolicy *types.Policy) *
 	return policy
 }
 
+// storedStatementsNum returns the statement count of the policy this write would replace,
+// or 0 when the write creates a new one.
+func (k Keeper) storedStatementsNum(ctx sdk.Context, policy *types.Policy) int {
+	var (
+		stored *types.Policy
+		found  bool
+	)
+	switch policy.Principal.Type {
+	case types.PRINCIPAL_TYPE_GNFD_ACCOUNT:
+		stored, found = k.GetPolicyForAccount(ctx, policy.ResourceId, policy.ResourceType,
+			policy.Principal.MustGetAccountAddress())
+	case types.PRINCIPAL_TYPE_GNFD_GROUP:
+		stored, found = k.GetPolicyForGroup(ctx, policy.ResourceId, policy.ResourceType,
+			policy.Principal.MustGetGroupID())
+	}
+	if !found {
+		return 0
+	}
+	return len(stored.Statements)
+}
+
 func (k Keeper) PutPolicy(ctx sdk.Context, policy *types.Policy) (math.Uint, error) {
+	// MaximumStatementsNum was readable but never enforced, so a policy could carry an
+	// unbounded number of Statements (MOCA-965). The cap bounds how far a policy may grow and
+	// is deliberately not applied to a write that adds no statement: a policy stored before
+	// the cap was enforced, or before a governance change lowered it, may already exceed it,
+	// and x/storage/keeper/permission.go panics on any error from this function when it writes
+	// back the LimitSize quota decrement for such a policy.
+	if maxStatements := k.MaximumStatementsNum(ctx); uint64(len(policy.Statements)) > maxStatements &&
+		len(policy.Statements) > k.storedStatementsNum(ctx, policy) {
+		return math.ZeroUint(), types.ErrLimitExceeded.Wrapf("statements number limit to %d, actual %d",
+			maxStatements, len(policy.Statements))
+	}
+
 	store := ctx.KVStore(k.storeKey)
 	var newPolicy *types.Policy
 	switch policy.Principal.Type {

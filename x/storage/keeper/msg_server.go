@@ -389,6 +389,15 @@ func (k msgServer) PutPolicy(goCtx context.Context, msg *types.MsgPutPolicy) (*t
 		}
 	}
 
+	// MOCA-963/964/971: ValidateRuntime had no caller, so its checks on bucket-level
+	// actions, on Resources naming a non-bucket resource, and on LimitSize without
+	// CreateObject never ran — ValidateBasic covers none of them. Run it here, which also
+	// covers the EVM storage precompile's PutPolicy: that calls this same
+	// msgServer.PutPolicy (see precompiles/storage/tx.go and app.go's wiring).
+	if err := msg.ValidateRuntime(ctx); err != nil {
+		return nil, err
+	}
+
 	policy := &permtypes.Policy{
 		ResourceType:   grn.ResourceType(),
 		Principal:      msg.Principal,
