@@ -42,24 +42,64 @@ func (k Keeper) SaveChallenge(ctx sdk.Context, challenge types.Challenge) {
 	store.Set(getChallengeKeyBytes(challenge.Id), heightBytes)
 }
 
+// SaveChallengeSpID records which sp a challenge was raised against. The attestation resolves
+// the sp from this binding instead of from live state, so the sp cannot escape the slash by
+// leaving the virtual group that stores the object.
+func (k Keeper) SaveChallengeSpID(ctx sdk.Context, challengeID uint64, spID uint32) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeSpKeyPrefix)
+
+	spBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(spBytes, spID)
+
+	store.Set(getChallengeKeyBytes(challengeID), spBytes)
+}
+
+// GetChallengeSpID returns the sp a challenge was raised against. Challenges created before this
+// binding existed have none, in which case the caller falls back to resolving the sp from state.
+func (k Keeper) GetChallengeSpID(ctx sdk.Context, challengeID uint64) (uint32, bool) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeSpKeyPrefix)
+
+	bz := store.Get(getChallengeKeyBytes(challengeID))
+	if bz == nil {
+		return 0, false
+	}
+	return binary.BigEndian.Uint32(bz), true
+}
+
 // RemoveChallengeUntil removes challenges which are expired
 func (k Keeper) RemoveChallengeUntil(ctx sdk.Context, height uint64) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeKeyPrefix)
+	spStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeSpKeyPrefix)
 	iterator := storetypes.KVStorePrefixIterator(store, []byte{})
 	defer iterator.Close()
 
+	affected := make(map[uint32]struct{})
 	for ; iterator.Valid(); iterator.Next() {
 		expiredHeight := binary.BigEndian.Uint64(iterator.Value())
 		if expiredHeight <= height {
+			if bz := spStore.Get(iterator.Key()); bz != nil {
+				affected[binary.BigEndian.Uint32(bz)] = struct{}{}
+			}
 			store.Delete(iterator.Key())
+			spStore.Delete(iterator.Key())
 		}
+	}
+	for spID := range affected {
+		k.releaseDepositLock(ctx, spID)
 	}
 }
 
 // RemoveChallenge retires an attested challenge from the active set, making re-attestation idempotent.
 func (k Keeper) RemoveChallenge(ctx sdk.Context, challengeID uint64) {
-	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeKeyPrefix)
-	store.Delete(getChallengeKeyBytes(challengeID))
+	spID, bound := k.GetChallengeSpID(ctx, challengeID)
+
+	key := getChallengeKeyBytes(challengeID)
+	prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeKeyPrefix).Delete(key)
+	prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeSpKeyPrefix).Delete(key)
+
+	if bound {
+		k.releaseDepositLock(ctx, spID)
+	}
 }
 
 // ExistsChallenge check whether there exists ongoing challenge for an id
@@ -183,4 +223,35 @@ func (k Keeper) setGetChallengeCountCurrentBlock(ctx sdk.Context, challengeID ui
 // IncrChallengeCountCurrentBlock increases the count of challenge by one
 func (k Keeper) IncrChallengeCountCurrentBlock(ctx sdk.Context) {
 	k.setGetChallengeCountCurrentBlock(ctx, k.GetChallengeCountCurrentBlock(ctx)+1)
+}
+
+// depositLockUntil returns the furthest expiry among the challenges still open against an sp,
+// or zero when none remain.
+func (k Keeper) depositLockUntil(ctx sdk.Context, spID uint32) uint64 {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeKeyPrefix)
+	spStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.ChallengeSpKeyPrefix)
+	iterator := storetypes.KVStorePrefixIterator(spStore, []byte{})
+	defer iterator.Close()
+
+	var until uint64
+	for ; iterator.Valid(); iterator.Next() {
+		if binary.BigEndian.Uint32(iterator.Value()) != spID {
+			continue
+		}
+		bz := store.Get(iterator.Key())
+		if bz == nil {
+			continue
+		}
+		if height := binary.BigEndian.Uint64(bz); height > until {
+			until = height
+		}
+	}
+	return until
+}
+
+// releaseDepositLock re-derives an sp's deposit lock from what is still open against it. A
+// challenge that has been attested or has expired no longer holds the deposit, so an sp is not
+// kept waiting on a challenge that is already settled.
+func (k Keeper) releaseDepositLock(ctx sdk.Context, spID uint32) {
+	k.SpKeeper.ReleaseDepositLockUntil(ctx, spID, k.depositLockUntil(ctx, spID))
 }

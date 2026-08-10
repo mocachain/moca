@@ -67,6 +67,9 @@ func (s *TestSuite) SetupTest() {
 	s.spKeeper = spKeeper
 	s.paymentKeeper = paymentKeeper
 
+	// no pending challenge locks the deposit unless a test says otherwise
+	spKeeper.EXPECT().GetDepositLockUntil(gomock.Any(), gomock.Any()).Return(uint64(0)).AnyTimes()
+
 	err := s.virtualgroupKeeper.SetParams(s.ctx, types.DefaultParams())
 	s.Require().NoError(err)
 }

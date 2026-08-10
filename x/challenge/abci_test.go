@@ -232,8 +232,16 @@ func (s *TestSuite) TestEndBlocker_SuccessRandomChallenge() {
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).
 		Return(sp, true).AnyTimes()
 
+	// the auto-raised challenge must bind the sp and lock its deposit, the same as a
+	// submitted one: this is the path that raises most challenges on a live chain.
+	s.spKeeper.EXPECT().SetDepositLockUntil(gomock.Any(), gomock.Eq(sp.Id), gomock.Any()).Times(1)
+
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID-1)
+
+	boundSpID, bound := s.challengeKeeper.GetChallengeSpID(s.ctx, afterChallengeID)
+	s.Require().True(bound, "the auto-raised challenge must record the sp it names")
+	s.Require().Equal(sp.Id, boundSpID)
 }
