@@ -26,6 +26,7 @@ import (
 	"github.com/holiman/uint256"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/cosmos/evm/x/vm/store/snapshotmulti"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/contracts"
 	"github.com/mocachain/moca/v2/internal/sequence"
@@ -38,6 +39,7 @@ import (
 	permtypes "github.com/mocachain/moca/v2/x/permission/types"
 	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	"github.com/stretchr/testify/require"
 )
 
 type CreateGroupTestSuite struct {
@@ -438,4 +440,192 @@ func TestHeadObject_UnsealedObjectHasNoVirtualGroup(t *testing.T) {
 		require.NoError(t, err, name)
 		require.NotEmpty(t, out, name)
 	}
+}
+
+type DeleteGCBookkeepingTestSuite struct {
+	suite.Suite
+	ctx     sdk.Context
+	app     *app.Moca
+	address common.Address
+}
+
+func TestDeleteGCBookkeepingTestSuite(t *testing.T) {
+	suite.Run(t, new(DeleteGCBookkeepingTestSuite))
+}
+
+func (s *DeleteGCBookkeepingTestSuite) SetupTest() {
+	checkTx := false
+	chainID := utils.TestnetChainID + "-1"
+
+	s.app = app.EthSetup(checkTx, nil)
+	s.ctx = s.app.NewContext(checkTx)
+	s.address = common.HexToAddress("0x1111111111111111111111111111111111111111")
+
+	valConsAddr, privkey := utiltx.NewAddrKey()
+	pkAny, err := codectypes.NewAnyWithValue(privkey.PubKey())
+	s.Require().NoError(err)
+	validator := stakingtypes.Validator{
+		OperatorAddress: sdk.AccAddress(s.address.Bytes()).String(),
+		ConsensusPubkey: pkAny,
+	}
+	err = s.app.StakingKeeper.SetValidator(s.ctx, validator)
+	s.Require().NoError(err)
+	err = s.app.StakingKeeper.SetValidatorByConsAddr(s.ctx, validator)
+	s.Require().NoError(err)
+
+	safeTime := time.Date(2025, time.January, 10, 0, 0, 0, 0, time.UTC)
+	header := evmtestutil.NewHeader(1, safeTime, chainID, sdk.ConsAddress(valConsAddr.Bytes()), tmhash.Sum([]byte("app")), tmhash.Sum([]byte("validators")))
+	s.ctx = s.ctx.WithBlockHeader(header).WithChainID(chainID)
+
+	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(s.address.Bytes()), 1_000_000_000_000))
+
+	// createGroup mints a group NFT via an internal CallEVM whose sender is
+	// the group control hub; register that account or the mint fails with
+	// "account 0x...dEaD does not exist" before we ever reach the code under test.
+	controlHub := sdk.AccAddress(contracts.GroupControlHubAddress.Bytes())
+	s.app.AccountKeeper.SetAccount(s.ctx, s.app.AccountKeeper.NewAccountWithAddress(s.ctx, controlHub))
+
+	evmParams := s.app.EvmKeeper.GetParams(s.ctx)
+	evmParams.EvmDenom = utils.BaseDenom
+	evmParams.ActiveStaticPrecompiles = app.MocaActiveStaticPrecompiles()
+	s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, evmParams))
+}
+
+// callPrecompile runs input against the storage precompile through the real EVM
+// entry point, so the keeper sees the snapshot multi-store rather than the
+// plain block context.
+func (s *DeleteGCBookkeepingTestSuite) callPrecompile(input []byte) {
+	precompileAddr := storage.GetAddress()
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
+	s.Require().NoError(err)
+	s.Require().False(res.Failed(), "precompile call failed: %s", res.VmError)
+}
+
+func (s *DeleteGCBookkeepingTestSuite) packed(method string, args ...interface{}) []byte {
+	m := storage.GetAbiMethod(method)
+	packed, err := m.Inputs.Pack(args...)
+	s.Require().NoError(err)
+	return append(append([]byte{}, m.ID...), packed...)
+}
+
+// createGroupWithMember leaves the group in the state that makes DeleteGroup
+// reach the GC bookkeeping: a group that still has at least one member. It
+// returns the group id and the member, so callers can assert on the stale
+// membership the GC pipeline is supposed to reap.
+func (s *DeleteGCBookkeepingTestSuite) createGroupWithMember(groupName string) (sdkmath.Uint, sdk.AccAddress) {
+	s.callPrecompile(s.packed(storage.CreateGroupMethodName, groupName, ""))
+
+	member := common.HexToAddress("0x2222222222222222222222222222222222222222")
+	s.callPrecompile(s.packed(storage.UpdateGroupMethodName,
+		s.address, groupName, []common.Address{member}, []int64{0}, []common.Address{},
+	))
+
+	group, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(s.address.Bytes()), groupName)
+	s.Require().True(found)
+	memberAddr := sdk.AccAddress(member.Bytes())
+	_, found = s.app.PermissionKeeper.GetGroupMember(s.ctx, group.Id, memberAddr)
+	s.Require().True(found, "member must be recorded before delete, or the test does not reach the GC bookkeeping")
+	return group.Id, memberAddr
+}
+
+func (s *DeleteGCBookkeepingTestSuite) currentBlockDeleteInfo() []byte {
+	store := s.ctx.KVStore(s.app.GetKey(storagetypes.StoreKey))
+	return store.Get(storagetypes.CurrentBlockDeleteStalePoliciesKey)
+}
+
+// TestDeleteGroup_WithMember_ThroughPrecompile is the regression for the panic:
+// deleting a group that still has members reaches the delete-GC bookkeeping,
+// which used to panic inside the EVM's precompile snapshot store.
+func (s *DeleteGCBookkeepingTestSuite) TestDeleteGroup_WithMember_ThroughPrecompile() {
+	const groupName = "gc-bookkeeping-group"
+	s.createGroupWithMember(groupName)
+
+	s.callPrecompile(s.packed(storage.DeleteGroupMethodName, groupName))
+
+	_, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(s.address.Bytes()), groupName)
+	s.Require().False(found, "group should be deleted")
+
+	// Guard against the test silently passing through appendResourceIDForGarbageCollection's
+	// early return: the bookkeeping must actually have been written.
+	s.Require().NotNil(s.currentBlockDeleteInfo(), "delete-GC bookkeeping should have been recorded")
+}
+
+// TestDeleteGroup_BookkeepingDrainedByEndBlocker pins the invariant that keeps
+// this off the app hash: the bookkeeping key is written during the block and
+// removed again by EndBlocker, so it never reaches committed state.
+func (s *DeleteGCBookkeepingTestSuite) TestDeleteGroup_BookkeepingDrainedByEndBlocker() {
+	// EthSetup leaves x/storage params at their zero value, which would send
+	// EndBlocker down its DiscontinueDeletionMax == 0 early return; the full
+	// path is the one under test here.
+	s.Require().NoError(s.app.StorageKeeper.SetParams(s.ctx, storagetypes.DefaultParams()))
+
+	const groupName = "gc-drain-group"
+	groupID, member := s.createGroupWithMember(groupName)
+
+	s.callPrecompile(s.packed(storage.DeleteGroupMethodName, groupName))
+	s.Require().NotNil(s.currentBlockDeleteInfo(), "bookkeeping should exist before EndBlocker")
+
+	s.Require().NoError(storagekeeper.EndBlocker(s.ctx, s.app.StorageKeeper))
+
+	s.Require().Nil(s.currentBlockDeleteInfo(), "EndBlocker must drain the bookkeeping key")
+
+	// The bookkeeping is only worth keeping if it actually drives the cleanup:
+	// the stale membership of the deleted group must be gone.
+	_, found := s.app.PermissionKeeper.GetGroupMember(s.ctx, groupID, member)
+	s.Require().False(found, "stale group membership should have been garbage collected")
+}
+
+// TestDeleteGroup_BookkeepingDrainedWhenEndBlockerReturnsEarly covers
+// EndBlocker's early returns, which previously relied on the transient store
+// being thrown away at the end of the block. With DiscontinueDeletionMax == 0
+// EndBlocker bails out before persisting, and the key must still be gone.
+func (s *DeleteGCBookkeepingTestSuite) TestDeleteGroup_BookkeepingDrainedWhenEndBlockerReturnsEarly() {
+	s.Require().Zero(s.app.StorageKeeper.DiscontinueDeletionMax(s.ctx),
+		"this case relies on EndBlocker taking its DiscontinueDeletionMax == 0 early return")
+
+	const groupName = "gc-drain-early-return-group"
+	s.createGroupWithMember(groupName)
+
+	s.callPrecompile(s.packed(storage.DeleteGroupMethodName, groupName))
+	s.Require().NotNil(s.currentBlockDeleteInfo(), "bookkeeping should exist before EndBlocker")
+
+	s.Require().NoError(storagekeeper.EndBlocker(s.ctx, s.app.StorageKeeper))
+
+	s.Require().Nil(s.currentBlockDeleteInfo(),
+		"EndBlocker must drain the bookkeeping key even when it returns early")
+}
+
+// TestStorageStoreIsSnapshottedForPrecompiles pins both halves of the store
+// choice. The x/storage KV key is in the map cosmos/evm builds the precompile
+// snapshot store from, so a reverted frame rolls the bookkeeping back; the
+// transient key structurally cannot be there (the map is
+// map[string]*storetypes.KVStoreKey), which is what used to panic.
+func TestStorageStoreIsSnapshottedForPrecompiles(t *testing.T) {
+	a := app.EthSetup(false, nil)
+
+	keys := a.EvmKeeper.KVStoreKeys()
+	_, ok := keys[storagetypes.StoreKey]
+	require.True(t, ok, "x/storage KV store key must be in the precompile snapshot store")
+	_, tOK := keys[storagetypes.TStoreKey]
+	require.False(t, tOK, "a transient key can never be in the precompile snapshot store")
+
+	cms := a.CommitMultiStore().CacheMultiStore()
+	snap := snapshotmulti.NewStore(cms, keys)
+	storeKey := a.GetKey(storagetypes.StoreKey)
+	blob := []byte{0x0a, 0x00, 0x12, 0x00, 0x1a, 0x03, 0x0a, 0x01, 0x37}
+
+	idx := snap.Snapshot()
+	snap.GetKVStore(storeKey).Set(storagetypes.CurrentBlockDeleteStalePoliciesKey, blob)
+	require.NotNil(t, snap.GetKVStore(storeKey).Get(storagetypes.CurrentBlockDeleteStalePoliciesKey))
+
+	snap.RevertToSnapshot(idx)
+	require.Nil(t, snap.GetKVStore(storeKey).Get(storagetypes.CurrentBlockDeleteStalePoliciesKey),
+		"a reverted precompile frame must roll the delete-GC bookkeeping back")
+
+	snap.Snapshot()
+	snap.GetKVStore(storeKey).Set(storagetypes.CurrentBlockDeleteStalePoliciesKey, blob)
+	snap.Write()
+	require.NotNil(t, cms.GetKVStore(storeKey).Get(storagetypes.CurrentBlockDeleteStalePoliciesKey),
+		"a committed precompile frame must keep it for EndBlocker to drain")
 }

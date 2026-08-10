@@ -1,12 +1,16 @@
 package keeper_test
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/testutil"
@@ -14,6 +18,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
+	"github.com/mocachain/moca/v2/app"
 	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/challenge"
@@ -21,7 +26,9 @@ import (
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/storage/keeper"
 	"github.com/mocachain/moca/v2/x/storage/types"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 )
@@ -284,6 +291,86 @@ func (s *TestSuite) TestRunPaymentCheck_GetObjectLockFeeError() {
 	s.Require().ErrorContains(err, "get object lock fee failed")
 }
 
+// TestEndBlockerPaymentCheckFailure covers the storage EndBlocker's handling of
+// a RunPaymentCheck failure. The check is an opt-in node-local diagnostic
+// (app.toml [payment-check]) and is read-only, so a finding must not take the
+// node down: the EndBlocker logs it and returns nil. Reuses the
+// TestRunPaymentCheck_ShadowObjectNotFound fixture (an updating object with no
+// shadow entry) to make RunPaymentCheck return an error.
+func (s *TestSuite) TestEndBlockerPaymentCheckFailure() {
+	paymentAddr := "0x4444444444444444444444444444444444444444"
+
+	bucketInfo := &types.BucketInfo{
+		Owner:                      paymentAddr,
+		BucketName:                 "endblocker-check-bucket",
+		Id:                         sdkmath.NewUint(1),
+		PaymentAddress:             paymentAddr,
+		GlobalVirtualGroupFamilyId: 1,
+		ChargedReadQuota:           0,
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+	// Empty internal bucket info so GetBucketReadStoreBill short-circuits.
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketInfo.Id, &types.InternalBucketInfo{})
+
+	// Updating object with no shadow object stored -> RunPaymentCheck errors.
+	objectInfo := &types.ObjectInfo{
+		Id:           sdkmath.NewUint(1),
+		Owner:        paymentAddr,
+		BucketName:   bucketInfo.BucketName,
+		ObjectName:   "endblocker-check-object",
+		PayloadSize:  1024,
+		ObjectStatus: types.OBJECT_STATUS_SEALED,
+		IsUpdating:   true,
+		CreateAt:     s.ctx.BlockTime().Unix() + 1,
+	}
+	s.storageKeeper.StoreObjectInfo(s.ctx, objectInfo)
+
+	s.paymentKeeper.EXPECT().GetAllStreamRecord(gomock.Any()).
+		Return([]paymenttypes.StreamRecord{}).AnyTimes()
+
+	// Sanity: the fixture really makes the check fail.
+	s.Require().Error(s.storageKeeper.RunPaymentCheck(s.ctx))
+
+	// Enable the payment check at every height (block height 0 % 1 == 0).
+	keeper.InitPaymentCheck(*s.storageKeeper, true, 1)
+
+	var err error
+	s.Require().NotPanics(func() {
+		err = keeper.EndBlocker(s.ctx, *s.storageKeeper)
+	})
+	s.Require().NoError(err)
+}
+
+// TestEndBlockerPaymentCheckPanic covers the other half: RunPaymentCheck reads
+// stored state through Must*/parse helpers that panic on anything malformed
+// (sdk.MustAccAddressFromHex on a bucket's payment address here). The check is
+// opt-in, node-local and read-only, so that must not take the node down either
+// -- and it must not stop the EndBlocker from finishing its own work.
+func (s *TestSuite) TestEndBlockerPaymentCheckPanic() {
+	bucketInfo := &types.BucketInfo{
+		Owner:                      "0x4444444444444444444444444444444444444444",
+		BucketName:                 "panic-check-bucket",
+		Id:                         sdkmath.NewUint(1),
+		PaymentAddress:             "not-a-hex-address",
+		GlobalVirtualGroupFamilyId: 1,
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketInfo.Id, &types.InternalBucketInfo{})
+	s.paymentKeeper.EXPECT().GetAllStreamRecord(gomock.Any()).
+		Return([]paymenttypes.StreamRecord{}).AnyTimes()
+
+	// Sanity: the fixture really makes the check panic.
+	s.Require().Panics(func() { _ = s.storageKeeper.RunPaymentCheck(s.ctx) })
+
+	keeper.InitPaymentCheck(*s.storageKeeper, true, 1)
+
+	var err error
+	s.Require().NotPanics(func() {
+		err = keeper.EndBlocker(s.ctx, *s.storageKeeper)
+	})
+	s.Require().NoError(err)
+}
+
 func (s *TestSuite) TestGetObjectLockFee() {
 	primarySp := &sptypes.StorageProvider{Status: sptypes.STATUS_IN_SERVICE, Id: 100, OperatorAddress: sample.RandAccAddress().String()}
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Eq(primarySp.Id)).
@@ -492,4 +579,111 @@ func (s *TestSuite) TestGetBucketReadStoreBill() {
 	s.Require().Equal(flows.Flows[7].ToAddress, paymenttypes.ValidatorTaxPoolAddress.String())
 	taxPoolRate = params.VersionedParams.ValidatorTaxRate.MulInt(primaryStoreRate.Add(gvg2StoreRate)).TruncateInt()
 	s.Require().Equal(flows.Flows[7].Rate, taxPoolRate)
+}
+
+// The per-block delete-GC bookkeeping lives in the regular KV store, so the only
+// thing keeping it off the app hash is EndBlocker draining it within the block.
+// These run against the real app and inspect the committed IAVL store directly,
+// rather than a cache layer.
+
+type commitProbe struct {
+	t   *testing.T
+	app *app.Moca
+	key *storetypes.KVStoreKey
+}
+
+func newCommitProbe(t *testing.T) *commitProbe {
+	t.Helper()
+	a := app.EthSetupWithDB(false, nil, dbm.NewMemDB())
+	return &commitProbe{t: t, app: a, key: a.GetKey(storagetypes.StoreKey)}
+}
+
+// block branches the commit multi-store, runs body as the block's txs would,
+// optionally runs the storage EndBlocker, then writes and commits. It returns
+// the app hash.
+func (p *commitProbe) block(height int64, body func(sdk.Context), runEndBlocker bool) []byte {
+	p.t.Helper()
+	cms := p.app.CommitMultiStore()
+	ms := cms.CacheMultiStore()
+	ctx := sdk.NewContext(ms, tmproto.Header{Height: height}, false, log.NewNopLogger()).
+		WithGasMeter(storetypes.NewInfiniteGasMeter())
+
+	if body != nil {
+		body(ctx)
+	}
+	if runEndBlocker {
+		require.NoError(p.t, keeper.EndBlocker(ctx, p.app.StorageKeeper))
+	}
+	ms.Write()
+	return cms.Commit().Hash
+}
+
+// committed reads the key out of the committed IAVL store, past every cache.
+func (p *commitProbe) committed() []byte {
+	return p.app.CommitMultiStore().GetCommitKVStore(p.key).
+		Get(storagetypes.CurrentBlockDeleteStalePoliciesKey)
+}
+
+func (p *commitProbe) storageStoreHash() []byte {
+	return p.app.CommitMultiStore().GetCommitKVStore(p.key).LastCommitID().Hash
+}
+
+// writeDeleteInfo writes what appendResourceIDForGarbageCollection writes for a
+// single deleted group.
+func writeDeleteInfo(t *testing.T, ctx sdk.Context, key *storetypes.KVStoreKey) {
+	t.Helper()
+	di := &storagetypes.DeleteInfo{
+		BucketIds: &storagetypes.Ids{},
+		ObjectIds: &storagetypes.Ids{},
+		GroupIds:  &storagetypes.Ids{Id: []sdkmath.Uint{sdkmath.NewUint(7)}},
+	}
+	bz, err := di.Marshal()
+	require.NoError(t, err)
+	ctx.KVStore(key).Set(storagetypes.CurrentBlockDeleteStalePoliciesKey, bz)
+}
+
+// TestDeleteInfoNeverReachesCommittedState is the invariant the whole change
+// rests on.
+func TestDeleteInfoNeverReachesCommittedState(t *testing.T) {
+	p := newCommitProbe(t)
+
+	p.block(2, func(ctx sdk.Context) {
+		writeDeleteInfo(t, ctx, p.key)
+		require.NotNil(t, ctx.KVStore(p.key).Get(storagetypes.CurrentBlockDeleteStalePoliciesKey),
+			"precondition: the bookkeeping was written during the block")
+	}, true)
+
+	require.Nil(t, p.committed(), "the delete-GC bookkeeping key must not be in committed state")
+}
+
+// TestDeleteInfoLeakChangesAppHash is the negative control: if EndBlocker ever
+// does not run, the key lands in IAVL and the app hash moves.
+func TestDeleteInfoLeakChangesAppHash(t *testing.T) {
+	leaky := newCommitProbe(t)
+	leakedHash := leaky.block(2, func(ctx sdk.Context) { writeDeleteInfo(t, ctx, leaky.key) }, false)
+	require.NotNil(t, leaky.committed(), "sanity: without EndBlocker the key is committed")
+
+	clean := newCommitProbe(t)
+	cleanHash := clean.block(2, func(ctx sdk.Context) { writeDeleteInfo(t, ctx, clean.key) }, true)
+	require.Nil(t, clean.committed())
+
+	require.NotEqual(t, hex.EncodeToString(cleanHash), hex.EncodeToString(leakedHash),
+		"a leaked bookkeeping key changes the app hash")
+}
+
+// TestEndBlockerDeleteIsHashNeutral covers the other direction: EndBlocker
+// deletes the key on every block, including blocks where nothing wrote it. That
+// must not perturb the store.
+func TestEndBlockerDeleteIsHashNeutral(t *testing.T) {
+	withEB := newCommitProbe(t)
+	noEB := newCommitProbe(t)
+	for h := int64(2); h <= 6; h++ {
+		withEB.block(h, nil, true)
+		noEB.block(h, nil, false)
+	}
+	require.Equal(t,
+		hex.EncodeToString(noEB.storageStoreHash()),
+		hex.EncodeToString(withEB.storageStoreHash()),
+		"deleting an absent key every block must be hash-neutral")
+	require.Nil(t, withEB.committed())
 }
