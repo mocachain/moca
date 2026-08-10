@@ -123,7 +123,7 @@ func (s *TestSuite) TestPruneAccountPolicies() {
 	}
 }
 
-// TestPutPolicy_MaximumStatementsNum is a regression test for MOCA-965
+// TestPutPolicy_MaximumStatementsNum is a
 // : MaximumStatementsNum was defined and readable via
 // k.MaximumStatementsNum(ctx), but no caller ever checked a policy's statement
 // count against it, so PutPolicy accepted a Policy with an unbounded number of

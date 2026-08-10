@@ -127,12 +127,10 @@ func NewMemberStatement() *Statement {
 	}
 }
 
-// resourceMatcher compiles a statement resource into an anchored matcher. Resources are the
-// wildcard patterns documented on GRN and on the Statement.resources field, not regexps: '*'
-// matches any sequence of characters and '?' matches exactly one, everything else is literal.
-// Escaping first and re-expanding only those two tokens keeps a resource name that happens to
-// contain a metacharacter (object names are near-arbitrary UTF-8) from being read as a regexp,
-// and anchoring keeps a pattern from matching a longer sibling name it merely prefixes.
+// resourceMatcher compiles a resource pattern into an anchored matcher. Patterns are
+// wildcards, not regexps: '*' matches any run of characters, '?' matches one, the rest is
+// literal. Escaping first keeps a name containing a metacharacter from being read as an
+// expression; anchoring keeps a pattern off longer names it merely prefixes.
 func resourceMatcher(res string) (*regexp.Regexp, error) {
 	expr := regexp.QuoteMeta(res)
 	expr = strings.ReplaceAll(expr, `\*`, ".*")
@@ -144,7 +142,7 @@ func resourceMatcher(res string) (*regexp.Regexp, error) {
 func (s *Statement) Eval(action ActionType, opts *VerifyOptions) (Effect, *Statement) {
 	// A statement naming no Resources is bucket-scoped. An Allow stays bucket-only, so no
 	// existing grant is widened; a Deny also applies to sub-resources, otherwise an owner's
-	// bucket-wide deny is silently voided by a competing resource-scoped Allow (MOCA-808).
+	// bucket-wide deny is silently voided by a competing resource-scoped Allow.
 	if opts != nil && opts.Resource != "" && len(s.Resources) == 0 && s.Effect != EFFECT_DENY {
 		return EFFECT_UNSPECIFIED, nil
 	}
@@ -153,9 +151,8 @@ func (s *Statement) Eval(action ActionType, opts *VerifyOptions) (Effect, *State
 	if opts != nil && opts.Resource != "" && len(s.Resources) > 0 {
 		isMatch := false
 		for _, res := range s.Resources {
-			// A pattern that cannot compile is treated as "does not match" rather than
-			// panicking, so a Statement already in state cannot crash a message handler or
-			// the VerifyPermission query (MOCA-971).
+			// An uncompilable pattern does not match, rather than panicking: a statement
+			// already in state must not be able to fail a handler or a query.
 			reg, err := resourceMatcher(res)
 			if err != nil {
 				continue
