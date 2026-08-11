@@ -922,11 +922,8 @@ func (app *Moca) setPostHandler() {
 }
 
 // BeginBlocker runs the Tendermint ABCI BeginBlock logic. It executes state changes at the beginning
-// of the new block for every registered module. If there is a registered fork at the current height,
-// BeginBlocker will schedule the upgrade plan and perform the state migration (if any).
+// of the new block for every registered module. Scheduled forks are handled earlier, in PreBlocker.
 func (app *Moca) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
-	// Perform any scheduled forks before executing the modules logic
-	app.ScheduleForkUpgrade(ctx)
 	return app.mm.BeginBlock(ctx)
 }
 
@@ -984,7 +981,14 @@ func (app *Moca) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 
+// PreBlocker runs before every module's BeginBlock. Scheduled forks go here, not
+// in BeginBlock: the upgrade module applies a due plan from its own PreBlock
+// (cosmos-sdk#17421 moved it there from BeginBlock, see ADR-68), so a plan written
+// in BeginBlock is already too late for the block it names and does not take
+// effect until the next one. Writing it here, ahead of the upgrade module in the
+// pre-block order, applies it in the block the fork height actually names.
 func (app *Moca) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+	app.ScheduleForkUpgrade(ctx)
 	return app.mm.PreBlock(ctx)
 }
 
