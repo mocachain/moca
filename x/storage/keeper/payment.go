@@ -7,6 +7,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	"github.com/mocachain/moca/v2/utils"
 	"github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
@@ -111,7 +112,7 @@ func (k Keeper) GetBucketReadBill(ctx sdk.Context, bucketInfo *storagetypes.Buck
 func (k Keeper) UpdateBucketInfoAndCharge(ctx sdk.Context, bucketInfo *storagetypes.BucketInfo,
 	internalBucketInfo *storagetypes.InternalBucketInfo, newPaymentAddr string, newReadQuota uint64,
 ) error {
-	if bucketInfo.PaymentAddress != newPaymentAddr && bucketInfo.ChargedReadQuota != newReadQuota {
+	if !utils.SameAddressOrEmpty(bucketInfo.PaymentAddress, newPaymentAddr) && bucketInfo.ChargedReadQuota != newReadQuota {
 		return fmt.Errorf("payment address and read quota can not be changed at the same time")
 	}
 	err := k.ChargeViaBucketChange(ctx, bucketInfo, internalBucketInfo, func(bi *storagetypes.BucketInfo, _ *storagetypes.InternalBucketInfo) error {
@@ -350,7 +351,7 @@ func (k Keeper) ChargeViaBucketChange(ctx sdk.Context, bucketInfo *storagetypes.
 
 	isPreviousBucketLimited := k.IsBucketRateLimited(ctx, bucketInfo.BucketName)
 
-	if prevPaymentAccount == bucketInfo.PaymentAddress && isPreviousBucketLimited {
+	if utils.SameAddressOrEmpty(prevPaymentAccount, bucketInfo.PaymentAddress) && isPreviousBucketLimited {
 		return fmt.Errorf("payment account is not changed but the bucket is limited")
 	}
 
