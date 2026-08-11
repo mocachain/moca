@@ -36,9 +36,12 @@ import (
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	gnfdresource "github.com/mocachain/moca/v2/types/resource"
 	"github.com/mocachain/moca/v2/utils"
+	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	permtypes "github.com/mocachain/moca/v2/x/permission/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
+	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -489,6 +492,10 @@ func (s *DeleteGCBookkeepingTestSuite) SetupTest() {
 	evmParams.EvmDenom = utils.BaseDenom
 	evmParams.ActiveStaticPrecompiles = app.MocaActiveStaticPrecompiles()
 	s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, evmParams))
+
+	// this context does not carry the permission module's genesis params, which
+	// leaves the statement cap reading zero and rejects every policy write.
+	s.Require().NoError(s.app.PermissionKeeper.SetParams(s.ctx, permtypes.DefaultParams()))
 }
 
 // callPrecompile runs input against the storage precompile through the real EVM
@@ -527,6 +534,158 @@ func (s *DeleteGCBookkeepingTestSuite) createGroupWithMember(groupName string) (
 	_, found = s.app.PermissionKeeper.GetGroupMember(s.ctx, group.Id, memberAddr)
 	s.Require().True(found, "member must be recorded before delete, or the test does not reach the GC bookkeeping")
 	return group.Id, memberAddr
+}
+
+const (
+	testGVGFamilyID = uint32(1)
+	testGVGID       = uint32(1)
+	testLVGID       = uint32(1)
+	// module params have to predate the resources charged against them, and an
+	// object has to be older than the reserve time or its delete bills for the
+	// unused remainder and drags the whole payment stack into the fixture.
+	paramsAge   = 400 * 24 * time.Hour
+	resourceAge = 365 * 24 * time.Hour
+)
+
+// resourceTime is the creation time shared by the planted bucket and object.
+func (s *DeleteGCBookkeepingTestSuite) resourceTime() int64 {
+	return s.ctx.BlockTime().Add(-resourceAge).Unix()
+}
+
+// setupVirtualGroups plants the primary SP's family, group and a zero price, which
+// is what the object charge path walks before the delete itself runs. Zero prices
+// keep the flow list empty so no stream record has to exist.
+func (s *DeleteGCBookkeepingTestSuite) setupVirtualGroups() {
+	paramsCtx := s.ctx.WithBlockTime(s.ctx.BlockTime().Add(-paramsAge))
+	s.Require().NoError(s.app.StorageKeeper.SetParams(paramsCtx, storagetypes.DefaultParams()))
+	s.Require().NoError(s.app.PaymentKeeper.SetParams(paramsCtx, paymenttypes.DefaultParams()))
+
+	paymentAddr := sample.RandAccAddress().String()
+	s.app.VirtualgroupKeeper.SetGVGFamily(s.ctx, &vgtypes.GlobalVirtualGroupFamily{
+		Id:                    testGVGFamilyID,
+		PrimarySpId:           1,
+		GlobalVirtualGroupIds: []uint32{testGVGID},
+		VirtualPaymentAddress: paymentAddr,
+	})
+	s.app.VirtualgroupKeeper.SetGVG(s.ctx, &vgtypes.GlobalVirtualGroup{
+		Id:                    testGVGID,
+		FamilyId:              testGVGFamilyID,
+		PrimarySpId:           1,
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.app.SpKeeper.SetGlobalSpStorePrice(s.ctx, sptypes.GlobalSpStorePrice{
+		UpdateTimeSec:       s.ctx.BlockTime().Add(-paramsAge).Unix(),
+		ReadPrice:           sdkmath.LegacyZeroDec(),
+		PrimaryStorePrice:   sdkmath.LegacyZeroDec(),
+		SecondaryStorePrice: sdkmath.LegacyZeroDec(),
+	})
+}
+
+// grantPolicyOn leaves a policy on a resource held by an account other than the
+// owner. A group reaches the GC bookkeeping on membership alone, but a bucket or
+// an object only reaches it while a policy still refers to it.
+func (s *DeleteGCBookkeepingTestSuite) grantPolicyOn(resourceType gnfdresource.ResourceType, id sdkmath.Uint, action permtypes.ActionType) {
+	grantee := sdk.AccAddress(common.HexToAddress("0x3333333333333333333333333333333333333333").Bytes())
+	_, err := s.app.PermissionKeeper.PutPolicy(s.ctx, &permtypes.Policy{
+		Principal:    permtypes.NewPrincipalWithAccount(grantee),
+		ResourceType: resourceType,
+		ResourceId:   id,
+		Statements: []*permtypes.Statement{{
+			Effect:  permtypes.EFFECT_ALLOW,
+			Actions: []permtypes.ActionType{action},
+		}},
+	})
+	s.Require().NoError(err)
+	s.Require().True(s.app.PermissionKeeper.ExistAccountPolicyForResource(s.ctx, resourceType, id),
+		"the policy must be recorded, or the delete takes the early return and never reaches the bookkeeping")
+}
+
+// createBucketWithPolicy writes the least bucket state DeleteBucket accepts: no
+// objects and no charged read quota, which is what lets the bucket case skip the
+// virtual-group fixture entirely. Pass lvgs only when an object needs one.
+func (s *DeleteGCBookkeepingTestSuite) createBucketWithPolicy(bucketName string, bucketID sdkmath.Uint, lvgs []*storagetypes.LocalVirtualGroup) {
+	owner := sdk.AccAddress(s.address.Bytes())
+	s.app.StorageKeeper.SetBucketInfo(s.ctx, &storagetypes.BucketInfo{
+		Owner:                      owner.String(),
+		BucketName:                 bucketName,
+		Id:                         bucketID,
+		PaymentAddress:             owner.String(),
+		Visibility:                 storagetypes.VISIBILITY_TYPE_PRIVATE,
+		SourceType:                 storagetypes.SOURCE_TYPE_ORIGIN,
+		BucketStatus:               storagetypes.BUCKET_STATUS_CREATED,
+		ChargedReadQuota:           0,
+		GlobalVirtualGroupFamilyId: testGVGFamilyID,
+	})
+	s.app.StorageKeeper.SetInternalBucketInfo(s.ctx, bucketID, &storagetypes.InternalBucketInfo{
+		PriceTime:          s.resourceTime(),
+		LocalVirtualGroups: lvgs,
+	})
+
+	// SetBucketInfo only writes the by-id record; the name index is what a lookup
+	// by bucket name resolves through.
+	store := s.ctx.KVStore(s.app.GetKey(storagetypes.StoreKey))
+	bucketSeq := sequence.NewSequence[sdkmath.Uint](storagetypes.BucketSequencePrefix)
+	store.Set(storagetypes.GetBucketKey(bucketName), bucketSeq.EncodeSequence(bucketID))
+
+	s.grantPolicyOn(gnfdresource.RESOURCE_TYPE_BUCKET, bucketID, permtypes.ACTION_UPDATE_BUCKET_INFO)
+}
+
+// createObjectWithPolicy seals an empty object into an existing bucket. Sealed is
+// the status that reaches DeleteObject proper; a created object is routed to
+// CancelCreateObject instead, which is a different path.
+func (s *DeleteGCBookkeepingTestSuite) createObjectWithPolicy(bucketName, objectName string, objectID sdkmath.Uint) {
+	owner := sdk.AccAddress(s.address.Bytes())
+	s.app.StorageKeeper.SetObjectInfo(s.ctx, &storagetypes.ObjectInfo{
+		Owner:               owner.String(),
+		Creator:             owner.String(),
+		BucketName:          bucketName,
+		ObjectName:          objectName,
+		Id:                  objectID,
+		PayloadSize:         0,
+		Visibility:          storagetypes.VISIBILITY_TYPE_PRIVATE,
+		ObjectStatus:        storagetypes.OBJECT_STATUS_SEALED,
+		SourceType:          storagetypes.SOURCE_TYPE_ORIGIN,
+		LocalVirtualGroupId: testLVGID,
+		CreateAt:            s.resourceTime(),
+	})
+
+	store := s.ctx.KVStore(s.app.GetKey(storagetypes.StoreKey))
+	objectSeq := sequence.NewSequence[sdkmath.Uint](storagetypes.ObjectSequencePrefix)
+	store.Set(storagetypes.GetObjectKey(bucketName, objectName), objectSeq.EncodeSequence(objectID))
+
+	s.grantPolicyOn(gnfdresource.RESOURCE_TYPE_OBJECT, objectID, permtypes.ACTION_GET_OBJECT)
+}
+
+// TestDeleteBucket_WithPolicy_ThroughPrecompile covers the second of the three
+// delete paths that reach the shared bookkeeping. The resource type only selects
+// a branch of the switch, but deleteBucket is a distinct precompile entry point
+// and its own gate condition, so it is pinned separately from deleteGroup.
+func (s *DeleteGCBookkeepingTestSuite) TestDeleteBucket_WithPolicy_ThroughPrecompile() {
+	const bucketName = "gc-bookkeeping-bucket"
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(101), nil)
+
+	s.callPrecompile(s.packed(storage.DeleteBucketMethodName, bucketName))
+
+	_, found := s.app.StorageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().False(found, "bucket should be deleted")
+	s.Require().NotNil(s.currentBlockDeleteInfo(), "delete-GC bookkeeping should have been recorded")
+}
+
+// TestDeleteObject_WithPolicy_ThroughPrecompile covers the third path.
+func (s *DeleteGCBookkeepingTestSuite) TestDeleteObject_WithPolicy_ThroughPrecompile() {
+	const bucketName = "gc-bookkeeping-obj-bucket"
+	const objectName = "gc-bookkeeping-object"
+	s.setupVirtualGroups()
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(201), []*storagetypes.LocalVirtualGroup{
+		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
+	})
+	s.createObjectWithPolicy(bucketName, objectName, sdkmath.NewUint(202))
+
+	s.callPrecompile(s.packed(storage.DeleteObjectMethodName, bucketName, objectName))
+
+	_, found := s.app.StorageKeeper.GetObjectInfo(s.ctx, bucketName, objectName)
+	s.Require().False(found, "object should be deleted")
+	s.Require().NotNil(s.currentBlockDeleteInfo(), "delete-GC bookkeeping should have been recorded")
 }
 
 func (s *DeleteGCBookkeepingTestSuite) currentBlockDeleteInfo() []byte {
