@@ -73,18 +73,25 @@ func (k Keeper) RemoveChallengeUntil(ctx sdk.Context, height uint64) {
 	iterator := storetypes.KVStorePrefixIterator(store, []byte{})
 	defer iterator.Close()
 
-	affected := make(map[uint32]struct{})
+	// Record the sps in the order the iterator yields them, which is the same on every node,
+	// and use the set only to skip repeats: ranging a map would visit them in a random order.
+	var affected []uint32
+	seen := make(map[uint32]struct{})
 	for ; iterator.Valid(); iterator.Next() {
 		expiredHeight := binary.BigEndian.Uint64(iterator.Value())
 		if expiredHeight <= height {
 			if bz := spStore.Get(iterator.Key()); bz != nil {
-				affected[binary.BigEndian.Uint32(bz)] = struct{}{}
+				spID := binary.BigEndian.Uint32(bz)
+				if _, ok := seen[spID]; !ok {
+					seen[spID] = struct{}{}
+					affected = append(affected, spID)
+				}
 			}
 			store.Delete(iterator.Key())
 			spStore.Delete(iterator.Key())
 		}
 	}
-	for spID := range affected {
+	for _, spID := range affected {
 		k.releaseDepositLock(ctx, spID)
 	}
 }
