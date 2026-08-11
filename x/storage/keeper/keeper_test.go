@@ -1,14 +1,25 @@
 package keeper_test
 
 import (
+	"strings"
+
 	"encoding/binary"
 
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	"github.com/mocachain/moca/v2/internal/sequence"
 	"github.com/mocachain/moca/v2/testutil/sample"
+	types2 "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/common"
+	gnfdresource "github.com/mocachain/moca/v2/types/resource"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	permkeeper "github.com/mocachain/moca/v2/x/permission/keeper"
+	permtypes "github.com/mocachain/moca/v2/x/permission/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/storage/types"
 	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
@@ -169,7 +180,7 @@ func (s *TestSuite) setupMigratingBucket(dstSpID, srcFamilyID uint32) string {
 	return bucketName
 }
 
-// MOCA-741: CompleteMigrateBucket must reject a destination GVG family that does
+// : CompleteMigrateBucket must reject a destination GVG family that does
 // not belong to the destination SP (before the fix, this was accepted and the
 // bucket's primary SP was misattributed to the foreign family's owner).
 func (s *TestSuite) TestCompleteMigrateBucket_RejectsForeignFamily() {
@@ -234,4 +245,274 @@ func (s *TestSuite) TestCompleteMigrateBucket_AcceptsOwnFamily() {
 	s.Require().Equal(types.BUCKET_STATUS_CREATED, got.BucketStatus)
 	primarySP := s.storageKeeper.MustGetPrimarySPForBucket(s.ctx, got)
 	s.Require().Equal(dstSpID, primarySP.Id) // dst SP is now the bucket's primary SP
+}
+
+// TestPutPolicy_RunsValidateRuntime is a/964
+// (): MsgPutPolicy.ValidateRuntime existed but was never invoked
+// by any caller, so every check it performs — bucket-level actions, Resources
+// on a non-bucket resource, LimitSize without CreateObject — was dead. A
+// bucket-level statement naming a group-only action clears ValidateBasic (which
+// never consults BucketAllowedActionsAfterPampas) and must now be rejected.
+//
+// msgServer.PutPolicy is the single implementation shared by both write paths:
+// the native Cosmos tx path (x/storage/module.go registers
+// keeper.NewMsgServerImpl(k) as the module's MsgServer) and the EVM storage
+// precompile's PutPolicy (precompiles/storage/tx.go calls
+// p.storageMsgServer.PutPolicy, and app.go wires that field to the very same
+// keeper.NewMsgServerImpl(app.StorageKeeper)). Fixing it here closes both
+// and in one place.
+func (s *TestSuite) TestPutPolicy_RunsValidateRuntime() {
+	operator := sample.RandAccAddress()
+	bucketName := "putpolicy-runtime-bucket"
+
+	bucketInfo := &types.BucketInfo{
+		Owner:            operator.String(),
+		BucketName:       bucketName,
+		Id:               sdkmath.NewUint(1),
+		PaymentAddress:   sample.RandAccAddress().String(),
+		ChargedReadQuota: 100,
+		BucketStatus:     types.BUCKET_STATUS_CREATED,
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+
+	principal := sample.RandAccAddress()
+	msg := types.NewMsgPutPolicy(
+		operator,
+		types2.NewBucketGRN(bucketName).String(),
+		permtypes.NewPrincipalWithAccount(principal),
+		[]*permtypes.Statement{
+			{
+				Effect: permtypes.EFFECT_ALLOW,
+				// A group-only action on a bucket resource: ValidateBasic does not
+				// check the bucket action map, ValidateRuntime does.
+				Actions:   []permtypes.ActionType{permtypes.ACTION_UPDATE_GROUP_MEMBER},
+				Resources: []string{"grn:o::" + bucketName + "/obj"},
+			},
+		},
+		nil,
+	)
+	s.Require().NoError(msg.ValidateBasic(), "the statement must clear ValidateBasic for this test to be meaningful")
+
+	_, err := s.msgServer.PutPolicy(s.ctx, msg)
+	s.Require().Error(err, "PutPolicy must run MsgPutPolicy.ValidateRuntime")
+	s.Require().ErrorIs(err, permtypes.ErrInvalidStatement)
+}
+
+// TestPutPolicy_AcceptsRegexpMetacharacterInObjectName pins the accept path so
+// the previous test cannot pass merely by rejecting every PutPolicy call, and
+// pins that a Resources entry which is a legal object name but not a legal Go
+// regexp stays storable: Resources are wildcard patterns, not regexps.
+func (s *TestSuite) TestPutPolicy_AcceptsRegexpMetacharacterInObjectName() {
+	operator := sample.RandAccAddress()
+	bucketName := "putpolicy-metachar-bucket"
+
+	bucketInfo := &types.BucketInfo{
+		Owner:            operator.String(),
+		BucketName:       bucketName,
+		Id:               sdkmath.NewUint(1),
+		PaymentAddress:   sample.RandAccAddress().String(),
+		ChargedReadQuota: 100,
+		BucketStatus:     types.BUCKET_STATUS_CREATED,
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+
+	principal := sample.RandAccAddress()
+	msg := types.NewMsgPutPolicy(
+		operator,
+		types2.NewBucketGRN(bucketName).String(),
+		permtypes.NewPrincipalWithAccount(principal),
+		[]*permtypes.Statement{
+			{
+				Effect:    permtypes.EFFECT_ALLOW,
+				Actions:   []permtypes.ActionType{permtypes.ACTION_GET_OBJECT},
+				Resources: []string{"grn:o::" + bucketName + "/obj["},
+			},
+		},
+		nil,
+	)
+	s.Require().NoError(msg.ValidateBasic())
+
+	s.permissionKeeper.EXPECT().PutPolicy(gomock.Any(), gomock.Any()).Return(sdkmath.OneUint(), nil)
+
+	_, err := s.msgServer.PutPolicy(s.ctx, msg)
+	s.Require().NoError(err, "a legal object name that is not a legal regexp must remain storable")
+}
+
+// realPermissionKeeper mounts a real x/permission keeper on the suite's own
+// CommitMultiStore so VerifyPolicy exercises the production PutPolicy, not a mock.
+func (s *TestSuite) realPermissionKeeper() *permkeeper.Keeper {
+	permKey := storetypes.NewKVStoreKey(permtypes.StoreKey)
+	cms := s.ctx.MultiStore().(storetypes.CommitMultiStore)
+	cms.MountStoreWithDB(permKey, storetypes.StoreTypeIAVL, nil)
+	s.Require().NoError(cms.LoadLatestVersion())
+
+	ctrl := gomock.NewController(s.T())
+	k := permkeeper.NewKeeper(
+		s.cdc,
+		permKey,
+		permtypes.NewMockAccountKeeper(ctrl),
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+	s.Require().NoError(k.SetParams(s.ctx, permtypes.DefaultParams()))
+	return k
+}
+
+// TestPutPolicy_OverCapQuotaGrantStillConsumable reproduces the
+// risk in enforcing MaximumStatementsNum inside Keeper.PutPolicy: that same
+// function is the internal self-update path for a CreateObject LimitSize quota,
+// and x/storage/keeper/permission.go turns any error from it into a panic.
+//
+// A policy with more statements than the (never previously enforced) cap can
+// already be in state. The moment its CreateObject grant is consumed, Eval
+// hands the decremented policy back to PutPolicy, the new cap rejects it, and
+// the node panics -- for a policy nobody is trying to grow.
+func (s *TestSuite) TestPutPolicy_OverCapQuotaGrantStillConsumable() {
+	permKeeper := s.realPermissionKeeper()
+	grantee := sample.RandAccAddress()
+	resourceID := sdkmath.NewUint(4242)
+
+	// --- Pre-existing state: the cap was never enforced, so an over-cap policy
+	// could be written. Model that by storing it while the param is generous.
+	loose := permtypes.DefaultParams()
+	loose.MaximumStatementsNum = 50
+	s.Require().NoError(permKeeper.SetParams(s.ctx, loose))
+
+	stmts := make([]*permtypes.Statement, 0, 11)
+	for i := 0; i < 10; i++ {
+		stmts = append(stmts, &permtypes.Statement{
+			Effect:  permtypes.EFFECT_ALLOW,
+			Actions: []permtypes.ActionType{permtypes.ACTION_GET_OBJECT},
+		})
+	}
+	// The 11th is the CreateObject grant carrying the LimitSize quota.
+	stmts = append(stmts, &permtypes.Statement{
+		Effect:    permtypes.EFFECT_ALLOW,
+		Actions:   []permtypes.ActionType{permtypes.ACTION_CREATE_OBJECT},
+		LimitSize: &common.UInt64Value{Value: 1024 * 1024},
+	})
+
+	_, err := permKeeper.PutPolicy(s.ctx, &permtypes.Policy{
+		Principal:    permtypes.NewPrincipalWithAccount(grantee),
+		ResourceType: gnfdresource.RESOURCE_TYPE_BUCKET,
+		ResourceId:   resourceID,
+		Statements:   stmts,
+	})
+	s.Require().NoError(err, "over-cap policy must be storable to model pre-existing state")
+
+	// --- The cap is now in force at its default of 10.
+	s.Require().NoError(permKeeper.SetParams(s.ctx, permtypes.DefaultParams()))
+	s.Require().Equal(permtypes.DefaultMaxStatementsNum, permKeeper.MaximumStatementsNum(s.ctx))
+
+	// --- Wire the storage keeper's permission keeper to the real one and drive
+	// the exact production path: VerifyPolicy -> Eval -> PutPolicy -> panic.
+	s.permissionKeeper.EXPECT().
+		GetPolicyForAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.GetPolicyForAccount).AnyTimes()
+	s.permissionKeeper.EXPECT().
+		GetPolicyGroupForResource(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.GetPolicyGroupForResource).AnyTimes()
+	s.permissionKeeper.EXPECT().
+		PutPolicy(gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.PutPolicy).AnyTimes()
+
+	wanted := uint64(1000)
+	ctx := s.ctx.WithTxBytes([]byte{0x01}) // VerifyPolicy only self-updates inside a tx
+
+	s.Require().NotPanics(func() {
+		effect := s.storageKeeper.VerifyPolicy(ctx, resourceID, gnfdresource.RESOURCE_TYPE_BUCKET,
+			grantee, permtypes.ACTION_CREATE_OBJECT,
+			&permtypes.VerifyOptions{WantedSize: &wanted})
+		s.Require().Equal(permtypes.EFFECT_ALLOW, effect)
+	}, "consuming a pre-existing over-cap quota grant must not panic the node")
+
+	// and the decrement must actually have been persisted
+	after, found := permKeeper.GetPolicyForAccount(s.ctx, resourceID,
+		gnfdresource.RESOURCE_TYPE_BUCKET, grantee)
+	s.Require().True(found)
+	s.Require().Equal(uint64(1024*1024-1000), after.Statements[10].LimitSize.GetValue())
+}
+
+// TestVerifyBucketPermission_OverCapQuotaGrant shows the same panic reached
+// through the public VerifyBucketPermission entry point that CreateObject uses.
+func (s *TestSuite) TestVerifyBucketPermission_OverCapQuotaGrant() {
+	permKeeper := s.realPermissionKeeper()
+	grantee := sample.RandAccAddress()
+	owner := sample.RandAccAddress()
+	bucketID := sdkmath.NewUint(777)
+
+	loose := permtypes.DefaultParams()
+	loose.MaximumStatementsNum = 50
+	s.Require().NoError(permKeeper.SetParams(s.ctx, loose))
+
+	stmts := make([]*permtypes.Statement, 0, 11)
+	for i := 0; i < 10; i++ {
+		stmts = append(stmts, &permtypes.Statement{
+			Effect:  permtypes.EFFECT_ALLOW,
+			Actions: []permtypes.ActionType{permtypes.ACTION_GET_OBJECT},
+		})
+	}
+	stmts = append(stmts, &permtypes.Statement{
+		Effect:    permtypes.EFFECT_ALLOW,
+		Actions:   []permtypes.ActionType{permtypes.ACTION_CREATE_OBJECT},
+		LimitSize: &common.UInt64Value{Value: 1024 * 1024},
+	})
+	_, err := permKeeper.PutPolicy(s.ctx, &permtypes.Policy{
+		Principal:    permtypes.NewPrincipalWithAccount(grantee),
+		ResourceType: gnfdresource.RESOURCE_TYPE_BUCKET,
+		ResourceId:   bucketID,
+		Statements:   stmts,
+	})
+	s.Require().NoError(err)
+	s.Require().NoError(permKeeper.SetParams(s.ctx, permtypes.DefaultParams()))
+
+	s.permissionKeeper.EXPECT().
+		GetPolicyForAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.GetPolicyForAccount).AnyTimes()
+	s.permissionKeeper.EXPECT().
+		GetPolicyGroupForResource(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.GetPolicyGroupForResource).AnyTimes()
+	s.permissionKeeper.EXPECT().
+		PutPolicy(gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.PutPolicy).AnyTimes()
+
+	bucketInfo := &types.BucketInfo{
+		Owner:      owner.String(),
+		BucketName: "retro-cap-bucket",
+		Id:         bucketID,
+	}
+	wanted := uint64(1000)
+	ctx := s.ctx.WithTxBytes([]byte{0x01})
+
+	s.Require().NotPanics(func() {
+		s.storageKeeper.VerifyBucketPermission(ctx, bucketInfo, grantee,
+			permtypes.ACTION_CREATE_OBJECT, &permtypes.VerifyOptions{WantedSize: &wanted})
+	}, "CreateObject quota consumption on a pre-existing over-cap policy must not panic")
+}
+
+// Hex casing carries no meaning, so a bucket owner submitting a lowercase operator
+// address must still be recognized as the owner.
+func (s *TestSuite) TestToggleSPAsDelegatedAgent_OperatorCasingIsIgnored() {
+	owner := sample.RandAccAddress()
+	lowered := strings.ToLower(owner.String())
+	s.Require().NotEqual(owner.String(), lowered, "the sample address must contain hex letters")
+
+	bucketName := "casingbucket"
+	bucketID := sdkmath.NewUint(1)
+	s.storageKeeper.SetBucketInfo(s.ctx, &types.BucketInfo{
+		Id:         bucketID,
+		Owner:      owner.String(),
+		BucketName: bucketName,
+	})
+	// GetBucketInfo resolves the name through its own index, so seed that too.
+	s.ctx.KVStore(s.storeKey).Set(types.GetBucketKey(bucketName), sequence.Sequence[sdkmath.Uint]{}.EncodeSequence(bucketID))
+
+	// Built directly rather than through the constructor, which takes an AccAddress
+	// and so always renders canonically: this is the shape a decoded wire message has.
+	_, err := s.msgServer.ToggleSPAsDelegatedAgent(s.ctx,
+		&types.MsgToggleSPAsDelegatedAgent{Operator: lowered, BucketName: bucketName})
+	s.Require().NoError(err)
+
+	bucket, found := s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().True(found)
+	s.Require().True(bucket.SpAsDelegatedAgentDisabled)
 }
