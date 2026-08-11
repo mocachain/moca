@@ -328,3 +328,58 @@ func (s *PutPolicyPrecompileTestSuite) TestPutPolicy_AcceptsRegexpMetacharacterI
 		gnfdresource.RESOURCE_TYPE_BUCKET, sdk.AccAddress(principal.Bytes()))
 	s.Require().True(found, "the policy must actually be persisted")
 }
+
+// TestPutPolicy_ObjectScopedWithNoResources drives an object-scoped policy
+// through the precompile with no Resources, which is how moca-cmd and any EVM
+// caller submit one.
+//
+// The statement goes through a real ABI Pack/Unpack round-trip, so Resources
+// arrives the way the EVM path actually delivers it: go-ethereum decodes a
+// zero-length dynamic array to an empty non-nil slice. ValidateRuntime tested
+// Resources != nil rather than its length, so every object- and group-scoped
+// PutPolicy submitted over the precompile was rejected and the transaction
+// reverted, while the same policy over the native tx path succeeded (protobuf
+// decodes an absent repeated field to nil).
+func (s *PutPolicyPrecompileTestSuite) TestPutPolicy_ObjectScopedWithNoResources() {
+	principal := common.HexToAddress("0x7777777777777777777777777777777777777777")
+	objectName := "putpolicy-precompile-object"
+
+	s.app.StorageKeeper.StoreObjectInfo(s.ctx, &storagetypes.ObjectInfo{
+		Owner:       sdk.AccAddress(s.address.Bytes()).String(),
+		BucketName:  s.bucketName,
+		ObjectName:  objectName,
+		Id:          sdkmath.NewUint(2),
+		PayloadSize: 1,
+	})
+
+	contract := vm.NewContract(s.address, storage.GetAddress(), uint256.NewInt(0), 200_000, nil)
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.SetTxContext(vm.TxContext{Origin: s.address})
+
+	method := storage.MustMethod(storage.PutPolicyMethodName)
+	packed, err := method.Inputs.Pack(
+		storage.Principal{
+			PrincipalType: int32(permtypes.PRINCIPAL_TYPE_GNFD_ACCOUNT),
+			Value:         sdk.AccAddress(principal.Bytes()).String(),
+		},
+		"grn:o::"+s.bucketName+"/"+objectName,
+		[]storage.Statement{
+			{
+				Effect:  int32(permtypes.EFFECT_ALLOW),
+				Actions: []int32{int32(permtypes.ACTION_GET_OBJECT)},
+				// No Resources: an object-scoped policy names its resource in
+				// the GRN. The ABI round-trip turns this into []string{}.
+				Resources: []string{},
+			},
+		},
+		int64(0),
+	)
+	s.Require().NoError(err)
+	args, err := method.Inputs.Unpack(packed)
+	s.Require().NoError(err)
+
+	p := storage.NewPrecompile(storagekeeper.NewMsgServerImpl(s.app.StorageKeeper), s.app.StorageKeeper, s.app.BankKeeper)
+	_, err = p.PutPolicy(s.ctx, evm, contract, &method, args)
+	s.Require().NoError(err, "an object-scoped policy with no Resources must be storable over the EVM precompile")
+}

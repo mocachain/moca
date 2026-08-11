@@ -698,3 +698,48 @@ func TestResources_UncompilablePatternDoesNotMatch(t *testing.T) {
 	// The same entry must be refused at write time rather than stored inert.
 	require.Error(t, policy.Statements[0].ValidateRuntime(sdk.Context{}, resource.RESOURCE_TYPE_BUCKET))
 }
+
+// TestStatementValidateRuntime_EmptyResourcesSlice pins that an empty Resources
+// slice is treated as absent on object- and group-scoped statements.
+//
+// The check tested nil rather than length, and the two are not the same thing
+// once a statement has been through ABI decoding: go-ethereum decodes a
+// zero-length dynamic array to an empty non-nil slice, so every object- and
+// group-scoped PutPolicy submitted through the EVM storage precompile carried
+// Resources == []string{} and was rejected. The native tx path was unaffected,
+// because protobuf decodes an absent repeated field to nil.
+//
+// A populated Resources on a non-bucket statement must still be rejected --
+// that is what the check is for.
+func TestStatementValidateRuntime_EmptyResourcesSlice(t *testing.T) {
+	for _, resType := range []resource.ResourceType{
+		resource.RESOURCE_TYPE_OBJECT,
+		resource.RESOURCE_TYPE_GROUP,
+	} {
+		t.Run(resType.String()+"/empty slice accepted", func(t *testing.T) {
+			s := &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_GET_OBJECT},
+				Resources: []string{},
+			}
+			require.NoError(t, s.ValidateRuntime(sdk.Context{}, resType))
+		})
+
+		t.Run(resType.String()+"/nil accepted", func(t *testing.T) {
+			s := &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_GET_OBJECT},
+			}
+			require.NoError(t, s.ValidateRuntime(sdk.Context{}, resType))
+		})
+
+		t.Run(resType.String()+"/populated still rejected", func(t *testing.T) {
+			s := &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_GET_OBJECT},
+				Resources: []string{"grn:o::bucket/obj"},
+			}
+			require.ErrorIs(t, s.ValidateRuntime(sdk.Context{}, resType), types.ErrInvalidStatement)
+		})
+	}
+}

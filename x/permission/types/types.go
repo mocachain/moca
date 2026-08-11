@@ -260,11 +260,12 @@ func (s *Statement) ValidateRuntime(_ sdk.Context, resType resource.ResourceType
 			}
 		}
 	case resource.RESOURCE_TYPE_OBJECT:
-		if s.Resources != nil {
+		// len, not nil: ABI-decoded statements arrive with an empty non-nil slice.
+		if len(s.Resources) > 0 {
 			return ErrInvalidStatement.Wrap("The Resources option can only be used at the bucket level. ")
 		}
 	case resource.RESOURCE_TYPE_GROUP:
-		if s.Resources != nil {
+		if len(s.Resources) > 0 {
 			return ErrInvalidStatement.Wrap("The Resources option can only be used at the bucket level. ")
 		}
 	default:
