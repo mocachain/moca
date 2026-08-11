@@ -11,6 +11,7 @@ import (
 
 	types2 "github.com/mocachain/moca/v2/types"
 	gnfderrors "github.com/mocachain/moca/v2/types/errors"
+	"github.com/mocachain/moca/v2/utils"
 	permtypes "github.com/mocachain/moca/v2/x/permission/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/storage/types"
@@ -106,7 +107,7 @@ func (k msgServer) ToggleSPAsDelegatedAgent(goCtx context.Context, msg *types.Ms
 	if !found {
 		return nil, types.ErrNoSuchBucket
 	}
-	if msg.Operator != bucketInfo.Owner {
+	if !utils.SameAddress(msg.Operator, bucketInfo.Owner) {
 		return nil, types.ErrAccessDenied.Wrapf("Only the bucket owner(%s) can toggle", bucketInfo.Owner)
 	}
 	bucketInfo.SpAsDelegatedAgentDisabled = !bucketInfo.SpAsDelegatedAgentDisabled
@@ -395,9 +396,20 @@ func (k msgServer) PutPolicy(goCtx context.Context, msg *types.MsgPutPolicy) (*t
 		return nil, err
 	}
 
+	// Store the principal's address in its canonical casing. The policy is keyed by
+	// the parsed address either way, so this only affects the stored value, which is
+	// what queries and events hand back.
+	principal := msg.Principal
+	if principal.Type == permtypes.PRINCIPAL_TYPE_GNFD_ACCOUNT {
+		principal = &permtypes.Principal{
+			Type:  principal.Type,
+			Value: principal.MustGetAccountAddress().String(),
+		}
+	}
+
 	policy := &permtypes.Policy{
 		ResourceType:   grn.ResourceType(),
-		Principal:      msg.Principal,
+		Principal:      principal,
 		Statements:     msg.Statements,
 		ExpirationTime: msg.ExpirationTime,
 	}

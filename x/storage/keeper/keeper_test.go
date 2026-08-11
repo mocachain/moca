@@ -1,6 +1,8 @@
 package keeper_test
 
 import (
+	"strings"
+
 	"encoding/binary"
 
 	"time"
@@ -10,6 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	"github.com/mocachain/moca/v2/internal/sequence"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	types2 "github.com/mocachain/moca/v2/types"
 	"github.com/mocachain/moca/v2/types/common"
@@ -484,4 +487,32 @@ func (s *TestSuite) TestVerifyBucketPermission_OverCapQuotaGrant() {
 		s.storageKeeper.VerifyBucketPermission(ctx, bucketInfo, grantee,
 			permtypes.ACTION_CREATE_OBJECT, &permtypes.VerifyOptions{WantedSize: &wanted})
 	}, "CreateObject quota consumption on a pre-existing over-cap policy must not panic")
+}
+
+// Hex casing carries no meaning, so a bucket owner submitting a lowercase operator
+// address must still be recognized as the owner.
+func (s *TestSuite) TestToggleSPAsDelegatedAgent_OperatorCasingIsIgnored() {
+	owner := sample.RandAccAddress()
+	lowered := strings.ToLower(owner.String())
+	s.Require().NotEqual(owner.String(), lowered, "the sample address must contain hex letters")
+
+	bucketName := "casingbucket"
+	bucketID := sdkmath.NewUint(1)
+	s.storageKeeper.SetBucketInfo(s.ctx, &types.BucketInfo{
+		Id:         bucketID,
+		Owner:      owner.String(),
+		BucketName: bucketName,
+	})
+	// GetBucketInfo resolves the name through its own index, so seed that too.
+	s.ctx.KVStore(s.storeKey).Set(types.GetBucketKey(bucketName), sequence.Sequence[sdkmath.Uint]{}.EncodeSequence(bucketID))
+
+	// Built directly rather than through the constructor, which takes an AccAddress
+	// and so always renders canonically: this is the shape a decoded wire message has.
+	_, err := s.msgServer.ToggleSPAsDelegatedAgent(s.ctx,
+		&types.MsgToggleSPAsDelegatedAgent{Operator: lowered, BucketName: bucketName})
+	s.Require().NoError(err)
+
+	bucket, found := s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().True(found)
+	s.Require().True(bucket.SpAsDelegatedAgentDisabled)
 }
