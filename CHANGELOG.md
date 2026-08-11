@@ -36,7 +36,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 # Changelog
 
 ## Unreleased
-
+- (storage) [#413](https://github.com/mocachain/moca/pull/413) Use safeMint instead of mint on NFT
 ### Features
 
 - (proto) [#67](https://github.com/mocachain/moca/pull/67) Publish protos to BSR under moca org
