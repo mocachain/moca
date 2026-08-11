@@ -641,6 +641,18 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 			k.SetOutFlow(ctx, addr, &outFlow)
 		}
 
+		// A resume can span several blocks. Settle at the rate in effect since the last
+		// batch and advance CrudTimestamp before raising the rate, so the final settle
+		// does not apply the fully restored rate to the whole elapsed window.
+		now := ctx.BlockTime().Unix()
+		if now > streamRecord.CrudTimestamp {
+			if !streamRecord.NetflowRate.IsZero() {
+				flowDelta := streamRecord.NetflowRate.MulRaw(now - streamRecord.CrudTimestamp)
+				streamRecord.StaticBalance = streamRecord.StaticBalance.Add(flowDelta)
+			}
+			streamRecord.CrudTimestamp = now
+		}
+
 		streamRecord.NetflowRate = streamRecord.NetflowRate.Add(totalRate.Neg())
 		streamRecord.FrozenNetflowRate = streamRecord.FrozenNetflowRate.Add(totalRate)
 		if !flowIterator.Valid() || finished {
