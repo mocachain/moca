@@ -422,7 +422,7 @@ func TestHeadObject_UnsealedObjectHasNoVirtualGroup(t *testing.T) {
 		storagekeeper.NewMsgServerImpl(mocaApp.StorageKeeper), mocaApp.StorageKeeper, mocaApp.BankKeeper)
 
 	for _, name := range []string{"headObject", "headObjectById"} {
-		m := p.ABI.Methods[name]
+		m := p.Methods[name]
 		var (
 			out []byte
 			err error
