@@ -347,7 +347,7 @@ func (k msgServer) Deposit(goCtx context.Context, msg *types.MsgDeposit) (*types
 	k.SetStorageProvider(ctx, sp)
 
 	if err := ctx.EventManager().EmitTypedEvents(&types.EventDeposit{
-		FundingAddress: msg.Creator,
+		FundingAddress: sdk.MustAccAddressFromHex(msg.Creator).String(),
 		Deposit:        msg.Deposit.String(),
 		TotalDeposit:   sp.TotalDeposit.String(),
 	}); err != nil {

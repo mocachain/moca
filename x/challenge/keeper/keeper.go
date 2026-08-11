@@ -11,6 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	"github.com/mocachain/moca/v2/utils"
 	"github.com/mocachain/moca/v2/x/challenge/types"
 )
 
@@ -66,7 +67,7 @@ func (k Keeper) isInturnAttestation(ctx sdk.Context, submitter sdk.AccAddress, v
 	var validatorIndex int64 = -1
 	var vldr stakingtypes.Validator
 	for index, validator := range validators {
-		if validator.ChallengerAddress == submitter.String() {
+		if utils.SameAddress(validator.ChallengerAddress, submitter.String()) {
 			validatorIndex = int64(index)
 			vldr = validator
 			break

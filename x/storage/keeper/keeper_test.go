@@ -1,12 +1,15 @@
 package keeper_test
 
 import (
+	"strings"
+
 	"encoding/binary"
 
 	"time"
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/mocachain/moca/v2/internal/sequence"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
@@ -234,4 +237,32 @@ func (s *TestSuite) TestCompleteMigrateBucket_AcceptsOwnFamily() {
 	s.Require().Equal(types.BUCKET_STATUS_CREATED, got.BucketStatus)
 	primarySP := s.storageKeeper.MustGetPrimarySPForBucket(s.ctx, got)
 	s.Require().Equal(dstSpID, primarySP.Id) // dst SP is now the bucket's primary SP
+}
+
+// Hex casing carries no meaning, so a bucket owner submitting a lowercase operator
+// address must still be recognized as the owner.
+func (s *TestSuite) TestToggleSPAsDelegatedAgent_OperatorCasingIsIgnored() {
+	owner := sample.RandAccAddress()
+	lowered := strings.ToLower(owner.String())
+	s.Require().NotEqual(owner.String(), lowered, "the sample address must contain hex letters")
+
+	bucketName := "casingbucket"
+	bucketID := sdkmath.NewUint(1)
+	s.storageKeeper.SetBucketInfo(s.ctx, &types.BucketInfo{
+		Id:         bucketID,
+		Owner:      owner.String(),
+		BucketName: bucketName,
+	})
+	// GetBucketInfo resolves the name through its own index, so seed that too.
+	s.ctx.KVStore(s.storeKey).Set(types.GetBucketKey(bucketName), sequence.Sequence[sdkmath.Uint]{}.EncodeSequence(bucketID))
+
+	// Built directly rather than through the constructor, which takes an AccAddress
+	// and so always renders canonically: this is the shape a decoded wire message has.
+	_, err := s.msgServer.ToggleSPAsDelegatedAgent(s.ctx,
+		&types.MsgToggleSPAsDelegatedAgent{Operator: lowered, BucketName: bucketName})
+	s.Require().NoError(err)
+
+	bucket, found := s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().True(found)
+	s.Require().True(bucket.SpAsDelegatedAgentDisabled)
 }
