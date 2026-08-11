@@ -822,6 +822,10 @@ interface IStorage {
 
     /**
      * @dev headObject queries the object's info.
+     *
+     * An object joins a global virtual group only when it is sealed. Until then
+     * globalVirtualGroup is returned zeroed, including a zero virtualPaymentAddress.
+     * Check objectInfo.objectStatus == 1 (SEALED) before reading any of its fields.
      */
     function headObject(
         string memory bucketName,
@@ -836,6 +840,10 @@ interface IStorage {
 
     /**
      * @dev headObjectById queries the object's info.
+     *
+     * An object joins a global virtual group only when it is sealed. Until then
+     * globalVirtualGroup is returned zeroed, including a zero virtualPaymentAddress.
+     * Check objectInfo.objectStatus == 1 (SEALED) before reading any of its fields.
      */
     function headObjectById(
         string memory objectId
