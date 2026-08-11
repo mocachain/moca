@@ -226,9 +226,10 @@ func (k Keeper) CreateBucket(
 		contracts.BucketControlHubAddress,
 		contracts.BucketERC721TokenAddress,
 		true,
-		"mint",
+		"safeMint",
 		ecommon.HexToAddress(bucketInfo.Owner),
 		bucketInfo.Id.BigInt(),
+		[]byte{},
 	)
 	if err != nil {
 		return sdkmath.ZeroUint(), err
@@ -1025,9 +1026,10 @@ func (k Keeper) SealObject(
 		contracts.ObjectControlHubAddress,
 		contracts.ObjectERC721TokenAddress,
 		true,
-		"mint",
+		"safeMint",
 		ecommon.HexToAddress(objectInfo.Owner),
 		objectInfo.Id.BigInt(),
+		[]byte{},
 	)
 	if err != nil {
 		return err
@@ -1602,9 +1604,10 @@ func (k Keeper) CreateGroup(
 		contracts.GroupControlHubAddress,
 		contracts.GroupERC721TokenAddress,
 		true,
-		"mint",
+		"safeMint",
 		ecommon.HexToAddress(groupInfo.Owner),
 		groupInfo.Id.BigInt(),
+		[]byte{},
 	)
 	if err != nil {
 		return sdkmath.ZeroUint(), err
