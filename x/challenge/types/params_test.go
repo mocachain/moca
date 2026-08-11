@@ -70,3 +70,32 @@ func Test_validateParams(t *testing.T) {
 	params.AttestationKeptCount = 100
 	require.NoError(t, params.Validate())
 }
+
+// Each parameter needs its own key. They are one copy-paste apart from each other,
+// and a duplicate would silently make two parameters share a slot.
+func TestParamKeysAreUnique(t *testing.T) {
+	keys := map[string]string{
+		"ChallengeCountPerBlock":    string(types.KeyChallengeCountPerBlock),
+		"ChallengeKeepAlivePeriod":  string(types.KeyChallengeKeepAlivePeriod),
+		"SlashCoolingOffPeriod":     string(types.KeySlashCoolingOffPeriod),
+		"SlashAmountSizeRate":       string(types.KeySlashAmountSizeRate),
+		"SlashAmountMin":            string(types.KeySlashAmountMin),
+		"SlashAmountMax":            string(types.KeySlashAmountMax),
+		"RewardValidatorRatio":      string(types.KeyRewardValidatorRatio),
+		"RewardSubmitterRatio":      string(types.KeyRewardSubmitterRatio),
+		"RewardSubmitterThreshold":  string(types.KeyRewardSubmitterThreshold),
+		"HeartbeatInterval":         string(types.KeyHeartbeatInterval),
+		"AttestationInturnInterval": string(types.KeyAttestationInturnInterval),
+		"AttestationKeptCount":      string(types.KeyAttestationKeptCount),
+		"SpSlashMaxAmount":          string(types.KeySpSlashMaxAmount),
+		"SpSlashCountingWindow":     string(types.KeySpSlashCountingWindow),
+	}
+
+	seen := make(map[string]string, len(keys))
+	for name, key := range keys {
+		if other, dup := seen[key]; dup {
+			t.Errorf("%s and %s share the parameter key %q", name, other, key)
+		}
+		seen[key] = name
+	}
+}

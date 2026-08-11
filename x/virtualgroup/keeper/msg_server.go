@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"slices"
 
 	sdkerrors "cosmossdk.io/errors"
 	"cosmossdk.io/math"
@@ -75,6 +76,14 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 	if !sp.IsInService() && !sp.IsInMaintenance() {
 		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("sp is not in service or in maintenance, status: %s", sp.Status.String())
 	}
+
+	// The primary SP is implicitly part of the group already; listing it again as a
+	// secondary would make two entries share one statistics record, and the batch
+	// write below is last-write-wins, so one of the two count increments is lost.
+	if _, ok := spIDSet[sp.Id]; ok {
+		return nil, types.ErrDuplicateSecondarySP.Wrapf("the primary SP(id=%d) can not also be a secondary SP of the Global virtual group.", sp.Id)
+	}
+
 	gvgStatisticsWithinSPs := make([]*types.GVGStatisticsWithinSP, 0, 1+len(req.SecondarySpIds))
 	stat := k.GetOrCreateGVGStatisticsWithinSP(ctx, sp.Id)
 	stat.PrimaryCount++
@@ -106,18 +115,17 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 		if !found {
 			return nil, types.ErrGVGNotExist
 		}
-		for i, secondarySPId := range gvg.SecondarySpIds {
-			if secondarySPId != secondarySpIDs[i] {
-				break
-			}
-			if i == len(secondarySpIDs)-1 {
-				return nil, types.ErrDuplicateGVG.Wrapf("the global virtual group family already has a GVG with same SP in same order")
-			}
+		// Compare the whole list. Matching only as far as the request reached treated
+		// a longer stored group that merely starts with it as a duplicate.
+		if slices.Equal(gvg.SecondarySpIds, secondarySpIDs) {
+			return nil, types.ErrDuplicateGVG.Wrapf("the global virtual group family already has a GVG with same SP in same order")
 		}
 	}
 
-	// Each family supports only a limited number of GVGS
-	if k.MaxGlobalVirtualGroupNumPerFamily(ctx) < uint32(len(gvgFamily.GlobalVirtualGroupIds)) {
+	// Each family supports only a limited number of GVGS. The group below is
+	// appended after this check, so the family must be under the limit, not at it.
+	//nolint:gosec // the family length is bounded by the limit this very check enforces
+	if k.MaxGlobalVirtualGroupNumPerFamily(ctx) <= uint32(len(gvgFamily.GlobalVirtualGroupIds)) {
 		return nil, types.ErrLimitationExceed.Wrapf("The gvg number within the family exceeds the limit.")
 	}
 

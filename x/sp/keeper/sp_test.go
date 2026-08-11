@@ -167,3 +167,35 @@ func (s *KeeperTestSuite) TestSlashBasic() {
 	s.T().Logf("%s", spAfterSlash.TotalDeposit.String())
 	require.True(s.T(), spAfterSlash.TotalDeposit.Equal(math.NewIntWithDecimal(2000, types2.DecimalMOCA)))
 }
+
+// Exit has to remove the BLS-key index entry it wrote. The entry is only
+// reachable through the raw store: GetStorageProviderByBlsKey resolves the index
+// and then loads the storage provider, which Exit does delete, so a stale index
+// entry reads back as not-found and is invisible from the keeper API.
+func (s *KeeperTestSuite) TestExitDeletesBlsKeyIndex() {
+	k := s.spKeeper
+	ctx := s.ctx
+
+	blsPubKey := sample.RandBlsPubKey()
+	sp := &types.StorageProvider{
+		Id:              200,
+		OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		FundingAddress:  sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		SealAddress:     sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		ApprovalAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		GcAddress:       sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		BlsKey:          blsPubKey,
+	}
+
+	k.SetStorageProvider(ctx, sp)
+	k.SetStorageProviderByBlsKey(ctx, sp)
+
+	indexKey := types.GetStorageProviderByBlsKeyKey(blsPubKey)
+	require.NotNil(s.T(), ctx.KVStore(s.storeKey).Get(indexKey),
+		"the index entry must exist before the exit")
+
+	require.NoError(s.T(), k.Exit(ctx, sp))
+
+	require.Nil(s.T(), ctx.KVStore(s.storeKey).Get(indexKey),
+		"exit must delete the BLS-key index entry")
+}

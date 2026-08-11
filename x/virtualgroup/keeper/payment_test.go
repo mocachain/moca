@@ -408,3 +408,61 @@ func (s *TestSuite) TestSettle_GasIsIndependentOfGVGIDOrder() {
 		"the same MsgSettle must consume the same gas on every node; saw %d different totals over %d calls: %v",
 		len(gasReadings), iterations, gasReadings)
 }
+
+// A family may hold at most MaxGlobalVirtualGroupNumPerFamily groups. The limit was
+// compared against the family's size before the new group was appended, so a family
+// already holding the maximum accepted one more and ended up one over it.
+func (s *TestSuite) TestCreateGlobalVirtualGroup_FamilyAtLimitIsRejected() {
+	ctrl := gomock.NewController(s.T())
+	storageKeeper := types.NewMockStorageKeeper(ctrl)
+	s.virtualgroupKeeper.SetStorageKeeper(storageKeeper)
+
+	secondarySpIDs := []uint32{2, 3, 4, 5, 6, 7}
+	storageKeeper.EXPECT().GetExpectSecondarySPNumForECObject(gomock.Any(), gomock.Any()).
+		Return(uint32(len(secondarySpIDs))).AnyTimes() //nolint:gosec // fixed-size test fixture
+
+	spOperator := sample.RandAccAddress()
+	primarySP := &sptypes.StorageProvider{
+		Id:              1,
+		Status:          sptypes.STATUS_IN_SERVICE,
+		OperatorAddress: spOperator.String(),
+		FundingAddress:  sample.RandAccAddress().String(),
+	}
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).
+		Return(primarySP, true).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, id uint32) (*sptypes.StorageProvider, bool) {
+			return &sptypes.StorageProvider{Id: id, Status: sptypes.STATUS_IN_SERVICE}, true
+		}).AnyTimes()
+	s.bankKeeper.EXPECT().
+		SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	// Fill a family right up to the limit.
+	maxPerFamily := s.virtualgroupKeeper.MaxGlobalVirtualGroupNumPerFamily(s.ctx)
+	family := &types.GlobalVirtualGroupFamily{Id: 1, PrimarySpId: primarySP.Id}
+	for i := uint32(0); i < maxPerFamily; i++ {
+		// Differ in the first secondary so the duplicate-group check does not fire.
+		existing := append([]uint32{100 + i}, secondarySpIDs[1:]...)
+		s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+			Id: 1000 + i, FamilyId: family.Id, PrimarySpId: primarySP.Id, SecondarySpIds: existing,
+		})
+		family.GlobalVirtualGroupIds = append(family.GlobalVirtualGroupIds, 1000+i)
+	}
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, family)
+	require.Len(s.T(), family.GlobalVirtualGroupIds, int(maxPerFamily))
+
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+	_, err := msgServer.CreateGlobalVirtualGroup(s.ctx, &types.MsgCreateGlobalVirtualGroup{
+		StorageProvider: spOperator.String(),
+		FamilyId:        family.Id,
+		SecondarySpIds:  secondarySpIDs,
+		Deposit:         sdk.NewCoin(s.virtualgroupKeeper.DepositDenomForGVG(s.ctx), math.NewInt(1)),
+	})
+	require.ErrorIs(s.T(), err, types.ErrLimitationExceed)
+
+	stored, found := s.virtualgroupKeeper.GetGVGFamily(s.ctx, family.Id)
+	require.True(s.T(), found)
+	require.Len(s.T(), stored.GlobalVirtualGroupIds, int(maxPerFamily),
+		"the family must not grow past the configured maximum")
+}
