@@ -271,6 +271,13 @@ func (k Keeper) GetOrCreateEmptyGVGFamily(ctx sdk.Context, familyID uint32, prim
 	}
 	k.cdc.MustUnmarshal(bz, &gvgFamily)
 
+	// An existing family (caller-supplied ID) must actually belong to primarySPID,
+	// otherwise any in-service SP could plant a GVG in a rival's family.
+	if gvgFamily.PrimarySpId != primarySPID {
+		return nil, types.ErrGVGFamilyNotOwned.Wrapf(
+			"the gvg family(ID: %d) is owned by sp(ID: %d), not sp(ID: %d)", familyID, gvgFamily.PrimarySpId, primarySPID)
+	}
+
 	return &gvgFamily, nil
 }
 

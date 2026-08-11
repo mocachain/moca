@@ -76,6 +76,14 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 	if !sp.IsInService() && !sp.IsInMaintenance() {
 		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("sp is not in service or in maintenance, status: %s", sp.Status.String())
 	}
+
+	// The primary SP is implicitly part of the group already; listing it again as a
+	// secondary would make two entries share one statistics record, and the batch
+	// write below is last-write-wins, so one of the two count increments is lost.
+	if _, ok := spIDSet[sp.Id]; ok {
+		return nil, types.ErrDuplicateSecondarySP.Wrapf("the primary SP(id=%d) can not also be a secondary SP of the Global virtual group.", sp.Id)
+	}
+
 	gvgStatisticsWithinSPs := make([]*types.GVGStatisticsWithinSP, 0, 1+len(req.SecondarySpIds))
 	stat := k.GetOrCreateGVGStatisticsWithinSP(ctx, sp.Id)
 	stat.PrimaryCount++
