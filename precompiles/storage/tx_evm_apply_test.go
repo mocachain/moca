@@ -11,6 +11,7 @@ import (
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
@@ -27,8 +28,10 @@ import (
 	sdkmath "cosmossdk.io/math"
 	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/contracts"
+	"github.com/mocachain/moca/v2/internal/sequence"
 	"github.com/mocachain/moca/v2/precompiles/storage"
 	"github.com/mocachain/moca/v2/testutil"
+	"github.com/mocachain/moca/v2/testutil/sample"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
 	gnfdresource "github.com/mocachain/moca/v2/types/resource"
 	"github.com/mocachain/moca/v2/utils"
@@ -382,4 +385,57 @@ func (s *PutPolicyPrecompileTestSuite) TestPutPolicy_ObjectScopedWithNoResources
 	p := storage.NewPrecompile(storagekeeper.NewMsgServerImpl(s.app.StorageKeeper), s.app.StorageKeeper, s.app.BankKeeper)
 	_, err = p.PutPolicy(s.ctx, evm, contract, &method, args)
 	s.Require().NoError(err, "an object-scoped policy with no Resources must be storable over the EVM precompile")
+}
+
+// An object belongs to a global virtual group only once it is sealed, so the query returns none
+// for one that is not. The ABI tuple cannot be absent, so it comes back zeroed rather than
+// faulting; the object status returned alongside it says why.
+func TestHeadObject_UnsealedObjectHasNoVirtualGroup(t *testing.T) {
+	mocaApp := app.EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+	store := ctx.KVStore(mocaApp.GetKey(storagetypes.StoreKey))
+
+	owner := sample.RandAccAddress()
+	bucketName, objectName := "unsealedbucket", "unsealedobject"
+	bucketID, objectID := sdkmath.NewUint(1), sdkmath.NewUint(1)
+
+	mocaApp.StorageKeeper.SetBucketInfo(ctx, &storagetypes.BucketInfo{
+		Id: bucketID, Owner: owner.String(), BucketName: bucketName,
+	})
+	store.Set(storagetypes.GetBucketKey(bucketName),
+		sequence.Sequence[sdkmath.Uint]{}.EncodeSequence(bucketID))
+
+	mocaApp.StorageKeeper.SetObjectInfo(ctx, &storagetypes.ObjectInfo{
+		Id: objectID, Owner: owner.String(), BucketName: bucketName, ObjectName: objectName,
+		ObjectStatus: storagetypes.OBJECT_STATUS_CREATED,
+	})
+	store.Set(storagetypes.GetObjectKey(bucketName, objectName),
+		sequence.Sequence[sdkmath.Uint]{}.EncodeSequence(objectID))
+
+	res, err := mocaApp.StorageKeeper.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{
+		BucketName: bucketName, ObjectName: objectName,
+	})
+	require.NoError(t, err)
+	require.Nil(t, res.GlobalVirtualGroup, "an unsealed object has no group")
+
+	p := storage.NewPrecompile(
+		storagekeeper.NewMsgServerImpl(mocaApp.StorageKeeper), mocaApp.StorageKeeper, mocaApp.BankKeeper)
+
+	for _, name := range []string{"headObject", "headObjectById"} {
+		m := p.Methods[name]
+		var (
+			out []byte
+			err error
+		)
+		require.NotPanics(t, func() {
+			switch name {
+			case "headObject":
+				out, err = p.HeadObject(ctx, &m, []interface{}{bucketName, objectName})
+			default:
+				out, err = p.HeadObjectByID(ctx, &m, []interface{}{objectID.String()})
+			}
+		}, "%s must not fault on an unsealed object", name)
+		require.NoError(t, err, name)
+		require.NotEmpty(t, out, name)
+	}
 }
