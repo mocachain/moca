@@ -32,7 +32,10 @@ WORKDIR /root
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go install cosmossdk.io/tools/cosmovisor/cmd/cosmovisor@v1.7.1
+    # tracks cosmos-sdk release/v0.55.x: the v1.7.1 tag pins bytedance/sonic
+    # v1.12.8, which linknames a private encoding/json symbol that no longer
+    # exists in the Go this image builds with, so the link step fails.
+    go install cosmossdk.io/tools/cosmovisor/cmd/cosmovisor@v1.7.2-0.20260804105140-2086680ff8b0
 
 # Environment variables for Cosmovisor
 ENV DAEMON_NAME=mocad
