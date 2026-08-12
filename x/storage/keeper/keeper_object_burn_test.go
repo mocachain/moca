@@ -77,7 +77,6 @@ func (s *BurnTestSuite) SetupTest() {
 	s.storageKeeper = keeper.NewKeeper(
 		encCfg.Codec,
 		key,
-		key,
 		accountKeeper,
 		spKeeper,
 		paymentKeeper,

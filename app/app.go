@@ -346,7 +346,7 @@ func NewMoca(
 	)
 
 	// Add the EVM transient store key
-	tkeys := storetypes.NewTransientStoreKeys(evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey, storagemoduletypes.TStoreKey, virtualgroupmoduletypes.TStoreKey)
+	tkeys := storetypes.NewTransientStoreKeys(evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey)
 	memKeys := storetypes.NewMemoryStoreKeys(challengemoduletypes.MemStoreKey)
 
 	app := &Moca{
@@ -553,7 +553,6 @@ func NewMoca(
 	app.VirtualgroupKeeper = *virtualgroupmodulekeeper.NewKeeper(
 		appCodec,
 		keys[virtualgroupmoduletypes.StoreKey],
-		tkeys[virtualgroupmoduletypes.TStoreKey],
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		app.SpKeeper,
 		app.AccountKeeper,
@@ -572,7 +571,6 @@ func NewMoca(
 	app.StorageKeeper = *storagemodulekeeper.NewKeeper(
 		appCodec,
 		keys[storagemoduletypes.StoreKey],
-		tkeys[storagemoduletypes.TStoreKey],
 		app.AccountKeeper,
 		app.SpKeeper,
 		app.PaymentKeeper,

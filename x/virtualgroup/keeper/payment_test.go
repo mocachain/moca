@@ -54,7 +54,6 @@ func (s *TestSuite) SetupTest() {
 	s.virtualgroupKeeper = keeper.NewKeeper(
 		encCfg.Codec,
 		key,
-		key,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		spKeeper,
 		accountKeeper,

@@ -22,9 +22,6 @@ const (
 
 	// MemStoreKey defines the in-memory store key
 	MemStoreKey = "mem_storage"
-
-	// TStoreKey defines the transient store key
-	TStoreKey = "transient_storage"
 )
 
 type RawID math.Uint
@@ -59,7 +56,7 @@ var (
 
 	// CurrentBlockDeleteStalePoliciesKey is the key for DeleteInfo which keep track of deleted resources in the current block,
 	// stale permission of these resources needs to be deleted.
-	// it is stored in transient store
+	// it is written and drained within the same block, so it never reaches committed state
 	CurrentBlockDeleteStalePoliciesKey = []byte{0x51}
 	DeleteStalePoliciesPrefix          = []byte{0x52}
 
