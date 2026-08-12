@@ -22,9 +22,6 @@ const (
 
 	// MemStoreKey defines the in-memory store key
 	MemStoreKey = "mem_storage"
-
-	// TStoreKey defines the transient store key
-	TStoreKey = "transient_storage"
 )
 
 type RawID math.Uint

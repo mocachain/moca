@@ -32,7 +32,6 @@ type (
 	Keeper struct {
 		cdc                codec.BinaryCodec
 		storeKey           storetypes.StoreKey
-		tStoreKey          storetypes.StoreKey
 		spKeeper           storagetypes.SpKeeper
 		paymentKeeper      storagetypes.PaymentKeeper
 		accountKeeper      storagetypes.AccountKeeper
@@ -59,7 +58,6 @@ type paymentCheckConfig struct {
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
-	tStoreKey storetypes.StoreKey,
 	accountKeeper storagetypes.AccountKeeper,
 	spKeeper storagetypes.SpKeeper,
 	paymentKeeper storagetypes.PaymentKeeper,
@@ -71,7 +69,6 @@ func NewKeeper(
 	k := Keeper{
 		cdc:                cdc,
 		storeKey:           storeKey,
-		tStoreKey:          tStoreKey,
 		accountKeeper:      accountKeeper,
 		spKeeper:           spKeeper,
 		paymentKeeper:      paymentKeeper,

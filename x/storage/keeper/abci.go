@@ -64,29 +64,13 @@ func EndBlocker(ctx sdk.Context, keeper Keeper) error {
 	// Permission GC
 	keeper.GarbageCollectResourcesStalePolicy(ctx)
 
-	// Payment Data Check: an opt-in, node-local (app.toml [payment-check]) read-only diagnostic.
+	// Payment Data Check
 	interval := int64(keeper.GetPaymentCheckInterval())
 	if keeper.IsPaymentCheckEnabled() && interval > 0 && ctx.BlockHeight()%interval == 0 {
-		runPaymentCheck(ctx, keeper)
+		err = keeper.RunPaymentCheck(ctx)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return nil
-}
-
-// runPaymentCheck runs the opt-in payment diagnostic and reports what it finds
-// instead of propagating it. Nothing here is recovered further up, so both an
-// error return and one of the check's own Must*/parse panics would stop the
-// node that opted in -- and again on every replay of the block -- while a node
-// without the diagnostic carries on. The check only reads, so both nodes end
-// the block in the same state; the findings themselves are already logged
-// inside RunPaymentCheck.
-func runPaymentCheck(ctx sdk.Context, keeper Keeper) {
-	defer func() {
-		if r := recover(); r != nil {
-			ctx.Logger().Error("payment check panicked", "height", ctx.BlockHeight(), "panic", r)
-		}
-	}()
-
-	if err := keeper.RunPaymentCheck(ctx); err != nil {
-		ctx.Logger().Error("payment check failed", "height", ctx.BlockHeight(), "err", err.Error())
-	}
 }

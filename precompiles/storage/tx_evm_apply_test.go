@@ -42,7 +42,6 @@ import (
 	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
-	"github.com/stretchr/testify/require"
 )
 
 type CreateGroupTestSuite struct {
@@ -755,19 +754,17 @@ func (s *DeleteGCBookkeepingTestSuite) TestDeleteGroup_BookkeepingDrainedWhenEnd
 		"EndBlocker must drain the bookkeeping key even when it returns early")
 }
 
-// TestStorageStoreIsSnapshottedForPrecompiles pins both halves of the store
-// choice. The x/storage KV key is in the map cosmos/evm builds the precompile
-// snapshot store from, so a reverted frame rolls the bookkeeping back; the
-// transient key structurally cannot be there (the map is
-// map[string]*storetypes.KVStoreKey), which is what used to panic.
+// TestStorageStoreIsSnapshottedForPrecompiles pins the store choice: the
+// x/storage KV key is in the map cosmos/evm builds the precompile snapshot store
+// from, so the bookkeeping is reachable there and a reverted frame rolls it back.
+// The map is keyed by *storetypes.KVStoreKey, so a transient key could never have
+// been in it, which is what used to fault.
 func TestStorageStoreIsSnapshottedForPrecompiles(t *testing.T) {
 	a := app.EthSetup(false, nil)
 
 	keys := a.EvmKeeper.KVStoreKeys()
 	_, ok := keys[storagetypes.StoreKey]
 	require.True(t, ok, "x/storage KV store key must be in the precompile snapshot store")
-	_, tOK := keys[storagetypes.TStoreKey]
-	require.False(t, tOK, "a transient key can never be in the precompile snapshot store")
 
 	cms := a.CommitMultiStore().CacheMultiStore()
 	snap := snapshotmulti.NewStore(cms, keys)

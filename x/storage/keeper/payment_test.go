@@ -76,7 +76,6 @@ func (s *TestSuite) SetupTest() {
 	s.storageKeeper = keeper.NewKeeper(
 		encCfg.Codec,
 		key,
-		key,
 		accountKeeper,
 		spKeeper,
 		paymentKeeper,
@@ -289,86 +288,6 @@ func (s *TestSuite) TestRunPaymentCheck_GetObjectLockFeeError() {
 	err := s.storageKeeper.RunPaymentCheck(s.ctx)
 	s.Require().Error(err)
 	s.Require().ErrorContains(err, "get object lock fee failed")
-}
-
-// TestEndBlockerPaymentCheckFailure covers the storage EndBlocker's handling of
-// a RunPaymentCheck failure. The check is an opt-in node-local diagnostic
-// (app.toml [payment-check]) and is read-only, so a finding must not take the
-// node down: the EndBlocker logs it and returns nil. Reuses the
-// TestRunPaymentCheck_ShadowObjectNotFound fixture (an updating object with no
-// shadow entry) to make RunPaymentCheck return an error.
-func (s *TestSuite) TestEndBlockerPaymentCheckFailure() {
-	paymentAddr := "0x4444444444444444444444444444444444444444"
-
-	bucketInfo := &types.BucketInfo{
-		Owner:                      paymentAddr,
-		BucketName:                 "endblocker-check-bucket",
-		Id:                         sdkmath.NewUint(1),
-		PaymentAddress:             paymentAddr,
-		GlobalVirtualGroupFamilyId: 1,
-		ChargedReadQuota:           0,
-	}
-	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
-	// Empty internal bucket info so GetBucketReadStoreBill short-circuits.
-	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketInfo.Id, &types.InternalBucketInfo{})
-
-	// Updating object with no shadow object stored -> RunPaymentCheck errors.
-	objectInfo := &types.ObjectInfo{
-		Id:           sdkmath.NewUint(1),
-		Owner:        paymentAddr,
-		BucketName:   bucketInfo.BucketName,
-		ObjectName:   "endblocker-check-object",
-		PayloadSize:  1024,
-		ObjectStatus: types.OBJECT_STATUS_SEALED,
-		IsUpdating:   true,
-		CreateAt:     s.ctx.BlockTime().Unix() + 1,
-	}
-	s.storageKeeper.StoreObjectInfo(s.ctx, objectInfo)
-
-	s.paymentKeeper.EXPECT().GetAllStreamRecord(gomock.Any()).
-		Return([]paymenttypes.StreamRecord{}).AnyTimes()
-
-	// Sanity: the fixture really makes the check fail.
-	s.Require().Error(s.storageKeeper.RunPaymentCheck(s.ctx))
-
-	// Enable the payment check at every height (block height 0 % 1 == 0).
-	keeper.InitPaymentCheck(*s.storageKeeper, true, 1)
-
-	var err error
-	s.Require().NotPanics(func() {
-		err = keeper.EndBlocker(s.ctx, *s.storageKeeper)
-	})
-	s.Require().NoError(err)
-}
-
-// TestEndBlockerPaymentCheckPanic covers the other half: RunPaymentCheck reads
-// stored state through Must*/parse helpers that panic on anything malformed
-// (sdk.MustAccAddressFromHex on a bucket's payment address here). The check is
-// opt-in, node-local and read-only, so that must not take the node down either
-// -- and it must not stop the EndBlocker from finishing its own work.
-func (s *TestSuite) TestEndBlockerPaymentCheckPanic() {
-	bucketInfo := &types.BucketInfo{
-		Owner:                      "0x4444444444444444444444444444444444444444",
-		BucketName:                 "panic-check-bucket",
-		Id:                         sdkmath.NewUint(1),
-		PaymentAddress:             "not-a-hex-address",
-		GlobalVirtualGroupFamilyId: 1,
-	}
-	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
-	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketInfo.Id, &types.InternalBucketInfo{})
-	s.paymentKeeper.EXPECT().GetAllStreamRecord(gomock.Any()).
-		Return([]paymenttypes.StreamRecord{}).AnyTimes()
-
-	// Sanity: the fixture really makes the check panic.
-	s.Require().Panics(func() { _ = s.storageKeeper.RunPaymentCheck(s.ctx) })
-
-	keeper.InitPaymentCheck(*s.storageKeeper, true, 1)
-
-	var err error
-	s.Require().NotPanics(func() {
-		err = keeper.EndBlocker(s.ctx, *s.storageKeeper)
-	})
-	s.Require().NoError(err)
 }
 
 func (s *TestSuite) TestGetObjectLockFee() {
