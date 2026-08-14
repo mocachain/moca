@@ -44,6 +44,7 @@ func (k msgServer) Submit(goCtx context.Context, msg *types.MsgSubmit) (*types.M
 	// check whether the sp stores the object info, generate redundancy index
 	stored := false
 	redundancyIndex := types.RedundancyIndexPrimary
+	challengedSpID := sp.Id
 
 	if spOperator.Equals(sdk.MustAccAddressFromHex(sp.OperatorAddress)) {
 		stored = true
@@ -63,6 +64,7 @@ func (k msgServer) Submit(goCtx context.Context, msg *types.MsgSubmit) (*types.M
 			}
 			if spOperator.Equals(sdk.MustAccAddressFromHex(tmpSp.OperatorAddress)) {
 				redundancyIndex = int32(i)
+				challengedSpID = tmpSp.Id
 				stored = true
 				break
 			}
@@ -97,12 +99,16 @@ func (k msgServer) Submit(goCtx context.Context, msg *types.MsgSubmit) (*types.M
 		Id:            challengeID,
 		ExpiredHeight: expiredHeight,
 	})
+	k.SaveChallengeSpID(ctx, challengeID, challengedSpID)
+	k.SpKeeper.SetDepositLockUntil(ctx, challengedSpID, expiredHeight)
 
 	if err := ctx.EventManager().EmitTypedEvents(&types.EventStartChallenge{
-		ChallengeId:       challengeID,
-		ObjectId:          objectInfo.Id,
-		SegmentIndex:      segmentIndex,
-		SpId:              sp.Id,
+		ChallengeId:  challengeID,
+		ObjectId:     objectInfo.Id,
+		SegmentIndex: segmentIndex,
+		// the sp the challenge is raised against, which is not the bucket's primary when a
+		// secondary is challenged; the attestation resolves the same id from the binding above
+		SpId:              challengedSpID,
 		SpOperatorAddress: spOperator.String(),
 		RedundancyIndex:   redundancyIndex,
 		ChallengerAddress: challenger.String(),

@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/mint"
 	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/mocachain/moca/v2/x/challenge/keeper"
 	"github.com/mocachain/moca/v2/x/challenge/types"
@@ -95,4 +96,23 @@ func makeKeeper(t *testing.T) (*keeper.Keeper, sdk.Context) {
 	)
 
 	return k, testCtx.Ctx
+}
+
+// A challenge that is attested or expires no longer holds the provider's deposit, so the lock
+// is re-derived from what is still open rather than left at the height the challenge set.
+func (s *TestSuite) TestDepositLockFollowsOpenChallenges() {
+	const spID = uint32(7)
+
+	s.challengeKeeper.SaveChallenge(s.ctx, types.Challenge{Id: 1, ExpiredHeight: 100})
+	s.challengeKeeper.SaveChallengeSpID(s.ctx, 1, spID)
+	s.challengeKeeper.SaveChallenge(s.ctx, types.Challenge{Id: 2, ExpiredHeight: 300})
+	s.challengeKeeper.SaveChallengeSpID(s.ctx, 2, spID)
+
+	// retiring the earlier one leaves the later one holding the deposit
+	s.spKeeper.EXPECT().ReleaseDepositLockUntil(gomock.Any(), gomock.Eq(spID), gomock.Eq(uint64(300))).Times(1)
+	s.challengeKeeper.RemoveChallenge(s.ctx, 1)
+
+	// retiring the last one releases it
+	s.spKeeper.EXPECT().ReleaseDepositLockUntil(gomock.Any(), gomock.Eq(spID), gomock.Eq(uint64(0))).Times(1)
+	s.challengeKeeper.RemoveChallenge(s.ctx, 2)
 }
