@@ -36,7 +36,18 @@ var (
 	StorageProviderSequenceKey       = []byte{0x31}
 
 	StorageProviderMaintenanceRecordPrefix = []byte{0x41}
+
+	// DepositLockKeyPrefix is the prefix for the height until which a storage provider's
+	// deposit must stay in the module account so a pending challenge can still slash it.
+	DepositLockKeyPrefix = []byte{0x42}
 )
+
+// GetDepositLockKey creates the key holding the deposit lock height of a storage provider.
+func GetDepositLockKey(spID uint32) []byte {
+	idBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(idBytes, spID)
+	return append(DepositLockKeyPrefix, idBytes...)
+}
 
 // GetStorageProviderKey creates the key for the provider with address
 // VALUE: staking/Validator
