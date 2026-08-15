@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
@@ -1271,7 +1272,9 @@ func (app *Evmos) BlockedAccountAddrs() map[string]bool {
 	}
 
 	for _, precompileAddr := range blockedPrecompilesHex {
-		blockedAddrs[precompileAddr] = true
+		// These are looked up by AccAddress.String(), which is checksummed, so the
+		// literal's own casing cannot be relied on to match.
+		blockedAddrs[sdk.AccAddress(common.HexToAddress(precompileAddr).Bytes()).String()] = true
 	}
 
 	return blockedAddrs
