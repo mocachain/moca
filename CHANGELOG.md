@@ -49,6 +49,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (app) [#391](https://github.com/mocachain/moca/pull/391) Backport to `release/1.4.x`: schedule configured hardforks in `PreBlocker` (so a plan applies in the block its height names) and let a configured hardfork supersede a pending/stale upgrade plan instead of panicking (MOCA-962)
 - (deps) [#239](https://github.com/mocachain/moca/pull/239) Bump `moca-iavl` to `v1.2.0-rc1` (adds the reformatted-root `GetNode` fallback, cosmos/iavl #1009) to fix silently-truncated IAVL snapshot exports that produced corrupt mainnet state-sync snapshots
 - (rpc) [#232](https://github.com/mocachain/moca/pull/232) Align `newHeads` subscription block hashes with the canonical hashes returned by block-by-number / block-by-hash APIs
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
