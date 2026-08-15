@@ -49,6 +49,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (x/permission) [#406](https://github.com/mocachain/moca/pull/406) Backport to `release/1.4.x`: match policy statement resources as anchored, escaped wildcard patterns and skip an uncompilable pattern instead of panicking (MOCA-807, MOCA-936)
+- (x/permission) [#411](https://github.com/mocachain/moca/pull/411) Backport to `release/1.4.x`: treat an empty `Resources` slice as bucket-scoped, so a bucket-wide Deny still applies to sub-resources (MOCA-808)
 - (deps) [#239](https://github.com/mocachain/moca/pull/239) Bump `moca-iavl` to `v1.2.0-rc1` (adds the reformatted-root `GetNode` fallback, cosmos/iavl #1009) to fix silently-truncated IAVL snapshot exports that produced corrupt mainnet state-sync snapshots
 - (rpc) [#232](https://github.com/mocachain/moca/pull/232) Align `newHeads` subscription block hashes with the canonical hashes returned by block-by-number / block-by-hash APIs
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
