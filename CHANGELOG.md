@@ -49,6 +49,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (x/storage, x/sp) [#298](https://github.com/mocachain/moca/pull/298) [#301](https://github.com/mocachain/moca/pull/301) [#299](https://github.com/mocachain/moca/pull/299) [#302](https://github.com/mocachain/moca/pull/302) Backport to `release/1.4.x`: close store iterators in the storage `IsNonEmptyBucket`/payment-check and sp `GetAllStorageProviders`/force-update-maintenance paths
 - (deps) [#239](https://github.com/mocachain/moca/pull/239) Bump `moca-iavl` to `v1.2.0-rc1` (adds the reformatted-root `GetNode` fallback, cosmos/iavl #1009) to fix silently-truncated IAVL snapshot exports that produced corrupt mainnet state-sync snapshots
 - (rpc) [#232](https://github.com/mocachain/moca/pull/232) Align `newHeads` subscription block hashes with the canonical hashes returned by block-by-number / block-by-hash APIs
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
