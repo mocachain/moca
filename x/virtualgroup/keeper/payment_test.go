@@ -5,16 +5,16 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/challenge"
@@ -124,4 +124,45 @@ func (s *TestSuite) TestSettleAndDistributeGVG() {
 		Return(sp, true).AnyTimes()
 	err = s.virtualgroupKeeper.SettleAndDistributeGVG(s.ctx, gvg)
 	require.NoError(s.T(), err)
+}
+
+func (s *TestSuite) TestSettle_GasIsIndependentOfGVGIDOrder() {
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+
+	existingGVGID := uint32(1)
+	missingGVGID := uint32(999999)
+	secondarySpID := uint32(10)
+
+	gvg := &types.GlobalVirtualGroup{
+		Id:                    existingGVGID,
+		SecondarySpIds:        []uint32{secondarySpID},
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+		TotalDeposit:          math.ZeroInt(),
+	}
+	s.virtualgroupKeeper.SetGVG(s.ctx, gvg)
+
+	sp := &sptypes.StorageProvider{Id: secondarySpID, FundingAddress: sample.RandAccAddress().String()}
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), secondarySpID).Return(sp, true).AnyTimes()
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.NewInt(100), nil).AnyTimes()
+	s.paymentKeeper.EXPECT().Withdraw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	req := &types.MsgSettle{
+		StorageProvider:       sample.RandAccAddress().String(),
+		GlobalVirtualGroupIds: []uint32{existingGVGID, missingGVGID},
+	}
+
+	baseCtx := s.ctx
+	gasReadings := make(map[uint64]int)
+	const iterations = 200
+
+	for i := 0; i < iterations; i++ {
+		callCtx := baseCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+		_, err := msgServer.Settle(callCtx, req)
+		require.ErrorIs(s.T(), err, types.ErrGVGNotExist)
+		gasReadings[callCtx.GasMeter().GasConsumed()]++
+	}
+
+	require.Lenf(s.T(), gasReadings, 1,
+		"the same MsgSettle must consume the same gas on every node; saw %d different totals over %d calls: %v",
+		len(gasReadings), iterations, gasReadings)
 }
