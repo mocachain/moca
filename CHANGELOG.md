@@ -49,6 +49,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (x/payment) [#380](https://github.com/mocachain/moca/pull/380) Backport to `release/1.4.x`: freeze all of an account's active out-flows in a single block during force settle, including across cascades and cycles (MOCA-806)
+- (x/payment) [#407](https://github.com/mocachain/moca/pull/407) Backport to `release/1.4.x`: settle a resuming account once per batch and charge only the real active window (MOCA-1073)
 - (deps) [#239](https://github.com/mocachain/moca/pull/239) Bump `moca-iavl` to `v1.2.0-rc1` (adds the reformatted-root `GetNode` fallback, cosmos/iavl #1009) to fix silently-truncated IAVL snapshot exports that produced corrupt mainnet state-sync snapshots
 - (rpc) [#232](https://github.com/mocachain/moca/pull/232) Align `newHeads` subscription block hashes with the canonical hashes returned by block-by-number / block-by-hash APIs
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
