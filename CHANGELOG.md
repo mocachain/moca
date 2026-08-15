@@ -50,6 +50,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 ### Bug Fixes
 
 - (virtualgroup) [#388](https://github.com/mocachain/moca/pull/388) Backport to `release/1.4.x`: settle the global virtual groups named in `MsgSettle` in a deterministic (request-id) order instead of Go map iteration order (MOCA-957)
+- (x/payment) [#287](https://github.com/mocachain/moca/pull/287) Backport to `release/1.4.x`: compute the settle-timestamp math in `sdkmath.Int` and bound it to the int64 range in `UpdateStreamRecord`/`TryResumeStreamRecord` (MOCA-385)
 - (deps) [#239](https://github.com/mocachain/moca/pull/239) Bump `moca-iavl` to `v1.2.0-rc1` (adds the reformatted-root `GetNode` fallback, cosmos/iavl #1009) to fix silently-truncated IAVL snapshot exports that produced corrupt mainnet state-sync snapshots
 - (rpc) [#232](https://github.com/mocachain/moca/pull/232) Align `newHeads` subscription block hashes with the canonical hashes returned by block-by-number / block-by-hash APIs
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
