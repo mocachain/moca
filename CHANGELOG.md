@@ -58,6 +58,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (x/permission) [#406](https://github.com/mocachain/moca/pull/406) Backport to `release/1.4.x`: match policy statement resources as anchored, escaped wildcard patterns and skip an uncompilable pattern instead of panicking (MOCA-807, MOCA-936)
 - (x/permission) [#411](https://github.com/mocachain/moca/pull/411) Backport to `release/1.4.x`: treat an empty `Resources` slice as bucket-scoped, so a bucket-wide Deny still applies to sub-resources (MOCA-808)
 - (app) [#391](https://github.com/mocachain/moca/pull/391) Backport to `release/1.4.x`: schedule configured hardforks in `PreBlocker` (so a plan applies in the block its height names) and let a configured hardfork supersede a pending/stale upgrade plan instead of panicking (MOCA-962)
+- (x/payment) [#380](https://github.com/mocachain/moca/pull/380) Backport to `release/1.4.x`: freeze all of an account's active out-flows in a single block during force settle, including across cascades and cycles (MOCA-806)
+- (x/payment) [#407](https://github.com/mocachain/moca/pull/407) Backport to `release/1.4.x`: settle a resuming account once per batch and charge only the real active window (MOCA-1073)
 - (deps) [#239](https://github.com/mocachain/moca/pull/239) Bump `moca-iavl` to `v1.2.0-rc1` (adds the reformatted-root `GetNode` fallback, cosmos/iavl #1009) to fix silently-truncated IAVL snapshot exports that produced corrupt mainnet state-sync snapshots
 - (rpc) [#232](https://github.com/mocachain/moca/pull/232) Align `newHeads` subscription block hashes with the canonical hashes returned by block-by-number / block-by-hash APIs
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
