@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"math"
 
 	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/store/prefix"
@@ -10,6 +11,13 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/evmos/evmos/v12/x/payment/types"
+)
+
+// int64 bounds as sdkmath.Int, hoisted so the settle-timestamp range checks in
+// UpdateStreamRecord / TryResumeStreamRecord don't re-allocate on every call.
+var (
+	settleTimestampMax = sdkmath.NewInt(math.MaxInt64)
+	settleTimestampMin = sdkmath.NewInt(math.MinInt64)
 )
 
 func (k Keeper) CheckStreamRecord(streamRecord *types.StreamRecord) {
@@ -214,7 +222,36 @@ func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRe
 				return fmt.Errorf("check and force settle failed, err: %w", err)
 			}
 		}
-		settleTimestamp = currentTimestamp - int64(params.ForcedSettleTime) + payDuration.Int64()
+		// The full expression can exceed int64 range, where Int64() panics — fatal in
+		// the no-recover EndBlocker. SettleTimestamp is only an auto-settle queue hint,
+		// recomputed on the next change, so saturate instead of overflowing.
+		settleTimestampFull := sdkmath.NewInt(currentTimestamp).
+			Sub(sdkmath.NewIntFromUint64(params.ForcedSettleTime)).
+			Add(payDuration)
+		switch {
+		case settleTimestampFull.GT(settleTimestampMax):
+			// A real user deposit = non-forced, positive-static-only change (forced is set on
+			// every EndBlocker path); reject it. Saturate elsewhere — an error on a forced path re-panics.
+			isUserDeposit := !forced && change.StaticBalanceChange.IsPositive() && change.RateChange.IsZero()
+			if isUserDeposit {
+				return types.ErrSettleTimestampOverflow.Wrapf(
+					"account %s pay duration %s exceeds int64 range; reduce deposit",
+					streamRecord.Account, payDuration.String())
+			}
+			ctx.Logger().Error("settle timestamp overflow, capping at MaxInt64",
+				"account", streamRecord.Account, "payDuration", payDuration.String(),
+				"forced", forced, "height", ctx.BlockHeight())
+			settleTimestamp = math.MaxInt64
+		case settleTimestampFull.LT(settleTimestampMin):
+			// Deeply indebted; only reachable on a forced path (account already
+			// force-settled above), never a deposit — saturate.
+			ctx.Logger().Error("settle timestamp underflow, capping at MinInt64",
+				"account", streamRecord.Account, "payDuration", payDuration.String(),
+				"forced", forced, "height", ctx.BlockHeight())
+			settleTimestamp = math.MinInt64
+		default:
+			settleTimestamp = settleTimestampFull.Int64()
+		}
 	}
 	k.UpdateAutoSettleRecord(ctx, sdk.MustAccAddressFromHex(streamRecord.Account), streamRecord.SettleTimestamp, settleTimestamp)
 	streamRecord.SettleTimestamp = settleTimestamp
@@ -223,11 +260,19 @@ func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRe
 
 func (k Keeper) UpdateStreamRecordByAddr(ctx sdk.Context, change *types.StreamRecordChange) (ret *types.StreamRecord, err error) {
 	streamRecord, _ := k.GetStreamRecord(ctx, change.Addr)
+	wasActive := streamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE
 	err = k.UpdateStreamRecord(ctx, streamRecord, change)
 	if err != nil {
 		return
 	}
 	k.SetStreamRecord(ctx, streamRecord)
+	if wasActive && streamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN {
+		if err = k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
+			err = fmt.Errorf("freeze active out-flows failed: %w", err)
+			return
+		}
+		k.SetStreamRecord(ctx, streamRecord)
+	}
 	return streamRecord, nil
 }
 
@@ -249,6 +294,64 @@ func (k Keeper) ForceSettle(ctx sdk.Context, streamRecord *types.StreamRecord) e
 		SettledBalance: totalBalance,
 	})
 	return nil
+}
+
+func (k Keeper) freezeAllActiveOutFlows(ctx sdk.Context, streamRecord *types.StreamRecord) error {
+	addr := sdk.MustAccAddressFromHex(streamRecord.Account)
+	flowStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.OutFlowKeyPrefix)
+
+	// Collect before writing: freezing a recipient recurses back into this
+	// function, and the resulting out-flow writes land inside this iterator's
+	// range whenever the recipient sorts after addr, which invalidates it.
+	toFreeze := collectActiveOutFlows(flowStore, addr)
+
+	totalRate := sdkmath.ZeroInt()
+	for i := range toFreeze {
+		outFlow := toFreeze[i]
+		toAddr := sdk.MustAccAddressFromHex(outFlow.ToAddress)
+		// A flow to self carries no rate between accounts, and the payer side is
+		// already covered by totalRate below, so only move the entry.
+		if !toAddr.Equals(addr) {
+			change := types.NewDefaultStreamRecordChangeWithAddr(toAddr).WithRateChange(outFlow.Rate.Neg())
+			if _, err := k.UpdateStreamRecordByAddr(ctx, change); err != nil {
+				return fmt.Errorf("update recipient stream record %s: %w", outFlow.ToAddress, err)
+			}
+		}
+
+		flowStore.Delete(types.OutFlowKey(addr, types.OUT_FLOW_STATUS_ACTIVE, toAddr))
+		outFlow.Status = types.OUT_FLOW_STATUS_FROZEN
+		k.SetOutFlow(ctx, addr, &outFlow)
+		totalRate = totalRate.Add(outFlow.Rate)
+	}
+
+	// Freezing a recipient can recurse back into this account and persist a
+	// newer record. Callers persist before calling here, so re-read and apply
+	// the delta to that state instead of to a copy taken before the recursion.
+	if latest, found := k.GetStreamRecord(ctx, addr); found {
+		*streamRecord = *latest
+	}
+	streamRecord.NetflowRate = streamRecord.NetflowRate.Add(totalRate)
+	streamRecord.FrozenNetflowRate = streamRecord.FrozenNetflowRate.Add(totalRate.Neg())
+	return nil
+}
+
+// collectActiveOutFlows returns addr's active out-flows, buffering only the
+// entries that will be frozen. Keys are rebuilt from ToAddress at write time.
+func collectActiveOutFlows(flowStore prefix.Store, addr sdk.AccAddress) []types.OutFlow {
+	activeFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_ACTIVE, nil)
+	flowIterator := flowStore.Iterator(activeFlowKey, nil)
+	defer flowIterator.Close()
+
+	toFreeze := make([]types.OutFlow, 0)
+	for ; flowIterator.Valid(); flowIterator.Next() {
+		addrInKey, outFlow := types.ParseOutFlowKey(flowIterator.Key())
+		if !addrInKey.Equals(addr) || outFlow.Status == types.OUT_FLOW_STATUS_FROZEN {
+			break
+		}
+		outFlow.Rate = types.ParseOutFlowValue(flowIterator.Value())
+		toFreeze = append(toFreeze, outFlow)
+	}
+	return toFreeze
 }
 
 func (k Keeper) AutoSettle(ctx sdk.Context) {
@@ -285,6 +388,11 @@ func (k Keeper) AutoSettle(ctx sdk.Context) {
 			if streamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE {
 				continue
 			}
+			if err := k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
+				ctx.Logger().Error("auto settle, freeze active out-flows failed", "err", err.Error())
+				continue
+			}
+			k.SetStreamRecord(ctx, streamRecord)
 			if count >= max {
 				return
 			}
@@ -392,7 +500,21 @@ func (k Keeper) TryResumeStreamRecord(ctx sdk.Context, streamRecord *types.Strea
 	}
 
 	prevSettleTime := streamRecord.SettleTimestamp
-	streamRecord.SettleTimestamp = now + streamRecord.StaticBalance.Quo(totalRate.Abs()).Int64() - int64(forcedSettleTime)
+	settleTimestampFull := sdkmath.NewInt(now).
+		Add(streamRecord.StaticBalance.Quo(totalRate.Abs())).
+		Sub(sdkmath.NewIntFromUint64(forcedSettleTime))
+	switch {
+	case settleTimestampFull.GT(settleTimestampMax):
+		// Deposit-only path (runTx, not the no-recover EndBlocker): reject over-funding.
+		return types.ErrSettleTimestampOverflow.Wrapf(
+			"account %s: deposit would fund account beyond the representable future; reduce deposit",
+			streamRecord.Account)
+	case settleTimestampFull.LT(settleTimestampMin):
+		// Unreachable (the resume guard above bounds StaticBalance from below); clamped for
+		// parity with UpdateStreamRecord so the Int64() cast is provably in range.
+		settleTimestampFull = settleTimestampMin
+	}
+	streamRecord.SettleTimestamp = settleTimestampFull.Int64()
 	streamRecord.BufferBalance = expectedBalanceToResume
 	streamRecord.StaticBalance = streamRecord.StaticBalance.Sub(expectedBalanceToResume)
 	streamRecord.CrudTimestamp = now
@@ -511,6 +633,18 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 			k.SetOutFlow(ctx, addr, &outFlow)
 		}
 
+		// A resume can span several blocks. Settle at the rate in effect since the last
+		// batch and advance CrudTimestamp before raising the rate, so the final settle
+		// does not apply the fully restored rate to the whole elapsed window.
+		now := ctx.BlockTime().Unix()
+		if now > streamRecord.CrudTimestamp {
+			if !streamRecord.NetflowRate.IsZero() {
+				flowDelta := streamRecord.NetflowRate.MulRaw(now - streamRecord.CrudTimestamp)
+				streamRecord.StaticBalance = streamRecord.StaticBalance.Add(flowDelta)
+			}
+			streamRecord.CrudTimestamp = now
+		}
+
 		streamRecord.NetflowRate = streamRecord.NetflowRate.Add(totalRate.Neg())
 		streamRecord.FrozenNetflowRate = streamRecord.FrozenNetflowRate.Add(totalRate)
 		if !flowIterator.Valid() || finished {
@@ -524,6 +658,13 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 			if err != nil {
 				ctx.Logger().Error("auto resume, update  stream record failed", "err", err.Error())
 				panic("should not happen")
+			}
+			if streamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN {
+				k.SetStreamRecord(ctx, streamRecord)
+				if err := k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
+					ctx.Logger().Error("auto resume, freeze active out-flows failed", "err", err.Error())
+					continue
+				}
 			}
 			k.RemoveAutoResumeRecord(ctx, record.Timestamp, addr)
 		}

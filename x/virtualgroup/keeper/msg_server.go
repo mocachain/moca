@@ -400,12 +400,15 @@ func (k msgServer) Settle(goCtx context.Context, req *types.MsgSettle) (*types.M
 			return nil, types.ErrSettleFailed
 		}
 	} else {
-		m := make(map[uint32]struct{})
+		// Walk the request's id order, which is the same on every node; the map
+		// only skips duplicates, since ranging it randomizes order.
+		seen := make(map[uint32]struct{}, len(req.GlobalVirtualGroupIds))
 		for _, gvgID := range req.GlobalVirtualGroupIds {
-			m[gvgID] = struct{}{}
-		}
+			if _, ok := seen[gvgID]; ok {
+				continue
+			}
+			seen[gvgID] = struct{}{}
 
-		for gvgID := range m {
 			gvg, found := k.GetGVG(ctx, gvgID)
 			if !found {
 				return nil, types.ErrGVGNotExist
