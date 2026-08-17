@@ -124,6 +124,7 @@ func (k Keeper) GetAllStorageProviders(ctx sdk.Context) (sps []types.StorageProv
 	store := ctx.KVStore(k.storeKey)
 
 	iter := storetypes.KVStorePrefixIterator(store, types.StorageProviderKey)
+	defer iter.Close()
 
 	for ; iter.Valid(); iter.Next() {
 		sp := types.MustUnmarshalStorageProvider(k.cdc, iter.Value())
