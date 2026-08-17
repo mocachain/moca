@@ -49,6 +49,14 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (virtualgroup) [#388](https://github.com/mocachain/moca/pull/388) Backport to `release/1.4.x`: settle the global virtual groups named in `MsgSettle` in a deterministic (request-id) order instead of Go map iteration order (MOCA-957)
+- (x/payment) [#287](https://github.com/mocachain/moca/pull/287) Backport to `release/1.4.x`: compute the settle-timestamp math in `sdkmath.Int` and bound it to the int64 range in `UpdateStreamRecord`/`TryResumeStreamRecord` (MOCA-385)
+- (virtualgroup, app) [#281](https://github.com/mocachain/moca/pull/281) Backport to `release/1.4.x`: give `x/virtualgroup` its own transient store key (`transient_virtualgroup`) and register it, so it no longer shares the `transient_storage` key with `x/storage` (MOCA-959)
+- (app) [#398](https://github.com/mocachain/moca/pull/398) Backport to `release/1.4.x`: normalize the precompile blocklist keys to the checksummed `AccAddress.String()` form the bank keeper looks up (MOCA-961, MOCA-967)
+- (x/sp) [#397](https://github.com/mocachain/moca/pull/397) Backport to `release/1.4.x`: delete the correct BLS-key index entry when a storage provider exits (MOCA-972)
+- (x/storage, x/sp) [#298](https://github.com/mocachain/moca/pull/298) [#301](https://github.com/mocachain/moca/pull/301) [#299](https://github.com/mocachain/moca/pull/299) [#302](https://github.com/mocachain/moca/pull/302) Backport to `release/1.4.x`: close store iterators in the storage `IsNonEmptyBucket`/payment-check and sp `GetAllStorageProviders`/force-update-maintenance paths
+- (x/permission) [#406](https://github.com/mocachain/moca/pull/406) Backport to `release/1.4.x`: match policy statement resources as anchored, escaped wildcard patterns and skip an uncompilable pattern instead of panicking (MOCA-807, MOCA-936)
+- (x/permission) [#411](https://github.com/mocachain/moca/pull/411) Backport to `release/1.4.x`: treat an empty `Resources` slice as bucket-scoped, so a bucket-wide Deny still applies to sub-resources (MOCA-808)
 - (app) [#391](https://github.com/mocachain/moca/pull/391) Backport to `release/1.4.x`: schedule configured hardforks in `PreBlocker` (so a plan applies in the block its height names) and let a configured hardfork supersede a pending/stale upgrade plan instead of panicking (MOCA-962)
 - (deps) [#239](https://github.com/mocachain/moca/pull/239) Bump `moca-iavl` to `v1.2.0-rc1` (adds the reformatted-root `GetNode` fallback, cosmos/iavl #1009) to fix silently-truncated IAVL snapshot exports that produced corrupt mainnet state-sync snapshots
 - (rpc) [#232](https://github.com/mocachain/moca/pull/232) Align `newHeads` subscription block hashes with the canonical hashes returned by block-by-number / block-by-hash APIs
