@@ -541,7 +541,7 @@ func findFlowByToAddress(flows []types.OutFlow, toAddress string) *types.OutFlow
 func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
 	keeper, ctx, deps := makePaymentKeeper(t)
 	params := keeper.GetParams(ctx)
-	reserveTime := int64(params.VersionedParams.ReserveTime)
+	reserveTime := sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime)
 
 	start := int64(100)
 	ctx = ctx.WithBlockTime(time.Unix(start, 0))
@@ -565,7 +565,7 @@ func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
 	fromRecord.Status = types.STREAM_ACCOUNT_STATUS_ACTIVE
 	fromRecord.NetflowRate = sdkmath.NewInt(-100)
 	fromRecord.StaticBalance = sdkmath.ZeroInt()
-	fromRecord.BufferBalance = sdkmath.NewInt(100 * reserveTime)
+	fromRecord.BufferBalance = reserveTime.MulRaw(100)
 	fromRecord.OutFlowCount = 1
 	keeper.SetStreamRecord(ctx, fromRecord)
 	keeper.SetOutFlow(ctx, from, &types.OutFlow{
@@ -584,7 +584,7 @@ func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
 	// Let one reserve period of debt accrue, then add a flow. The settlement
 	// drains the balance and the larger buffer finishes it off, which is what
 	// drives the account across the forced-settle threshold.
-	ctx = ctx.WithBlockTime(time.Unix(start+reserveTime, 0))
+	ctx = ctx.WithBlockTime(time.Unix(start+reserveTime.Int64(), 0))
 	err := keeper.ApplyUserFlowsList(ctx, []types.UserFlows{{
 		From:  from,
 		Flows: []types.OutFlow{{ToAddress: fresh.String(), Rate: sdkmath.NewInt(50)}},
