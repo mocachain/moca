@@ -82,6 +82,9 @@ func (s *TestSuite) SetupTest() {
 	s.stakingKeeper = stakingKeeper
 	s.paymentKeeper = paymentKeeper
 
+	// raising a challenge locks the deposit of the challenged sp
+	spKeeper.EXPECT().SetDepositLockUntil(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+
 	err := s.challengeKeeper.SetParams(s.ctx, types.DefaultParams())
 	s.Require().NoError(err)
 

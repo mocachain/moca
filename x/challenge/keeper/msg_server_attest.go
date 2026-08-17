@@ -29,11 +29,6 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 	submitter := sdk.MustAccAddressFromHex(msg.Submitter)
 	spOperator := sdk.MustAccAddressFromHex(msg.SpOperatorAddress)
 
-	sp, found := k.SpKeeper.GetStorageProviderByOperatorAddr(ctx, spOperator)
-	if !found {
-		return nil, errors.Wrapf(types.ErrUnknownSp, "cannot find sp with operator address: %s", msg.SpOperatorAddress)
-	}
-
 	challenger := sdk.AccAddress{}
 	if msg.ChallengerAddress != "" {
 		challenger = sdk.MustAccAddressFromHex(msg.ChallengerAddress)
@@ -41,6 +36,18 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 
 	if !k.ExistsChallenge(ctx, msg.ChallengeId) {
 		return nil, errors.Wrapf(types.ErrInvalidChallengeID, "challenge %d cannot be found, it could be expired", msg.ChallengeId)
+	}
+
+	// Resolve the sp from the challenge itself when the binding is recorded. The sp is then the
+	// one the challenge was actually raised against, and it stays resolvable even if the sp has
+	// since left the virtual group that stores the object.
+	sp, bound, found := k.resolveChallengedSp(ctx, msg.ChallengeId, spOperator)
+	if !found {
+		return nil, errors.Wrapf(types.ErrUnknownSp, "cannot find sp with operator address: %s", msg.SpOperatorAddress)
+	}
+	if bound && !spOperator.Equals(sdk.MustAccAddressFromHex(sp.OperatorAddress)) {
+		return nil, errors.Wrapf(types.ErrUnknownSp, "sp %s is not the sp challenge %d was raised against",
+			msg.SpOperatorAddress, msg.ChallengeId)
 	}
 
 	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
@@ -74,19 +81,25 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 		return nil, storagetypes.ErrNoSuchBucket.Wrapf("bucket not found when attest")
 	}
 
-	spInState := k.StorageKeeper.MustGetPrimarySPForBucket(ctx, bucketInfo)
+	// Without a recorded binding the sp can only be trusted as far as live state confirms it,
+	// so keep re-deriving the membership for challenges raised before the binding existed.
+	if !bound {
+		spInState := k.StorageKeeper.MustGetPrimarySPForBucket(ctx, bucketInfo)
 
-	if spInState.Id != sp.Id {
-		gvg, _ := k.StorageKeeper.GetObjectGVG(ctx, bucketInfo.Id, objectInfo.LocalVirtualGroupId)
-		found = false
-		for _, id := range gvg.SecondarySpIds {
-			if id == sp.Id {
-				found = true
-				break
+		if spInState.Id != sp.Id {
+			gvg, gvgFound := k.StorageKeeper.GetObjectGVG(ctx, bucketInfo.Id, objectInfo.LocalVirtualGroupId)
+			found = false
+			if gvgFound {
+				for _, id := range gvg.SecondarySpIds {
+					if id == sp.Id {
+						found = true
+						break
+					}
+				}
 			}
-		}
-		if !found {
-			return nil, errors.Wrapf(types.ErrNotStoredOnSp, "sp %s does not store the object anymore", sp.OperatorAddress)
+			if !found {
+				return nil, errors.Wrapf(types.ErrNotStoredOnSp, "sp %s does not store the object anymore", sp.OperatorAddress)
+			}
 		}
 	}
 
@@ -142,6 +155,18 @@ func (k msgServer) Attest(goCtx context.Context, msg *types.MsgAttest) (*types.M
 	})
 
 	return &types.MsgAttestResponse{}, nil
+}
+
+// resolveChallengedSp returns the sp a challenge is about. It prefers the sp id recorded when the
+// challenge was raised, and falls back to the operator address for challenges that predate the
+// binding. The second return value reports whether the binding was used.
+func (k msgServer) resolveChallengedSp(ctx sdk.Context, challengeID uint64, spOperator sdk.AccAddress) (*sptypes.StorageProvider, bool, bool) {
+	if spID, ok := k.GetChallengeSpID(ctx, challengeID); ok {
+		sp, found := k.SpKeeper.GetStorageProvider(ctx, spID)
+		return sp, true, found
+	}
+	sp, found := k.SpKeeper.GetStorageProviderByOperatorAddr(ctx, spOperator)
+	return sp, false, found
 }
 
 // calculateSlashAmount calculates the slash amount based on object size. There are also bounds of the amount.

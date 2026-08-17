@@ -48,4 +48,8 @@ var (
 
 	// SlashAmountKeyPrefix is the prefix to count the amount of Slash for a sp.
 	SlashAmountKeyPrefix = []byte{0x18}
+
+	// ChallengeSpKeyPrefix is the prefix to retrieve the id of the sp a challenge was raised
+	// against, so the attestation does not have to re-derive it from live state.
+	ChallengeSpKeyPrefix = []byte{0x19}
 )

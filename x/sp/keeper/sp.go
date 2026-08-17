@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"encoding/binary"
+
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -133,8 +135,44 @@ func (k Keeper) GetAllStorageProviders(ctx sdk.Context) (sps []types.StorageProv
 	return sps
 }
 
+// SetDepositLockUntil keeps the deposit of a storage provider inside the module account until
+// the given height. The watermark only moves forward, so a later challenge cannot shorten the
+// lock an earlier one established.
+func (k Keeper) SetDepositLockUntil(ctx sdk.Context, spID uint32, height uint64) {
+	if height <= k.GetDepositLockUntil(ctx, spID) {
+		return
+	}
+	bz := make([]byte, 8)
+	binary.BigEndian.PutUint64(bz, height)
+	ctx.KVStore(k.storeKey).Set(types.GetDepositLockKey(spID), bz)
+}
+
+// ReleaseDepositLockUntil sets the lock to the given height unconditionally, unlike
+// SetDepositLockUntil which only moves it forward. It is for the caller that has recomputed
+// the height from what is still outstanding, and clears the entry when nothing is.
+func (k Keeper) ReleaseDepositLockUntil(ctx sdk.Context, spID uint32, height uint64) {
+	store := ctx.KVStore(k.storeKey)
+	if height == 0 {
+		store.Delete(types.GetDepositLockKey(spID))
+		return
+	}
+	bz := make([]byte, 8)
+	binary.BigEndian.PutUint64(bz, height)
+	store.Set(types.GetDepositLockKey(spID), bz)
+}
+
+// GetDepositLockUntil returns the height until which the deposit of a storage provider is locked.
+func (k Keeper) GetDepositLockUntil(ctx sdk.Context, spID uint32) uint64 {
+	bz := ctx.KVStore(k.storeKey).Get(types.GetDepositLockKey(spID))
+	if bz == nil {
+		return 0
+	}
+	return binary.BigEndian.Uint64(bz)
+}
+
 func (k Keeper) Exit(ctx sdk.Context, sp *types.StorageProvider) error {
 	store := ctx.KVStore(k.storeKey)
+	store.Delete(types.GetDepositLockKey(sp.Id))
 	store.Delete(types.GetStorageProviderByOperatorAddrKey(sdk.MustAccAddressFromHex(sp.OperatorAddress)))
 	store.Delete(types.GetStorageProviderByFundingAddrKey(sdk.MustAccAddressFromHex(sp.FundingAddress)))
 	store.Delete(types.GetStorageProviderBySealAddrKey(sdk.MustAccAddressFromHex(sp.SealAddress)))
