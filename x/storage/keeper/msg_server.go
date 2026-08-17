@@ -389,6 +389,12 @@ func (k msgServer) PutPolicy(goCtx context.Context, msg *types.MsgPutPolicy) (*t
 		}
 	}
 
+	// ValidateBasic only checks that each resource parses as a GRN; ValidateRuntime checks
+	// the rest. Running it here also covers the EVM precompile, which shares this server.
+	if err := msg.ValidateRuntime(ctx); err != nil {
+		return nil, err
+	}
+
 	policy := &permtypes.Policy{
 		ResourceType:   grn.ResourceType(),
 		Principal:      msg.Principal,
