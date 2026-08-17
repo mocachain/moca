@@ -96,6 +96,7 @@ func (s *TestSuite) TestUpdateObjectContent_ZeroPayloadRefund() {
 	// Arrange: Mock dependencies
 	sp := &sptypes.StorageProvider{Id: primarySpId, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: ownerHex}
 	s.spKeeper.EXPECT().MustGetStorageProvider(gomock.Any(), primarySpId).Return(sp).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), primarySpId).Return(sp, true).AnyTimes()
 	// Mock global store price at PriceTime
 	price := sptypes.GlobalSpStorePrice{}
 	price.PrimaryStorePrice = sdkmath.LegacyNewDec(1)
