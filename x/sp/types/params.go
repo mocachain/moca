@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"strings"
 
+	stdmath "math"
+
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gopkg.in/yaml.v2"
@@ -186,9 +188,15 @@ func validateLockUpBlocksForMaintenance(i interface{}) error {
 }
 
 func validateUpdateGlobalPriceInterval(i interface{}) error {
-	_, ok := i.(uint64)
+	v, ok := i.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	// The interval is compared against a duration in seconds as an int64
+	// (x/sp/abci.go), so a value past that range wraps negative and makes the
+	// comparison trivially true, updating the global price every block.
+	if v > stdmath.MaxInt64 {
+		return fmt.Errorf("update global price interval too large: %d", v)
 	}
 	return nil
 }
