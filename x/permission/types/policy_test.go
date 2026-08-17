@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
@@ -13,6 +14,13 @@ import (
 	"github.com/evmos/evmos/v12/types/common"
 	"github.com/evmos/evmos/v12/types/resource"
 	"github.com/evmos/evmos/v12/x/permission/types"
+)
+
+const (
+	objInvoicePDF  = "invoice.pdf"
+	objAlternation = "(draft|final)"
+	objTestPrefix  = "test_*"
+	escalationBkt  = "escalation-bucket"
 )
 
 func TestPolicy_BucketBasic(t *testing.T) {
@@ -283,6 +291,51 @@ func TestPolicy_SubResource(t *testing.T) {
 			}
 			effect, _ := policy.Eval(tt.operateAction, time.Now(), &types.VerifyOptions{Resource: tt.operateResource})
 			require.Equal(t, effect, tt.expectEffect)
+		})
+	}
+}
+
+// TestStatementValidateRuntime_EmptyResourcesSlice pins that an empty Resources
+// slice is treated as absent on object- and group-scoped statements.
+//
+// The check tested nil rather than length, and the two are not the same thing
+// once a statement has been through ABI decoding: go-ethereum decodes a
+// zero-length dynamic array to an empty non-nil slice, so every object- and
+// group-scoped PutPolicy submitted through the EVM storage precompile carried
+// Resources == []string{} and was rejected. The native tx path was unaffected,
+// because protobuf decodes an absent repeated field to nil.
+//
+// A populated Resources on a non-bucket statement must still be rejected --
+// that is what the check is for.
+func TestStatementValidateRuntime_EmptyResourcesSlice(t *testing.T) {
+	for _, resType := range []resource.ResourceType{
+		resource.RESOURCE_TYPE_OBJECT,
+		resource.RESOURCE_TYPE_GROUP,
+	} {
+		t.Run(resType.String()+"/empty slice accepted", func(t *testing.T) {
+			s := &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_GET_OBJECT},
+				Resources: []string{},
+			}
+			require.NoError(t, s.ValidateRuntime(sdk.Context{}, resType))
+		})
+
+		t.Run(resType.String()+"/nil accepted", func(t *testing.T) {
+			s := &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_GET_OBJECT},
+			}
+			require.NoError(t, s.ValidateRuntime(sdk.Context{}, resType))
+		})
+
+		t.Run(resType.String()+"/populated still rejected", func(t *testing.T) {
+			s := &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_GET_OBJECT},
+				Resources: []string{"grn:o::bucket/obj"},
+			}
+			require.ErrorIs(t, s.ValidateRuntime(sdk.Context{}, resType), types.ErrInvalidStatement)
 		})
 	}
 }
