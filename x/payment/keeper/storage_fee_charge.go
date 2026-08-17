@@ -7,7 +7,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 // MergeStreamRecordChanges merge changes with same address
@@ -112,6 +112,12 @@ func (k Keeper) applyActiveUserFlows(ctx sdk.Context, userFlows types.UserFlows,
 	if err != nil {
 		return fmt.Errorf("apply stream record changes failed: %w", err)
 	}
+
+	// UpdateStreamRecord above can force-settle the account into FROZEN. Its
+	// out-flows have to follow, or the record is persisted frozen while every
+	// recipient keeps drawing against it. This runs after the merge so the
+	// flows written just above are included, and after the credits so the two
+	// net out — the same end state UpdateStreamRecordByAddr reaches.
 	if wasActive && streamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN {
 		if err = k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
 			return fmt.Errorf("freeze active out-flows failed: %w", err)

@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/evmos/evmos/v12/testutil/sample"
-	"github.com/evmos/evmos/v12/x/payment/types"
+	"github.com/mocachain/moca/v2/testutil/sample"
+	"github.com/mocachain/moca/v2/x/payment/types"
 )
 
 func TestApplyFlowChanges(t *testing.T) {
@@ -533,6 +533,11 @@ func findFlowByToAddress(flows []types.OutFlow, toAddress string) *types.OutFlow
 	return nil
 }
 
+// TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled pins the reported
+// corruption path: an ACTIVE record that UpdateStreamRecord force-settles to
+// FROZEN inside applyActiveUserFlows. Without the freeze that follows it, the
+// record is persisted frozen while its out-flows stay active, so every
+// recipient keeps drawing on an account that cannot pay.
 func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
 	keeper, ctx, deps := makePaymentKeeper(t)
 	params := keeper.GetParams(ctx)
@@ -547,11 +552,15 @@ func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
 	fresh := sample.RandAccAddress()
 
 	deps.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+	// The top-up that would rescue a negative balance fails: this account is out
+	// of funds, which is what lets settlement carry it past the forced-settle
+	// threshold instead of being zeroed back to solvent.
 	deps.BankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(errors.New("insufficient funds")).AnyTimes()
 	deps.BankKeeper.EXPECT().SendCoinsFromModuleToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	deps.BankKeeper.EXPECT().SendCoinsFromModuleToAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
+	// Active payer, one live out-flow, buffer fully reserved for its rate.
 	fromRecord := types.NewStreamRecord(from, start)
 	fromRecord.Status = types.STREAM_ACCOUNT_STATUS_ACTIVE
 	fromRecord.NetflowRate = sdkmath.NewInt(-100)
@@ -572,6 +581,9 @@ func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
 	freshRecord.StaticBalance = sdkmath.NewInt(1_000_000)
 	keeper.SetStreamRecord(ctx, freshRecord)
 
+	// Let one reserve period of debt accrue, then add a flow. The settlement
+	// drains the balance and the larger buffer finishes it off, which is what
+	// drives the account across the forced-settle threshold.
 	ctx = ctx.WithBlockTime(time.Unix(start+reserveTime.Int64(), 0))
 	err := keeper.ApplyUserFlowsList(ctx, []types.UserFlows{{
 		From:  from,
@@ -581,19 +593,26 @@ func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
 
 	got, found := keeper.GetStreamRecord(ctx, from)
 	require.True(t, found)
-	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, got.Status)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, got.Status,
+		"fixture must reach the ACTIVE->FROZEN transition or this proves nothing")
 
+	// The pre-existing flow and the one merged by this same call both follow.
 	outFlows := keeper.GetOutFlows(ctx, from)
 	require.Len(t, outFlows, 2)
 	for _, of := range outFlows {
-		require.Equal(t, types.OUT_FLOW_STATUS_FROZEN, of.Status)
+		require.Equal(t, types.OUT_FLOW_STATUS_FROZEN, of.Status,
+			"out-flow to %s left active on a frozen account", of.ToAddress)
 	}
 
-	require.True(t, got.NetflowRate.IsZero())
+	// Rate moves to the frozen side rather than staying live.
+	require.True(t, got.NetflowRate.IsZero(), "frozen account still has active netflow %s", got.NetflowRate)
 	require.Equal(t, int64(-150), got.FrozenNetflowRate.Int64())
 
+	// Neither recipient may keep drawing on an account that cannot pay.
 	existingAfter, _ := keeper.GetStreamRecord(ctx, existing)
-	require.True(t, existingAfter.NetflowRate.IsZero())
+	require.True(t, existingAfter.NetflowRate.IsZero(),
+		"recipient still drawing from a frozen payer: %s", existingAfter.NetflowRate)
 	freshAfter, _ := keeper.GetStreamRecord(ctx, fresh)
-	require.True(t, freshAfter.NetflowRate.IsZero())
+	require.True(t, freshAfter.NetflowRate.IsZero(),
+		"new recipient credited against a frozen payer: %s", freshAfter.NetflowRate)
 }
