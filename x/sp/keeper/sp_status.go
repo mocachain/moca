@@ -71,6 +71,7 @@ func (k Keeper) ForceUpdateMaintenanceRecords(ctx sdk.Context) {
 	store := ctx.KVStore(k.storeKey)
 	curTime := ctx.BlockTime().Unix()
 	iter := storetypes.KVStorePrefixIterator(store, types.StorageProviderKey)
+	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
 		sp := types.MustUnmarshalStorageProvider(k.cdc, iter.Value())
 		key := types.GetStorageProviderMaintenanceRecordsKey(sdk.MustAccAddressFromHex(sp.OperatorAddress))
