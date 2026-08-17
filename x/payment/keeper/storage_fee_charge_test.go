@@ -8,8 +8,8 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/payment/types"
@@ -531,4 +531,69 @@ func findFlowByToAddress(flows []types.OutFlow, toAddress string) *types.OutFlow
 		}
 	}
 	return nil
+}
+
+func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
+	keeper, ctx, deps := makePaymentKeeper(t)
+	params := keeper.GetParams(ctx)
+	reserveTime := sdkmath.NewIntFromUint64(params.VersionedParams.ReserveTime)
+
+	start := int64(100)
+	ctx = ctx.WithBlockTime(time.Unix(start, 0))
+	ctx = ctx.WithValue(types.ForceUpdateStreamRecordKey, true)
+
+	from := sample.RandAccAddress()
+	existing := sample.RandAccAddress()
+	fresh := sample.RandAccAddress()
+
+	deps.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+	deps.BankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(errors.New("insufficient funds")).AnyTimes()
+	deps.BankKeeper.EXPECT().SendCoinsFromModuleToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	deps.BankKeeper.EXPECT().SendCoinsFromModuleToAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	fromRecord := types.NewStreamRecord(from, start)
+	fromRecord.Status = types.STREAM_ACCOUNT_STATUS_ACTIVE
+	fromRecord.NetflowRate = sdkmath.NewInt(-100)
+	fromRecord.StaticBalance = sdkmath.ZeroInt()
+	fromRecord.BufferBalance = reserveTime.MulRaw(100)
+	fromRecord.OutFlowCount = 1
+	keeper.SetStreamRecord(ctx, fromRecord)
+	keeper.SetOutFlow(ctx, from, &types.OutFlow{
+		ToAddress: existing.String(), Rate: sdkmath.NewInt(100), Status: types.OUT_FLOW_STATUS_ACTIVE,
+	})
+
+	existingRecord := types.NewStreamRecord(existing, start)
+	existingRecord.NetflowRate = sdkmath.NewInt(100)
+	existingRecord.StaticBalance = sdkmath.NewInt(1_000_000)
+	keeper.SetStreamRecord(ctx, existingRecord)
+
+	freshRecord := types.NewStreamRecord(fresh, start)
+	freshRecord.StaticBalance = sdkmath.NewInt(1_000_000)
+	keeper.SetStreamRecord(ctx, freshRecord)
+
+	ctx = ctx.WithBlockTime(time.Unix(start+reserveTime.Int64(), 0))
+	err := keeper.ApplyUserFlowsList(ctx, []types.UserFlows{{
+		From:  from,
+		Flows: []types.OutFlow{{ToAddress: fresh.String(), Rate: sdkmath.NewInt(50)}},
+	}})
+	require.NoError(t, err)
+
+	got, found := keeper.GetStreamRecord(ctx, from)
+	require.True(t, found)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, got.Status)
+
+	outFlows := keeper.GetOutFlows(ctx, from)
+	require.Len(t, outFlows, 2)
+	for _, of := range outFlows {
+		require.Equal(t, types.OUT_FLOW_STATUS_FROZEN, of.Status)
+	}
+
+	require.True(t, got.NetflowRate.IsZero())
+	require.Equal(t, int64(-150), got.FrozenNetflowRate.Int64())
+
+	existingAfter, _ := keeper.GetStreamRecord(ctx, existing)
+	require.True(t, existingAfter.NetflowRate.IsZero())
+	freshAfter, _ := keeper.GetStreamRecord(ctx, fresh)
+	require.True(t, freshAfter.NetflowRate.IsZero())
 }
