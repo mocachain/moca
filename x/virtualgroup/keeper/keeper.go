@@ -12,6 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/evmos/evmos/v12/internal/sequence"
+	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
 	sptypes "github.com/evmos/evmos/v12/x/sp/types"
 	"github.com/evmos/evmos/v12/x/virtualgroup/types"
 )
@@ -128,6 +129,26 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 
 	if !k.paymentKeeper.IsEmptyNetFlow(ctx, sdk.MustAccAddressFromHex(gvg.VirtualPaymentAddress)) {
 		return types.ErrGVGNotEmpty.Wrap("The virtual payment account still not empty")
+	}
+
+	// Distribute the GVG's virtual payment account to the secondary SPs before
+	// deletion. Once the GVG is gone, its settlement path is gone too, so any
+	// leftover balance would be permanently unreachable.
+	if err := k.SettleAndDistributeGVG(ctx, gvg); err != nil {
+		return err
+	}
+	// SettleAndDistributeGVG pays equal shares and leaves the indivisible remainder
+	// (< number of secondaries) in the account. Sweep that dust to the payment
+	// governance address so the account is fully drained instead of orphaned.
+	vpa := sdk.MustAccAddressFromHex(gvg.VirtualPaymentAddress)
+	residual, err := k.paymentKeeper.QueryDynamicBalance(ctx, vpa)
+	if err != nil {
+		return err
+	}
+	if residual.IsPositive() {
+		if err := k.paymentKeeper.Withdraw(ctx, vpa, paymenttypes.GovernanceAddress, residual); err != nil {
+			return err
+		}
 	}
 
 	if !gvg.TotalDeposit.IsZero() {
