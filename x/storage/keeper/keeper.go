@@ -32,7 +32,6 @@ type (
 	Keeper struct {
 		cdc                codec.BinaryCodec
 		storeKey           storetypes.StoreKey
-		tStoreKey          storetypes.StoreKey
 		spKeeper           storagetypes.SpKeeper
 		paymentKeeper      storagetypes.PaymentKeeper
 		accountKeeper      storagetypes.AccountKeeper
@@ -60,7 +59,6 @@ type paymentCheckConfig struct {
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
-	tStoreKey storetypes.StoreKey,
 	accountKeeper storagetypes.AccountKeeper,
 	spKeeper storagetypes.SpKeeper,
 	paymentKeeper storagetypes.PaymentKeeper,
@@ -73,7 +71,6 @@ func NewKeeper(
 	k := Keeper{
 		cdc:                cdc,
 		storeKey:           storeKey,
-		tStoreKey:          tStoreKey,
 		accountKeeper:      accountKeeper,
 		spKeeper:           spKeeper,
 		paymentKeeper:      paymentKeeper,
@@ -2106,16 +2103,20 @@ func (k Keeper) appendResourceIDForGarbageCollection(ctx sdk.Context, resourceTy
 			return nil
 		}
 	}
-	tStore := ctx.TransientStore(k.tStoreKey)
+	// this bookkeeping is kept in the regular KV store rather than the transient store: the
+	// multi-store the EVM builds around a precompile call only carries regular KVStoreKeys, so a
+	// transient lookup panics on any path reached through a precompile. EndBlocker drains the key
+	// within the same block, so it never survives into committed state.
+	store := ctx.KVStore(k.storeKey)
 	var deleteInfo storagetypes.DeleteInfo
-	if !tStore.Has(storagetypes.CurrentBlockDeleteStalePoliciesKey) {
+	if !store.Has(storagetypes.CurrentBlockDeleteStalePoliciesKey) {
 		deleteInfo = storagetypes.DeleteInfo{
 			BucketIds: &storagetypes.Ids{},
 			ObjectIds: &storagetypes.Ids{},
 			GroupIds:  &storagetypes.Ids{},
 		}
 	} else {
-		bz := tStore.Get(storagetypes.CurrentBlockDeleteStalePoliciesKey)
+		bz := store.Get(storagetypes.CurrentBlockDeleteStalePoliciesKey)
 		k.cdc.MustUnmarshal(bz, &deleteInfo)
 	}
 	switch resourceType {
@@ -2134,28 +2135,34 @@ func (k Keeper) appendResourceIDForGarbageCollection(ctx sdk.Context, resourceTy
 	default:
 		return storagetypes.ErrInvalidResource
 	}
-	tStore.Set(storagetypes.CurrentBlockDeleteStalePoliciesKey, k.cdc.MustMarshal(&deleteInfo))
+	store.Set(storagetypes.CurrentBlockDeleteStalePoliciesKey, k.cdc.MustMarshal(&deleteInfo))
 	return nil
 }
 
 func (k Keeper) PersistDeleteInfo(ctx sdk.Context) {
-	tStore := ctx.TransientStore(k.tStoreKey)
-	if !tStore.Has(storagetypes.CurrentBlockDeleteStalePoliciesKey) {
+	store := ctx.KVStore(k.storeKey)
+	if !store.Has(storagetypes.CurrentBlockDeleteStalePoliciesKey) {
 		return
 	}
-	bz := tStore.Get(storagetypes.CurrentBlockDeleteStalePoliciesKey)
+	bz := store.Get(storagetypes.CurrentBlockDeleteStalePoliciesKey)
 	deleteInfo := &storagetypes.DeleteInfo{}
 	k.cdc.MustUnmarshal(bz, deleteInfo)
 
 	// persist current block stale permission info to store if exists
 	if !deleteInfo.IsEmpty() {
-		store := ctx.KVStore(k.storeKey)
 		store.Set(storagetypes.GetDeleteStalePoliciesKey(ctx.BlockHeight()), bz)
 		_ = ctx.EventManager().EmitTypedEvents(&storagetypes.EventStalePolicyCleanup{
 			BlockNum:   ctx.BlockHeight(),
 			DeleteInfo: deleteInfo,
 		})
 	}
+}
+
+// ClearCurrentBlockDeleteInfo drops the current block's delete bookkeeping. It has to run on every
+// path out of EndBlocker so the key never reaches committed state, which is what the transient
+// store used to give for free.
+func (k Keeper) ClearCurrentBlockDeleteInfo(ctx sdk.Context) {
+	ctx.KVStore(k.storeKey).Delete(storagetypes.CurrentBlockDeleteStalePoliciesKey)
 }
 
 func (k Keeper) GarbageCollectResourcesStalePolicy(ctx sdk.Context) {

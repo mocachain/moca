@@ -17,9 +17,6 @@ const (
 	// MemStoreKey defines the in-memory store key
 	MemStoreKey = "mem_virtualgroup"
 
-	// TStoreKey defines the transient store key
-	TStoreKey = "transient_virtualgroup"
-
 	// GVGVirtualPaymentAccountName string for derive the virtual payment account for GVG
 	GVGVirtualPaymentAccountName = "global_virtual_group"
 

@@ -18,6 +18,11 @@ func BeginBlocker(ctx sdk.Context, keeper Keeper) error {
 }
 
 func EndBlocker(ctx sdk.Context, keeper Keeper) error {
+	// the current block's delete bookkeeping lives in the regular KV store, so it has to be dropped
+	// on every path out of this function -- including the early returns below, which previously
+	// relied on the transient store being discarded at the end of the block.
+	defer keeper.ClearCurrentBlockDeleteInfo(ctx)
+
 	deletionMax := keeper.DiscontinueDeletionMax(ctx)
 	if deletionMax == 0 {
 		return nil
