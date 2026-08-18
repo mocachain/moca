@@ -20,4 +20,5 @@ var (
 	ErrIncorrectWithdrawAmount            = errorsmod.Register(ModuleName, 1211, "the withdrawal amount is not equal to the delayed one")
 	ErrNotReachTimeLockDuration           = errorsmod.Register(ModuleName, 1212, "the withdrawal does not reach to the delayed duration")
 	ErrExistsDelayedWithdrawal            = errorsmod.Register(ModuleName, 1213, "delayed withdrawal already exists")
+	ErrSettleTimestampOverflow            = errorsmod.Register(ModuleName, 1214, "settle timestamp overflow: deposit would fund the account beyond the representable future")
 )
