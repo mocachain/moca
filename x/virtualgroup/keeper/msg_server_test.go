@@ -252,3 +252,110 @@ func (s *TestSuite) TestCreateGlobalVirtualGroup_PrimaryCanNotBeItsOwnSecondary(
 	require.False(s.T(), found,
 		"the rejected request must not create a statistics record for the primary SP")
 }
+
+// MOCA-974: only the group's own primary SP may delete it, since the delete
+// refunds the deposit to the caller's funding address. Before the check, a
+// different SP could delete an empty group it did not own and take the refund.
+func (s *TestSuite) TestDeleteGlobalVirtualGroup_RejectsNonPrimarySP() {
+	owner := sample.RandAccAddress()
+	rival := sample.RandAccAddress()
+	ownerSP := &sptypes.StorageProvider{
+		Id: 1, Status: sptypes.STATUS_IN_SERVICE,
+		OperatorAddress: owner.String(), FundingAddress: sample.RandAccAddress().String(),
+	}
+	rivalSP := &sptypes.StorageProvider{
+		Id: 2, Status: sptypes.STATUS_IN_SERVICE,
+		OperatorAddress: rival.String(), FundingAddress: sample.RandAccAddress().String(),
+	}
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, addr sdk.AccAddress) (*sptypes.StorageProvider, bool) {
+			switch addr.String() {
+			case owner.String():
+				return ownerSP, true
+			case rival.String():
+				return rivalSP, true
+			default:
+				return nil, false
+			}
+		}).AnyTimes()
+
+	// An empty group owned by ownerSP: nothing stored, so it is otherwise deletable.
+	gvg := &types.GlobalVirtualGroup{
+		Id: 42, FamilyId: 7, PrimarySpId: ownerSP.Id,
+		StoredSize: 0, TotalDeposit: math.ZeroInt(),
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	}
+	s.virtualgroupKeeper.SetGVG(s.ctx, gvg)
+
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+	_, err := msgServer.DeleteGlobalVirtualGroup(s.ctx, &types.MsgDeleteGlobalVirtualGroup{
+		StorageProvider:      rival.String(),
+		GlobalVirtualGroupId: gvg.Id,
+	})
+	require.ErrorIs(s.T(), err, types.ErrNotPrimarySP,
+		"an SP that does not own the group must not be able to delete it")
+
+	// The rejected attempt must leave the group in place.
+	stored, found := s.virtualgroupKeeper.GetGVG(s.ctx, gvg.Id)
+	require.True(s.T(), found, "the group must survive a rejected delete")
+	require.Equal(s.T(), ownerSP.Id, stored.PrimarySpId)
+}
+
+// MOCA-974: the family GVG limit is checked before the group is appended, so a
+// family holding the maximum must reject the next one rather than reach max+1.
+func (s *TestSuite) TestCreateGlobalVirtualGroup_RejectsFamilyAtLimit() {
+	ctrl := gomock.NewController(s.T())
+	storageKeeper := types.NewMockStorageKeeper(ctrl)
+	s.virtualgroupKeeper.SetStorageKeeper(storageKeeper)
+	storageKeeper.EXPECT().GetExpectSecondarySPNumForECObject(gomock.Any(), gomock.Any()).
+		Return(uint32(expectedSecondaries)).AnyTimes()
+
+	owner := sample.RandAccAddress()
+	ownerSP := &sptypes.StorageProvider{
+		Id: 1, Status: sptypes.STATUS_IN_SERVICE,
+		OperatorAddress: owner.String(), FundingAddress: sample.RandAccAddress().String(),
+	}
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).
+		Return(ownerSP, true).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, id uint32) (*sptypes.StorageProvider, bool) {
+			return &sptypes.StorageProvider{Id: id, Status: sptypes.STATUS_IN_SERVICE}, true
+		}).AnyTimes()
+	s.bankKeeper.EXPECT().
+		SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	// Fill the family to exactly the limit.
+	limit := s.virtualgroupKeeper.MaxGlobalVirtualGroupNumPerFamily(s.ctx)
+	require.Positive(s.T(), limit, "the limit must be set or this test proves nothing")
+	// The duplicate check walks the family's groups before the limit is read, so
+	// each planted id needs a real record, with a distinct secondary set so none
+	// of them matches the request under test.
+	atLimit := make([]uint32, 0, limit)
+	for i := uint32(0); i < limit; i++ {
+		id := 100 + i
+		atLimit = append(atLimit, id)
+		s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+			Id: id, FamilyId: 7, PrimarySpId: ownerSP.Id,
+			SecondarySpIds: []uint32{200 + i, 201 + i, 202 + i, 203 + i, 204 + i, 205 + i},
+			TotalDeposit:   math.ZeroInt(),
+		})
+	}
+	family := &types.GlobalVirtualGroupFamily{Id: 7, PrimarySpId: ownerSP.Id, GlobalVirtualGroupIds: atLimit}
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, family)
+
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+	_, err := msgServer.CreateGlobalVirtualGroup(s.ctx, &types.MsgCreateGlobalVirtualGroup{
+		StorageProvider: owner.String(),
+		FamilyId:        family.Id,
+		SecondarySpIds:  []uint32{11, 12, 13, 14, 15, 16},
+		Deposit:         sdk.NewCoin(s.virtualgroupKeeper.DepositDenomForGVG(s.ctx), math.NewInt(1)),
+	})
+	require.ErrorIs(s.T(), err, types.ErrLimitationExceed,
+		"a family already at the limit must not take another group")
+
+	stored, found := s.virtualgroupKeeper.GetGVGFamily(s.ctx, family.Id)
+	require.True(s.T(), found)
+	require.Len(s.T(), stored.GlobalVirtualGroupIds, int(limit),
+		"the family must stay at the limit, not reach limit+1")
+}
