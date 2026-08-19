@@ -48,6 +48,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
 ### Bug Fixes
+- (payment) [#433](https://github.com/mocachain/moca/pull/433) Backport to `release/1.4.x`: close the auto-resume frozen-flow iterator per account instead of deferring it, so the iterators do not accumulate until `AutoResume` returns (MOCA-415).
 
 - (challenge) [#447](https://github.com/mocachain/moca/pull/447) Backport to `release/1.4.x`: bind the event type into the attestation signature payload so the chain verifies the aggregate against the same preimage the vote pool signs (MOCA-836)
 - (virtualgroup) [#388](https://github.com/mocachain/moca/pull/388) Backport to `release/1.4.x`: settle the global virtual groups named in `MsgSettle` in a deterministic (request-id) order instead of Go map iteration order (MOCA-957)
