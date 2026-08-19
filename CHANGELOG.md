@@ -49,6 +49,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (challenge) [#447](https://github.com/mocachain/moca/pull/447) Backport to `release/1.4.x`: bind the event type into the attestation signature payload so the chain verifies the aggregate against the same preimage the vote pool signs (MOCA-836)
 - (virtualgroup) [#388](https://github.com/mocachain/moca/pull/388) Backport to `release/1.4.x`: settle the global virtual groups named in `MsgSettle` in a deterministic (request-id) order instead of Go map iteration order (MOCA-957)
 - (x/payment) [#287](https://github.com/mocachain/moca/pull/287) Backport to `release/1.4.x`: compute the settle-timestamp math in `sdkmath.Int` and bound it to the int64 range in `UpdateStreamRecord`/`TryResumeStreamRecord` (MOCA-385)
 - (virtualgroup, app) [#281](https://github.com/mocachain/moca/pull/281) Backport to `release/1.4.x`: give `x/virtualgroup` its own transient store key (`transient_virtualgroup`) and register it, so it no longer shares the `transient_storage` key with `x/storage` (MOCA-959)
