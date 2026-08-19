@@ -8,8 +8,11 @@ import (
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/evmos/evmos/v12/testutil/sample"
+	types2 "github.com/evmos/evmos/v12/types"
 	paymenttypes "github.com/evmos/evmos/v12/x/payment/types"
+	permtypes "github.com/evmos/evmos/v12/x/permission/types"
 	sptypes "github.com/evmos/evmos/v12/x/sp/types"
+	"github.com/evmos/evmos/v12/x/storage/keeper"
 	"github.com/evmos/evmos/v12/x/storage/types"
 	virtualgroupmoduletypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
 	"go.uber.org/mock/gomock"
@@ -238,4 +241,93 @@ func (s *TestSuite) TestCompleteMigrateBucket_AcceptsOwnFamily() {
 	s.Require().Equal(types.BUCKET_STATUS_CREATED, got.BucketStatus)
 	primarySP := s.storageKeeper.MustGetPrimarySPForBucket(s.ctx, got)
 	s.Require().Equal(dstSpID, primarySP.Id) // dst SP is now the bucket's primary SP
+}
+
+// TestPutPolicy_RunsValidateRuntime pins that PutPolicy invokes
+// MsgPutPolicy.ValidateRuntime: every check it performs -- bucket-level
+// actions, Resources on a non-bucket resource, LimitSize without CreateObject
+// -- is unreachable from ValidateBasic alone. A bucket-level statement naming
+// a group-only action clears ValidateBasic (which never consults
+// BucketAllowedActionsAfterPampas) and must be rejected here.
+//
+// msgServer.PutPolicy is the single implementation shared by both write paths:
+// the native Cosmos tx path and the EVM storage precompile, which calls this
+// same message server. Checking here closes both in one place.
+func (s *TestSuite) TestPutPolicy_RunsValidateRuntime() {
+	operator := sample.RandAccAddress()
+	bucketName := "putpolicy-runtime-bucket"
+
+	bucketInfo := &types.BucketInfo{
+		Owner:            operator.String(),
+		BucketName:       bucketName,
+		Id:               sdkmath.NewUint(1),
+		PaymentAddress:   sample.RandAccAddress().String(),
+		ChargedReadQuota: 100,
+		BucketStatus:     types.BUCKET_STATUS_CREATED,
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+
+	principal := sample.RandAccAddress()
+	msg := types.NewMsgPutPolicy(
+		operator,
+		types2.NewBucketGRN(bucketName).String(),
+		permtypes.NewPrincipalWithAccount(principal),
+		[]*permtypes.Statement{
+			{
+				Effect: permtypes.EFFECT_ALLOW,
+				// A group-only action on a bucket resource: ValidateBasic does not
+				// check the bucket action map, ValidateRuntime does.
+				Actions:   []permtypes.ActionType{permtypes.ACTION_UPDATE_GROUP_MEMBER},
+				Resources: []string{"grn:o::" + bucketName + "/obj"},
+			},
+		},
+		nil,
+	)
+	s.Require().NoError(msg.ValidateBasic(), "the statement must clear ValidateBasic for this test to be meaningful")
+
+	msgServer := keeper.NewMsgServerImpl(*s.storageKeeper)
+	_, err := msgServer.PutPolicy(s.ctx, msg)
+	s.Require().Error(err, "PutPolicy must run MsgPutPolicy.ValidateRuntime")
+	s.Require().ErrorIs(err, permtypes.ErrInvalidStatement)
+}
+
+// TestPutPolicy_AcceptsRegexpMetacharacterInObjectName pins the accept path so
+// the previous test cannot pass merely by rejecting every PutPolicy call, and
+// pins that a Resources entry which is a legal object name but not a legal Go
+// regexp stays storable: Resources are wildcard patterns, not regexps.
+func (s *TestSuite) TestPutPolicy_AcceptsRegexpMetacharacterInObjectName() {
+	operator := sample.RandAccAddress()
+	bucketName := "putpolicy-metachar-bucket"
+
+	bucketInfo := &types.BucketInfo{
+		Owner:            operator.String(),
+		BucketName:       bucketName,
+		Id:               sdkmath.NewUint(1),
+		PaymentAddress:   sample.RandAccAddress().String(),
+		ChargedReadQuota: 100,
+		BucketStatus:     types.BUCKET_STATUS_CREATED,
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+
+	principal := sample.RandAccAddress()
+	msg := types.NewMsgPutPolicy(
+		operator,
+		types2.NewBucketGRN(bucketName).String(),
+		permtypes.NewPrincipalWithAccount(principal),
+		[]*permtypes.Statement{
+			{
+				Effect:    permtypes.EFFECT_ALLOW,
+				Actions:   []permtypes.ActionType{permtypes.ACTION_GET_OBJECT},
+				Resources: []string{"grn:o::" + bucketName + "/obj["},
+			},
+		},
+		nil,
+	)
+	s.Require().NoError(msg.ValidateBasic())
+
+	s.permissionKeeper.EXPECT().PutPolicy(gomock.Any(), gomock.Any()).Return(sdkmath.OneUint(), nil)
+
+	msgServer := keeper.NewMsgServerImpl(*s.storageKeeper)
+	_, err := msgServer.PutPolicy(s.ctx, msg)
+	s.Require().NoError(err, "a legal object name that is not a legal regexp must remain storable")
 }
