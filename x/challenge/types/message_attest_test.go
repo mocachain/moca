@@ -3,7 +3,10 @@ package types
 import (
 	"testing"
 
+	"cosmossdk.io/math"
+	"github.com/cometbft/cometbft/votepool"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/evmos/evmos/v12/testutil/sample"
@@ -70,4 +73,36 @@ func TestMsgAttest_ValidateBasic(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+// The vote pool and this module verify the SAME signature: the pool checks each
+// vote on gossip, and x/challenge checks the aggregate of those votes. If the
+// two preimages ever diverge, no signer can satisfy both and attestations stop
+// reaching quorum, so pin them against each other rather than against a
+// hardcoded digest.
+func TestMsgAttest_GetVotePoolSignBytesMatchesVotePool(t *testing.T) {
+	msg := MsgAttest{
+		Submitter:         sample.RandAccAddressHex(),
+		ChallengeId:       42,
+		ObjectId:          math.NewUint(1234567890),
+		SpOperatorAddress: sample.RandAccAddressHex(),
+		VoteResult:        CHALLENGE_SUCCEED,
+		ChallengerAddress: sample.RandAccAddressHex(),
+	}
+	const chainID = "moca_1-1"
+
+	eventHash := msg.GetBlsSignBytes(chainID)
+
+	// Mirrors votepool.Vote.SignBytes. Kept inline only because the pinned
+	// cometbft does not export it yet; once the vote-pool side lands, assert
+	// against vote.SignBytes() directly so the two cannot drift unnoticed.
+	want := crypto.Keccak256(append([]byte{byte(votepool.DataAvailabilityChallengeEvent)}, eventHash[:]...))
+
+	require.Equal(t, want, msg.GetVotePoolSignBytes(chainID),
+		"x/challenge and votepool must sign byte-identical payloads")
+
+	// The event type has to actually be bound in, otherwise the whole point of
+	// the change is lost and this test would pass against the bare hash.
+	require.NotEqual(t, eventHash[:], msg.GetVotePoolSignBytes(chainID),
+		"the preimage must not be the bare event hash")
 }
