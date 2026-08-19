@@ -49,6 +49,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (challenge) [#447](https://github.com/mocachain/moca/pull/447) Backport to `release/1.4.x`: bind the event type into the attestation signature payload so the chain verifies the aggregate against the same preimage the vote pool signs (MOCA-836)
 - (virtualgroup) [#388](https://github.com/mocachain/moca/pull/388) Backport to `release/1.4.x`: settle the global virtual groups named in `MsgSettle` in a deterministic (request-id) order instead of Go map iteration order (MOCA-957)
 - (x/payment) [#287](https://github.com/mocachain/moca/pull/287) Backport to `release/1.4.x`: compute the settle-timestamp math in `sdkmath.Int` and bound it to the int64 range in `UpdateStreamRecord`/`TryResumeStreamRecord` (MOCA-385)
 - (virtualgroup, app) [#281](https://github.com/mocachain/moca/pull/281) Backport to `release/1.4.x`: give `x/virtualgroup` its own transient store key (`transient_virtualgroup`) and register it, so it no longer shares the `transient_storage` key with `x/storage` (MOCA-959)
@@ -66,6 +67,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (virtualgroup) [#396](https://github.com/mocachain/moca/pull/396) Backport to `release/1.4.x`: compare the full secondary-SP list when detecting a duplicate global virtual group
 - (x/storage, virtualgroup) [#306](https://github.com/mocachain/moca/pull/306) Backport to `release/1.4.x`: require a residual GVG family to be swapped out before its primary provider can exit, and let the end-of-block delete sweep complete for a resource whose provider is already gone, attributing the delete event to the module (MOCA-1347)
 - (virtualgroup) [#368](https://github.com/mocachain/moca/pull/368) Backport to `release/1.4.x`: pay every secondary SP an equal share in `SettleAndDistributeGVG`, and drain the GVG's virtual payment account on delete — settle first, then sweep the indivisible remainder to the payment governance address (MOCA-742, MOCA-1343)
+- (x/storage) [#366](https://github.com/mocachain/moca/pull/366) Backport to `release/1.4.x`: verify in `CompleteMigrateBucket` that the destination GVG family belongs to the destination storage provider (MOCA-741, MOCA-1344)
 - (deps) [#239](https://github.com/mocachain/moca/pull/239) Bump `moca-iavl` to `v1.2.0-rc1` (adds the reformatted-root `GetNode` fallback, cosmos/iavl #1009) to fix silently-truncated IAVL snapshot exports that produced corrupt mainnet state-sync snapshots
 - (rpc) [#232](https://github.com/mocachain/moca/pull/232) Align `newHeads` subscription block hashes with the canonical hashes returned by block-by-number / block-by-hash APIs
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
