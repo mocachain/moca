@@ -591,7 +591,6 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 		frozenFlowKey := types.OutFlowKey(addr, types.OUT_FLOW_STATUS_FROZEN, nil)
 		flowStore := prefix.NewStore(ctx.KVStore(k.storeKey), types.OutFlowKeyPrefix)
 		flowIterator := flowStore.Iterator(frozenFlowKey, nil)
-		defer flowIterator.Close()
 
 		finished := false
 		toUpdate := make([]types.OutFlow, 0)
@@ -647,7 +646,13 @@ func (k Keeper) AutoResume(ctx sdk.Context) {
 
 		streamRecord.NetflowRate = streamRecord.NetflowRate.Add(totalRate.Neg())
 		streamRecord.FrozenNetflowRate = streamRecord.FrozenNetflowRate.Add(totalRate)
-		if !flowIterator.Valid() || finished {
+		// A fresh frozen-flow iterator is opened per account above, so close it as soon
+		// as this account is done -- before the continue path below -- rather than
+		// deferring, which would hold every account's iterator open until AutoResume
+		// returns. flowIterator.Valid() is read once here, its last use.
+		resumed := !flowIterator.Valid() || finished
+		flowIterator.Close()
+		if resumed {
 			if !streamRecord.FrozenNetflowRate.IsZero() {
 				ctx.Logger().Error("should not happen, stream frozen netflow rate is not zero", "address", streamRecord.Account)
 				panic("should not happen")
