@@ -1323,6 +1323,17 @@ func (k Keeper) CopyObject(
 			operator.String(), srcObjectInfo.BucketName, srcObjectInfo.ObjectName)
 	}
 
+	// authorize the write into the destination bucket (parallels CreateObject); the check
+	// above only covers reading the source object.
+	dstWantedSize := srcObjectInfo.PayloadSize
+	dstEffect := k.VerifyBucketPermission(ctx, dstBucketInfo, operator, permtypes.ACTION_CREATE_OBJECT,
+		&permtypes.VerifyOptions{WantedSize: &dstWantedSize})
+	if dstEffect != permtypes.EFFECT_ALLOW {
+		return sdkmath.ZeroUint(), storagetypes.ErrAccessDenied.Wrapf(
+			"The operator(%s) has no CreateObject permission of the dst bucket(%s)",
+			operator.String(), dstBucketName)
+	}
+
 	// LOW-017: enforce dst primary SP approval validation (non-nil, not expired, and signature verified)
 	if opts.PrimarySpApproval == nil {
 		return sdkmath.ZeroUint(), storagetypes.ErrInvalidApproval.Wrap("primary sp approval is required")
@@ -1334,6 +1345,12 @@ func (k Keeper) CopyObject(
 		return sdkmath.ZeroUint(), err
 	}
 
+	// reject an existing destination name instead of silently overwriting it (parallels CreateObject)
+	dstObjectKey := storagetypes.GetObjectKey(dstBucketName, dstObjectName)
+	if store.Has(dstObjectKey) {
+		return sdkmath.ZeroUint(), storagetypes.ErrObjectAlreadyExists
+	}
+
 	// check payload size, the empty object doesn't need sealed
 	var objectStatus storagetypes.ObjectStatus
 	if srcObjectInfo.PayloadSize == 0 {
@@ -1343,8 +1360,15 @@ func (k Keeper) CopyObject(
 		objectStatus = storagetypes.OBJECT_STATUS_CREATED
 	}
 
+	// the destination bucket owner owns the copied object (parallels CreateObject)
+	objectInfoCreator := operator
+	if objectInfoCreator.Equals(sdk.MustAccAddressFromHex(dstBucketInfo.Owner)) {
+		objectInfoCreator = sdk.AccAddress{}
+	}
+
 	objectInfo := storagetypes.ObjectInfo{
-		Owner:          operator.String(),
+		Owner:          dstBucketInfo.Owner,
+		Creator:        objectInfoCreator.String(),
 		BucketName:     dstBucketInfo.BucketName,
 		ObjectName:     dstObjectName,
 		PayloadSize:    srcObjectInfo.PayloadSize,
@@ -1377,7 +1401,7 @@ func (k Keeper) CopyObject(
 	}
 
 	obz := k.cdc.MustMarshal(&objectInfo)
-	store.Set(storagetypes.GetObjectKey(dstBucketName, dstObjectName), k.objectSeq.EncodeSequence(objectInfo.Id))
+	store.Set(dstObjectKey, k.objectSeq.EncodeSequence(objectInfo.Id))
 	store.Set(storagetypes.GetObjectByIDKey(objectInfo.Id), obz)
 
 	if err := ctx.EventManager().EmitTypedEvents(&storagetypes.EventCopyObject{
