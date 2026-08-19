@@ -422,7 +422,7 @@ func NewEvmos(
 	)
 
 	// Add the EVM transient store key
-	tkeys := storetypes.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey, storagemoduletypes.TStoreKey, virtualgroupmoduletypes.TStoreKey)
+	tkeys := storetypes.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey)
 	memKeys := storetypes.NewMemoryStoreKeys(capabilitytypes.MemStoreKey, challengemoduletypes.MemStoreKey)
 
 	app := &Evmos{
@@ -704,7 +704,6 @@ func NewEvmos(
 	app.VirtualgroupKeeper = *virtualgroupmodulekeeper.NewKeeper(
 		appCodec,
 		keys[virtualgroupmoduletypes.StoreKey],
-		tkeys[virtualgroupmoduletypes.TStoreKey],
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		app.SpKeeper,
 		app.AccountKeeper,
@@ -723,7 +722,6 @@ func NewEvmos(
 	app.StorageKeeper = *storagemodulekeeper.NewKeeper(
 		appCodec,
 		keys[storagemoduletypes.StoreKey],
-		tkeys[storagemoduletypes.TStoreKey],
 		app.AccountKeeper,
 		app.SpKeeper,
 		app.PaymentKeeper,

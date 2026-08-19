@@ -21,7 +21,6 @@ type (
 	Keeper struct {
 		cdc       codec.BinaryCodec
 		storeKey  storetypes.StoreKey
-		tStoreKey storetypes.StoreKey
 		authority string
 
 		// Keepers
@@ -39,7 +38,6 @@ type (
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
-	tStoreKey storetypes.StoreKey,
 	authority string,
 	spKeeper types.SpKeeper,
 	accountKeeper types.AccountKeeper,
@@ -49,7 +47,6 @@ func NewKeeper(
 	k := Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
-		tStoreKey:     tStoreKey,
 		authority:     authority,
 		spKeeper:      spKeeper,
 		accountKeeper: accountKeeper,
