@@ -179,9 +179,9 @@ func (s *TestSuite) TestAttest_Heartbeat() {
 		ChallengerAddress: "",
 		VoteValidatorSet:  []uint64{1},
 	}
-	toSign := attestMsg.GetBlsSignBytes(s.ctx.ChainID())
+	toSign := attestMsg.GetVotePoolSignBytes(s.ctx.ChainID())
 
-	voteAggSignature, _ := blsKey.Sign(toSign[:], votepool.DST)
+	voteAggSignature, _ := blsKey.Sign(toSign, votepool.DST)
 	attestMsg.VoteAggSignature, _ = voteAggSignature.Marshal()
 
 	_, err := s.msgServer.Attest(s.ctx, attestMsg)
@@ -268,8 +268,8 @@ func (s *TestSuite) TestAttest_Normal() {
 		ChallengerAddress: "",
 		VoteValidatorSet:  []uint64{1},
 	}
-	toSign1 := attestMsg1.GetBlsSignBytes(s.ctx.ChainID())
-	voteAggSignature1, _ := blsKey.Sign(toSign1[:], votepool.DST)
+	toSign1 := attestMsg1.GetVotePoolSignBytes(s.ctx.ChainID())
+	voteAggSignature1, _ := blsKey.Sign(toSign1, votepool.DST)
 	attestMsg1.VoteAggSignature, _ = voteAggSignature1.Marshal()
 	_, err := s.msgServer.Attest(s.ctx, attestMsg1)
 	require.NoError(s.T(), err)
@@ -298,8 +298,8 @@ func (s *TestSuite) TestAttest_Normal() {
 		ChallengerAddress: sample.RandAccAddress().String(),
 		VoteValidatorSet:  []uint64{1},
 	}
-	toSign2 := attestMsg2.GetBlsSignBytes(s.ctx.ChainID())
-	voteAggSignature2, _ := blsKey.Sign(toSign2[:], votepool.DST)
+	toSign2 := attestMsg2.GetVotePoolSignBytes(s.ctx.ChainID())
+	voteAggSignature2, _ := blsKey.Sign(toSign2, votepool.DST)
 	attestMsg2.VoteAggSignature, _ = voteAggSignature2.Marshal()
 	_, err = s.msgServer.Attest(s.ctx, attestMsg2)
 	require.NoError(s.T(), err)
@@ -326,8 +326,8 @@ func (s *TestSuite) TestAttest_Normal() {
 		ChallengerAddress: sample.RandAccAddress().String(),
 		VoteValidatorSet:  []uint64{1},
 	}
-	toSign3 := attestMsg3.GetBlsSignBytes(s.ctx.ChainID())
-	voteAggSignature3, _ := blsKey.Sign(toSign3[:], votepool.DST)
+	toSign3 := attestMsg3.GetVotePoolSignBytes(s.ctx.ChainID())
+	voteAggSignature3, _ := blsKey.Sign(toSign3, votepool.DST)
 	attestMsg3.VoteAggSignature, _ = voteAggSignature3.Marshal()
 	_, err = s.msgServer.Attest(s.ctx, attestMsg3)
 	require.Error(s.T(), err)

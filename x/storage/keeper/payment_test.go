@@ -1,11 +1,15 @@
 package keeper_test
 
 import (
+	"encoding/hex"
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/testutil"
@@ -13,6 +17,11 @@ import (
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
+
+	"github.com/evmos/evmos/v12/app"
 	"github.com/evmos/evmos/v12/testutil/sample"
 	"github.com/evmos/evmos/v12/x/challenge"
 	evmtypes "github.com/evmos/evmos/v12/x/evm/types"
@@ -20,9 +29,8 @@ import (
 	sptypes "github.com/evmos/evmos/v12/x/sp/types"
 	"github.com/evmos/evmos/v12/x/storage/keeper"
 	"github.com/evmos/evmos/v12/x/storage/types"
+	storagetypes "github.com/evmos/evmos/v12/x/storage/types"
 	virtualgroupmoduletypes "github.com/evmos/evmos/v12/x/virtualgroup/types"
-	"go.uber.org/mock/gomock"
-	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
@@ -69,7 +77,6 @@ func (s *TestSuite) SetupTest() {
 	evmKeeper := types.NewMockEVMKeeper(ctrl)
 	s.storageKeeper = keeper.NewKeeper(
 		encCfg.Codec,
-		key,
 		key,
 		accountKeeper,
 		spKeeper,
@@ -315,4 +322,111 @@ func (s *TestSuite) TestGetBucketReadStoreBill() {
 	s.Require().Equal(flows.Flows[7].ToAddress, paymenttypes.ValidatorTaxPoolAddress.String())
 	taxPoolRate = params.VersionedParams.ValidatorTaxRate.MulInt(primaryStoreRate.Add(gvg2StoreRate)).TruncateInt()
 	s.Require().Equal(flows.Flows[7].Rate, taxPoolRate)
+}
+
+// The per-block delete-GC bookkeeping lives in the regular KV store, so the only
+// thing keeping it off the app hash is EndBlocker draining it within the block.
+// These run against the real app and inspect the committed IAVL store directly,
+// rather than a cache layer.
+
+type commitProbe struct {
+	t   *testing.T
+	app *app.Evmos
+	key *storetypes.KVStoreKey
+}
+
+func newCommitProbe(t *testing.T) *commitProbe {
+	t.Helper()
+	a := app.EthSetupWithDB(false, nil, dbm.NewMemDB())
+	return &commitProbe{t: t, app: a, key: a.GetKey(storagetypes.StoreKey)}
+}
+
+// block branches the commit multi-store, runs body as the block's txs would,
+// optionally runs the storage EndBlocker, then writes and commits. It returns
+// the app hash.
+func (p *commitProbe) block(height int64, body func(sdk.Context), runEndBlocker bool) []byte {
+	p.t.Helper()
+	cms := p.app.CommitMultiStore()
+	ms := cms.CacheMultiStore()
+	ctx := sdk.NewContext(ms, tmproto.Header{Height: height}, false, log.NewNopLogger()).
+		WithGasMeter(storetypes.NewInfiniteGasMeter())
+
+	if body != nil {
+		body(ctx)
+	}
+	if runEndBlocker {
+		require.NoError(p.t, keeper.EndBlocker(ctx, p.app.StorageKeeper))
+	}
+	ms.Write()
+	return cms.Commit().Hash
+}
+
+// committed reads the key out of the committed IAVL store, past every cache.
+func (p *commitProbe) committed() []byte {
+	return p.app.CommitMultiStore().GetCommitKVStore(p.key).
+		Get(storagetypes.CurrentBlockDeleteStalePoliciesKey)
+}
+
+func (p *commitProbe) storageStoreHash() []byte {
+	return p.app.CommitMultiStore().GetCommitKVStore(p.key).LastCommitID().Hash
+}
+
+// writeDeleteInfo writes what appendResourceIDForGarbageCollection writes for a
+// single deleted group.
+func writeDeleteInfo(t *testing.T, ctx sdk.Context, key *storetypes.KVStoreKey) {
+	t.Helper()
+	di := &storagetypes.DeleteInfo{
+		BucketIds: &storagetypes.Ids{},
+		ObjectIds: &storagetypes.Ids{},
+		GroupIds:  &storagetypes.Ids{Id: []sdkmath.Uint{sdkmath.NewUint(7)}},
+	}
+	bz, err := di.Marshal()
+	require.NoError(t, err)
+	ctx.KVStore(key).Set(storagetypes.CurrentBlockDeleteStalePoliciesKey, bz)
+}
+
+// TestDeleteInfoNeverReachesCommittedState is the invariant the whole change
+// rests on.
+func TestDeleteInfoNeverReachesCommittedState(t *testing.T) {
+	p := newCommitProbe(t)
+
+	p.block(2, func(ctx sdk.Context) {
+		writeDeleteInfo(t, ctx, p.key)
+		require.NotNil(t, ctx.KVStore(p.key).Get(storagetypes.CurrentBlockDeleteStalePoliciesKey),
+			"precondition: the bookkeeping was written during the block")
+	}, true)
+
+	require.Nil(t, p.committed(), "the delete-GC bookkeeping key must not be in committed state")
+}
+
+// TestDeleteInfoLeakChangesAppHash is the negative control: if EndBlocker ever
+// does not run, the key lands in IAVL and the app hash moves.
+func TestDeleteInfoLeakChangesAppHash(t *testing.T) {
+	leaky := newCommitProbe(t)
+	leakedHash := leaky.block(2, func(ctx sdk.Context) { writeDeleteInfo(t, ctx, leaky.key) }, false)
+	require.NotNil(t, leaky.committed(), "sanity: without EndBlocker the key is committed")
+
+	clean := newCommitProbe(t)
+	cleanHash := clean.block(2, func(ctx sdk.Context) { writeDeleteInfo(t, ctx, clean.key) }, true)
+	require.Nil(t, clean.committed())
+
+	require.NotEqual(t, hex.EncodeToString(cleanHash), hex.EncodeToString(leakedHash),
+		"a leaked bookkeeping key changes the app hash")
+}
+
+// TestEndBlockerDeleteIsHashNeutral covers the other direction: EndBlocker
+// deletes the key on every block, including blocks where nothing wrote it. That
+// must not perturb the store.
+func TestEndBlockerDeleteIsHashNeutral(t *testing.T) {
+	withEB := newCommitProbe(t)
+	noEB := newCommitProbe(t)
+	for h := int64(2); h <= 6; h++ {
+		withEB.block(h, nil, true)
+		noEB.block(h, nil, false)
+	}
+	require.Equal(t,
+		hex.EncodeToString(noEB.storageStoreHash()),
+		hex.EncodeToString(withEB.storageStoreHash()),
+		"deleting an absent key every block must be hash-neutral")
+	require.Nil(t, withEB.committed())
 }
