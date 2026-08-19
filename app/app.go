@@ -62,7 +62,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
-	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server/api"
@@ -126,6 +125,7 @@ import (
 	"github.com/cosmos/ibc-go/modules/capability"
 	capabilitykeeper "github.com/cosmos/ibc-go/modules/capability/keeper"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	cmdcfg "github.com/evmos/evmos/v12/cmd/config"
 
 	// ibctestingtypes "github.com/cosmos/ibc-go/v10/testing/types"
 	bridgemodule "github.com/evmos/evmos/v12/x/bridge"
@@ -329,8 +329,8 @@ type Evmos struct {
 	FeeMarketKeeper feemarketkeeper.Keeper
 
 	// Evmos keepers
-	Erc20Keeper     erc20keeper.Keeper
-	EpochsKeeper    epochskeeper.Keeper
+	Erc20Keeper  erc20keeper.Keeper
+	EpochsKeeper epochskeeper.Keeper
 
 	// the module manager
 	mm                 *module.Manager
@@ -1581,6 +1581,17 @@ func (app *Evmos) setupUpgradeHandlers() {
 	// cleared by an IAVL rebuild (state-sync / fastStorageVersionValue bump),
 	// not from this handler.
 	app.UpgradeKeeper.SetUpgradeHandler("v1.3.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
+	// v1.4.0 changes what the modules accept, not how they store it: the storage,
+	// virtualgroup, payment, permission and challenge fixes in this release tighten
+	// validation and settlement, and every module's consensus version is unchanged
+	// from v1.3.0. RunMigrations therefore has nothing to run, and the handler
+	// exists to gate the binary swap at a height the whole network agrees on --
+	// which it must, because a patched and an unpatched node disagree about which
+	// transactions are valid.
+	app.UpgradeKeeper.SetUpgradeHandler("v1.4.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
