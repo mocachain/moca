@@ -48,6 +48,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
 ### Bug Fixes
+- (config) [#453](https://github.com/mocachain/moca/pull/453) Register a strict address verifier so every account address resolves to exactly 20 bytes, matching moca's EVM address model (MOCA-1436)
 - (x/storage) [#452](https://github.com/mocachain/moca/pull/452) Backport to `release/v1.4.x`: in `CopyObject`, verify the operator's create permission on the destination bucket, reject a destination object name that already exists, and set the copied object's owner to the destination bucket owner — matching `CreateObject` (MOCA-1421)
 - (payment) [#433](https://github.com/mocachain/moca/pull/433) Backport to `release/1.4.x`: close the auto-resume frozen-flow iterator per account instead of deferring it, so the iterators do not accumulate until `AutoResume` returns (MOCA-415).
 
