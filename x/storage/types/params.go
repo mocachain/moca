@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -18,8 +17,8 @@ const (
 	DefaultMaxBucketsPerAccount      uint32 = 100
 	DefaultMinChargeSize             uint64 = 1 * 1024 * 1024 // 1M
 	DefaultDiscontinueCountingWindow uint64 = 10000
-	DefaultDiscontinueObjectMax      uint64 = math.MaxUint64
-	DefaultDiscontinueBucketMax      uint64 = math.MaxUint64
+	DefaultDiscontinueObjectMax      uint64 = 100000
+	DefaultDiscontinueBucketMax      uint64 = 10000
 	DefaultDiscontinueConfirmPeriod  int64  = 604800 // 7 days (in second)
 	DefaultDiscontinueDeletionMax    uint64 = 100
 	DefaultStalePolicyCleanupMax     uint64 = 200
