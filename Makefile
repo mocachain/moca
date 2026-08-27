@@ -29,6 +29,9 @@ MOUNT_PATH := $(shell pwd)/build/:/root/
 E2E_SKIP_CLEANUP := false
 
 export GO111MODULE = on
+# Fork replaces point at moca's GitHub repos (some capital-M `Mocachain/*`);
+# the public go-proxy can't serve those, so fetch them via direct-git.
+export GOPRIVATE ?= github.com/mocachain/*,github.com/Mocachain/*
 
 # Default target executed when no arguments are given to make.
 default_target: all
