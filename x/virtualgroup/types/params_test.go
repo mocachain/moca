@@ -149,3 +149,38 @@ func TestValidateParams(t *testing.T) {
 	err := DefaultParams().Validate()
 	require.NoError(t, err)
 }
+
+// TestSPConcurrentExitNumBound covers the bound on the concurrent-exit count.
+// The parameter is read back as a uint32 and compared against a uint32 count, so
+// a value past that range wraps -- at a multiple of 2^32 it wraps to zero, and
+// the comparison then refuses every storage-provider exit rather than allowing
+// the large number the parameter names.
+func TestSPConcurrentExitNumBound(t *testing.T) {
+	maxUint32 := math.NewIntFromUint64(4294967295)
+	tests := []struct {
+		name    string
+		value   math.Int
+		wantErr bool
+	}{
+		{"default", math.NewInt(1), false},
+		{"largest representable as uint32", maxUint32, false},
+		{"one past uint32", maxUint32.AddRaw(1), true},
+		{"wraps to zero", math.NewIntFromUint64(1 << 32), true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			v := tc.value
+			params := DefaultParams()
+			params.SpConcurrentExitNum = &v
+
+			err := params.Validate()
+			if tc.wantErr {
+				require.Error(t, err, "a count that cannot be held as a uint32 must be rejected")
+				require.Contains(t, err.Error(), "number of sp concurrent exit too large")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
