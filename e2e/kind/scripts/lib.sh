@@ -376,6 +376,13 @@ fw_wait_evm_tx() {
     return 1
 }
 
+# Print a fresh `cast wallet new` private key. foundry >= 1.8 wraps cast's --json
+# output in a {"data":[...]} envelope where older casts print the bare array; take either.
+cast_new_privkey() {
+    cast wallet new --json 2>/dev/null \
+        | jq -r '(if type == "array" then . else .data end) | .[0].private_key // empty'
+}
+
 # Base RPC URL for validator index i (parity with moca-devcontainer check-validators.sh).
 # Index 0: NodePort on the host. Index > 0: in-cluster DNS (use with kubectl exec curl from validator-0).
 kind_validator_rpc_base() {
