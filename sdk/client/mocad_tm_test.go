@@ -16,7 +16,7 @@ import (
 func TestTmClient(t *testing.T) {
 	km, err := keys.NewPrivateKeyManager(test.TestPrivateKey)
 	assert.NoError(t, err)
-	gnfdCli, err := NewMocaClient(test.TestRPCAddr, test.TestEVMAddr, test.TestChainID, WithKeyManager(km), WithWebSocketClient())
+	gnfdCli, err := NewMocaClient(test.TestRPCAddr, test.TestEVMAddr, test.TestChainID, WithKeyManager(km))
 	assert.NoError(t, err)
 	to, err := sdk.AccAddressFromHexUnsafe(test.TestAddr)
 	assert.NoError(t, err)
