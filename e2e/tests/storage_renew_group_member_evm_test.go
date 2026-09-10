@@ -30,7 +30,7 @@ func TestStorageRenewGroupMemberEvmFlow(t *testing.T) {
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
 	memberKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -40,7 +40,7 @@ func TestStorageRenewGroupMemberEvmFlow(t *testing.T) {
 	createGroupMethod := storage.GetAbiMethod(storage.CreateGroupMethodName)
 	createGroupArgs, err := createGroupMethod.Inputs.Pack(groupName, "")
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, createGroupMethod.ID...), createGroupArgs...))
 
 	shortExpiry := time.Now().Add(1 * time.Hour).Unix()
@@ -49,7 +49,7 @@ func TestStorageRenewGroupMemberEvmFlow(t *testing.T) {
 		ownerAddr, groupName, []common.Address{memberAddr}, []int64{shortExpiry}, []common.Address{},
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, updateGroupMethod.ID...), updateGroupArgs...))
 
 	before, err := storageClient.HeadGroupMember(ctx, &storagetypes.QueryHeadGroupMemberRequest{
@@ -64,7 +64,7 @@ func TestStorageRenewGroupMemberEvmFlow(t *testing.T) {
 		ownerAddr, groupName, []common.Address{memberAddr}, []int64{longExpiry},
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, renewMethod.ID...), renewArgs...))
 
 	after, err := storageClient.HeadGroupMember(ctx, &storagetypes.QueryHeadGroupMemberRequest{

@@ -29,19 +29,19 @@ func TestPermissionAccountGrantEvmFlow(t *testing.T) {
 	storageClient := storagetypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
 	granteeKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	granteeAddr := crypto.PubkeyToAddress(granteeKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, granteeAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, granteeAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 0)
 
 	verify := func(operator common.Address) permtypes.Effect {
 		resp, err := storageClient.VerifyPermission(ctx, &storagetypes.QueryVerifyPermissionRequest{
@@ -74,7 +74,7 @@ func TestPermissionAccountGrantEvmFlow(t *testing.T) {
 		int64(0),
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, putPolicyMethod.ID...), putPolicyArgs...))
 
 	require.Equal(t, permtypes.EFFECT_ALLOW, verify(granteeAddr), "grantee should have delete rights once granted")

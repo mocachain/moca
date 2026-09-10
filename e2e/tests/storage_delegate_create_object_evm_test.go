@@ -29,14 +29,14 @@ func TestStorageDelegateCreateObjectEvmFlow(t *testing.T) {
 	precompile := storage.Precompile{}
 	precompileAddr := precompile.Address()
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	objectName := storageutils.GenRandomObjectName()
 	_, b64Checksums := threeChecksums()
@@ -58,7 +58,7 @@ func TestStorageDelegateCreateObjectEvmFlow(t *testing.T) {
 	strangerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	strangerAddr := crypto.PubkeyToAddress(strangerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, strangerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, strangerAddr, fundingAmountMOCA)
 	_, callErr := client.CallContract(ctx, ethereum.CallMsg{
 		From: strangerAddr, To: &precompileAddr, Data: calldata,
 	}, nil)
@@ -66,7 +66,7 @@ func TestStorageDelegateCreateObjectEvmFlow(t *testing.T) {
 	require.Contains(t, callErr.Error(), "only the primary SP is allowed")
 
 	// The bucket's primary SP creates the object on the owner's behalf.
-	sendPrecompileTx(t, ctx, client, chainID, sp.OperatorKey, precompileAddr, calldata)
+	sendPrecompileTx(ctx, t, client, chainID, sp.OperatorKey, precompileAddr, calldata)
 
 	headResp, err := storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})
 	require.NoError(t, err)

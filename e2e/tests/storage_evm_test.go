@@ -23,14 +23,14 @@ func TestStorageEvmFlow(t *testing.T) {
 	client, conn := dialChain(t)
 	storageClient := storagetypes.NewQueryClient(conn)
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	userKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	userAddr := crypto.PubkeyToAddress(userKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, userAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, userAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, userKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, userKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 0)
 
 	// updateBucketInfo via the storage precompile: flip to private.
 	storagePrecompile := storage.Precompile{}
@@ -43,7 +43,7 @@ func TestStorageEvmFlow(t *testing.T) {
 	)
 	require.NoError(t, err)
 	updateCalldata := append(append([]byte{}, updateMethod.ID...), updateArgs...)
-	sendPrecompileTx(t, ctx, client, chainID, userKey, storagePrecompile.Address(), updateCalldata)
+	sendPrecompileTx(ctx, t, client, chainID, userKey, storagePrecompile.Address(), updateCalldata)
 
 	// Verify via the same gRPC query the legacy suite used.
 	headResp, err := storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})

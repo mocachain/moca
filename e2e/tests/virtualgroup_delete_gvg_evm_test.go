@@ -46,7 +46,7 @@ func TestVirtualGroupDeleteGvgEvmFlow(t *testing.T) {
 	precompile := virtualgroup.Precompile{}
 	precompileAddr := precompile.Address()
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 	sp0Export, ok := loadSPExport(t)["sp0"]
 	require.True(t, ok)
 	fundingAddr := common.HexToAddress(sp0Export.FundingAddress)
@@ -79,7 +79,7 @@ func TestVirtualGroupDeleteGvgEvmFlow(t *testing.T) {
 			"rate isn't zero yet -- see the doc comment above for why this varies by chain history")
 	}
 
-	sendPrecompileTx(t, ctx, client, chainID, sp.OperatorKey, precompileAddr, calldata)
+	sendPrecompileTx(ctx, t, client, chainID, sp.OperatorKey, precompileAddr, calldata)
 
 	_, err = vgClient.GlobalVirtualGroup(ctx, &virtualgroupmoduletypes.QueryGlobalVirtualGroupRequest{GlobalVirtualGroupId: gvgID})
 	require.Error(t, err, "deleted GVG should no longer exist")

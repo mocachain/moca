@@ -33,7 +33,7 @@ func TestStorageMigrateBucketCancelEvmFlow(t *testing.T) {
 	spClient := sptypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 	sp1Export, ok := loadSPExport(t)["sp1"]
 	require.True(t, ok)
 	sp1ApprovalKey := mustHexKey(t, sp1Export.ApprovalPrivateKey)
@@ -51,13 +51,13 @@ func TestStorageMigrateBucketCancelEvmFlow(t *testing.T) {
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
 	// A non-zero charged read quota is required: migrateBucket checks the
 	// bucket's own payment-address stream record isn't frozen, and a
 	// zero-quota bucket never gets a stream record at all (treated the same
 	// as frozen).
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 100)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 100)
 
 	fakeMsg := storagetypes.NewMsgMigrateBucket(ownerAddr.Bytes(), bucketName, dstSPID)
 	fakeMsg.DstPrimarySpApproval.ExpiredHeight = math.MaxUint
@@ -71,7 +71,7 @@ func TestStorageMigrateBucketCancelEvmFlow(t *testing.T) {
 		storage.Approval{ExpiredHeight: math.MaxUint, GlobalVirtualGroupFamilyId: 0, Sig: approvalSig},
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, migrateMethod.ID...), migrateArgs...))
 
 	during, err := storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})
@@ -81,7 +81,7 @@ func TestStorageMigrateBucketCancelEvmFlow(t *testing.T) {
 	cancelMethod := storage.GetAbiMethod(storage.CancelMigrateBucketMethodName)
 	cancelArgs, err := cancelMethod.Inputs.Pack(bucketName)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, cancelMethod.ID...), cancelArgs...))
 
 	after, err := storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})
@@ -102,12 +102,12 @@ func TestStorageMigrateBucketRejectEvmFlow(t *testing.T) {
 	spClient := sptypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 	sp1Export, ok := loadSPExport(t)["sp1"]
 	require.True(t, ok)
 	sp1OperatorKey := mustHexKey(t, sp1Export.OperatorPrivateKey)
 	sp1ApprovalKey := mustHexKey(t, sp1Export.ApprovalPrivateKey)
-	fundMoca(t, ctx, client, chainID, crypto.PubkeyToAddress(sp1OperatorKey.PublicKey), fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, crypto.PubkeyToAddress(sp1OperatorKey.PublicKey), fundingAmountMOCA)
 
 	spsResp, err := spClient.StorageProviders(ctx, &sptypes.QueryStorageProvidersRequest{Pagination: &query.PageRequest{Limit: math.MaxUint64}})
 	require.NoError(t, err)
@@ -122,9 +122,9 @@ func TestStorageMigrateBucketRejectEvmFlow(t *testing.T) {
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 100)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 100)
 
 	fakeMsg := storagetypes.NewMsgMigrateBucket(ownerAddr.Bytes(), bucketName, dstSPID)
 	fakeMsg.DstPrimarySpApproval.ExpiredHeight = math.MaxUint
@@ -138,13 +138,13 @@ func TestStorageMigrateBucketRejectEvmFlow(t *testing.T) {
 		storage.Approval{ExpiredHeight: math.MaxUint, GlobalVirtualGroupFamilyId: 0, Sig: approvalSig},
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, migrateMethod.ID...), migrateArgs...))
 
 	rejectMethod := storage.GetAbiMethod(storage.RejectMigrateBucketMethodName)
 	rejectArgs, err := rejectMethod.Inputs.Pack(bucketName)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, sp1OperatorKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, sp1OperatorKey, precompile.Address(),
 		append(append([]byte{}, rejectMethod.ID...), rejectArgs...))
 
 	after, err := storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})

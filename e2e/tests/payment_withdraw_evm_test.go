@@ -29,7 +29,7 @@ func TestPaymentWithdrawImmediateEvmFlow(t *testing.T) {
 	userKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	userAddr := crypto.PubkeyToAddress(userKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, userAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, userAddr, fundingAmountMOCA)
 
 	depositAmount := mustBigInt(t, oneMocaInAmoca) // 1 MOCA, well under the 100 MOCA lock threshold
 
@@ -37,19 +37,19 @@ func TestPaymentWithdrawImmediateEvmFlow(t *testing.T) {
 	require.NoError(t, err)
 	depositArgs, err := depositMethod.Inputs.Pack(userAddr.String(), depositAmount)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, userKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, userKey, precompile.Address(),
 		append(append([]byte{}, depositMethod.ID...), depositArgs...))
 
-	require.Equal(t, depositAmount, getStreamRecord(t, ctx, paymentClient, userAddr.String()).StaticBalance.BigInt())
+	require.Equal(t, depositAmount, getStreamRecord(ctx, t, paymentClient, userAddr.String()).StaticBalance.BigInt())
 
 	withdrawMethod, err := payment.GetMethod(payment.WithdrawMethodName)
 	require.NoError(t, err)
 	withdrawArgs, err := withdrawMethod.Inputs.Pack(userAddr.String(), depositAmount)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, userKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, userKey, precompile.Address(),
 		append(append([]byte{}, withdrawMethod.ID...), withdrawArgs...))
 
-	require.True(t, getStreamRecord(t, ctx, paymentClient, userAddr.String()).StaticBalance.IsZero(),
+	require.True(t, getStreamRecord(ctx, t, paymentClient, userAddr.String()).StaticBalance.IsZero(),
 		"a withdrawal under the time-lock threshold must settle immediately")
 }
 
@@ -70,7 +70,7 @@ func TestPaymentWithdrawDelayedEvmFlow(t *testing.T) {
 	userAddr := crypto.PubkeyToAddress(userKey.PublicKey)
 	// 155 MOCA funded, 150 deposited: comfortably above the 100 MOCA lock
 	// threshold, with headroom left over for this test's 3 transactions' gas.
-	fundMoca(t, ctx, client, chainID, userAddr, 155)
+	fundMoca(ctx, t, client, chainID, userAddr, 155)
 
 	lockedAmount := new(big.Int).Mul(mustBigInt(t, oneMocaInAmoca), big.NewInt(150))
 
@@ -78,17 +78,17 @@ func TestPaymentWithdrawDelayedEvmFlow(t *testing.T) {
 	require.NoError(t, err)
 	depositArgs, err := depositMethod.Inputs.Pack(userAddr.String(), lockedAmount)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, userKey, precompileAddr,
+	sendPrecompileTx(ctx, t, client, chainID, userKey, precompileAddr,
 		append(append([]byte{}, depositMethod.ID...), depositArgs...))
 
 	withdrawMethod, err := payment.GetMethod(payment.WithdrawMethodName)
 	require.NoError(t, err)
 	withdrawArgs, err := withdrawMethod.Inputs.Pack(userAddr.String(), lockedAmount)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, userKey, precompileAddr,
+	sendPrecompileTx(ctx, t, client, chainID, userKey, precompileAddr,
 		append(append([]byte{}, withdrawMethod.ID...), withdrawArgs...))
 
-	require.True(t, getStreamRecord(t, ctx, paymentClient, userAddr.String()).StaticBalance.IsZero(),
+	require.True(t, getStreamRecord(ctx, t, paymentClient, userAddr.String()).StaticBalance.IsZero(),
 		"StaticBalance is debited immediately even though the transfer itself is delayed")
 
 	delayedResp, err := paymentClient.DelayedWithdrawal(ctx, &paymenttypes.QueryDelayedWithdrawalRequest{Account: userAddr.String()})

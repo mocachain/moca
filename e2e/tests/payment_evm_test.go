@@ -27,12 +27,12 @@ func TestPaymentAccountEvmFlow(t *testing.T) {
 	userKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	userAddr := crypto.PubkeyToAddress(userKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, userAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, userAddr, fundingAmountMOCA)
 
 	createMethod, err := payment.GetMethod(payment.CreatePaymentAccountMethodName)
 	require.NoError(t, err)
 	createCalldata := append(append([]byte{}, createMethod.ID...), []byte{}...)
-	sendPrecompileTx(t, ctx, client, chainID, userKey, precompile.Address(), createCalldata)
+	sendPrecompileTx(ctx, t, client, chainID, userKey, precompile.Address(), createCalldata)
 
 	accountsResp, err := paymentClient.PaymentAccountsByOwner(ctx, &paymenttypes.QueryPaymentAccountsByOwnerRequest{
 		Owner: userAddr.String(),
@@ -50,7 +50,7 @@ func TestPaymentAccountEvmFlow(t *testing.T) {
 	require.NoError(t, err)
 	disableArgs, err := disableMethod.Inputs.Pack(paymentAddr)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, userKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, userKey, precompile.Address(),
 		append(append([]byte{}, disableMethod.ID...), disableArgs...))
 
 	after, err := paymentClient.PaymentAccount(ctx, &paymenttypes.QueryPaymentAccountRequest{Addr: paymentAddr})
@@ -73,7 +73,7 @@ func TestPaymentDepositEvmFlow(t *testing.T) {
 	userKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	userAddr := crypto.PubkeyToAddress(userKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, userAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, userAddr, fundingAmountMOCA)
 
 	depositAmount := mustBigInt(t, oneMocaInAmoca) // 1 MOCA
 
@@ -81,10 +81,10 @@ func TestPaymentDepositEvmFlow(t *testing.T) {
 	require.NoError(t, err)
 	depositArgs, err := depositMethod.Inputs.Pack(userAddr.String(), depositAmount)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, userKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, userKey, precompile.Address(),
 		append(append([]byte{}, depositMethod.ID...), depositArgs...))
 
-	streamRecord := getStreamRecord(t, ctx, paymentClient, userAddr.String())
+	streamRecord := getStreamRecord(ctx, t, paymentClient, userAddr.String())
 	require.True(t, streamRecord.NetflowRate.IsZero(), "no bucket/quota is attached, so nothing should be streaming")
 	require.Equal(t, depositAmount, streamRecord.StaticBalance.BigInt())
 }

@@ -28,19 +28,19 @@ func TestStorageToggleSPDelegatedAgentEvmFlow(t *testing.T) {
 	precompile := storage.Precompile{}
 	precompileAddr := precompile.Address()
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	toggleMethod := storage.GetAbiMethod(storage.ToggleSPAsDelegatedAgentMethodName)
 	toggleArgs, err := toggleMethod.Inputs.Pack(bucketName)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompileAddr,
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompileAddr,
 		append(append([]byte{}, toggleMethod.ID...), toggleArgs...))
 
 	headResp, err := storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})

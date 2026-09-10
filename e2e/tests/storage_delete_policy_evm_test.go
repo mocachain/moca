@@ -25,18 +25,18 @@ func TestStorageDeletePolicyEvmFlow(t *testing.T) {
 	client, conn := dialChain(t)
 	storageClient := storagetypes.NewQueryClient(conn)
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
 	granteeKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	granteeAddr := crypto.PubkeyToAddress(granteeKey.PublicKey)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 	resource := mocatypes.NewBucketGRN(bucketName).String()
 	precompile := storage.Precompile{}
 
@@ -60,14 +60,14 @@ func TestStorageDeletePolicyEvmFlow(t *testing.T) {
 		int64(0),
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, putPolicyMethod.ID...), putPolicyArgs...))
 	require.Equal(t, permtypes.EFFECT_ALLOW, verify(), "grant should take effect")
 
 	deletePolicyMethod := storage.GetAbiMethod(storage.DeletePolicyMethodName)
 	deletePolicyArgs, err := deletePolicyMethod.Inputs.Pack(principal, resource)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, deletePolicyMethod.ID...), deletePolicyArgs...))
 	require.Equal(t, permtypes.EFFECT_DENY, verify(), "deletePolicy must fully revoke the grant")
 }

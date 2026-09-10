@@ -28,19 +28,19 @@ func TestStorageDiscontinueBucketEvmFlow(t *testing.T) {
 	precompile := storage.Precompile{}
 	precompileAddr := precompile.Address()
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 	sp0Export, ok := loadSPExport(t)["sp0"]
 	require.True(t, ok)
 	gcKey := mustHexKey(t, sp0Export.GcPrivateKey)
 	gcAddr := crypto.PubkeyToAddress(gcKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, gcAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, gcAddr, fundingAmountMOCA)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	discontinueMethod := storage.GetAbiMethod(storage.DiscontinueBucketMethodName)
 	discontinueArgs, err := discontinueMethod.Inputs.Pack(bucketName, "policy violation")
@@ -56,7 +56,7 @@ func TestStorageDiscontinueBucketEvmFlow(t *testing.T) {
 	require.Contains(t, callErr.Error(), "No such storage provider")
 
 	// SP's GC address discontinues the bucket for real.
-	sendPrecompileTx(t, ctx, client, chainID, gcKey, precompileAddr, calldata)
+	sendPrecompileTx(ctx, t, client, chainID, gcKey, precompileAddr, calldata)
 
 	after, err := storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})
 	require.NoError(t, err)

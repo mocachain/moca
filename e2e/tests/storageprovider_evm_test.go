@@ -29,7 +29,7 @@ func TestStorageProviderPriceEvmFlow(t *testing.T) {
 
 	sp0OperatorKey := mustHexKey(t, sp0Export.OperatorPrivateKey)
 	operatorAddr := crypto.PubkeyToAddress(sp0OperatorKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, operatorAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, operatorAddr, fundingAmountMOCA)
 
 	before, err := spClient.QuerySpStoragePrice(ctx, &sptypes.QuerySpStoragePriceRequest{
 		SpAddr: sp0Export.OperatorAddress,
@@ -49,7 +49,7 @@ func TestStorageProviderPriceEvmFlow(t *testing.T) {
 	packedArgs, err := method.Inputs.Pack(newReadPrice, newFreeReadQuota, newStorePrice)
 	require.NoError(t, err)
 	calldata := append(append([]byte{}, method.ID...), packedArgs...)
-	sendPrecompileTx(t, ctx, client, chainID, sp0OperatorKey, precompile.Address(), calldata)
+	sendPrecompileTx(ctx, t, client, chainID, sp0OperatorKey, precompile.Address(), calldata)
 
 	after, err := spClient.QuerySpStoragePrice(ctx, &sptypes.QuerySpStoragePriceRequest{
 		SpAddr: sp0Export.OperatorAddress,

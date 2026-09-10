@@ -29,18 +29,18 @@ func TestStorageLeaveGroupEvmFlow(t *testing.T) {
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
 	memberKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	memberAddr := crypto.PubkeyToAddress(memberKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, memberAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, memberAddr, fundingAmountMOCA)
 
 	groupName := "evm-leave-group-test"
 	createGroupMethod := storage.GetAbiMethod(storage.CreateGroupMethodName)
 	createGroupArgs, err := createGroupMethod.Inputs.Pack(groupName, "")
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, createGroupMethod.ID...), createGroupArgs...))
 
 	updateGroupMethod := storage.GetAbiMethod(storage.UpdateGroupMethodName)
@@ -48,7 +48,7 @@ func TestStorageLeaveGroupEvmFlow(t *testing.T) {
 		ownerAddr, groupName, []common.Address{memberAddr}, []int64{0}, []common.Address{},
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, updateGroupMethod.ID...), updateGroupArgs...))
 
 	_, err = storageClient.HeadGroupMember(ctx, &storagetypes.QueryHeadGroupMemberRequest{
@@ -59,7 +59,7 @@ func TestStorageLeaveGroupEvmFlow(t *testing.T) {
 	leaveGroupMethod := storage.GetAbiMethod(storage.LeaveGroupMethodName)
 	leaveGroupArgs, err := leaveGroupMethod.Inputs.Pack(ownerAddr, groupName)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, memberKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, memberKey, precompile.Address(),
 		append(append([]byte{}, leaveGroupMethod.ID...), leaveGroupArgs...))
 
 	_, err = storageClient.HeadGroupMember(ctx, &storagetypes.QueryHeadGroupMemberRequest{

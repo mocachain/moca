@@ -23,13 +23,13 @@ func TestStorageDeleteObjectEvmFlow(t *testing.T) {
 	storageClient := storagetypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	fundMoca(t, ctx, client, chainID, crypto.PubkeyToAddress(ownerKey.PublicKey), fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, crypto.PubkeyToAddress(ownerKey.PublicKey), fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	objectName := storageutils.GenRandomObjectName()
 	_, b64Checksums := threeChecksums()
@@ -40,7 +40,7 @@ func TestStorageDeleteObjectEvmFlow(t *testing.T) {
 		b64Checksums, uint8(storagetypes.REDUNDANCY_EC_TYPE),
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, sp.OperatorKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, sp.OperatorKey, precompile.Address(),
 		append(append([]byte{}, delegateMethod.ID...), delegateArgs...))
 
 	_, err = storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})
@@ -49,7 +49,7 @@ func TestStorageDeleteObjectEvmFlow(t *testing.T) {
 	deleteMethod := storage.GetAbiMethod(storage.DeleteObjectMethodName)
 	deleteArgs, err := deleteMethod.Inputs.Pack(bucketName, objectName)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, deleteMethod.ID...), deleteArgs...))
 
 	_, err = storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})

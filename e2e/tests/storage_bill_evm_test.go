@@ -45,16 +45,16 @@ func TestStorageBillCancelCreateObjectEvmFlow(t *testing.T) {
 	paymentClient := paymenttypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
-	baseline := getStreamRecord(t, ctx, paymentClient, ownerAddr.String())
+	baseline := getStreamRecord(ctx, t, paymentClient, ownerAddr.String())
 
 	// Create an object -- this locks a fee but starts no stream (unsealed).
 	objectName := storageutils.GenRandomObjectName()
@@ -79,13 +79,13 @@ func TestStorageBillCancelCreateObjectEvmFlow(t *testing.T) {
 		uint8(storagetypes.REDUNDANCY_EC_TYPE),
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, createMethod.ID...), createArgs...))
 
 	_, err = storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})
 	require.NoError(t, err)
 
-	afterCreate := getStreamRecord(t, ctx, paymentClient, ownerAddr.String())
+	afterCreate := getStreamRecord(ctx, t, paymentClient, ownerAddr.String())
 	require.True(t, afterCreate.NetflowRate.Equal(baseline.NetflowRate), "an unsealed create must not start any stream")
 	lockedFee := afterCreate.LockBalance.Sub(baseline.LockBalance)
 	require.True(t, lockedFee.IsPositive(), "creating an object should lock a positive fee")
@@ -94,13 +94,13 @@ func TestStorageBillCancelCreateObjectEvmFlow(t *testing.T) {
 	cancelMethod := storage.GetAbiMethod(storage.CancelCreateObjectMethodName)
 	cancelArgs, err := cancelMethod.Inputs.Pack(bucketName, objectName)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, cancelMethod.ID...), cancelArgs...))
 
 	_, err = storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})
 	require.Error(t, err, "canceled object should no longer exist")
 
-	afterCancel := getStreamRecord(t, ctx, paymentClient, ownerAddr.String())
+	afterCancel := getStreamRecord(ctx, t, paymentClient, ownerAddr.String())
 	require.True(t, afterCancel.LockBalance.Equal(baseline.LockBalance), "lock balance must return to baseline")
 	require.True(t, afterCancel.NetflowRate.Equal(baseline.NetflowRate), "rates must be unaffected throughout")
 	require.True(t, afterCancel.StaticBalance.Sub(baseline.StaticBalance).Equal(lockedFee),

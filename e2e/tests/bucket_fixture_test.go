@@ -41,7 +41,7 @@ type spHandle struct {
 // account, and creates a fresh GVG family for it via the virtualgroup
 // precompile. Returns the SP handle and the new family's ID, ready for
 // createTestBucket.
-func setupPrimarySP(t *testing.T, ctx context.Context, client *ethclient.Client, conn *grpc.ClientConn, chainID *big.Int) (spHandle, uint32) {
+func setupPrimarySP(ctx context.Context, t *testing.T, client *ethclient.Client, conn *grpc.ClientConn, chainID *big.Int) (spHandle, uint32) {
 	t.Helper()
 	spClient := sptypes.NewQueryClient(conn)
 	vgClient := virtualgroupmoduletypes.NewQueryClient(conn)
@@ -73,7 +73,7 @@ func setupPrimarySP(t *testing.T, ctx context.Context, client *ethclient.Client,
 		SPID:        primarySPID,
 	}
 	sp.OperatorAddr = crypto.PubkeyToAddress(sp.OperatorKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, sp.OperatorAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, sp.OperatorAddr, fundingAmountMOCA)
 
 	vgPrecompile := virtualgroup.Precompile{}
 	vgMethod, err := virtualgroup.GetMethod(virtualgroup.CreateGlobalVirtualGroupMethodName)
@@ -89,7 +89,7 @@ func setupPrimarySP(t *testing.T, ctx context.Context, client *ethclient.Client,
 	)
 	require.NoError(t, err)
 	calldata := append(append([]byte{}, vgMethod.ID...), packedArgs...)
-	sendPrecompileTx(t, ctx, client, chainID, sp.OperatorKey, vgPrecompile.Address(), calldata)
+	sendPrecompileTx(ctx, t, client, chainID, sp.OperatorKey, vgPrecompile.Address(), calldata)
 
 	familiesResp, err := vgClient.GlobalVirtualGroupFamilies(ctx, &virtualgroupmoduletypes.QueryGlobalVirtualGroupFamiliesRequest{
 		Pagination: &query.PageRequest{Limit: math.MaxUint64},
@@ -110,7 +110,7 @@ func setupPrimarySP(t *testing.T, ctx context.Context, client *ethclient.Client,
 // precompile's createBucket method, owned and signed by owner (which must
 // already be funded), approved by sp, with the given charged read quota.
 // Returns the generated bucket name.
-func createTestBucket(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, sp spHandle, familyID uint32, owner *ecdsa.PrivateKey, visibility storagetypes.VisibilityType, chargedReadQuota uint64) string {
+func createTestBucket(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, sp spHandle, familyID uint32, owner *ecdsa.PrivateKey, visibility storagetypes.VisibilityType, chargedReadQuota uint64) string {
 	t.Helper()
 	ownerAddr := crypto.PubkeyToAddress(owner.PublicKey)
 
@@ -131,7 +131,7 @@ func createTestBucket(t *testing.T, ctx context.Context, client *ethclient.Clien
 	createMethod := storage.GetAbiMethod(storage.CreateBucketMethodName)
 	createArgs, err := createMethod.Inputs.Pack(
 		bucketName,
-		uint8(visibility),
+		uint8(visibility), //nolint:gosec // VisibilityType is a 4-value enum; fits in uint8
 		ownerAddr,
 		sp.OperatorAddr,
 		storage.Approval{
@@ -143,7 +143,7 @@ func createTestBucket(t *testing.T, ctx context.Context, client *ethclient.Clien
 	)
 	require.NoError(t, err)
 	calldata := append(append([]byte{}, createMethod.ID...), createArgs...)
-	sendPrecompileTx(t, ctx, client, chainID, owner, storagePrecompile.Address(), calldata)
+	sendPrecompileTx(ctx, t, client, chainID, owner, storagePrecompile.Address(), calldata)
 
 	return bucketName
 }

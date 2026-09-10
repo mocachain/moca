@@ -29,19 +29,19 @@ func TestPermissionStaleGroupDenialEvmFlow(t *testing.T) {
 	storageClient := storagetypes.NewQueryClient(conn)
 	storagePrecompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
 	memberKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	memberAddr := crypto.PubkeyToAddress(memberKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, memberAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, memberAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	// 1) Baseline: the member has no grant at all, so deleting the bucket
 	// must already be denied.
@@ -61,7 +61,7 @@ func TestPermissionStaleGroupDenialEvmFlow(t *testing.T) {
 	createGroupMethod := storage.GetAbiMethod(storage.CreateGroupMethodName)
 	createGroupArgs, err := createGroupMethod.Inputs.Pack(groupName, "")
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, storagePrecompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, storagePrecompile.Address(),
 		append(append([]byte{}, createGroupMethod.ID...), createGroupArgs...))
 
 	updateGroupMethod := storage.GetAbiMethod(storage.UpdateGroupMethodName)
@@ -73,7 +73,7 @@ func TestPermissionStaleGroupDenialEvmFlow(t *testing.T) {
 		[]common.Address{},
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, storagePrecompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, storagePrecompile.Address(),
 		append(append([]byte{}, updateGroupMethod.ID...), updateGroupArgs...))
 
 	headGroupResp, err := storageClient.HeadGroup(ctx, &storagetypes.QueryHeadGroupRequest{
@@ -101,7 +101,7 @@ func TestPermissionStaleGroupDenialEvmFlow(t *testing.T) {
 		int64(0),
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, storagePrecompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, storagePrecompile.Address(),
 		append(append([]byte{}, putPolicyMethod.ID...), putPolicyArgs...))
 
 	require.Equal(t, permtypes.EFFECT_ALLOW, verify(memberAddr), "member should have delete rights once the group is granted")

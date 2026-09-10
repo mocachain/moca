@@ -25,18 +25,18 @@ func TestStorageBucketVisibilityEvmFlow(t *testing.T) {
 	client, conn := dialChain(t)
 	storageClient := storagetypes.NewQueryClient(conn)
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	fundMoca(t, ctx, client, chainID, crypto.PubkeyToAddress(ownerKey.PublicKey), fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, crypto.PubkeyToAddress(ownerKey.PublicKey), fundingAmountMOCA)
 
 	strangerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	strangerAddr := crypto.PubkeyToAddress(strangerKey.PublicKey)
 
-	publicBucket := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 0)
-	privateBucket := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	publicBucket := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 0)
+	privateBucket := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	verify := func(bucketName string, action permtypes.ActionType) permtypes.Effect {
 		resp, err := storageClient.VerifyPermission(ctx, &storagetypes.QueryVerifyPermissionRequest{

@@ -62,7 +62,7 @@ type spExportEntry struct {
 
 func loadSPExport(t *testing.T) map[string]spExportEntry {
 	t.Helper()
-	data, err := os.ReadFile(spExportRelPath) //nolint:gosec // fixed relative path to local test fixture
+	data, err := os.ReadFile(spExportRelPath)
 	require.NoError(t, err, "run `localup.sh export_sps 1 7` before this test")
 	var out map[string]spExportEntry
 	require.NoError(t, json.Unmarshal(data, &out))
@@ -99,8 +99,8 @@ func dialChain(t *testing.T) (*ethclient.Client, *grpc.ClientConn) {
 }
 
 // sendPrecompileTx signs and sends a dynamic-fee tx carrying calldata to a
-// precompile address, waits for the receipt, and asserts success.
-func sendPrecompileTx(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, key *ecdsa.PrivateKey, to common.Address, calldata []byte) *types.Receipt {
+// precompile address, waits for it to be mined, and asserts success.
+func sendPrecompileTx(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, key *ecdsa.PrivateKey, to common.Address, calldata []byte) {
 	t.Helper()
 	from := crypto.PubkeyToAddress(key.PublicKey)
 
@@ -153,11 +153,10 @@ func sendPrecompileTx(t *testing.T, ctx context.Context, client *ethclient.Clien
 		}, receipt.BlockNumber)
 		t.Fatalf("tx %s reverted; revert reason: %v", signedTx.Hash(), callErr)
 	}
-	return receipt
 }
 
 // fundAccount sends a plain native-token transfer and waits for it to land.
-func fundAccount(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, funder *ecdsa.PrivateKey, to common.Address, amount *big.Int) {
+func fundAccount(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, funder *ecdsa.PrivateKey, to common.Address, amount *big.Int) {
 	t.Helper()
 	from := crypto.PubkeyToAddress(funder.PublicKey)
 	nonce, err := client.PendingNonceAt(ctx, from)
@@ -190,17 +189,17 @@ func fundAccount(t *testing.T, ctx context.Context, client *ethclient.Client, ch
 
 // fundMoca funds `to` with the given whole-MOCA amount from the well-known
 // local devnet dev account.
-func fundMoca(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, to common.Address, wholeMoca int64) {
+func fundMoca(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, to common.Address, wholeMoca int64) {
 	t.Helper()
 	devKey := mustHexKey(t, devAccountPrivateKeyHex)
-	fundAccount(t, ctx, client, chainID, devKey, to, new(big.Int).Mul(big.NewInt(wholeMoca), mustBigInt(t, oneMocaInAmoca)))
+	fundAccount(ctx, t, client, chainID, devKey, to, new(big.Int).Mul(big.NewInt(wholeMoca), mustBigInt(t, oneMocaInAmoca)))
 }
 
 // getStreamRecord fetches an account's payment stream record, treating a
 // not-found response as an implicit all-zero record -- an account that has
 // never had any payment activity has no row at all yet, same tolerance the
 // retired suite's own getStreamRecord helper had.
-func getStreamRecord(t *testing.T, ctx context.Context, paymentClient paymenttypes.QueryClient, account string) paymenttypes.StreamRecord {
+func getStreamRecord(ctx context.Context, t *testing.T, paymentClient paymenttypes.QueryClient, account string) paymenttypes.StreamRecord {
 	t.Helper()
 	resp, err := paymentClient.StreamRecord(ctx, &paymenttypes.QueryGetStreamRecordRequest{Account: account})
 	if err != nil {

@@ -25,19 +25,19 @@ func TestStorageUpdateGroupExtraEvmFlow(t *testing.T) {
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
 	groupName := "evm-update-group-extra-test"
 	createGroupMethod := storage.GetAbiMethod(storage.CreateGroupMethodName)
 	createGroupArgs, err := createGroupMethod.Inputs.Pack(groupName, "original extra")
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, createGroupMethod.ID...), createGroupArgs...))
 
 	updateExtraMethod := storage.GetAbiMethod(storage.UpdateGroupExtraMethodName)
 	updateExtraArgs, err := updateExtraMethod.Inputs.Pack(ownerAddr, groupName, "updated extra")
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, updateExtraMethod.ID...), updateExtraArgs...))
 
 	headResp, err := storageClient.HeadGroup(ctx, &storagetypes.QueryHeadGroupRequest{GroupOwner: ownerAddr.String(), GroupName: groupName})

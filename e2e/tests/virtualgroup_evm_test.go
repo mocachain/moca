@@ -25,7 +25,7 @@ func TestVirtualGroupDepositEvmFlow(t *testing.T) {
 	vgClient := virtualgroupmoduletypes.NewQueryClient(conn)
 	precompile := virtualgroup.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	gvgsResp, err := vgClient.GlobalVirtualGroupByFamilyID(ctx, &virtualgroupmoduletypes.QueryGlobalVirtualGroupByFamilyIDRequest{
 		GlobalVirtualGroupFamilyId: familyID,
@@ -43,7 +43,7 @@ func TestVirtualGroupDepositEvmFlow(t *testing.T) {
 		virtualgroup.Coin{Denom: "amoca", Amount: depositAmount},
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, sp.OperatorKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, sp.OperatorKey, precompile.Address(),
 		append(append([]byte{}, depositMethod.ID...), depositArgs...))
 
 	afterResp, err := vgClient.GlobalVirtualGroup(ctx, &virtualgroupmoduletypes.QueryGlobalVirtualGroupRequest{

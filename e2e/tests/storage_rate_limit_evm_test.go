@@ -29,24 +29,24 @@ func TestStorageRateLimitEvmFlow(t *testing.T) {
 	storageClient := storagetypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
 	// Non-zero quota: the bucket needs an actual outgoing flow rate for a
 	// limit of 0 to bite -- the keeper only flips the "limited" status when
 	// the new limit falls below the bucket's current rate.
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 10_000_000)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 10_000_000)
 
 	// Set the bucket's own flow rate limit to exactly 0 (owner acting as its
 	// own payment address).
 	setLimitMethod := storage.GetAbiMethod(storage.SetBucketFlowRateLimitMethodName)
 	setLimitArgs, err := setLimitMethod.Inputs.Pack(bucketName, ownerAddr.String(), ownerAddr.String(), big.NewInt(0))
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, setLimitMethod.ID...), setLimitArgs...))
 
 	// (QueryPaymentAccountBucketFlowRateLimit is the more direct query for

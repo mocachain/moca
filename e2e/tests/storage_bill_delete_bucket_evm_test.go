@@ -27,27 +27,27 @@ func TestStorageBillDeleteBucketWithReadQuotaEvmFlow(t *testing.T) {
 	storageClient := storagetypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 100)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PUBLIC_READ, 100)
 
-	beforeDelete := getStreamRecord(t, ctx, paymentClient, ownerAddr.String())
+	beforeDelete := getStreamRecord(ctx, t, paymentClient, ownerAddr.String())
 	require.False(t, beforeDelete.NetflowRate.IsZero(), "a charged read quota alone should already create a billing rate")
 
 	deleteMethod := storage.GetAbiMethod(storage.DeleteBucketMethodName)
 	deleteArgs, err := deleteMethod.Inputs.Pack(bucketName)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, deleteMethod.ID...), deleteArgs...))
 
 	_, err = storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})
 	require.Error(t, err, "deleted bucket should no longer exist")
 
-	afterDelete := getStreamRecord(t, ctx, paymentClient, ownerAddr.String())
+	afterDelete := getStreamRecord(ctx, t, paymentClient, ownerAddr.String())
 	require.True(t, afterDelete.NetflowRate.IsZero(), "deleting the bucket must fully unwind the read-quota-only rate back to zero")
 }

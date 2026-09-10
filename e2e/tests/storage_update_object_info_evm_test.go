@@ -23,14 +23,14 @@ func TestStorageUpdateObjectInfoEvmFlow(t *testing.T) {
 	storageClient := storagetypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	objectName := storageutils.GenRandomObjectName()
 	_, b64Checksums := threeChecksums()
@@ -41,7 +41,7 @@ func TestStorageUpdateObjectInfoEvmFlow(t *testing.T) {
 		b64Checksums, uint8(storagetypes.REDUNDANCY_EC_TYPE),
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, sp.OperatorKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, sp.OperatorKey, precompile.Address(),
 		append(append([]byte{}, delegateMethod.ID...), delegateArgs...))
 
 	before, err := storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})
@@ -51,7 +51,7 @@ func TestStorageUpdateObjectInfoEvmFlow(t *testing.T) {
 	updateMethod := storage.GetAbiMethod(storage.UpdateObjectInfoMethodName)
 	updateArgs, err := updateMethod.Inputs.Pack(bucketName, objectName, uint8(storagetypes.VISIBILITY_TYPE_PUBLIC_READ))
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, ownerKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, precompile.Address(),
 		append(append([]byte{}, updateMethod.ID...), updateArgs...))
 
 	after, err := storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})

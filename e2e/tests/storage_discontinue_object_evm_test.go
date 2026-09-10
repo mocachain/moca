@@ -26,18 +26,18 @@ func TestStorageDiscontinueObjectEvmFlow(t *testing.T) {
 	storageClient := storagetypes.NewQueryClient(conn)
 	precompile := storage.Precompile{}
 
-	sp, familyID := setupPrimarySP(t, ctx, client, conn, chainID)
+	sp, familyID := setupPrimarySP(ctx, t, client, conn, chainID)
 	sp0Export, ok := loadSPExport(t)["sp0"]
 	require.True(t, ok)
 	gcKey := mustHexKey(t, sp0Export.GcPrivateKey)
-	fundMoca(t, ctx, client, chainID, crypto.PubkeyToAddress(gcKey.PublicKey), fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, crypto.PubkeyToAddress(gcKey.PublicKey), fundingAmountMOCA)
 
 	ownerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ownerAddr := crypto.PubkeyToAddress(ownerKey.PublicKey)
-	fundMoca(t, ctx, client, chainID, ownerAddr, fundingAmountMOCA)
+	fundMoca(ctx, t, client, chainID, ownerAddr, fundingAmountMOCA)
 
-	bucketName := createTestBucket(t, ctx, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
+	bucketName := createTestBucket(ctx, t, client, chainID, sp, familyID, ownerKey, storagetypes.VISIBILITY_TYPE_PRIVATE, 0)
 
 	objectName := storageutils.GenRandomObjectName()
 	_, b64Checksums := threeChecksums()
@@ -48,7 +48,7 @@ func TestStorageDiscontinueObjectEvmFlow(t *testing.T) {
 		b64Checksums, uint8(storagetypes.REDUNDANCY_EC_TYPE),
 	)
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, sp.OperatorKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, sp.OperatorKey, precompile.Address(),
 		append(append([]byte{}, createMethod.ID...), createArgs...))
 
 	headResp, err := storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})
@@ -58,7 +58,7 @@ func TestStorageDiscontinueObjectEvmFlow(t *testing.T) {
 	discontinueMethod := storage.GetAbiMethod(storage.DiscontinueObjectMethodName)
 	discontinueArgs, err := discontinueMethod.Inputs.Pack(bucketName, []*big.Int{objectID}, "policy violation")
 	require.NoError(t, err)
-	sendPrecompileTx(t, ctx, client, chainID, gcKey, precompile.Address(),
+	sendPrecompileTx(ctx, t, client, chainID, gcKey, precompile.Address(),
 		append(append([]byte{}, discontinueMethod.ID...), discontinueArgs...))
 
 	after, err := storageClient.HeadObject(ctx, &storagetypes.QueryHeadObjectRequest{BucketName: bucketName, ObjectName: objectName})
