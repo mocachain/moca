@@ -22,6 +22,8 @@ stopwords = [
     '''mcpub1addwnpepqgcxazmq6wgt2j4rdfumsfwla0zfk8e5sws3p3zg5dkm9007hmfysxas0u2''',
     # example pubkey in `debug pubkey` help text (client/debug/debug.go), not a secret
     '''AurroA7jvfPd1AadmmOvWM2rJSwipXfRf8yD6pLbA2DJ''',
+    # localup.sh's well-known local-devnet dev account key (devaccount_prikey), pre-funded at genesis for tests only
+    '''2228e392584d902843272c37fd62b8c73c10c81a5ecb901773c9ebe366e937bb''',
 ]
 
 [[rules]]
