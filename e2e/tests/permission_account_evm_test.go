@@ -17,11 +17,9 @@ import (
 
 // TestPermissionAccountGrantEvmFlow drives x/permission's account-principal
 // grant through the storage precompile's putPolicy method, exercising the
-// grant/verify half of the retired suite's TestDeleteBucketPermission -- the
-// canonical grant/allow pattern the rest of the permission suite builds on.
-// The grantee actually exercising the grant (deleteBucket) is BLOCKED -- see
-// the t.Skip below -- and is left in place as a ready-to-enable regression
-// test for when that's fixed.
+// full flow of the retired suite's TestDeleteBucketPermission -- the
+// canonical grant/allow pattern the rest of the permission suite builds on --
+// including the grantee actually exercising the grant with deleteBucket.
 func TestPermissionAccountGrantEvmFlow(t *testing.T) {
 	ctx := context.Background()
 	chainID := big.NewInt(evmChainIDNum)
@@ -79,24 +77,16 @@ func TestPermissionAccountGrantEvmFlow(t *testing.T) {
 
 	require.Equal(t, permtypes.EFFECT_ALLOW, verify(granteeAddr), "grantee should have delete rights once granted")
 
-	// The grantee actually exercising the grant -- BLOCKED.
-	//
-	// Reproduced live via eth_call: this grantee's deleteBucket call fails
-	// with the same error found on deleteGroup (see
-	// TestPermissionStaleGroupDenialEvmFlow in this package):
-	//   "kv store with key TransientStoreKey{..., transient_storage} has not
-	//    been registered in stores"
-	// even though the owner calling deleteBucket directly succeeds
-	// (verified separately). VerifyBucketPermission has an "operator ==
-	// owner, return ALLOW immediately" shortcut ahead of any real policy
-	// lookup -- this grantee call skips that shortcut and reaches
-	// VerifyPolicy instead. But that alone doesn't fully explain the
-	// pattern: VerifyGroupPermission has the identical owner-shortcut, yet
-	// owner-called deleteGroup *also* fails, taking that shortcut too. The
-	// exact trigger isn't isolated yet across these three call shapes.
-	// Left unfixed here, out of scope for the e2e-test rewrite; worth its
-	// own investigation.
-	t.Skip("BLOCKED: grantee's deleteBucket call fails with " +
-		`"kv store with key TransientStoreKey{..., transient_storage} has not been registered in stores" ` +
-		"-- same error as deleteGroup; trigger not fully isolated across owner/grantee x bucket/group call shapes, see comment above")
+	// The grantee exercises the grant: deleteBucket signed by the grantee, not
+	// the owner. This is the path that faulted before #408 (the delete-side
+	// policy sweep lived in a transient store the precompile multi-store
+	// doesn't carry), so it doubles as that fix's regression test.
+	deleteMethod := storage.GetAbiMethod(storage.DeleteBucketMethodName)
+	deleteArgs, err := deleteMethod.Inputs.Pack(bucketName)
+	require.NoError(t, err)
+	sendPrecompileTx(ctx, t, client, chainID, granteeKey, precompile.Address(),
+		append(append([]byte{}, deleteMethod.ID...), deleteArgs...))
+
+	_, err = storageClient.HeadBucket(ctx, &storagetypes.QueryHeadBucketRequest{BucketName: bucketName})
+	require.Error(t, err, "bucket should be gone after the grantee's deleteBucket")
 }

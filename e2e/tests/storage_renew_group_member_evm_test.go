@@ -17,9 +17,7 @@ import (
 // TestStorageRenewGroupMemberEvmFlow drives x/storage's group-member
 // expiration renewal through the storage precompile's renewGroupMember
 // method: the group owner extends an existing member's expiration without
-// removing and re-adding them. Plain KV-store update, no ERC721
-// interaction -- doesn't hit the transient-storage bug that blocks
-// deleteGroup.
+// removing and re-adding them.
 func TestStorageRenewGroupMemberEvmFlow(t *testing.T) {
 	ctx := context.Background()
 	chainID := big.NewInt(evmChainIDNum)

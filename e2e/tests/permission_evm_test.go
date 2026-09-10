@@ -17,11 +17,10 @@ import (
 
 // TestPermissionStaleGroupDenialEvmFlow drives x/permission's group-principal
 // grant through the storage precompile's createGroup, updateGroup, and
-// putPolicy methods, exercising the setup half of the retired suite's
+// putPolicy and deleteGroup methods, the full flow of the retired suite's
 // TestVerifyStaleGroupPermission (flagged in the coverage audit as the most
-// subtle test in that file). The group-deletion half is currently blocked by
-// a real, separately-reproduced bug -- see the t.Skip below -- and is left
-// in place as a ready-to-enable regression test for when that's fixed.
+// subtle test in that file): a grant held through a group must stop applying
+// once the group itself is deleted.
 func TestPermissionStaleGroupDenialEvmFlow(t *testing.T) {
 	ctx := context.Background()
 	chainID := big.NewInt(evmChainIDNum)
@@ -106,28 +105,21 @@ func TestPermissionStaleGroupDenialEvmFlow(t *testing.T) {
 
 	require.Equal(t, permtypes.EFFECT_ALLOW, verify(memberAddr), "member should have delete rights once the group is granted")
 
-	// 4) Owner deletes the group -- BLOCKED.
-	//
-	// Reproduced live via eth_call: Keeper.DeleteGroup's nested k.CallEVM
-	// (burning the group's ERC721 representation) fails when invoked from
-	// inside the storage precompile's deleteGroup, with:
-	//   "kv store with key TransientStoreKey{..., transient_storage} has not
-	//    been registered in stores"
-	//
-	// The trigger isn't cleanly isolated yet -- three data points, not
-	// fully reconciled:
-	//   - Owner-called DeleteBucket: succeeds (verified separately).
-	//   - Owner-called DeleteGroup (here): fails.
-	//   - Grantee-called DeleteBucket via a real policy grant: also fails
-	//     (see TestPermissionAccountGrantEvmFlow in this package).
-	// VerifyGroupPermission and VerifyBucketPermission both have an
-	// identical "operator == owner, return ALLOW immediately" shortcut
-	// ahead of any real policy lookup, so this isn't simply "delegated
-	// calls reach a policy-evaluation code path that owner calls skip" --
-	// owner-called DeleteGroup takes that same shortcut and still fails.
-	// Left unfixed here, out of scope for the e2e-test rewrite; worth its
-	// own investigation given three different call shapes all reach it.
-	t.Skip("BLOCKED: deleteGroup precompile call fails with " +
-		`"kv store with key TransientStoreKey{..., transient_storage} has not been registered in stores" ` +
-		"-- owner-called deleteBucket does not fail the same way, but owner-called deleteGroup does; trigger not fully isolated, see comment above")
+	// 4) Owner deletes the group. This is the path that faulted before #408
+	// (the delete-side policy sweep lived in a transient store the precompile
+	// multi-store doesn't carry), so it doubles as that fix's regression test.
+	deleteGroupMethod := storage.GetAbiMethod(storage.DeleteGroupMethodName)
+	deleteGroupArgs, err := deleteGroupMethod.Inputs.Pack(groupName)
+	require.NoError(t, err)
+	sendPrecompileTx(ctx, t, client, chainID, ownerKey, storagePrecompile.Address(),
+		append(append([]byte{}, deleteGroupMethod.ID...), deleteGroupArgs...))
+
+	_, err = storageClient.HeadGroup(ctx, &storagetypes.QueryHeadGroupRequest{
+		GroupOwner: ownerAddr.String(),
+		GroupName:  groupName,
+	})
+	require.Error(t, err, "group should be gone after deleteGroup")
+
+	// 5) The stale group grant no longer applies: the member is denied again.
+	require.Equal(t, permtypes.EFFECT_DENY, verify(memberAddr), "member must lose delete rights once the granting group is deleted")
 }
