@@ -110,6 +110,11 @@ jobs:
       - name: Install Foundry
         if: matrix.foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          # Pinned on purpose: the suites' cast output parsing (cast_new_privkey, `cast send/receipt --json`)
+          # is verified against this release. `stable` moved 1.7.1 -> 1.8.1 on 2026-08-28 and changed the
+          # `cast wallet new --json` shape under every open PR; bump this deliberately, with the suites.
+          version: v1.8.1
 
       # The RPC suite's WS log-subscription test builds a small go-ethereum
       # client (e2e/kind/tools/wslogs) on the host to drive eth_subscribe("logs").
