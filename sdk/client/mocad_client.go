@@ -7,7 +7,6 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cometbft/cometbft/rpc/client"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	bftws "github.com/cometbft/cometbft/rpc/client/http/v2"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -134,8 +133,6 @@ type MocaClient struct {
 	TmClient
 	// tendermintClient directly interact with tendermint Node via rpc
 	tendermintClient client.Client
-	// useWebSocket
-	useWebSocket bool
 	// keyManager is the manager used for generating and managing keys.
 	keyManager keys.KeyManager
 	// chainID is the id of the chain.
@@ -156,7 +153,7 @@ func NewMocaClient(rpcAddr, evmRpcAddr, chainID string, opts ...MocaClientOption
 	if err != nil {
 		return nil, err
 	}
-	return newMocaClient(rpcAddr, chainID, rpcClient, evmClient, opts...)
+	return newMocaClient(chainID, rpcClient, evmClient, opts...)
 }
 
 // NewCustomMocaClient is used to create a new MocaClient structure, allows for setting a custom http client
@@ -169,10 +166,10 @@ func NewCustomMocaClient(rpcAddr, evmRpcAddr, chainID string, customDialer func(
 	if err != nil {
 		return nil, err
 	}
-	return newMocaClient(rpcAddr, chainID, rpcClient, evmClient, opts...)
+	return newMocaClient(chainID, rpcClient, evmClient, opts...)
 }
 
-func newMocaClient(rpcAddr, chainID string, rpcClient *rpchttp.HTTP, evmRpcClient *ethclient.Client, opts ...MocaClientOption) (*MocaClient, error) {
+func newMocaClient(chainID string, rpcClient *rpchttp.HTTP, evmRPCClient *ethclient.Client, opts ...MocaClientOption) (*MocaClient, error) {
 	cdc := types.Codec()
 	client := &MocaClient{
 		chainID: chainID,
@@ -183,20 +180,8 @@ func newMocaClient(rpcAddr, chainID string, rpcClient *rpchttp.HTTP, evmRpcClien
 		opt.Apply(client)
 	}
 	if client.grpcConn != nil {
-		setClientsConn(client, client.grpcConn, evmRpcClient)
+		setClientsConn(client, client.grpcConn, evmRPCClient)
 		return client, nil
-	}
-	if client.useWebSocket {
-		wsClient, err := bftws.New(rpcAddr, "/websocket")
-		if err != nil {
-			return nil, err
-		}
-		err = wsClient.Start()
-		if err != nil {
-			return nil, err
-		}
-		// override the tendermintClient with wsClient and use it in the cosmos context
-		client.tendermintClient = wsClient
 	}
 	txConfig := newMocaTxConfig(cdc, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	clientCtx := sdkclient.Context{}.
@@ -205,7 +190,7 @@ func newMocaClient(rpcAddr, chainID string, rpcClient *rpchttp.HTTP, evmRpcClien
 		WithTxConfig(txConfig).
 		WithClient(client.tendermintClient)
 
-	setClientsConn(client, clientCtx, evmRpcClient)
+	setClientsConn(client, clientCtx, evmRPCClient)
 	return client, nil
 }
 
