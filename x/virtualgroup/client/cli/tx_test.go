@@ -2,12 +2,15 @@ package cli_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"testing"
 
+	"cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclientmock "github.com/cometbft/cometbft/rpc/client/mock"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
@@ -17,6 +20,7 @@ import (
 
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/sdk/client/test"
+	"github.com/mocachain/moca/v2/x/virtualgroup/client/cli"
 )
 
 type CLITestSuite struct {
@@ -67,4 +71,67 @@ func (s *CLITestSuite) SetupSuite() {
 	}
 }
 
-// TODO: Add more tests
+func (s *CLITestSuite) TestTxCmd() {
+	commonFlags := []string{
+		fmt.Sprintf("--%s=%s", flags.FlagFrom, s.clientCtx.GetFromAddress().String()),
+		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin("amoca", math.NewInt(10))).String()),
+		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+		fmt.Sprintf("--%s=%s", flags.FlagOutput, "json"),
+	}
+
+	testCases := []struct {
+		name         string
+		args         []string
+		expectErr    bool
+		expectErrMsg string
+	}{
+		{
+			"settle happy path",
+			append([]string{"settle", "1", "1,2"}, commonFlags...),
+			false, "",
+		},
+		{
+			"non-numeric family id",
+			append([]string{"settle", "abc", "1"}, commonFlags...),
+			true, "invalid GVG family id",
+		},
+		{
+			// "--" stops pflag from treating the leading "-" of the
+			// negative family id as an (unknown) shorthand flag.
+			"negative family id",
+			append(append([]string{"settle"}, commonFlags...), "--", "-1", "1"),
+			true, "invalid GVG family id",
+		},
+		{
+			"non-numeric entry in gvg id list",
+			append([]string{"settle", "1", "1,x"}, commonFlags...),
+			true, "invalid GVG id",
+		},
+		{
+			// family id 0 (NoSpecifiedFamilyID) requires between 1 and 10
+			// gvg ids; 11 trips MsgSettle.ValidateBasic's count check.
+			"too many gvg ids when family unspecified",
+			append([]string{"settle", "0", "1,2,3,4,5,6,7,8,9,10,11"}, commonFlags...),
+			true, "the count of global virtual group ids is invalid",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		s.Run(tc.name, func() {
+			cmd := cli.GetTxCmd()
+			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
+
+			if tc.expectErr {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				resp := &sdk.TxResponse{}
+				s.Require().NoError(s.clientCtx.Codec.UnmarshalJSON(out.Bytes(), resp), out.String())
+			}
+		})
+	}
+}
