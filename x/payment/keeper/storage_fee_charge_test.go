@@ -616,3 +616,76 @@ func TestApplyActiveUserFlows_FreezesOutFlowsWhenForceSettled(t *testing.T) {
 	require.True(t, freshAfter.NetflowRate.IsZero(),
 		"new recipient credited against a frozen payer: %s", freshAfter.NetflowRate)
 }
+
+// TestApplyStreamRecordChanges_Error covers ApplyStreamRecordChanges' own
+// error-propagation branch: a change that would leave the account balance
+// negative on a non-forced update.
+func TestApplyStreamRecordChanges_Error(t *testing.T) {
+	k, ctx, dep := makePaymentKeeper(t)
+	dep.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+
+	addr := sample.RandAccAddress()
+	changes := []types.StreamRecordChange{
+		*types.NewDefaultStreamRecordChangeWithAddr(addr).WithStaticBalanceChange(sdkmath.NewInt(-100)),
+	}
+	err := k.ApplyStreamRecordChanges(ctx, changes)
+	require.ErrorContains(t, err, "update stream record failed")
+}
+
+// TestApplyActiveUserFlows_CheckTxPreview_UnlockedFee covers the other half of
+// the fee-preview event: removing more outgoing rate than is added makes
+// changeRate positive, previewing an unlocked (refunded) fee rather than a
+// prelocked one.
+func TestApplyActiveUserFlows_CheckTxPreview_UnlockedFee(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithIsCheckTx(true)
+	reserveTime := int64(k.GetParams(ctx).VersionedParams.ReserveTime)
+
+	from := sample.RandAccAddress()
+	existingTo := sample.RandAccAddress()
+	record := types.NewStreamRecord(from, ctx.BlockTime().Unix())
+	record.NetflowRate = sdkmath.NewInt(-100)
+	record.OutFlowCount = 1
+	k.SetStreamRecord(ctx, record)
+	k.SetOutFlow(ctx, from, &types.OutFlow{ToAddress: existingTo.String(), Rate: sdkmath.NewInt(100), Status: types.OUT_FLOW_STATUS_ACTIVE})
+
+	// pre-funded with exactly the buffer the removed -100 rate will require, so
+	// losing the inflow settles to zero rather than tripping the balance guard.
+	existingToRecord := types.NewStreamRecord(existingTo, ctx.BlockTime().Unix())
+	existingToRecord.StaticBalance = sdkmath.NewInt(100).MulRaw(reserveTime)
+	existingToRecord.OutFlowCount = 1 // its own resulting negative rate requires this
+	k.SetStreamRecord(ctx, existingToRecord)
+
+	userFlows := types.UserFlows{
+		From:  from,
+		Flows: []types.OutFlow{{ToAddress: existingTo.String(), Rate: sdkmath.NewInt(-100)}},
+	}
+	err := k.ApplyUserFlowsList(ctx, []types.UserFlows{userFlows})
+	require.NoError(t, err)
+
+	fromRecord, _ := k.GetStreamRecord(ctx, from)
+	require.True(t, fromRecord.NetflowRate.IsZero(), "removing the only out-flow must zero the rate")
+}
+
+// TestApplyActiveUserFlows_RateChangesApplyError covers crediting a recipient
+// (via the merged rateChanges, distinct from the payer's own update just above
+// it) failing: here because the recipient's own record is frozen.
+func TestApplyActiveUserFlows_RateChangesApplyError(t *testing.T) {
+	k, ctx, dep := makePaymentKeeper(t)
+	dep.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+	dep.BankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	from := sample.RandAccAddress()
+	frozenReceiver := sample.RandAccAddress()
+	frozenRecord := types.NewStreamRecord(frozenReceiver, ctx.BlockTime().Unix())
+	frozenRecord.Status = types.STREAM_ACCOUNT_STATUS_FROZEN
+	k.SetStreamRecord(ctx, frozenRecord)
+
+	userFlows := types.UserFlows{
+		From:  from,
+		Flows: []types.OutFlow{{ToAddress: frozenReceiver.String(), Rate: sdkmath.NewInt(50)}},
+	}
+	err := k.ApplyUserFlowsList(ctx, []types.UserFlows{userFlows})
+	require.ErrorContains(t, err, "apply stream record changes failed")
+}
