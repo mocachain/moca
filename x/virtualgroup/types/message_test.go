@@ -282,6 +282,19 @@ func TestMsgCreateGlobalVirtualGroup_ValidateBasic(t *testing.T) {
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		},
+		{
+			name: "invalid deposit amount",
+			msg: MsgCreateGlobalVirtualGroup{
+				StorageProvider: sample.RandAccAddressHex(),
+				FamilyId:        1,
+				SecondarySpIds:  []uint32{2, 3, 4},
+				Deposit: types.Coin{
+					Denom:  "denom",
+					Amount: math.NewInt(0),
+				},
+			},
+			err: sdkerrors.ErrInvalidRequest,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -580,4 +593,155 @@ func TestMsgCancelSwapIn_ValidateBasic(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestMsgUpdateParams_ValidateBasic(t *testing.T) {
+	tests := []struct {
+		name   string
+		msg    MsgUpdateParams
+		errMsg string
+	}{
+		{
+			name: "valid case",
+			msg: MsgUpdateParams{
+				Authority: sample.RandAccAddressHex(),
+				Params:    DefaultParams(),
+			},
+		},
+		{
+			name: "invalid authority",
+			msg: MsgUpdateParams{
+				Authority: "invalid_address",
+				Params:    DefaultParams(),
+			},
+			errMsg: "invalid authority address",
+		},
+		{
+			name: "invalid params",
+			msg: MsgUpdateParams{
+				Authority: sample.RandAccAddressHex(),
+				Params:    Params{},
+			},
+			errMsg: "deposit denom cannot be blank",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.msg.ValidateBasic()
+			if tt.errMsg != "" {
+				require.ErrorContains(t, err, tt.errMsg)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestMessageRouteAndType covers the trivial Route/Type accessors shared by
+// every legacy-amino message in this file; none of them branch, so a single
+// call each is enough to exercise the statement and pin the routing string.
+func TestMessageRouteAndType(t *testing.T) {
+	tests := []struct {
+		name     string
+		routeFn  func() string
+		typeFn   func() string
+		wantType string
+	}{
+		{"create global virtual group", (&MsgCreateGlobalVirtualGroup{}).Route, (&MsgCreateGlobalVirtualGroup{}).Type, TypeMsgCreateGlobalVirtualGroup},
+		{"delete global virtual group", (&MsgDeleteGlobalVirtualGroup{}).Route, (&MsgDeleteGlobalVirtualGroup{}).Type, TypeMsgDeleteGlobalVirtualGroup},
+		{"deposit", (&MsgDeposit{}).Route, (&MsgDeposit{}).Type, TypeMsgDeposit},
+		{"withdraw", (&MsgWithdraw{}).Route, (&MsgWithdraw{}).Type, TypeMsgWithdraw},
+		{"swap out", (&MsgSwapOut{}).Route, (&MsgSwapOut{}).Type, TypeMsgSwapOut},
+		{"settle", (&MsgSettle{}).Route, (&MsgSettle{}).Type, TypeMsgSettle},
+		{"reserve swap in", (&MsgReserveSwapIn{}).Route, (&MsgReserveSwapIn{}).Type, TypeMsgReserveSwapIn},
+		{"cancel swap in", (&MsgCancelSwapIn{}).Route, (&MsgCancelSwapIn{}).Type, TypeMsgCancelSwapIn},
+		{"complete swap in", (&MsgCompleteSwapIn{}).Route, (&MsgCompleteSwapIn{}).Type, TypeMsgCompleteSwapIn},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, RouterKey, tt.routeFn())
+			require.Equal(t, tt.wantType, tt.typeFn())
+		})
+	}
+}
+
+// TestMessageGetSignBytes covers GetSignBytes for every message type that
+// defines it in this file (MsgCancelSwapIn has none). A real assertion on
+// content, not just non-empty bytes, so a broken marshal path fails loudly.
+func TestMessageGetSignBytes(t *testing.T) {
+	addr := sample.RandAccAddressHex()
+
+	tests := []struct {
+		name string
+		msg  interface{ GetSignBytes() []byte }
+	}{
+		{"create global virtual group", &MsgCreateGlobalVirtualGroup{StorageProvider: addr}},
+		{"delete global virtual group", &MsgDeleteGlobalVirtualGroup{StorageProvider: addr}},
+		{"deposit", &MsgDeposit{StorageProvider: addr}},
+		{"withdraw", &MsgWithdraw{StorageProvider: addr}},
+		{"swap out", &MsgSwapOut{StorageProvider: addr}},
+		{"update params", &MsgUpdateParams{Authority: addr, Params: DefaultParams()}},
+		{"settle", &MsgSettle{StorageProvider: addr}},
+		{"reserve swap in", &MsgReserveSwapIn{StorageProvider: addr}},
+		{"complete swap in", &MsgCompleteSwapIn{StorageProvider: addr}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bz := tt.msg.GetSignBytes()
+			require.NotEmpty(t, bz)
+			require.Contains(t, string(bz), addr)
+		})
+	}
+}
+
+// TestMessageGetSigners covers the happy path of every GetSigners in this
+// file. The panic-on-parse-error branches a few of them have are only
+// reachable with an address that ValidateBasic would already have rejected,
+// so they are intentionally left uncovered as dead defensive code.
+func TestMessageGetSigners(t *testing.T) {
+	acc := sample.RandAccAddress()
+	addr := acc.String()
+
+	tests := []struct {
+		name string
+		fn   func() []types.AccAddress
+	}{
+		{"create global virtual group", (&MsgCreateGlobalVirtualGroup{StorageProvider: addr}).GetSigners},
+		{"delete global virtual group", (&MsgDeleteGlobalVirtualGroup{StorageProvider: addr}).GetSigners},
+		{"deposit", (&MsgDeposit{StorageProvider: addr}).GetSigners},
+		{"withdraw", (&MsgWithdraw{StorageProvider: addr}).GetSigners},
+		{"swap out", (&MsgSwapOut{StorageProvider: addr}).GetSigners},
+		{"update params", (&MsgUpdateParams{Authority: addr}).GetSigners},
+		{"settle", (&MsgSettle{StorageProvider: addr}).GetSigners},
+		{"reserve swap in", (&MsgReserveSwapIn{StorageProvider: addr}).GetSigners},
+		{"cancel swap in", (&MsgCancelSwapIn{StorageProvider: addr}).GetSigners},
+		{"complete swap in", (&MsgCompleteSwapIn{StorageProvider: addr}).GetSigners},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, []types.AccAddress{acc}, tt.fn())
+		})
+	}
+}
+
+func TestMsgSwapOut_GetApprovalBytes(t *testing.T) {
+	msg := &MsgSwapOut{
+		StorageProvider: sample.RandAccAddressHex(),
+		SuccessorSpApproval: &common.Approval{
+			ExpiredHeight: 100,
+			Sig:           []byte("sig"),
+		},
+	}
+	signedBytes := msg.GetSignBytes()
+
+	approvalBytes := msg.GetApprovalBytes()
+	require.NotEmpty(t, approvalBytes)
+	// GetApprovalBytes must hash the approval with the signature blanked out,
+	// so it has to differ from the fully-signed bytes...
+	require.NotEqual(t, signedBytes, approvalBytes)
+	// ...and it must do so on a clone, leaving the original message alone.
+	require.Equal(t, []byte("sig"), msg.SuccessorSpApproval.Sig)
+
+	msg.SuccessorSpApproval.Sig = nil
+	require.Equal(t, msg.GetSignBytes(), approvalBytes)
 }
