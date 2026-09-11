@@ -22,4 +22,12 @@ func TestStreamRecordChange(t *testing.T) {
 	t.Logf("src2: %+v", src2)
 	src3 := NewDefaultStreamRecordChangeWithAddr(addr).WithRateChange(sdkmath.ZeroInt()).WithStaticBalanceChange(sdkmath.NewIntFromUint64(111))
 	t.Logf("src3: %+v", src3)
+
+	lockChange := sdkmath.NewIntFromUint64(222)
+	frozenChange := sdkmath.NewIntFromUint64(333)
+	src4 := NewDefaultStreamRecordChangeWithAddr(addr).
+		WithLockBalanceChange(lockChange).
+		WithFrozenRateChange(frozenChange)
+	require.True(t, lockChange.Equal(src4.LockBalanceChange))
+	require.True(t, frozenChange.Equal(src4.FrozenRateChange))
 }
