@@ -11,28 +11,28 @@ import (
 	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 )
 
-func TestMsgCancelMigrateBucket_ValidateBasic(t *testing.T) {
+func TestMsgRejectMigrateBucket_ValidateBasic(t *testing.T) {
 	tests := []struct {
 		name string
-		msg  MsgCancelMigrateBucket
+		msg  MsgRejectMigrateBucket
 		err  error
 	}{
 		{
 			name: "invalid address",
-			msg: MsgCancelMigrateBucket{
+			msg: MsgRejectMigrateBucket{
 				Operator:   "invalid_address",
 				BucketName: testBucketName,
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		}, {
 			name: "valid address",
-			msg: MsgCancelMigrateBucket{
+			msg: MsgRejectMigrateBucket{
 				Operator:   sample.RandAccAddressHex(),
 				BucketName: testBucketName,
 			},
 		}, {
 			name: "invalid bucket name",
-			msg: MsgCancelMigrateBucket{
+			msg: MsgRejectMigrateBucket{
 				Operator:   sample.RandAccAddressHex(),
 				BucketName: "TestBucket",
 			},
@@ -51,14 +51,14 @@ func TestMsgCancelMigrateBucket_ValidateBasic(t *testing.T) {
 	}
 }
 
-func TestNewMsgCancelMigrateBucket(t *testing.T) {
+func TestNewMsgRejectMigrateBucket(t *testing.T) {
 	operator := sample.RandAccAddress()
-	msg := NewMsgCancelMigrateBucket(operator, testBucketName)
+	msg := NewMsgRejectMigrateBucket(operator, testBucketName)
 
 	require.Equal(t, operator.String(), msg.Operator)
 	require.Equal(t, testBucketName, msg.BucketName)
 	require.Equal(t, RouterKey, msg.Route())
-	require.Equal(t, TypeMsgCancelMigrateBucket, msg.Type())
+	require.Equal(t, TypeMsgRejectMigrateBucket, msg.Type())
 	require.Equal(t, []sdk.AccAddress{operator}, msg.GetSigners())
 	requireSignBytes(t, msg)
 
