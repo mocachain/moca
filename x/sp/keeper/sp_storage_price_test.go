@@ -6,7 +6,10 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/require"
 
+	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
@@ -86,4 +89,90 @@ func (s *KeeperTestSuite) TestGetGlobalSpStorePriceByTime() {
 			}
 		})
 	}
+}
+
+func (s *KeeperTestSuite) TestGetAllSpStoragePrice() {
+	k := s.spKeeper
+	ctx := s.ctx
+
+	want := map[uint32]math.LegacyDec{}
+	for i, id := range []uint32{1, 2, 3} {
+		price := types.SpStoragePrice{
+			SpId:       id,
+			ReadPrice:  math.LegacyNewDec(int64(i + 1)),
+			StorePrice: math.LegacyNewDec(int64(i + 1)),
+		}
+		k.SetSpStoragePrice(ctx, price)
+		want[id] = price.ReadPrice
+	}
+
+	all := k.GetAllSpStoragePrice(ctx)
+	require.Len(s.T(), all, len(want))
+	for _, p := range all {
+		require.True(s.T(), want[p.SpId].Equal(p.ReadPrice))
+	}
+}
+
+// TestUpdateGlobalSpStorePriceNoStorageProviders covers the zero-SPs no-op: no
+// global price is written, so a subsequent lookup still errors.
+func (s *KeeperTestSuite) TestUpdateGlobalSpStorePriceNoStorageProviders() {
+	err := s.spKeeper.UpdateGlobalSpStorePrice(s.ctx)
+	require.NoError(s.T(), err)
+
+	_, err = s.spKeeper.GetGlobalSpStorePriceByTime(s.ctx, s.ctx.BlockTime().Unix())
+	require.Error(s.T(), err)
+}
+
+// TestUpdateGlobalSpStorePriceMissingPrice covers the not-found-price error: an
+// in-service SP that never had SetSpStoragePrice called for it.
+func (s *KeeperTestSuite) TestUpdateGlobalSpStorePriceMissingPrice() {
+	k := s.spKeeper
+	ctx := s.ctx
+	sp := &types.StorageProvider{
+		Id:              10,
+		OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		Status:          types.STATUS_IN_SERVICE,
+	}
+	k.SetStorageProvider(ctx, sp)
+
+	err := k.UpdateGlobalSpStorePrice(ctx)
+	require.Error(s.T(), err)
+}
+
+// TestUpdateGlobalSpStorePriceMedian covers calculateMedian's odd and even
+// branches via 3 and then 4 priced storage providers (STATUS_IN_MAINTENANCE
+// counts toward the median alongside STATUS_IN_SERVICE).
+func (s *KeeperTestSuite) TestUpdateGlobalSpStorePriceMedian() {
+	k := s.spKeeper
+	ctx := s.ctx.WithBlockTime(time.Unix(5000, 0))
+
+	seed := func(id uint32, status types.Status, price int64) {
+		sp := &types.StorageProvider{
+			Id:              id,
+			OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+			Status:          status,
+		}
+		k.SetStorageProvider(ctx, sp)
+		k.SetSpStoragePrice(ctx, types.SpStoragePrice{SpId: id, ReadPrice: math.LegacyNewDec(price), StorePrice: math.LegacyNewDec(price)})
+	}
+
+	// Odd count (3): median of {30, 10, 20} is 20.
+	seed(100, types.STATUS_IN_SERVICE, 30)
+	seed(101, types.STATUS_IN_SERVICE, 10)
+	seed(102, types.STATUS_IN_SERVICE, 20)
+
+	require.NoError(s.T(), k.UpdateGlobalSpStorePrice(ctx))
+	got, err := k.GetGlobalSpStorePriceByTime(ctx, ctx.BlockTime().Unix()+1)
+	require.NoError(s.T(), err)
+	require.True(s.T(), math.LegacyNewDec(20).Equal(got.PrimaryStorePrice))
+	require.True(s.T(), types.DefaultSecondarySpStorePriceRatio.MulInt64(20).Equal(got.SecondaryStorePrice))
+
+	// Even count (4): median of {30, 10, 20, 40} is (20+30)/2 = 25.
+	seed(103, types.STATUS_IN_MAINTENANCE, 40)
+
+	ctx2 := ctx.WithBlockTime(ctx.BlockTime().Add(time.Second))
+	require.NoError(s.T(), k.UpdateGlobalSpStorePrice(ctx2))
+	got2, err := k.GetGlobalSpStorePriceByTime(ctx2, ctx2.BlockTime().Unix()+1)
+	require.NoError(s.T(), err)
+	require.True(s.T(), math.LegacyNewDec(25).Equal(got2.PrimaryStorePrice))
 }
