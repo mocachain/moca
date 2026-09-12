@@ -25,6 +25,13 @@ func (s *TestSuite) TestUpdateParams() {
 			},
 			err: true,
 		}, {
+			name: "invalid params",
+			msg: types.MsgUpdateParams{
+				Authority: s.challengeKeeper.GetAuthority(),
+				Params:    types.Params{},
+			},
+			err: true,
+		}, {
 			name: "success",
 			msg: types.MsgUpdateParams{
 				Authority: s.challengeKeeper.GetAuthority(),

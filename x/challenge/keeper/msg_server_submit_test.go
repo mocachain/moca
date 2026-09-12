@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"errors"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -217,4 +218,134 @@ func (s *TestSuite) TestSubmit() {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func (s *TestSuite) TestSubmit_ObjectStatusNotSealed() {
+	bucketName, objectName := "unsealedbucket", "unsealedobject"
+	sp := &sptypes.StorageProvider{Status: sptypes.STATUS_IN_SERVICE, Id: 1, OperatorAddress: sample.RandAccAddressHex()}
+	bucket := &storagetypes.BucketInfo{BucketName: bucketName}
+	object := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   bucketName,
+		ObjectName:   objectName,
+		ObjectStatus: storagetypes.OBJECT_STATUS_CREATED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Eq(bucketName)).Return(bucket, true).AnyTimes()
+	s.storageKeeper.EXPECT().MustGetPrimarySPForBucket(gomock.Any(), gomock.Eq(bucket)).Return(sp).AnyTimes()
+	s.storageKeeper.EXPECT().GetObjectInfo(gomock.Any(), gomock.Eq(bucketName), gomock.Eq(objectName)).Return(object, true).AnyTimes()
+
+	_, err := s.msgServer.Submit(s.ctx, &types.MsgSubmit{
+		Challenger:        sample.RandAccAddressHex(),
+		SpOperatorAddress: sp.OperatorAddress,
+		BucketName:        bucketName,
+		ObjectName:        objectName,
+	})
+	s.Require().ErrorIs(err, types.ErrInvalidObjectStatus)
+}
+
+func (s *TestSuite) TestSubmit_ZeroPayloadSize() {
+	bucketName, objectName := "emptybucket", "emptyobject"
+	sp := &sptypes.StorageProvider{Status: sptypes.STATUS_IN_SERVICE, Id: 1, OperatorAddress: sample.RandAccAddressHex()}
+	bucket := &storagetypes.BucketInfo{BucketName: bucketName}
+	object := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   bucketName,
+		ObjectName:   objectName,
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  0,
+	}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Eq(bucketName)).Return(bucket, true).AnyTimes()
+	s.storageKeeper.EXPECT().MustGetPrimarySPForBucket(gomock.Any(), gomock.Eq(bucket)).Return(sp).AnyTimes()
+	s.storageKeeper.EXPECT().GetObjectInfo(gomock.Any(), gomock.Eq(bucketName), gomock.Eq(objectName)).Return(object, true).AnyTimes()
+
+	_, err := s.msgServer.Submit(s.ctx, &types.MsgSubmit{
+		Challenger:        sample.RandAccAddressHex(),
+		SpOperatorAddress: sp.OperatorAddress,
+		BucketName:        bucketName,
+		ObjectName:        objectName,
+	})
+	s.Require().ErrorIs(err, types.ErrInvalidSegmentIndex)
+}
+
+func (s *TestSuite) TestSubmit_GVGNotFound() {
+	bucketName, objectName := "gvgmissingbucket", "gvgmissingobject"
+	primarySp := &sptypes.StorageProvider{Status: sptypes.STATUS_IN_SERVICE, Id: 1, OperatorAddress: sample.RandAccAddressHex()}
+	bucket := &storagetypes.BucketInfo{Id: math.NewUint(5), BucketName: bucketName}
+	object := &storagetypes.ObjectInfo{
+		Id:                  math.NewUint(1),
+		BucketName:          bucketName,
+		ObjectName:          objectName,
+		ObjectStatus:        storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:         500,
+		LocalVirtualGroupId: 3,
+	}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Eq(bucketName)).Return(bucket, true).AnyTimes()
+	s.storageKeeper.EXPECT().MustGetPrimarySPForBucket(gomock.Any(), gomock.Eq(bucket)).Return(primarySp).AnyTimes()
+	s.storageKeeper.EXPECT().GetObjectInfo(gomock.Any(), gomock.Eq(bucketName), gomock.Eq(objectName)).Return(object, true).AnyTimes()
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Eq(bucket.Id), gomock.Eq(object.LocalVirtualGroupId)).
+		Return(nil, false).AnyTimes()
+
+	_, err := s.msgServer.Submit(s.ctx, &types.MsgSubmit{
+		Challenger:        sample.RandAccAddressHex(),
+		SpOperatorAddress: sample.RandAccAddressHex(), // not the primary sp: forces the secondary-sp lookup
+		BucketName:        bucketName,
+		ObjectName:        objectName,
+	})
+	s.Require().ErrorIs(err, types.ErrCannotFindGVG)
+}
+
+func (s *TestSuite) TestSubmit_SecondarySpNotFound() {
+	bucketName, objectName := "secondarymissingbucket", "secondarymissingobject"
+	primarySp := &sptypes.StorageProvider{Status: sptypes.STATUS_IN_SERVICE, Id: 1, OperatorAddress: sample.RandAccAddressHex()}
+	bucket := &storagetypes.BucketInfo{Id: math.NewUint(6), BucketName: bucketName}
+	object := &storagetypes.ObjectInfo{
+		Id:                  math.NewUint(2),
+		BucketName:          bucketName,
+		ObjectName:          objectName,
+		ObjectStatus:        storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:         500,
+		LocalVirtualGroupId: 4,
+	}
+	gvg := &virtualgrouptypes.GlobalVirtualGroup{PrimarySpId: primarySp.Id, SecondarySpIds: []uint32{99}}
+
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Eq(bucketName)).Return(bucket, true).AnyTimes()
+	s.storageKeeper.EXPECT().MustGetPrimarySPForBucket(gomock.Any(), gomock.Eq(bucket)).Return(primarySp).AnyTimes()
+	s.storageKeeper.EXPECT().GetObjectInfo(gomock.Any(), gomock.Eq(bucketName), gomock.Eq(objectName)).Return(object, true).AnyTimes()
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Eq(bucket.Id), gomock.Eq(object.LocalVirtualGroupId)).
+		Return(gvg, true).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Eq(uint32(99))).Return(nil, false).AnyTimes()
+
+	_, err := s.msgServer.Submit(s.ctx, &types.MsgSubmit{
+		Challenger:        sample.RandAccAddressHex(),
+		SpOperatorAddress: sample.RandAccAddressHex(),
+		BucketName:        bucketName,
+		ObjectName:        objectName,
+	})
+	s.Require().ErrorIs(err, types.ErrUnknownSp)
+}
+
+func (s *TestSuite) TestSubmit_MaxSegmentSizeError() {
+	bucketName, objectName := "segsizeerrbucket", "segsizeerrobject"
+	sp := &sptypes.StorageProvider{Status: sptypes.STATUS_IN_SERVICE, Id: 1, OperatorAddress: sample.RandAccAddressHex()}
+	bucket := &storagetypes.BucketInfo{BucketName: bucketName}
+	object := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(3),
+		BucketName:   bucketName,
+		ObjectName:   objectName,
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Eq(bucketName)).Return(bucket, true).AnyTimes()
+	s.storageKeeper.EXPECT().MustGetPrimarySPForBucket(gomock.Any(), gomock.Eq(bucket)).Return(sp).AnyTimes()
+	s.storageKeeper.EXPECT().GetObjectInfo(gomock.Any(), gomock.Eq(bucketName), gomock.Eq(objectName)).Return(object, true).AnyTimes()
+	s.storageKeeper.EXPECT().MaxSegmentSize(gomock.Any(), gomock.Any()).Return(uint64(0), errors.New("boom")).AnyTimes()
+
+	_, err := s.msgServer.Submit(s.ctx, &types.MsgSubmit{
+		Challenger:        sample.RandAccAddressHex(),
+		SpOperatorAddress: sp.OperatorAddress,
+		BucketName:        bucketName,
+		ObjectName:        objectName,
+	})
+	s.Require().ErrorIs(err, types.ErrInvalidSegmentIndex)
 }
