@@ -9,6 +9,29 @@ import (
 	"github.com/mocachain/moca/v2/testutil/sample"
 )
 
+func TestMsgUpdateParams_GetSignBytes(t *testing.T) {
+	msg := MsgUpdateParams{
+		Authority: sample.RandAccAddressHex(),
+		Params:    DefaultParams(),
+	}
+
+	bz := msg.GetSignBytes()
+	require.NotEmpty(t, bz)
+
+	var decoded MsgUpdateParams
+	require.NoError(t, ModuleCdc.UnmarshalJSON(bz, &decoded))
+	require.Equal(t, msg.Authority, decoded.Authority)
+}
+
+func TestMsgUpdateParams_GetSigners(t *testing.T) {
+	authority := sample.RandAccAddress()
+	msg := MsgUpdateParams{Authority: authority.String()}
+
+	signers := msg.GetSigners()
+	require.Len(t, signers, 1)
+	require.Equal(t, authority, signers[0])
+}
+
 func TestMsgUpdateParams_ValidateBasic(t *testing.T) {
 	wrongParams := DefaultParams()
 	wrongParams.HeartbeatInterval = 0

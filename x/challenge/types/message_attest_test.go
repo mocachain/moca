@@ -12,6 +12,58 @@ import (
 	"github.com/mocachain/moca/v2/testutil/sample"
 )
 
+func TestNewMsgAttest(t *testing.T) {
+	submitter := sample.RandAccAddress()
+	objectID := math.NewUint(7)
+	voteValidatorSet := []uint64{1, 2}
+	sig := []byte{1, 2, 3}
+
+	msg := NewMsgAttest(submitter, 3, objectID, sample.RandAccAddressHex(), CHALLENGE_SUCCEED, "challenger", voteValidatorSet, sig)
+
+	require.Equal(t, submitter.String(), msg.Submitter)
+	require.Equal(t, uint64(3), msg.ChallengeId)
+	require.Equal(t, objectID, msg.ObjectId)
+	require.Equal(t, CHALLENGE_SUCCEED, msg.VoteResult)
+	require.Equal(t, "challenger", msg.ChallengerAddress)
+	require.Equal(t, voteValidatorSet, msg.VoteValidatorSet)
+	require.Equal(t, sig, msg.VoteAggSignature)
+}
+
+func TestMsgAttest_RouteAndType(t *testing.T) {
+	msg := MsgAttest{}
+	require.Equal(t, RouterKey, msg.Route())
+	require.Equal(t, TypeMsgAttest, msg.Type())
+}
+
+func TestMsgAttest_GetSigners(t *testing.T) {
+	submitter := sample.RandAccAddress()
+	msg := MsgAttest{Submitter: submitter.String()}
+
+	signers := msg.GetSigners()
+	require.Len(t, signers, 1)
+	require.Equal(t, submitter, signers[0])
+
+	invalid := MsgAttest{Submitter: "invalid_address"}
+	require.Panics(t, func() { invalid.GetSigners() })
+}
+
+func TestMsgAttest_GetSignBytes(t *testing.T) {
+	msg := MsgAttest{
+		Submitter:         sample.RandAccAddressHex(),
+		ChallengeId:       7,
+		SpOperatorAddress: sample.RandAccAddressHex(),
+	}
+
+	bz := msg.GetSignBytes()
+	require.NotEmpty(t, bz)
+
+	var decoded MsgAttest
+	require.NoError(t, ModuleCdc.UnmarshalJSON(bz, &decoded))
+	require.Equal(t, msg.Submitter, decoded.Submitter)
+	require.Equal(t, msg.ChallengeId, decoded.ChallengeId)
+	require.Equal(t, msg.SpOperatorAddress, decoded.SpOperatorAddress)
+}
+
 func TestMsgAttest_ValidateBasic(t *testing.T) {
 	var sig [BlsSignatureLength]byte
 	tests := []struct {
@@ -23,6 +75,13 @@ func TestMsgAttest_ValidateBasic(t *testing.T) {
 			name: "invalid address",
 			msg: MsgAttest{
 				Submitter: "invalid_address",
+			},
+			err: sdkerrors.ErrInvalidAddress,
+		}, {
+			name: "invalid sp operator address",
+			msg: MsgAttest{
+				Submitter:         sample.RandAccAddressHex(),
+				SpOperatorAddress: "invalid_address",
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		}, {
@@ -43,6 +102,15 @@ func TestMsgAttest_ValidateBasic(t *testing.T) {
 			},
 			err: ErrInvalidVoteValidatorSet,
 		}, {
+			name: "invalid challenger address",
+			msg: MsgAttest{
+				Submitter:         sample.RandAccAddressHex(),
+				SpOperatorAddress: sample.RandAccAddressHex(),
+				VoteResult:        CHALLENGE_SUCCEED,
+				ChallengerAddress: "invalid_address",
+			},
+			err: sdkerrors.ErrInvalidAddress,
+		}, {
 			name: "invalid vote aggregated signature",
 			msg: MsgAttest{
 				Submitter:         sample.RandAccAddressHex(),
@@ -58,6 +126,16 @@ func TestMsgAttest_ValidateBasic(t *testing.T) {
 				Submitter:         sample.RandAccAddressHex(),
 				SpOperatorAddress: sample.RandAccAddressHex(),
 				VoteResult:        CHALLENGE_SUCCEED,
+				VoteValidatorSet:  []uint64{1},
+				VoteAggSignature:  sig[:],
+			},
+		}, {
+			name: "valid message with challenger address",
+			msg: MsgAttest{
+				Submitter:         sample.RandAccAddressHex(),
+				SpOperatorAddress: sample.RandAccAddressHex(),
+				VoteResult:        CHALLENGE_SUCCEED,
+				ChallengerAddress: sample.RandAccAddressHex(),
 				VoteValidatorSet:  []uint64{1},
 				VoteAggSignature:  sig[:],
 			},
