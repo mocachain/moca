@@ -211,6 +211,75 @@ func (s *CLITestSuite) TestCmdDiscontinueBucket() {
 	s.execExpectError(cmd, args)
 }
 
+// TestCmdSetBucketFlowRateLimit exercises CmdSetBucketFlowRateLimit's local validation of the
+// payment-account / bucket-owner addresses and the flow-rate-limit integer, then the
+// private-key gate all the CLI tx commands share. None of these cases ever reach the network.
+func (s *CLITestSuite) TestCmdSetBucketFlowRateLimit() {
+	validPaymentAcc := sample.RandAccAddressHex()
+	validBucketOwner := sample.RandAccAddressHex()
+
+	testCases := []struct {
+		name          string
+		bucketName    string
+		paymentAcc    string
+		bucketOwner   string
+		flowRateLimit string
+		errContains   string
+	}{
+		{
+			name:          "reaches private key gate",
+			bucketName:    "test-bucket",
+			paymentAcc:    validPaymentAcc,
+			bucketOwner:   validBucketOwner,
+			flowRateLimit: "1000",
+		},
+		{
+			name:          "invalid payment account",
+			bucketName:    "test-bucket",
+			paymentAcc:    "not-a-valid-address",
+			bucketOwner:   validBucketOwner,
+			flowRateLimit: "1000",
+		},
+		{
+			name:          "invalid bucket owner",
+			bucketName:    "test-bucket",
+			paymentAcc:    validPaymentAcc,
+			bucketOwner:   "not-a-valid-address",
+			flowRateLimit: "1000",
+		},
+		{
+			name:          "invalid flow rate limit",
+			bucketName:    "test-bucket",
+			paymentAcc:    validPaymentAcc,
+			bucketOwner:   validBucketOwner,
+			flowRateLimit: "not-a-number",
+			errContains:   "invalid flow-rate-limit",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		s.Run(tc.name, func() {
+			cmd := cli.GetTxCmd()
+
+			args := []string{
+				"set-bucket-flow-rate-limit",
+				tc.bucketName,
+				tc.paymentAcc,
+				tc.bucketOwner,
+				tc.flowRateLimit,
+				"--privatekey", "",
+			}
+
+			err := s.execExpectError(cmd, args)
+			if tc.errContains != "" {
+				s.Require().Contains(err.Error(), tc.errContains)
+			}
+		})
+	}
+}
+
 func (s *CLITestSuite) TestCmdMigrateBucket() {
 	testCases := []struct {
 		name string
@@ -238,6 +307,21 @@ func (s *CLITestSuite) TestCmdMigrateBucket() {
 			s.execExpectError(cmd, tc.args)
 		})
 	}
+}
+
+// TestCmdCancelMigrateBucket exercises CmdCancelMigrateBucket up to the private-key gate:
+// local arg parsing and client-context setup all succeed, and the command only fails once it
+// tries to build a key manager from an empty private key (before any network dial happens).
+func (s *CLITestSuite) TestCmdCancelMigrateBucket() {
+	cmd := cli.GetTxCmd()
+
+	args := []string{
+		"cancel-migrate-bucket",
+		"test-bucket",
+		"--privatekey", "",
+	}
+
+	s.execExpectError(cmd, args)
 }
 
 func (s *CLITestSuite) TestCmdCreateGroup() {
