@@ -28,11 +28,11 @@ func TestToPbDescription(t *testing.T) {
 	require.Nil(t, toPbDescription(nil))
 
 	d := &spp.Description{
-		Moniker:         "moniker",
+		Moniker:         FlagMoniker,
 		Identity:        "identity",
 		Website:         "https://example.com",
 		SecurityContact: "security@example.com",
-		Details:         "details",
+		Details:         FlagDetails,
 	}
 	require.Equal(t, &types.Description{
 		Moniker:         d.Moniker,
@@ -58,8 +58,8 @@ func TestToPbSP(t *testing.T) {
 		Status:             2,
 		Endpoint:           "https://sp.example.com",
 		Description: spp.Description{
-			Moniker: "moniker",
-			Details: "details",
+			Moniker: FlagMoniker,
+			Details: FlagDetails,
 		},
 		BlsKey: "blskeybytes",
 	}
@@ -77,8 +77,8 @@ func TestToPbSP(t *testing.T) {
 		Status:             types.Status(p.Status),
 		Endpoint:           p.Endpoint,
 		Description: types.Description{
-			Moniker: "moniker",
-			Details: "details",
+			Moniker: FlagMoniker,
+			Details: FlagDetails,
 		},
 		BlsKey: []byte(p.BlsKey),
 	}, got)

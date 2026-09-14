@@ -13,6 +13,14 @@ import (
 	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
+const (
+	cmdMaintenanceRecordsByOperatorAddress = "maintenance-records-by-operator-address"
+	cmdPrice                               = "price"
+	cmdGlobalPrice                         = "global-price"
+	notAHexAddress                         = "not-a-hex-address"
+	invalidAddressHexLengthErr             = "invalid address hex length"
+)
+
 func (s *CLITestSuite) TestQueryCmd() {
 	commonFlags := []string{
 		fmt.Sprintf("--%s=%s", flags.FlagOutput, "json"),
@@ -71,7 +79,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 			"query maintenance-records-by-operator-address",
 			append(
 				[]string{
-					"maintenance-records-by-operator-address",
+					cmdMaintenanceRecordsByOperatorAddress,
 					sample.RandAccAddressHex(),
 				},
 				commonFlags...,
@@ -82,7 +90,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 			"query price",
 			append(
 				[]string{
-					"price",
+					cmdPrice,
 					sample.RandAccAddressHex(),
 				},
 				commonFlags...,
@@ -93,7 +101,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 			"query global-price",
 			append(
 				[]string{
-					"global-price",
+					cmdGlobalPrice,
 					"0",
 				},
 				commonFlags...,
@@ -119,39 +127,39 @@ func (s *CLITestSuite) TestQueryCmd() {
 			append(
 				[]string{
 					"storage-provider-by-operator-address",
-					"not-a-hex-address",
+					notAHexAddress,
 				},
 				commonFlags...,
 			),
-			true, "invalid address hex length", nil,
+			true, invalidAddressHexLengthErr, nil,
 		},
 		{
 			"query maintenance-records-by-operator-address - invalid address",
 			append(
 				[]string{
-					"maintenance-records-by-operator-address",
-					"not-a-hex-address",
+					cmdMaintenanceRecordsByOperatorAddress,
+					notAHexAddress,
 				},
 				commonFlags...,
 			),
-			true, "invalid address hex length", nil,
+			true, invalidAddressHexLengthErr, nil,
 		},
 		{
 			"query price - invalid address",
 			append(
 				[]string{
-					"price",
-					"not-a-hex-address",
+					cmdPrice,
+					notAHexAddress,
 				},
 				commonFlags...,
 			),
-			true, "invalid address hex length", nil,
+			true, invalidAddressHexLengthErr, nil,
 		},
 		{
 			"query global-price - non-numeric timestamp",
 			append(
 				[]string{
-					"global-price",
+					cmdGlobalPrice,
 					"not-a-number",
 				},
 				commonFlags...,
@@ -201,9 +209,9 @@ func (s *CLITestSuite) TestQueryCmd_ABCIError() {
 		{"storage-provider", []string{"storage-provider", "1"}},
 		{"storage-provider-by-operator-address", []string{"storage-provider-by-operator-address", sample.RandAccAddressHex()}},
 		{"storage-providers", []string{"storage-providers"}},
-		{"maintenance-records-by-operator-address", []string{"maintenance-records-by-operator-address", sample.RandAccAddressHex()}},
-		{"price", []string{"price", sample.RandAccAddressHex()}},
-		{"global-price", []string{"global-price", "0"}},
+		{cmdMaintenanceRecordsByOperatorAddress, []string{cmdMaintenanceRecordsByOperatorAddress, sample.RandAccAddressHex()}},
+		{cmdPrice, []string{cmdPrice, sample.RandAccAddressHex()}},
+		{cmdGlobalPrice, []string{cmdGlobalPrice, "0"}},
 	}
 
 	for _, tc := range testCases {
