@@ -46,7 +46,7 @@ func TestEip1153TransientStorageClearsBetweenTransactions(t *testing.T) {
 	deployerKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	deployerAddr := crypto.PubkeyToAddress(deployerKey.PublicKey)
-	eipFundAccount(t, ctx, client, chainID, deployerAddr, 10)
+	eipFundAccount(ctx, t, client, chainID, deployerAddr, 10)
 
 	initCode, err := hex.DecodeString(eip1153InitCodeHex)
 	require.NoError(t, err)

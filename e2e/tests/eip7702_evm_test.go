@@ -43,7 +43,7 @@ func eipDialChain(t *testing.T) *ethclient.Client {
 	return client
 }
 
-func eipFundAccount(t *testing.T, ctx context.Context, client *ethclient.Client, chainID *big.Int, to common.Address, wholeMoca int64) {
+func eipFundAccount(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, to common.Address, wholeMoca int64) {
 	t.Helper()
 	funder, err := crypto.HexToECDSA(eipDevAccountPrivateKeyHex)
 	require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestEip7702Delegation(t *testing.T) {
 	authorityKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	authorityAddr := crypto.PubkeyToAddress(authorityKey.PublicKey)
-	eipFundAccount(t, ctx, client, chainID, authorityAddr, 10)
+	eipFundAccount(ctx, t, client, chainID, authorityAddr, 10)
 
 	before, err := client.CodeAt(ctx, authorityAddr, nil)
 	require.NoError(t, err)
