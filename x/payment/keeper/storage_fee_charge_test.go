@@ -639,7 +639,7 @@ func TestApplyStreamRecordChanges_Error(t *testing.T) {
 func TestApplyActiveUserFlows_CheckTxPreview_UnlockedFee(t *testing.T) {
 	k, ctx, _ := makePaymentKeeper(t)
 	ctx = ctx.WithIsCheckTx(true)
-	reserveTime := int64(k.GetParams(ctx).VersionedParams.ReserveTime)
+	reserveTime := int64(k.GetParams(ctx).VersionedParams.ReserveTime) //nolint:gosec // G115
 
 	from := sample.RandAccAddress()
 	existingTo := sample.RandAccAddress()

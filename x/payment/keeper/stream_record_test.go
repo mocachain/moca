@@ -2038,7 +2038,7 @@ func TestTryResumeStreamRecord_FrozenFlowsAddrMismatchStopsBatch(t *testing.T) {
 	}
 	k.SetStreamRecord(ctx, record)
 
-	err := k.TryResumeStreamRecord(ctx, record, rate.MulRaw(int64(params.VersionedParams.ReserveTime)))
+	err := k.TryResumeStreamRecord(ctx, record, rate.MulRaw(int64(params.VersionedParams.ReserveTime))) //nolint:gosec // G115
 	require.NoError(t, err)
 
 	updated, _ := k.GetStreamRecord(ctx, user)
@@ -2082,7 +2082,7 @@ func TestTryResumeStreamRecord_ReceiverUpdateError(t *testing.T) {
 
 	k.SetOutFlow(ctx, user, &types.OutFlow{ToAddress: receiver.String(), Rate: creditedRate, Status: types.OUT_FLOW_STATUS_FROZEN})
 	userRecord := &types.StreamRecord{
-		StaticBalance:     creditedRate.MulRaw(int64(params.VersionedParams.ReserveTime)),
+		StaticBalance:     creditedRate.MulRaw(int64(params.VersionedParams.ReserveTime)), //nolint:gosec // G115
 		BufferBalance:     sdkmath.ZeroInt(),
 		LockBalance:       sdkmath.ZeroInt(),
 		Account:           user.String(),

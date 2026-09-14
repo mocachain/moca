@@ -215,7 +215,7 @@ func (s *TestSuite) TestWithdraw_TimeLockThreshold() {
 	s.Require().True(found)
 	s.Require().True(threshold.Equal(delayed.Amount))
 	s.Require().Equal(from.String(), delayed.From)
-	s.Require().Equal(s.ctx.BlockTime().Unix()+int64(params.WithdrawTimeLockDuration), delayed.UnlockTimestamp)
+	s.Require().Equal(s.ctx.BlockTime().Unix()+int64(params.WithdrawTimeLockDuration), delayed.UnlockTimestamp) //nolint:gosec // G115
 
 	// a second threshold withdrawal must not queue a new one while one is pending
 	_, err = s.msgServer.Withdraw(s.ctx, msg)
