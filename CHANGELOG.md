@@ -47,6 +47,9 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (permission) [#478](https://github.com/mocachain/moca/pull/478) Add unit tests for `x/permission`'s module/abci/simulation wiring, raising its coverage from 11.6% to 97.7%.
+- (permission) [#478](https://github.com/mocachain/moca/pull/478) Add unit tests for the CLI's `GetTxCmd` and query RPC-failure branch, raising `x/permission/client/cli` coverage from 78.6% to 100%.
+- (permission) [#478](https://github.com/mocachain/moca/pull/478) Add the first unit tests for `x/permission/simulation`, raising its coverage from 0% to 100%.
 - (storage) [#480](https://github.com/mocachain/moca/pull/480) Add unit tests for `x/storage`'s module, module-simulation, and genesis-panic-path wiring, raising its coverage from 12.5% to 100%.
 - (storage) [#480](https://github.com/mocachain/moca/pull/480) Add the first unit tests for `x/storage/simulation`, raising its coverage from 0% to 100%.
 - (ci) [#473](https://github.com/mocachain/moca/pull/473) Lint PR commits with `@commitlint/config-conventional` instead of a bare rule list, so the `type(scope)!:` breaking-change marker parses (the default parser rejected it as an empty type); body and footer line length are warnings so dependency-bump bodies with long URLs still pass
@@ -110,6 +113,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (sp) [#477](https://github.com/mocachain/moca/pull/477) Scope the maintenance-window auto-recovery in `ForceUpdateMaintenanceRecords` to storage providers that are `STATUS_IN_MAINTENANCE`; an SP in any other status keeps it and no status-change event is emitted (MOCA-1422)
 - (e2e) [#475](https://github.com/mocachain/moca/pull/475) Read `cast wallet new --json` through a shared `cast_new_privkey` helper that accepts both the bare array older casts print and the `{"data":[...]}` envelope foundry 1.8 introduced. The helper fails loudly when no key comes back, and `e2e-kind.yml` now pins `foundry-toolchain` to `v1.8.1` instead of floating on `stable`. The kind Comprehensive and RPC suites indexed the array shape directly (`.[0].private_key`), so once CI's `foundry-toolchain` `stable` moved from 1.7.1 to 1.8.1 (2026-08-28) every generated key came back empty and both jobs failed on every PR.
 - (config) [#455](https://github.com/mocachain/moca/pull/455) Register a strict address verifier so every account address resolves to exactly 20 bytes, matching moca's EVM address model (MOCA-1436)
 - (x/storage) [#451](https://github.com/mocachain/moca/pull/451) In `CopyObject`, verify the operator's create permission on the destination bucket, reject a destination object name that already exists, and set the copied object's owner to the destination bucket owner — matching `CreateObject` (MOCA-1421)
