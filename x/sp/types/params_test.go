@@ -58,7 +58,7 @@ func TestParams_Validate(t *testing.T) {
 		mutate  func(*types.Params)
 		wantErr string
 	}{
-		{"default params are valid", func(p *types.Params) {}, ""},
+		{"default params are valid", func(_ *types.Params) {}, ""},
 		{"blank deposit denom", func(p *types.Params) { p.DepositDenom = "" }, "deposit denom cannot be blank"},
 		{"malformed deposit denom", func(p *types.Params) { p.DepositDenom = "1abc" }, "invalid denom"},
 		{"nil min deposit", func(p *types.Params) { p.MinDeposit = math.Int{} }, "minimum deposit amount cannot be nil"},

@@ -20,6 +20,14 @@ const (
 	// badAddress is a string that is neither a bech32 address nor 40 hex
 	// chars, so sdk.AccAddressFromHexUnsafe always rejects it.
 	badAddress = "not-a-valid-address"
+	// deadbeefHex is a malformed hex payload reused across several
+	// wrong-length BLS key/proof/signature test cases.
+	deadbeefHex = "deadbeef"
+	// badSPAddressCase is the shared test case name for an empty/invalid
+	// storage-provider address.
+	badSPAddressCase = "bad sp address"
+	// validCase is the shared test case name for a well-formed input.
+	validCase = "valid"
 )
 
 var (
@@ -48,7 +56,7 @@ func TestMsgCreateStorageProvider_ValidateBasic(t *testing.T) {
 		{"bad approval address", "a", "b", "c", "d", spAddr, spAddr, spAddr, spAddr, sdk.AccAddress{}, spAddr, spAddr, blsPubKey, blsProof, coinPos, sdkerrors.ErrInvalidAddress},
 		{"bad gc address", "a", "b", "c", "d", spAddr, spAddr, spAddr, spAddr, spAddr, sdk.AccAddress{}, spAddr, blsPubKey, blsProof, coinPos, sdkerrors.ErrInvalidAddress},
 		{"empty description", "", "", "", "", spAddr, spAddr, spAddr, spAddr, spAddr, spAddr, spAddr, blsPubKey, blsProof, coinPos, sdkerrors.ErrInvalidRequest},
-		{"invalid bls key", "a", "b", "c", "d", spAddr, spAddr, spAddr, spAddr, spAddr, spAddr, spAddr, "deadbeef", blsProof, coinPos, sdkerrors.ErrInvalidPubKey},
+		{"invalid bls key", "a", "b", "c", "d", spAddr, spAddr, spAddr, spAddr, spAddr, spAddr, spAddr, deadbeefHex, blsProof, coinPos, sdkerrors.ErrInvalidPubKey},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -163,13 +171,13 @@ func TestMsgEditStorageProvider_ValidateBasic(t *testing.T) {
 	}{
 		{"basic", "a1", "b1", "c1", "d1", spAddr, validEndpoint, "", "", "", blsPubKey, blsProof, nil},
 		{"empty description", "", "", "", "", spAddr, "", "", "", "", blsPubKey, blsProof, sdkerrors.ErrInvalidRequest},
-		{"bad sp address", "a1", "b1", "c1", "d1", sdk.AccAddress{}, "", "", "", "", blsPubKey, blsProof, sdkerrors.ErrInvalidAddress},
+		{badSPAddressCase, "a1", "b1", "c1", "d1", sdk.AccAddress{}, "", "", "", "", blsPubKey, blsProof, sdkerrors.ErrInvalidAddress},
 		{"invalid endpoint", "a1", "b1", "c1", "d1", spAddr, "/foo", "", "", "", blsPubKey, blsProof, sdkerrors.ErrInvalidRequest},
 		{"bad seal address", "a1", "b1", "c1", "d1", spAddr, "", badAddress, "", "", blsPubKey, blsProof, sdkerrors.ErrInvalidAddress},
 		{"bad approval address", "a1", "b1", "c1", "d1", spAddr, "", "", badAddress, "", blsPubKey, blsProof, sdkerrors.ErrInvalidAddress},
 		{"bad gc address", "a1", "b1", "c1", "d1", spAddr, "", "", "", badAddress, blsPubKey, blsProof, sdkerrors.ErrInvalidAddress},
 		{"bls key without proof", "a1", "b1", "c1", "d1", spAddr, "", "", "", "", blsPubKey, "", gnfderrors.ErrInvalidBlsSignature},
-		{"invalid bls key with proof", "a1", "b1", "c1", "d1", spAddr, "", "", "", "", "deadbeef", blsProof, sdkerrors.ErrInvalidPubKey},
+		{"invalid bls key with proof", "a1", "b1", "c1", "d1", spAddr, "", "", "", "", deadbeefHex, blsProof, sdkerrors.ErrInvalidPubKey},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -251,7 +259,7 @@ func TestMsgDeposit_ValidateBasic(t *testing.T) {
 	}{
 		{"basic", fundAddr, spAddr, coinPos, nil},
 		{"bad creator address", sdk.AccAddress{}, spAddr, coinPos, sdkerrors.ErrInvalidAddress},
-		{"bad sp address", fundAddr, sdk.AccAddress{}, coinPos, sdkerrors.ErrInvalidAddress},
+		{badSPAddressCase, fundAddr, sdk.AccAddress{}, coinPos, sdkerrors.ErrInvalidAddress},
 		{"zero deposit", fundAddr, spAddr, coinZero, sdkerrors.ErrInvalidRequest},
 	}
 	for _, tt := range tests {
@@ -299,8 +307,8 @@ func TestMsgUpdateSpStoragePrice_ValidateBasic(t *testing.T) {
 		storePrice math.LegacyDec
 		wantErr    bool
 	}{
-		{"valid", spAddr.String(), math.LegacyZeroDec(), math.LegacyZeroDec(), false},
-		{"bad sp address", badAddress, math.LegacyZeroDec(), math.LegacyZeroDec(), true},
+		{validCase, spAddr.String(), math.LegacyZeroDec(), math.LegacyZeroDec(), false},
+		{badSPAddressCase, badAddress, math.LegacyZeroDec(), math.LegacyZeroDec(), true},
 		{"nil read price", spAddr.String(), math.LegacyDec{}, math.LegacyZeroDec(), true},
 		{"negative read price", spAddr.String(), math.LegacyNewDec(-1), math.LegacyZeroDec(), true},
 		{"nil store price", spAddr.String(), math.LegacyZeroDec(), math.LegacyDec{}, true},
@@ -341,7 +349,7 @@ func TestMsgUpdateParams_ValidateBasic(t *testing.T) {
 		params    Params
 		wantErr   bool
 	}{
-		{"valid", authority.String(), DefaultParams(), false},
+		{validCase, authority.String(), DefaultParams(), false},
 		{"bad authority", badAddress, DefaultParams(), true},
 		{"invalid params", authority.String(), Params{}, true},
 	}
@@ -433,12 +441,12 @@ func TestValidateBlsKeyAndProof(t *testing.T) {
 		proof   string
 		wantErr error
 	}{
-		{"valid", validKey, validProof, nil},
+		{validCase, validKey, validProof, nil},
 		{"bad hex key", "zz", validProof, sdkerrors.ErrInvalidPubKey},
-		{"wrong length key", "deadbeef", validProof, sdkerrors.ErrInvalidPubKey},
+		{"wrong length key", deadbeefHex, validProof, sdkerrors.ErrInvalidPubKey},
 		{"right length but invalid key bytes", zeroKey, validProof, sdkerrors.ErrInvalidPubKey},
 		{"bad hex proof", validKey, "zz", gnfderrors.ErrInvalidBlsSignature},
-		{"wrong length proof", validKey, "deadbeef", gnfderrors.ErrInvalidBlsSignature},
+		{"wrong length proof", validKey, deadbeefHex, gnfderrors.ErrInvalidBlsSignature},
 		{"right length but invalid proof bytes", validKey, zeroProof, sdkerrors.ErrorInvalidSigner},
 		{"verification fails for mismatched key and proof", validKey, otherProof, sdkerrors.ErrorInvalidSigner},
 	}
