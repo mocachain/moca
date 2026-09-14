@@ -16,6 +16,8 @@ import (
 	"github.com/mocachain/moca/v2/x/sp/types"
 )
 
+const invalidHexAddress = "not-a-hex-address"
+
 func (s *KeeperTestSuite) TestQueryParams() {
 	res, err := s.queryClient.Params(gocontext.Background(), &types.QueryParamsRequest{})
 	s.Require().NoError(err)
@@ -74,7 +76,7 @@ func (s *KeeperTestSuite) TestQuerySpStoragePrice() {
 	_, err := s.spKeeper.QuerySpStoragePrice(s.ctx, nil)
 	requireInvalidArgument(s.T(), err)
 
-	_, err = s.spKeeper.QuerySpStoragePrice(s.ctx, &types.QuerySpStoragePriceRequest{SpAddr: "not-a-hex-address"})
+	_, err = s.spKeeper.QuerySpStoragePrice(s.ctx, &types.QuerySpStoragePriceRequest{SpAddr: invalidHexAddress})
 	requireInvalidArgument(s.T(), err)
 
 	_, err = s.spKeeper.QuerySpStoragePrice(s.ctx, &types.QuerySpStoragePriceRequest{SpAddr: sample.RandAccAddressHex()})
@@ -139,7 +141,7 @@ func (s *KeeperTestSuite) TestStorageProviderByOperatorAddressQuery() {
 	_, err := s.spKeeper.StorageProviderByOperatorAddress(gocontext.Background(), nil)
 	requireInvalidArgument(s.T(), err)
 
-	_, err = s.spKeeper.StorageProviderByOperatorAddress(s.ctx, &types.QueryStorageProviderByOperatorAddressRequest{OperatorAddress: "not-a-hex-address"})
+	_, err = s.spKeeper.StorageProviderByOperatorAddress(s.ctx, &types.QueryStorageProviderByOperatorAddressRequest{OperatorAddress: invalidHexAddress})
 	require.Error(s.T(), err)
 
 	_, err = s.spKeeper.StorageProviderByOperatorAddress(s.ctx, &types.QueryStorageProviderByOperatorAddressRequest{OperatorAddress: sample.RandAccAddressHex()})
@@ -162,7 +164,7 @@ func (s *KeeperTestSuite) TestStorageProviderMaintenanceRecordsByOperatorAddress
 	_, err := s.spKeeper.StorageProviderMaintenanceRecordsByOperatorAddress(gocontext.Background(), nil)
 	requireInvalidArgument(s.T(), err)
 
-	_, err = s.spKeeper.StorageProviderMaintenanceRecordsByOperatorAddress(s.ctx, &types.QueryStorageProviderMaintenanceRecordsRequest{OperatorAddress: "not-a-hex-address"})
+	_, err = s.spKeeper.StorageProviderMaintenanceRecordsByOperatorAddress(s.ctx, &types.QueryStorageProviderMaintenanceRecordsRequest{OperatorAddress: invalidHexAddress})
 	requireInvalidArgument(s.T(), err)
 
 	opAddr := sdk.MustAccAddressFromHex(sample.RandAccAddressHex())
