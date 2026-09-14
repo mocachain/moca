@@ -449,7 +449,7 @@ func (s *TestSuite) TestPutPolicy_StatementsCapDoesNotBrickStoredPolicies_GroupP
 
 	// Store an over-cap group policy the way one could exist before the cap was enforced.
 	loose := types.DefaultParams()
-	loose.MaximumStatementsNum = uint64(overCap) //nolint: gosec
+	loose.MaximumStatementsNum = uint64(overCap)
 	s.Require().NoError(s.permissionKeeper.SetParams(s.ctx, loose))
 	_, err := s.permissionKeeper.PutPolicy(s.ctx, &types.Policy{
 		Principal:    principal,
