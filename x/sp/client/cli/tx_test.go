@@ -37,6 +37,28 @@ import (
 const (
 	badNodeURL        = "://bad host \x00"
 	errInvalidNodeURL = "invalid control character in URL"
+
+	// Test-case names and CLI literals repeated across this file's
+	// table-driven tests, centralized here per goconst.
+	tcInvalidSPAddress = "invalid sp address"
+	tcBadNode          = "bad node"
+
+	cmdEditStorageProvider   = "edit-storage-provider"
+	cmdCreateStorageProvider = "create-storage-provider"
+	cmdGrant                 = "grant"
+	cmdDeposit               = "deposit"
+	cmdUpdateStatus          = "update-status"
+	cmdUpdatePrice           = "update-price"
+
+	errInvalidAddressHexLength = "invalid address hex length"
+
+	invalidAddrFlagValue = "bad"
+	notAValidAddress     = "not-a-valid-address"
+	amountOneHundredMoca = "100amoca"
+	notACoin             = "not-a-coin"
+	statusInService      = "STATUS_IN_SERVICE"
+	readPriceStr         = "0.1"
+	storePriceStr        = "0.01"
 )
 
 type CLITestSuite struct {
@@ -225,54 +247,54 @@ func (s *CLITestSuite) TestCmdEditStorageProvider() {
 		expectErrMsg string
 	}{
 		{
-			"invalid sp address",
-			append([]string{"edit-storage-provider", "not-a-valid-address"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			tcInvalidSPAddress,
+			append([]string{cmdEditStorageProvider, notAValidAddress}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"invalid seal address flag",
-			append([]string{"edit-storage-provider", validAddr, "--" + cli.FlagSealAddress, "bad"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			append([]string{cmdEditStorageProvider, validAddr, "--" + cli.FlagSealAddress, invalidAddrFlagValue}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"invalid approval address flag",
-			append([]string{"edit-storage-provider", validAddr, "--" + cli.FlagApprovalAddress, "bad"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			append([]string{cmdEditStorageProvider, validAddr, "--" + cli.FlagApprovalAddress, invalidAddrFlagValue}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"invalid gc address flag",
-			append([]string{"edit-storage-provider", validAddr, "--" + cli.FlagGcAddress, "bad"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			append([]string{cmdEditStorageProvider, validAddr, "--" + cli.FlagGcAddress, invalidAddrFlagValue}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"invalid maintenance address flag",
-			append([]string{"edit-storage-provider", validAddr, "--" + cli.FlagMaintenanceAddress, "bad"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			append([]string{cmdEditStorageProvider, validAddr, "--" + cli.FlagMaintenanceAddress, invalidAddrFlagValue}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"invalid bls pub key length",
-			append([]string{"edit-storage-provider", validAddr, "--" + cli.FlagBlsPubKey, "abcd"}, s.commonTxFlags()...),
+			append([]string{cmdEditStorageProvider, validAddr, "--" + cli.FlagBlsPubKey, "abcd"}, s.commonTxFlags()...),
 			true, "invalid bls pubkey",
 		},
 		{
 			"bls proof missing",
-			append([]string{"edit-storage-provider", validAddr, "--" + cli.FlagBlsPubKey, blsKey}, s.commonTxFlags()...),
+			append([]string{cmdEditStorageProvider, validAddr, "--" + cli.FlagBlsPubKey, blsKey}, s.commonTxFlags()...),
 			true, "bls proof is not provided",
 		},
 		{
-			"bad node",
-			[]string{"edit-storage-provider", validAddr, fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL)},
+			tcBadNode,
+			[]string{cmdEditStorageProvider, validAddr, fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL)},
 			true, errInvalidNodeURL,
 		},
 		{
 			"happy path with no optional fields",
-			append([]string{"edit-storage-provider", validAddr}, s.commonTxFlags()...),
+			append([]string{cmdEditStorageProvider, validAddr}, s.commonTxFlags()...),
 			false, "",
 		},
 		{
 			"happy path with every optional field",
 			append([]string{
-				"edit-storage-provider", validAddr,
+				cmdEditStorageProvider, validAddr,
 				"--" + cli.FlagSealAddress, validAddr,
 				"--" + cli.FlagApprovalAddress, validAddr,
 				"--" + cli.FlagGcAddress, validAddr,
@@ -310,33 +332,33 @@ func (s *CLITestSuite) TestCmdDeposit() {
 		expectErrMsg string
 	}{
 		{
-			"bad node",
-			[]string{"deposit", spAddr, fundAddr, "100amoca", fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL)},
+			tcBadNode,
+			[]string{cmdDeposit, spAddr, fundAddr, amountOneHundredMoca, fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL)},
 			true, errInvalidNodeURL,
 		},
 		{
-			"invalid sp address",
-			append([]string{"deposit", "not-a-valid-address", fundAddr, "100amoca"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			tcInvalidSPAddress,
+			append([]string{cmdDeposit, notAValidAddress, fundAddr, amountOneHundredMoca}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"invalid fund address",
-			append([]string{"deposit", spAddr, "not-a-valid-address", "100amoca"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			append([]string{cmdDeposit, spAddr, notAValidAddress, amountOneHundredMoca}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"invalid coin string",
-			append([]string{"deposit", spAddr, fundAddr, "not-a-coin"}, s.commonTxFlags()...),
+			append([]string{cmdDeposit, spAddr, fundAddr, notACoin}, s.commonTxFlags()...),
 			true, "invalid decimal coin expression",
 		},
 		{
 			"zero deposit amount",
-			append([]string{"deposit", spAddr, fundAddr, "0amoca"}, s.commonTxFlags()...),
+			append([]string{cmdDeposit, spAddr, fundAddr, "0amoca"}, s.commonTxFlags()...),
 			true, "invalid deposit amount",
 		},
 		{
 			"happy path",
-			append([]string{"deposit", spAddr, fundAddr, "100amoca"}, s.commonTxFlags()...),
+			append([]string{cmdDeposit, spAddr, fundAddr, amountOneHundredMoca}, s.commonTxFlags()...),
 			false, "",
 		},
 	}
@@ -359,12 +381,12 @@ func (s *CLITestSuite) TestCmdGrantDepositAuthorization() {
 	grantee := sample.RandAccAddressHex()
 	spAddr := sample.RandAccAddressHex()
 
-	s.Run("bad node", func() {
+	s.Run(tcBadNode, func() {
 		cmd := cli.GetTxCmd()
 		args := []string{
-			"grant", grantee,
+			cmdGrant, grantee,
 			"--" + cli.FlagSpAddress, spAddr,
-			"--" + cli.FlagSpendLimit, "100amoca",
+			"--" + cli.FlagSpendLimit, amountOneHundredMoca,
 			fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL),
 		}
 		s.requireTxError(s.clientCtx, cmd, args, errInvalidNodeURL)
@@ -373,29 +395,29 @@ func (s *CLITestSuite) TestCmdGrantDepositAuthorization() {
 	s.Run("invalid grantee address", func() {
 		cmd := cli.GetTxCmd()
 		args := append([]string{
-			"grant", "not-a-valid-address",
+			cmdGrant, notAValidAddress,
 			"--" + cli.FlagSpAddress, spAddr,
-			"--" + cli.FlagSpendLimit, "100amoca",
+			"--" + cli.FlagSpendLimit, amountOneHundredMoca,
 		}, s.commonTxFlags()...)
-		s.requireTxError(s.clientCtx, cmd, args, "invalid address hex length")
+		s.requireTxError(s.clientCtx, cmd, args, errInvalidAddressHexLength)
 	})
 
 	s.Run("invalid SPAddress flag", func() {
 		cmd := cli.GetTxCmd()
 		args := append([]string{
-			"grant", grantee,
-			"--" + cli.FlagSpAddress, "bad",
-			"--" + cli.FlagSpendLimit, "100amoca",
+			cmdGrant, grantee,
+			"--" + cli.FlagSpAddress, invalidAddrFlagValue,
+			"--" + cli.FlagSpendLimit, amountOneHundredMoca,
 		}, s.commonTxFlags()...)
-		s.requireTxError(s.clientCtx, cmd, args, "invalid address hex length")
+		s.requireTxError(s.clientCtx, cmd, args, errInvalidAddressHexLength)
 	})
 
 	s.Run("invalid spend limit", func() {
 		cmd := cli.GetTxCmd()
 		args := append([]string{
-			"grant", grantee,
+			cmdGrant, grantee,
 			"--" + cli.FlagSpAddress, spAddr,
-			"--" + cli.FlagSpendLimit, "not-a-coin",
+			"--" + cli.FlagSpendLimit, notACoin,
 		}, s.commonTxFlags()...)
 		s.requireTxError(s.clientCtx, cmd, args, "invalid decimal coin expression")
 	})
@@ -403,9 +425,9 @@ func (s *CLITestSuite) TestCmdGrantDepositAuthorization() {
 	s.Run("query error", func() {
 		cmd := cli.GetTxCmd()
 		args := append([]string{
-			"grant", grantee,
+			cmdGrant, grantee,
 			"--" + cli.FlagSpAddress, spAddr,
-			"--" + cli.FlagSpendLimit, "100amoca",
+			"--" + cli.FlagSpendLimit, amountOneHundredMoca,
 		}, s.commonTxFlags()...)
 		s.requireTxError(s.queryErrClientCtx(), cmd, args, "boom")
 	})
@@ -413,7 +435,7 @@ func (s *CLITestSuite) TestCmdGrantDepositAuthorization() {
 	s.Run("denom mismatch", func() {
 		cmd := cli.GetTxCmd()
 		args := append([]string{
-			"grant", grantee,
+			cmdGrant, grantee,
 			"--" + cli.FlagSpAddress, spAddr,
 			"--" + cli.FlagSpendLimit, "100abc",
 		}, s.commonTxFlags()...)
@@ -423,7 +445,7 @@ func (s *CLITestSuite) TestCmdGrantDepositAuthorization() {
 	s.Run("zero spend limit", func() {
 		cmd := cli.GetTxCmd()
 		args := append([]string{
-			"grant", grantee,
+			cmdGrant, grantee,
 			"--" + cli.FlagSpAddress, spAddr,
 			"--" + cli.FlagSpendLimit, "0amoca",
 		}, s.commonTxFlags()...)
@@ -433,9 +455,9 @@ func (s *CLITestSuite) TestCmdGrantDepositAuthorization() {
 	s.Run("happy path with no expiration", func() {
 		cmd := cli.GetTxCmd()
 		args := append([]string{
-			"grant", grantee,
+			cmdGrant, grantee,
 			"--" + cli.FlagSpAddress, spAddr,
-			"--" + cli.FlagSpendLimit, "100amoca",
+			"--" + cli.FlagSpendLimit, amountOneHundredMoca,
 		}, s.commonTxFlags()...)
 		s.requireTxSuccess(s.paramsClientCtx(), cmd, args)
 	})
@@ -443,9 +465,9 @@ func (s *CLITestSuite) TestCmdGrantDepositAuthorization() {
 	s.Run("happy path with expiration", func() {
 		cmd := cli.GetTxCmd()
 		args := append([]string{
-			"grant", grantee,
+			cmdGrant, grantee,
 			"--" + cli.FlagSpAddress, spAddr,
-			"--" + cli.FlagSpendLimit, "100amoca",
+			"--" + cli.FlagSpendLimit, amountOneHundredMoca,
 			"--" + cli.FlagExpiration, "4102444800",
 		}, s.commonTxFlags()...)
 		s.requireTxSuccess(s.paramsClientCtx(), cmd, args)
@@ -462,34 +484,34 @@ func (s *CLITestSuite) TestCmdUpdateStorageProviderStatus() {
 		expectErrMsg string
 	}{
 		{
-			"bad node",
-			[]string{"update-status", spAddr, "STATUS_IN_SERVICE", fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL)},
+			tcBadNode,
+			[]string{cmdUpdateStatus, spAddr, statusInService, fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL)},
 			true, errInvalidNodeURL,
 		},
 		{
-			"invalid sp address",
-			append([]string{"update-status", "not-a-valid-address", "STATUS_IN_SERVICE"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			tcInvalidSPAddress,
+			append([]string{cmdUpdateStatus, notAValidAddress, statusInService}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"unexpected status",
-			append([]string{"update-status", spAddr, "STATUS_IN_JAILED"}, s.commonTxFlags()...),
+			append([]string{cmdUpdateStatus, spAddr, "STATUS_IN_JAILED"}, s.commonTxFlags()...),
 			true, "is not expected",
 		},
 		{
 			"maintenance without duration",
-			append([]string{"update-status", spAddr, "STATUS_IN_MAINTENANCE"}, s.commonTxFlags()...),
+			append([]string{cmdUpdateStatus, spAddr, "STATUS_IN_MAINTENANCE"}, s.commonTxFlags()...),
 			true, "maintenance duration need to be set",
 		},
 		{
 			"happy path to in service",
-			append([]string{"update-status", spAddr, "STATUS_IN_SERVICE"}, s.commonTxFlags()...),
+			append([]string{cmdUpdateStatus, spAddr, statusInService}, s.commonTxFlags()...),
 			false, "",
 		},
 		{
 			"happy path to in maintenance",
 			append([]string{
-				"update-status", spAddr, "STATUS_IN_MAINTENANCE",
+				cmdUpdateStatus, spAddr, "STATUS_IN_MAINTENANCE",
 				"--" + cli.FlagDuration, "21600",
 			}, s.commonTxFlags()...),
 			false, "",
@@ -520,45 +542,45 @@ func (s *CLITestSuite) TestCmdUpdateStorageProviderStoragePrice() {
 		expectErrMsg string
 	}{
 		{
-			"bad node",
-			[]string{"update-price", spAddr, "0.1", "0.01", "1024", fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL)},
+			tcBadNode,
+			[]string{cmdUpdatePrice, spAddr, readPriceStr, storePriceStr, "1024", fmt.Sprintf("--%s=%s", flags.FlagNode, badNodeURL)},
 			true, errInvalidNodeURL,
 		},
 		{
-			"invalid sp address",
-			append([]string{"update-price", "not-a-valid-address", "0.1", "0.01", "1024"}, s.commonTxFlags()...),
-			true, "invalid address hex length",
+			tcInvalidSPAddress,
+			append([]string{cmdUpdatePrice, notAValidAddress, readPriceStr, storePriceStr, "1024"}, s.commonTxFlags()...),
+			true, errInvalidAddressHexLength,
 		},
 		{
 			"invalid read price",
-			append([]string{"update-price", spAddr, "not-a-decimal", "0.01", "1024"}, s.commonTxFlags()...),
+			append([]string{cmdUpdatePrice, spAddr, "not-a-decimal", storePriceStr, "1024"}, s.commonTxFlags()...),
 			true, "failed to set decimal string",
 		},
 		{
 			"invalid store price",
-			append([]string{"update-price", spAddr, "0.1", "not-a-decimal", "1024"}, s.commonTxFlags()...),
+			append([]string{cmdUpdatePrice, spAddr, readPriceStr, "not-a-decimal", "1024"}, s.commonTxFlags()...),
 			true, "failed to set decimal string",
 		},
 		{
 			"invalid free read quota",
-			append([]string{"update-price", spAddr, "0.1", "0.01", "not-a-number"}, s.commonTxFlags()...),
+			append([]string{cmdUpdatePrice, spAddr, readPriceStr, storePriceStr, "not-a-number"}, s.commonTxFlags()...),
 			true, "invalid syntax",
 		},
 		{
 			// "--" stops pflag from trying (and failing) to parse the
 			// negative read price as an unknown shorthand flag.
 			"negative read price",
-			[]string{"update-price", spAddr, "--", "-0.1", "0.01", "1024"},
+			[]string{cmdUpdatePrice, spAddr, "--", "-0.1", storePriceStr, "1024"},
 			true, "invalid read price",
 		},
 		{
 			"negative store price",
-			[]string{"update-price", spAddr, "0.1", "--", "-0.01", "1024"},
+			[]string{cmdUpdatePrice, spAddr, readPriceStr, "--", "-0.01", "1024"},
 			true, "invalid store price",
 		},
 		{
 			"happy path",
-			append([]string{"update-price", spAddr, "0.1", "0.01", "1024"}, s.commonTxFlags()...),
+			append([]string{cmdUpdatePrice, spAddr, readPriceStr, storePriceStr, "1024"}, s.commonTxFlags()...),
 			false, "",
 		},
 	}
@@ -581,11 +603,11 @@ func (s *CLITestSuite) TestCmdCreateStorageProvider() {
 	fundingAddr := s.clientCtx.GetFromAddress().String()
 	blsKey, blsProof := sample.RandBlsPubKeyAndBlsProof()
 
-	s.Run("bad node", func() {
+	s.Run(tcBadNode, func() {
 		cmd := cli.GetTxCmd()
 		path := s.writeProposalFile(spCreateProposalMsgJSON(fundingAddr, "sp0", blsKey, blsProof))
 		args := []string{
-			"create-storage-provider", path,
+			cmdCreateStorageProvider, path,
 			// CmdCreateStorageProvider (unlike the other CmdXxx commands in
 			// this file) marks --from required, so cobra's own flag
 			// validation must be satisfied before RunE ever runs and reaches
@@ -599,7 +621,7 @@ func (s *CLITestSuite) TestCmdCreateStorageProvider() {
 	s.Run("proposal file not found", func() {
 		cmd := cli.GetTxCmd()
 		missing := filepath.Join(s.T().TempDir(), "missing.json")
-		args := append([]string{"create-storage-provider", missing}, s.commonTxFlags()...)
+		args := append([]string{cmdCreateStorageProvider, missing}, s.commonTxFlags()...)
 		s.requireTxError(s.spProposalClientCtx(), cmd, args, "no such file or directory")
 	})
 
@@ -608,7 +630,7 @@ func (s *CLITestSuite) TestCmdCreateStorageProvider() {
 		other := sample.RandAccAddressHex()
 		msgs := spDepositProposalMsgJSON(other, other) + "," + spDepositProposalMsgJSON(other, other)
 		path := s.writeProposalFile(msgs)
-		args := append([]string{"create-storage-provider", path}, s.commonTxFlags()...)
+		args := append([]string{cmdCreateStorageProvider, path}, s.commonTxFlags()...)
 		s.requireTxError(s.spProposalClientCtx(), cmd, args, "invalid message length")
 	})
 
@@ -616,28 +638,28 @@ func (s *CLITestSuite) TestCmdCreateStorageProvider() {
 		cmd := cli.GetTxCmd()
 		other := sample.RandAccAddressHex()
 		path := s.writeProposalFile(spDepositProposalMsgJSON(other, other))
-		args := append([]string{"create-storage-provider", path}, s.commonTxFlags()...)
+		args := append([]string{cmdCreateStorageProvider, path}, s.commonTxFlags()...)
 		s.requireTxError(s.spProposalClientCtx(), cmd, args, "invalid create storage provider message")
 	})
 
 	s.Run("message fails validate basic", func() {
 		cmd := cli.GetTxCmd()
 		path := s.writeProposalFile(spCreateProposalMsgJSON(fundingAddr, "", blsKey, blsProof))
-		args := append([]string{"create-storage-provider", path}, s.commonTxFlags()...)
+		args := append([]string{cmdCreateStorageProvider, path}, s.commonTxFlags()...)
 		s.requireTxError(s.spProposalClientCtx(), cmd, args, "invalid create storage provider message")
 	})
 
 	s.Run("funding address is not from address", func() {
 		cmd := cli.GetTxCmd()
 		path := s.writeProposalFile(spCreateProposalMsgJSON(sample.RandAccAddressHex(), "sp0", blsKey, blsProof))
-		args := append([]string{"create-storage-provider", path}, s.commonTxFlags()...)
+		args := append([]string{cmdCreateStorageProvider, path}, s.commonTxFlags()...)
 		s.requireTxError(s.spProposalClientCtx(), cmd, args, "the from address should be the funding address")
 	})
 
 	s.Run("happy path", func() {
 		cmd := cli.GetTxCmd()
 		path := s.writeProposalFile(spCreateProposalMsgJSON(fundingAddr, "sp0", blsKey, blsProof))
-		args := append([]string{"create-storage-provider", path}, s.commonTxFlags()...)
+		args := append([]string{cmdCreateStorageProvider, path}, s.commonTxFlags()...)
 		s.requireTxSuccess(s.spProposalClientCtx(), cmd, args)
 	})
 }
@@ -763,21 +785,21 @@ func (s *CLITestSuite) TestBuildCreateStorageProviderMsg() {
 		Endpoint:           "https://sp0.moca.io",
 		BlsPubKey:          blsKey,
 		BlsProof:           blsProof,
-		ReadPrice:          math.LegacyMustNewDecFromStr("0.1"),
-		StorePrice:         math.LegacyMustNewDecFromStr("0.01"),
+		ReadPrice:          math.LegacyMustNewDecFromStr(readPriceStr),
+		StorePrice:         math.LegacyMustNewDecFromStr(storePriceStr),
 		FreeReadQuota:      1024,
 	}
 
 	s.Run("invalid deposit coin", func() {
 		config := baseConfig
-		config.Deposit = "not-a-coin"
+		config.Deposit = notACoin
 		_, _, err := cli.BuildCreateStorageProviderMsg(config, tx.Factory{})
 		s.Require().ErrorContains(err, "invalid decimal coin expression")
 	})
 
 	s.Run("happy path", func() {
 		config := baseConfig
-		config.Deposit = "100amoca"
+		config.Deposit = amountOneHundredMoca
 		_, msg, err := cli.BuildCreateStorageProviderMsg(config, tx.Factory{})
 		s.Require().NoError(err)
 		spMsg, ok := msg.(*types.MsgCreateStorageProvider)
