@@ -252,7 +252,7 @@ func (s *TestSuite) TestEndBlocker_SkipsUnsealedOrMissingObject() {
 	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID)
 }
@@ -270,7 +270,7 @@ func (s *TestSuite) TestEndBlocker_SkipsEmptyPayload() {
 	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(emptyObject, true).AnyTimes()
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID)
 }
@@ -289,7 +289,7 @@ func (s *TestSuite) TestEndBlocker_SkipsMissingBucket() {
 	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID)
 }
@@ -311,7 +311,7 @@ func (s *TestSuite) TestEndBlocker_SkipsMissingGVG() {
 	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID)
 }
@@ -345,7 +345,7 @@ func (s *TestSuite) TestEndBlocker_SuccessRandomChallenge_PrimarySp() {
 	s.spKeeper.EXPECT().SetDepositLockUntil(gomock.Any(), gomock.Eq(sp.Id), gomock.Any()).Times(1)
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID-1)
 
@@ -375,7 +375,7 @@ func (s *TestSuite) TestEndBlocker_SkipsMissingStorageProvider() {
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID)
 }
@@ -402,7 +402,7 @@ func (s *TestSuite) TestEndBlocker_SkipsInvalidStorageProviderStatus() {
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(sp, true).AnyTimes()
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID)
 }
@@ -441,7 +441,7 @@ func (s *TestSuite) TestEndBlocker_DedupSkipsRepeatedPair() {
 	s.spKeeper.EXPECT().SetDepositLockUntil(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID-1, "exactly one challenge should be created despite needing 2")
 }
@@ -478,7 +478,7 @@ func (s *TestSuite) TestEndBlocker_SkipsExistingSlash() {
 	})
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID)
 }
@@ -507,7 +507,7 @@ func (s *TestSuite) TestEndBlocker_SkipsOnSegmentSizeError() {
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(sp, true).AnyTimes()
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
-	challenge.EndBlocker(s.ctx, *s.challengeKeeper)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
 	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
 	s.Require().True(preChallengeID == afterChallengeID)
 }
