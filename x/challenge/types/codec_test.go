@@ -19,7 +19,7 @@ func TestRegisterCodec(t *testing.T) {
 	// types under an interface-typed slot -- marshaling the concrete struct
 	// directly would look the same whether or not RegisterConcrete ran.
 	cdc.RegisterInterface((*sdk.Msg)(nil), nil)
-	wrapper := struct{ Msg sdk.Msg }{Msg: &MsgSubmit{BucketName: "bucket"}}
+	wrapper := struct{ Msg sdk.Msg }{Msg: &MsgSubmit{BucketName: testBucketName}}
 	bz, err := cdc.MarshalJSON(wrapper)
 	require.NoError(t, err)
 	require.Contains(t, string(bz), "challenge/Submit")

@@ -10,16 +10,23 @@ import (
 	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 )
 
+// Shared test fixtures reused across this package's message tests.
+const (
+	testBucketName     = "bucket"
+	testObjectName     = "object"
+	testInvalidAddress = "invalid_address"
+)
+
 func TestNewMsgSubmit(t *testing.T) {
 	challenger := sample.RandAccAddress()
 	spOperatorAddress := sample.RandAccAddress()
 
-	msg := NewMsgSubmit(challenger, spOperatorAddress, "bucket", "object", true, 5)
+	msg := NewMsgSubmit(challenger, spOperatorAddress, testBucketName, testObjectName, true, 5)
 
 	require.Equal(t, challenger.String(), msg.Challenger)
 	require.Equal(t, spOperatorAddress.String(), msg.SpOperatorAddress)
-	require.Equal(t, "bucket", msg.BucketName)
-	require.Equal(t, "object", msg.ObjectName)
+	require.Equal(t, testBucketName, msg.BucketName)
+	require.Equal(t, testObjectName, msg.ObjectName)
 	require.True(t, msg.RandomIndex)
 	require.Equal(t, uint32(5), msg.SegmentIndex)
 }
@@ -38,7 +45,7 @@ func TestMsgSubmit_GetSigners(t *testing.T) {
 	require.Len(t, signers, 1)
 	require.Equal(t, challenger, signers[0])
 
-	invalid := MsgSubmit{Challenger: "invalid_address"}
+	invalid := MsgSubmit{Challenger: testInvalidAddress}
 	require.Panics(t, func() { invalid.GetSigners() })
 }
 
@@ -46,8 +53,8 @@ func TestMsgSubmit_GetSignBytes(t *testing.T) {
 	msg := MsgSubmit{
 		Challenger:        sample.RandAccAddressHex(),
 		SpOperatorAddress: sample.RandAccAddressHex(),
-		BucketName:        "bucket",
-		ObjectName:        "object",
+		BucketName:        testBucketName,
+		ObjectName:        testObjectName,
 	}
 
 	bz := msg.GetSignBytes()
@@ -69,14 +76,14 @@ func TestMsgSubmit_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid address",
 			msg: MsgSubmit{
-				Challenger: "invalid_address",
+				Challenger: testInvalidAddress,
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		}, {
 			name: "invalid sp operator address",
 			msg: MsgSubmit{
 				Challenger:        sample.RandAccAddressHex(),
-				SpOperatorAddress: "invalid_address",
+				SpOperatorAddress: testInvalidAddress,
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		}, {
@@ -92,7 +99,7 @@ func TestMsgSubmit_ValidateBasic(t *testing.T) {
 			msg: MsgSubmit{
 				Challenger:        sample.RandAccAddressHex(),
 				SpOperatorAddress: sample.RandAccAddressHex(),
-				BucketName:        "bucket",
+				BucketName:        testBucketName,
 				ObjectName:        "",
 			},
 			err: gnfderrors.ErrInvalidObjectName,
@@ -101,8 +108,8 @@ func TestMsgSubmit_ValidateBasic(t *testing.T) {
 			msg: MsgSubmit{
 				Challenger:        sample.RandAccAddressHex(),
 				SpOperatorAddress: sample.RandAccAddressHex(),
-				BucketName:        "bucket",
-				ObjectName:        "object",
+				BucketName:        testBucketName,
+				ObjectName:        testObjectName,
 				RandomIndex:       true,
 				SegmentIndex:      10,
 			},
@@ -111,8 +118,8 @@ func TestMsgSubmit_ValidateBasic(t *testing.T) {
 			msg: MsgSubmit{
 				Challenger:        sample.RandAccAddressHex(),
 				SpOperatorAddress: sample.RandAccAddressHex(),
-				BucketName:        "bucket",
-				ObjectName:        "object",
+				BucketName:        testBucketName,
+				ObjectName:        testObjectName,
 				RandomIndex:       false,
 				SegmentIndex:      2,
 			},

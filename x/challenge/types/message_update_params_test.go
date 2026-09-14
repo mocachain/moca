@@ -44,7 +44,7 @@ func TestMsgUpdateParams_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid authority",
 			msg: MsgUpdateParams{
-				Authority: "invalid_address",
+				Authority: testInvalidAddress,
 				Params:    DefaultParams(),
 			},
 			err: sdkerrors.ErrInvalidAddress,

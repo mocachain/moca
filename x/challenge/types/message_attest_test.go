@@ -43,7 +43,7 @@ func TestMsgAttest_GetSigners(t *testing.T) {
 	require.Len(t, signers, 1)
 	require.Equal(t, submitter, signers[0])
 
-	invalid := MsgAttest{Submitter: "invalid_address"}
+	invalid := MsgAttest{Submitter: testInvalidAddress}
 	require.Panics(t, func() { invalid.GetSigners() })
 }
 
@@ -74,14 +74,14 @@ func TestMsgAttest_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid address",
 			msg: MsgAttest{
-				Submitter: "invalid_address",
+				Submitter: testInvalidAddress,
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		}, {
 			name: "invalid sp operator address",
 			msg: MsgAttest{
 				Submitter:         sample.RandAccAddressHex(),
-				SpOperatorAddress: "invalid_address",
+				SpOperatorAddress: testInvalidAddress,
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		}, {
@@ -107,7 +107,7 @@ func TestMsgAttest_ValidateBasic(t *testing.T) {
 				Submitter:         sample.RandAccAddressHex(),
 				SpOperatorAddress: sample.RandAccAddressHex(),
 				VoteResult:        CHALLENGE_SUCCEED,
-				ChallengerAddress: "invalid_address",
+				ChallengerAddress: testInvalidAddress,
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		}, {
