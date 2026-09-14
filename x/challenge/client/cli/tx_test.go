@@ -111,48 +111,48 @@ func (s *CLITestSuite) TestTxCmd() {
 		{
 			"submit bad sp-operator-address",
 			append([]string{
-				"submit",
-				"not-an-address", "test-bucket", "test-object", "true", "0",
+				cmdSubmit,
+				argNotAnAddress, argTestBucketName, argTestObjectName, argTrue, "0",
 			}, commonFlags...),
 			true, "please input a valid sp-operator-address",
 		},
 		{
 			"submit bad bucket-name",
 			append([]string{
-				"submit",
-				spOperatorAddr, "ab", "test-object", "true", "0",
+				cmdSubmit,
+				spOperatorAddr, "ab", argTestObjectName, argTrue, "0",
 			}, commonFlags...),
 			true, "please input a valid bucket-name",
 		},
 		{
 			"submit bad object-name",
 			append([]string{
-				"submit",
-				spOperatorAddr, "test-bucket", "a//b", "true", "0",
+				cmdSubmit,
+				spOperatorAddr, argTestBucketName, "a//b", argTrue, "0",
 			}, commonFlags...),
 			true, "please input a valid object-name",
 		},
 		{
 			"submit bad random-index",
 			append([]string{
-				"submit",
-				spOperatorAddr, "test-bucket", "test-object", "not-a-bool", "0",
+				cmdSubmit,
+				spOperatorAddr, argTestBucketName, argTestObjectName, "not-a-bool", "0",
 			}, commonFlags...),
 			true, "please input a valid random-index",
 		},
 		{
 			"submit bad segment-index",
 			append([]string{
-				"submit",
-				spOperatorAddr, "test-bucket", "test-object", "false", "not-a-number",
+				cmdSubmit,
+				spOperatorAddr, argTestBucketName, argTestObjectName, "false", argNotANumber,
 			}, commonFlags...),
 			true, "please input a valid segment-index",
 		},
 		{
 			"submit bad node",
 			append([]string{
-				"submit",
-				spOperatorAddr, "test-bucket", "test-object", "true", "0",
+				cmdSubmit,
+				spOperatorAddr, argTestBucketName, argTestObjectName, argTrue, "0",
 				fmt.Sprintf("--%s=%s", flags.FlagNode, testBadNodeURL),
 			}, commonFlags...),
 			true, errInvalidNodeURL,
@@ -160,31 +160,31 @@ func (s *CLITestSuite) TestTxCmd() {
 		{
 			"submit happy path",
 			append([]string{
-				"submit",
-				spOperatorAddr, "test-bucket", "test-object", "false", "3",
+				cmdSubmit,
+				spOperatorAddr, argTestBucketName, argTestObjectName, "false", "3",
 			}, commonFlags...),
 			false, "",
 		},
 		{
 			"attest bad challenge-id",
 			append([]string{
-				"attest",
-				"not-a-number", "1", spOperatorAddr, "0", "", "1", validSig,
+				cmdAttest,
+				argNotANumber, "1", spOperatorAddr, "0", "", "1", validSig,
 			}, commonFlags...),
 			true, "please input a valid challenge-id",
 		},
 		{
 			"attest bad sp-operator-address",
 			append([]string{
-				"attest",
-				"1", "1", "not-an-address", "0", "", "1", validSig,
+				cmdAttest,
+				"1", "1", argNotAnAddress, "0", "", "1", validSig,
 			}, commonFlags...),
 			true, "please input a valid sp-operator-address",
 		},
 		{
 			"attest bad vote-result",
 			append([]string{
-				"attest",
+				cmdAttest,
 				"1", "1", spOperatorAddr, "5", "", "1", validSig,
 			}, commonFlags...),
 			true, "please input a valid vote-result",
@@ -192,15 +192,15 @@ func (s *CLITestSuite) TestTxCmd() {
 		{
 			"attest bad challenger-address",
 			append([]string{
-				"attest",
-				"1", "1", spOperatorAddr, "0", "not-an-address", "1", validSig,
+				cmdAttest,
+				"1", "1", spOperatorAddr, "0", argNotAnAddress, "1", validSig,
 			}, commonFlags...),
 			true, "please input a valid challenger-address",
 		},
 		{
 			"attest bad vote-validator-set entry",
 			append([]string{
-				"attest",
+				cmdAttest,
 				"1", "1", spOperatorAddr, "0", "", "1,x", validSig,
 			}, commonFlags...),
 			true, "please input a valid vote-validator-set",
@@ -208,7 +208,7 @@ func (s *CLITestSuite) TestTxCmd() {
 		{
 			"attest bad vote-agg-signature",
 			append([]string{
-				"attest",
+				cmdAttest,
 				"1", "1", spOperatorAddr, "0", "", "1", "not-hex",
 			}, commonFlags...),
 			true, "please input a valid vote-agg-signature",
@@ -216,7 +216,7 @@ func (s *CLITestSuite) TestTxCmd() {
 		{
 			"attest bad node",
 			append([]string{
-				"attest",
+				cmdAttest,
 				"1", "1", spOperatorAddr, "0", "", "1", validSig,
 				fmt.Sprintf("--%s=%s", flags.FlagNode, testBadNodeURL),
 			}, commonFlags...),
@@ -228,7 +228,7 @@ func (s *CLITestSuite) TestTxCmd() {
 			// BlsSignatureLength check, which the CLI never pre-validates.
 			"attest vote-agg-signature wrong length",
 			append([]string{
-				"attest",
+				cmdAttest,
 				"1", "1", spOperatorAddr, "0", "", "1", "ab",
 			}, commonFlags...),
 			true, "length of aggregated signature is invalid",
@@ -236,7 +236,7 @@ func (s *CLITestSuite) TestTxCmd() {
 		{
 			"attest happy path",
 			append([]string{
-				"attest",
+				cmdAttest,
 				"1", "1", spOperatorAddr, "0", "", "1,2", validSig,
 			}, commonFlags...),
 			false, "",

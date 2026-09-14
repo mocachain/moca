@@ -16,6 +16,15 @@ const (
 	errMockQueryFailure = "mock query failure"
 	errInvalidNodeURL   = "invalid control character in URL"
 	testBadNodeURL      = "://bad host \x00"
+
+	cmdAttestedChallenge = "attested-challenge"
+	cmdSubmit            = "submit"
+	cmdAttest            = "attest"
+	argNotANumber        = "not-a-number"
+	argNotAnAddress      = "not-an-address"
+	argTestBucketName    = "test-bucket"
+	argTestObjectName    = "test-object"
+	argTrue              = "true"
 )
 
 func (s *CLITestSuite) TestQueryCmd() {
@@ -126,7 +135,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 			"query attested-challenge",
 			append(
 				[]string{
-					"attested-challenge",
+					cmdAttestedChallenge,
 					"1",
 				},
 				commonFlags...,
@@ -137,8 +146,8 @@ func (s *CLITestSuite) TestQueryCmd() {
 			"query attested-challenge invalid challenge-id",
 			append(
 				[]string{
-					"attested-challenge",
-					"not-a-number",
+					cmdAttestedChallenge,
+					argNotANumber,
 				},
 				commonFlags...,
 			),
@@ -148,7 +157,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 			"query attested-challenge bad node",
 			append(
 				[]string{
-					"attested-challenge",
+					cmdAttestedChallenge,
 					"1",
 					fmt.Sprintf("--%s=%s", flags.FlagNode, testBadNodeURL),
 				},
@@ -160,7 +169,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 			"query attested-challenge RPC failure",
 			append(
 				[]string{
-					"attested-challenge",
+					cmdAttestedChallenge,
 					"1",
 				},
 				commonFlags...,
