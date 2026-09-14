@@ -1285,7 +1285,7 @@ func (s *TestSuite) TestReserveSwapIn_Success() {
 	info, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, familyID, 0)
 	require.True(s.T(), found)
 	require.Equal(s.T(), successor.Id, info.SuccessorSpId)
-	wantExpiration := uint64(blockTime.Unix()) + s.virtualgroupKeeper.SwapInValidityPeriod(s.ctx)
+	wantExpiration := uint64(blockTime.Unix()) + s.virtualgroupKeeper.SwapInValidityPeriod(s.ctx) //nolint:gosec // G115
 	require.Equal(s.T(), wantExpiration, info.ExpirationTime)
 }
 
