@@ -43,6 +43,10 @@ import (
 // shape rather than an arbitrary label.
 const gentxTestChainID = "moca_5151-1"
 
+// spMoniker0 is the keyring uid, gentx [key_name] positional argument, and
+// --moniker flag value every SPGenTxCmd test shares.
+const spMoniker0 = "sp0"
+
 // gentxFixture builds a fresh temp home (config.toml, priv_validator_key.json,
 // node_key.json, genesis.json) whose genesis app_state carries a "bank"
 // balance for fundingAddr and a default "staking" section, exactly what
@@ -116,7 +120,7 @@ func gentxExecContext(t *testing.T, home string, encCfg sdktestutil.TestEncoding
 func newTestKey(t *testing.T, kr keyring.Keyring) sdk.AccAddress {
 	t.Helper()
 
-	record, _, err := kr.NewMnemonic("sp0", keyring.English, sdk.FullFundraiserPath, keyring.DefaultBIP39Passphrase, hd.EthSecp256k1)
+	record, _, err := kr.NewMnemonic(spMoniker0, keyring.English, sdk.FullFundraiserPath, keyring.DefaultBIP39Passphrase, hd.EthSecp256k1)
 	require.NoError(t, err)
 
 	addr, err := record.GetAddress()
@@ -143,7 +147,7 @@ func spGenTxArgs(creator, funding string) []string {
 		fmt.Sprintf("--%s=%s", spcli.FlagMaintenanceAddress, sample.RandAccAddressHex()),
 		fmt.Sprintf("--%s=%s", spcli.FlagBlsPubKey, blsPubKey),
 		fmt.Sprintf("--%s=%s", spcli.FlagBlsProof, blsProof),
-		fmt.Sprintf("--%s=%s", spcli.FlagMoniker, "sp0"),
+		fmt.Sprintf("--%s=%s", spcli.FlagMoniker, spMoniker0),
 		fmt.Sprintf("--%s=%s", spcli.FlagEndpoint, "http://127.0.0.1:9033"),
 	}
 }
@@ -162,7 +166,7 @@ func TestSPGenTxCmd_Success(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", deposit.String(),
+		spMoniker0, deposit.String(),
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
 	cmd.SetArgs(args)
@@ -210,7 +214,7 @@ func TestSPGenTxCmd_OutputDocumentFlag(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", deposit.String(),
+		spMoniker0, deposit.String(),
 		"--" + flags.FlagHome, home,
 		"--" + flags.FlagOutputDocument, outputDocument,
 		"--" + spcli.FlagNodeID, "custom-node-id",
@@ -242,7 +246,7 @@ func TestSPGenTxCmd_OutputDocumentAlreadyExists(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", deposit.String(),
+		spMoniker0, deposit.String(),
 		"--" + flags.FlagHome, home,
 		"--" + flags.FlagOutputDocument, outputDocument,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
@@ -266,7 +270,7 @@ func TestSPGenTxCmd_MissingGenesisFile(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + sdk.DefaultBondDenom,
+		spMoniker0, "1000000" + sdk.DefaultBondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), sample.RandAccAddressHex())...)
 	cmd.SetArgs(args)
@@ -288,7 +292,7 @@ func TestSPGenTxCmd_UnknownKey(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(sample.RandAccAddressHex(), fundingAddr)...)
 	cmd.SetArgs(args)
@@ -310,7 +314,7 @@ func TestSPGenTxCmd_BadAmount(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "not-a-coin",
+		spMoniker0, "not-a-coin",
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
 	cmd.SetArgs(args)
@@ -333,7 +337,7 @@ func TestSPGenTxCmd_FundingAddressNotInGenesis(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), sample.RandAccAddressHex())...)
 	cmd.SetArgs(args)
@@ -355,7 +359,7 @@ func TestSPGenTxCmd_InvalidCreateConfig(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
 	// A malformed bls-pub-key makes PrepareConfigForTxCreateStorageProvider
@@ -382,9 +386,10 @@ func TestSPGenTxCmd_InvalidMsg(t *testing.T) {
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	// An empty --endpoint makes ValidateEndpointURL reject the resulting
 	// MsgCreateStorageProvider inside RunE's own ValidateBasic check.
-	args := []string{
-		"sp0", "1000000" + bondDenom,
-		"--" + flags.FlagHome, home,
+	args := make([]string, 0, 17)
+	args = append(args,
+		spMoniker0, "1000000"+bondDenom,
+		"--"+flags.FlagHome, home,
 		fmt.Sprintf("--%s=%s", flags.FlagChainID, gentxTestChainID),
 		fmt.Sprintf("--%s=%s", flags.FlagSignMode, flags.SignModeDirect),
 		fmt.Sprintf("--%s=%s", spcli.FlagCreator, creatorAddr.String()),
@@ -394,9 +399,9 @@ func TestSPGenTxCmd_InvalidMsg(t *testing.T) {
 		fmt.Sprintf("--%s=%s", spcli.FlagApprovalAddress, sample.RandAccAddressHex()),
 		fmt.Sprintf("--%s=%s", spcli.FlagGcAddress, sample.RandAccAddressHex()),
 		fmt.Sprintf("--%s=%s", spcli.FlagMaintenanceAddress, sample.RandAccAddressHex()),
-		fmt.Sprintf("--%s=%s", spcli.FlagMoniker, "sp0"),
+		fmt.Sprintf("--%s=%s", spcli.FlagMoniker, spMoniker0),
 		fmt.Sprintf("--%s=%s", spcli.FlagEndpoint, ""),
-	}
+	)
 	blsPubKey, blsProof := sample.RandBlsPubKeyAndBlsProof()
 	args = append(args,
 		fmt.Sprintf("--%s=%s", spcli.FlagBlsPubKey, blsPubKey),
@@ -423,7 +428,7 @@ func TestSPGenTxCmd_ClientTxContextError(t *testing.T) {
 	// An unparsable --fee-payer makes client.GetClientTxContext itself fail,
 	// before RunE reaches any gensp/sp-specific logic.
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 		"--" + flags.FlagFeePayer, "not-a-hex-address",
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
@@ -451,7 +456,7 @@ func TestSPGenTxCmd_BadNodeKey(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
 	cmd.SetArgs(args)
@@ -484,7 +489,7 @@ func TestSPGenTxCmd_InvalidGenesisAppState(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
 	cmd.SetArgs(args)
@@ -534,7 +539,7 @@ func TestSPGenTxCmd_InvalidGenesisState(t *testing.T) {
 	mbm := module.NewBasicManager(staking.AppModuleBasic{})
 	cmd := cli.SPGenTxCmd(mbm, encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
 	cmd.SetArgs(args)
@@ -556,7 +561,7 @@ func TestSPGenTxCmd_OfflineMissingAccountFlags(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 		"--" + flags.FlagOffline,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
@@ -582,7 +587,7 @@ func TestSPGenTxCmd_OfflineAutoGas(t *testing.T) {
 	// explicit account-number/sequence) but PrintUnsignedTx itself refuses,
 	// since estimating gas needs a live node.
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 		"--" + flags.FlagOffline,
 		"--" + flags.FlagAccountNumber, "0",
@@ -613,7 +618,7 @@ func TestSPGenTxCmd_MultiDenomAmount(t *testing.T) {
 	// ParseCoinNormalized, which rejects it.
 	amount := fmt.Sprintf("100%s,1other", bondDenom)
 	args := append([]string{
-		"sp0", amount,
+		spMoniker0, amount,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
 	cmd.SetArgs(args)
@@ -637,7 +642,7 @@ func TestSPGenTxCmd_CreatorMismatch(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(sample.RandAccAddressHex(), fundingAddr)...)
 	cmd.SetArgs(args)
@@ -663,7 +668,7 @@ func TestSPGenTxCmd_GentxDirIsFile(t *testing.T) {
 	ctx := gentxExecContext(t, home, encCfg, kr)
 	cmd := cli.SPGenTxCmd(module.NewBasicManager(), encCfg.TxConfig, banktypes.GenesisBalancesIterator{}, home)
 	args := append([]string{
-		"sp0", "1000000" + bondDenom,
+		spMoniker0, "1000000" + bondDenom,
 		"--" + flags.FlagHome, home,
 	}, spGenTxArgs(creatorAddr.String(), fundingAddr)...)
 	cmd.SetArgs(args)
