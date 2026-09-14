@@ -19,10 +19,10 @@ func TestMsgStorageProviderForcedExit_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid authority",
 			msg: MsgStorageProviderForcedExit{
-				Authority: "invalid authority address",
+				Authority: errInvalidAuthorityAddress,
 			},
 			expErr:    true,
-			expErrMsg: "invalid authority address",
+			expErrMsg: errInvalidAuthorityAddress,
 		},
 		{
 			name: "invalid address",

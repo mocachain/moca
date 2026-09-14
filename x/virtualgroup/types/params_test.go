@@ -14,7 +14,7 @@ func TestDepositDenom(t *testing.T) {
 		err   string
 	}{
 		{
-			name:  "valid",
+			name:  caseValid,
 			denom: "denom",
 		},
 		{
@@ -53,7 +53,7 @@ func TestGVGStakingPerBytes(t *testing.T) {
 		err   string
 	}{
 		{
-			name:  "valid",
+			name:  caseValid,
 			ratio: math.NewInt(1),
 		},
 		{
@@ -86,7 +86,7 @@ func TestMaxGlobalVirtualGroupNumPerFamily(t *testing.T) {
 		err    string
 	}{
 		{
-			name:   "valid",
+			name:   caseValid,
 			number: uint32(1),
 		},
 		{
@@ -119,7 +119,7 @@ func TestMaxStoreSizePerFamily(t *testing.T) {
 		err  string
 	}{
 		{
-			name: "valid",
+			name: caseValid,
 			size: uint64(1),
 		},
 		{
@@ -152,7 +152,7 @@ func TestValidateParams(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:   "valid",
+			name:   caseValid,
 			params: DefaultParams(),
 		},
 		{
@@ -259,7 +259,7 @@ func TestSwapInValidityPeriod(t *testing.T) {
 		err    string
 	}{
 		{
-			name:   "valid",
+			name:   caseValid,
 			period: &valid,
 		},
 		{
@@ -307,7 +307,7 @@ func TestSPConcurrentExitNum(t *testing.T) {
 		err    string
 	}{
 		{
-			name:   "valid",
+			name:   caseValid,
 			number: &valid,
 		},
 		{

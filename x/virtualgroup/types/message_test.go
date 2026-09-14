@@ -13,6 +13,21 @@ import (
 	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 )
 
+// errInvalidAuthorityAddress is the ValidateBasic error text for an invalid
+// authority address, shared with message_storage_provider_forced_exit_test.go.
+const errInvalidAuthorityAddress = "invalid authority address"
+
+// Sub-test names shared across TestMessageRouteAndType, TestMessageGetSignBytes,
+// and TestMessageGetSigners below, so the identical labels used across those
+// three tables aren't flagged as duplicated string literals.
+const (
+	caseCreateGlobalVirtualGroup = "create global virtual group"
+	caseDeleteGlobalVirtualGroup = "delete global virtual group"
+	caseSwapOut                  = "swap out"
+	caseReserveSwapIn            = "reserve swap in"
+	caseCompleteSwapIn           = "complete swap in"
+)
+
 func TestMsgDeposit_ValidateBasic(t *testing.T) {
 	tests := []struct {
 		name string
@@ -614,7 +629,7 @@ func TestMsgUpdateParams_ValidateBasic(t *testing.T) {
 				Authority: "invalid_address",
 				Params:    DefaultParams(),
 			},
-			errMsg: "invalid authority address",
+			errMsg: errInvalidAuthorityAddress,
 		},
 		{
 			name: "invalid params",
@@ -647,15 +662,15 @@ func TestMessageRouteAndType(t *testing.T) {
 		typeFn   func() string
 		wantType string
 	}{
-		{"create global virtual group", (&MsgCreateGlobalVirtualGroup{}).Route, (&MsgCreateGlobalVirtualGroup{}).Type, TypeMsgCreateGlobalVirtualGroup},
-		{"delete global virtual group", (&MsgDeleteGlobalVirtualGroup{}).Route, (&MsgDeleteGlobalVirtualGroup{}).Type, TypeMsgDeleteGlobalVirtualGroup},
-		{"deposit", (&MsgDeposit{}).Route, (&MsgDeposit{}).Type, TypeMsgDeposit},
-		{"withdraw", (&MsgWithdraw{}).Route, (&MsgWithdraw{}).Type, TypeMsgWithdraw},
-		{"swap out", (&MsgSwapOut{}).Route, (&MsgSwapOut{}).Type, TypeMsgSwapOut},
-		{"settle", (&MsgSettle{}).Route, (&MsgSettle{}).Type, TypeMsgSettle},
-		{"reserve swap in", (&MsgReserveSwapIn{}).Route, (&MsgReserveSwapIn{}).Type, TypeMsgReserveSwapIn},
+		{caseCreateGlobalVirtualGroup, (&MsgCreateGlobalVirtualGroup{}).Route, (&MsgCreateGlobalVirtualGroup{}).Type, TypeMsgCreateGlobalVirtualGroup},
+		{caseDeleteGlobalVirtualGroup, (&MsgDeleteGlobalVirtualGroup{}).Route, (&MsgDeleteGlobalVirtualGroup{}).Type, TypeMsgDeleteGlobalVirtualGroup},
+		{TypeMsgDeposit, (&MsgDeposit{}).Route, (&MsgDeposit{}).Type, TypeMsgDeposit},
+		{TypeMsgWithdraw, (&MsgWithdraw{}).Route, (&MsgWithdraw{}).Type, TypeMsgWithdraw},
+		{caseSwapOut, (&MsgSwapOut{}).Route, (&MsgSwapOut{}).Type, TypeMsgSwapOut},
+		{TypeMsgSettle, (&MsgSettle{}).Route, (&MsgSettle{}).Type, TypeMsgSettle},
+		{caseReserveSwapIn, (&MsgReserveSwapIn{}).Route, (&MsgReserveSwapIn{}).Type, TypeMsgReserveSwapIn},
 		{"cancel swap in", (&MsgCancelSwapIn{}).Route, (&MsgCancelSwapIn{}).Type, TypeMsgCancelSwapIn},
-		{"complete swap in", (&MsgCompleteSwapIn{}).Route, (&MsgCompleteSwapIn{}).Type, TypeMsgCompleteSwapIn},
+		{caseCompleteSwapIn, (&MsgCompleteSwapIn{}).Route, (&MsgCompleteSwapIn{}).Type, TypeMsgCompleteSwapIn},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -675,15 +690,15 @@ func TestMessageGetSignBytes(t *testing.T) {
 		name string
 		msg  interface{ GetSignBytes() []byte }
 	}{
-		{"create global virtual group", &MsgCreateGlobalVirtualGroup{StorageProvider: addr}},
-		{"delete global virtual group", &MsgDeleteGlobalVirtualGroup{StorageProvider: addr}},
-		{"deposit", &MsgDeposit{StorageProvider: addr}},
-		{"withdraw", &MsgWithdraw{StorageProvider: addr}},
-		{"swap out", &MsgSwapOut{StorageProvider: addr}},
+		{caseCreateGlobalVirtualGroup, &MsgCreateGlobalVirtualGroup{StorageProvider: addr}},
+		{caseDeleteGlobalVirtualGroup, &MsgDeleteGlobalVirtualGroup{StorageProvider: addr}},
+		{TypeMsgDeposit, &MsgDeposit{StorageProvider: addr}},
+		{TypeMsgWithdraw, &MsgWithdraw{StorageProvider: addr}},
+		{caseSwapOut, &MsgSwapOut{StorageProvider: addr}},
 		{"update params", &MsgUpdateParams{Authority: addr, Params: DefaultParams()}},
-		{"settle", &MsgSettle{StorageProvider: addr}},
-		{"reserve swap in", &MsgReserveSwapIn{StorageProvider: addr}},
-		{"complete swap in", &MsgCompleteSwapIn{StorageProvider: addr}},
+		{TypeMsgSettle, &MsgSettle{StorageProvider: addr}},
+		{caseReserveSwapIn, &MsgReserveSwapIn{StorageProvider: addr}},
+		{caseCompleteSwapIn, &MsgCompleteSwapIn{StorageProvider: addr}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -706,16 +721,16 @@ func TestMessageGetSigners(t *testing.T) {
 		name string
 		fn   func() []types.AccAddress
 	}{
-		{"create global virtual group", (&MsgCreateGlobalVirtualGroup{StorageProvider: addr}).GetSigners},
-		{"delete global virtual group", (&MsgDeleteGlobalVirtualGroup{StorageProvider: addr}).GetSigners},
-		{"deposit", (&MsgDeposit{StorageProvider: addr}).GetSigners},
-		{"withdraw", (&MsgWithdraw{StorageProvider: addr}).GetSigners},
-		{"swap out", (&MsgSwapOut{StorageProvider: addr}).GetSigners},
+		{caseCreateGlobalVirtualGroup, (&MsgCreateGlobalVirtualGroup{StorageProvider: addr}).GetSigners},
+		{caseDeleteGlobalVirtualGroup, (&MsgDeleteGlobalVirtualGroup{StorageProvider: addr}).GetSigners},
+		{TypeMsgDeposit, (&MsgDeposit{StorageProvider: addr}).GetSigners},
+		{TypeMsgWithdraw, (&MsgWithdraw{StorageProvider: addr}).GetSigners},
+		{caseSwapOut, (&MsgSwapOut{StorageProvider: addr}).GetSigners},
 		{"update params", (&MsgUpdateParams{Authority: addr}).GetSigners},
-		{"settle", (&MsgSettle{StorageProvider: addr}).GetSigners},
-		{"reserve swap in", (&MsgReserveSwapIn{StorageProvider: addr}).GetSigners},
+		{TypeMsgSettle, (&MsgSettle{StorageProvider: addr}).GetSigners},
+		{caseReserveSwapIn, (&MsgReserveSwapIn{StorageProvider: addr}).GetSigners},
 		{"cancel swap in", (&MsgCancelSwapIn{StorageProvider: addr}).GetSigners},
-		{"complete swap in", (&MsgCompleteSwapIn{StorageProvider: addr}).GetSigners},
+		{caseCompleteSwapIn, (&MsgCompleteSwapIn{StorageProvider: addr}).GetSigners},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
