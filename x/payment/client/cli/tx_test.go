@@ -31,6 +31,8 @@ const (
 	// hits it deterministically, without needing a live EVM/CometBFT backend.
 	errShortPrivateKey = "len of Keybytes is not equal to 32"
 	errInvalidAmount   = "invalid amount"
+	cmdDeposit         = "deposit"
+	cmdWithdraw        = "withdraw"
 )
 
 type CLITestSuite struct {
@@ -127,7 +129,7 @@ func (s *CLITestSuite) TestTxCmds() {
 		{
 			"deposit bad node",
 			[]string{
-				"deposit",
+				cmdDeposit,
 				addr,
 				"100",
 				fmt.Sprintf("--%s=%s", flags.FlagNode, testBadNodeURL),
@@ -137,7 +139,7 @@ func (s *CLITestSuite) TestTxCmds() {
 		{
 			"deposit short private key",
 			[]string{
-				"deposit",
+				cmdDeposit,
 				addr,
 				"100",
 				"--" + cli.FlagPrivateKey, "",
@@ -147,7 +149,7 @@ func (s *CLITestSuite) TestTxCmds() {
 		{
 			"deposit invalid amount",
 			[]string{
-				"deposit",
+				cmdDeposit,
 				addr,
 				"not-a-number",
 				"--" + cli.FlagPrivateKey, "",
@@ -157,7 +159,7 @@ func (s *CLITestSuite) TestTxCmds() {
 		{
 			"withdraw bad node",
 			[]string{
-				"withdraw",
+				cmdWithdraw,
 				addr,
 				"100",
 				fmt.Sprintf("--%s=%s", flags.FlagNode, testBadNodeURL),
@@ -167,7 +169,7 @@ func (s *CLITestSuite) TestTxCmds() {
 		{
 			"withdraw short private key",
 			[]string{
-				"withdraw",
+				cmdWithdraw,
 				addr,
 				"100",
 				"--" + cli.FlagPrivateKey, "",
@@ -177,7 +179,7 @@ func (s *CLITestSuite) TestTxCmds() {
 		{
 			"withdraw invalid amount",
 			[]string{
-				"withdraw",
+				cmdWithdraw,
 				addr,
 				"not-a-number",
 				"--" + cli.FlagPrivateKey, "",
