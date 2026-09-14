@@ -37,7 +37,7 @@ func TestMsgDeposit_GetSigners(t *testing.T) {
 	msg := NewMsgDeposit(creator.String(), sample.RandAccAddressHex(), sdkmath.NewInt(1))
 	require.Equal(t, []sdk.AccAddress{creator}, msg.GetSigners())
 
-	badMsg := NewMsgDeposit("invalid_address", sample.RandAccAddressHex(), sdkmath.NewInt(1))
+	badMsg := NewMsgDeposit(invalidAddress, sample.RandAccAddressHex(), sdkmath.NewInt(1))
 	require.Panics(t, func() { badMsg.GetSigners() })
 }
 
@@ -59,7 +59,7 @@ func TestMsgDeposit_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid creator",
 			msg: MsgDeposit{
-				Creator: "invalid_address",
+				Creator: invalidAddress,
 				To:      sample.RandAccAddressHex(),
 				Amount:  sdkmath.NewInt(1),
 			},
@@ -69,7 +69,7 @@ func TestMsgDeposit_ValidateBasic(t *testing.T) {
 			name: "invalid to",
 			msg: MsgDeposit{
 				Creator: sample.RandAccAddressHex(),
-				To:      "invalid_address",
+				To:      invalidAddress,
 				Amount:  sdkmath.NewInt(1),
 			},
 			err: sdkerrors.ErrInvalidAddress,

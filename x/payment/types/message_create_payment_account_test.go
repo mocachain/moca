@@ -31,7 +31,7 @@ func TestMsgCreatePaymentAccount_GetSigners(t *testing.T) {
 	msg := NewMsgCreatePaymentAccount(creator.String())
 	require.Equal(t, []sdk.AccAddress{creator}, msg.GetSigners())
 
-	badMsg := NewMsgCreatePaymentAccount("invalid_address")
+	badMsg := NewMsgCreatePaymentAccount(invalidAddress)
 	require.Panics(t, func() { badMsg.GetSigners() })
 }
 
@@ -52,7 +52,7 @@ func TestMsgCreatePaymentAccount_ValidateBasic(t *testing.T) {
 		},
 		{
 			name: "invalid address",
-			msg:  MsgCreatePaymentAccount{Creator: "invalid_address"},
+			msg:  MsgCreatePaymentAccount{Creator: invalidAddress},
 			err:  sdkerrors.ErrInvalidAddress,
 		},
 	}

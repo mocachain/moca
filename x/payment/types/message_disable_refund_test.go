@@ -34,7 +34,7 @@ func TestMsgDisableRefund_GetSigners(t *testing.T) {
 	msg := NewMsgDisableRefund(owner.String(), sample.RandAccAddressHex())
 	require.Equal(t, []sdk.AccAddress{owner}, msg.GetSigners())
 
-	badMsg := NewMsgDisableRefund("invalid_address", sample.RandAccAddressHex())
+	badMsg := NewMsgDisableRefund(invalidAddress, sample.RandAccAddressHex())
 	require.Panics(t, func() { badMsg.GetSigners() })
 }
 
@@ -56,7 +56,7 @@ func TestMsgDisableRefund_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid owner",
 			msg: MsgDisableRefund{
-				Owner: "invalid_address",
+				Owner: invalidAddress,
 				Addr:  sample.RandAccAddressHex(),
 			},
 			err: sdkerrors.ErrInvalidAddress,
@@ -65,7 +65,7 @@ func TestMsgDisableRefund_ValidateBasic(t *testing.T) {
 			name: "invalid addr",
 			msg: MsgDisableRefund{
 				Owner: sample.RandAccAddressHex(),
-				Addr:  "invalid_address",
+				Addr:  invalidAddress,
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		},

@@ -37,7 +37,7 @@ func TestMsgWithdraw_GetSigners(t *testing.T) {
 	msg := NewMsgWithdraw(creator.String(), sample.RandAccAddressHex(), sdkmath.NewInt(1))
 	require.Equal(t, []sdk.AccAddress{creator}, msg.GetSigners())
 
-	badMsg := NewMsgWithdraw("invalid_address", sample.RandAccAddressHex(), sdkmath.NewInt(1))
+	badMsg := NewMsgWithdraw(invalidAddress, sample.RandAccAddressHex(), sdkmath.NewInt(1))
 	require.Panics(t, func() { badMsg.GetSigners() })
 }
 
@@ -65,7 +65,7 @@ func TestMsgWithdraw_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid creator",
 			msg: MsgWithdraw{
-				Creator: "invalid_address",
+				Creator: invalidAddress,
 				From:    sample.RandAccAddressHex(),
 				Amount:  sdkmath.NewInt(1),
 			},
@@ -75,7 +75,7 @@ func TestMsgWithdraw_ValidateBasic(t *testing.T) {
 			name: "invalid from",
 			msg: MsgWithdraw{
 				Creator: sample.RandAccAddressHex(),
-				From:    "invalid_address",
+				From:    invalidAddress,
 				Amount:  sdkmath.NewInt(1),
 			},
 			err: sdkerrors.ErrInvalidAddress,

@@ -7,6 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// notAUint64 is a deliberately wrong-typed value used to exercise the
+// validators' "invalid parameter type" branches below.
+const notAUint64 = "not-a-uint64"
+
 // TestValidators_RejectWrongType exercises the defensive "invalid parameter
 // type" branch of each params.go validator. Params.Validate() -- the only
 // production caller -- always passes correctly-typed Go values, so these
@@ -21,15 +25,15 @@ func TestValidators_RejectWrongType(t *testing.T) {
 		fn   func(interface{}) error
 		bad  interface{}
 	}{
-		{name: "validateReserveTime", fn: validateReserveTime, bad: "not-a-uint64"},
-		{name: "validateForcedSettleTime", fn: validateForcedSettleTime, bad: "not-a-uint64"},
-		{name: "validatePaymentAccountCountLimit", fn: validatePaymentAccountCountLimit, bad: "not-a-uint64"},
-		{name: "validateMaxAutoSettleFlowCount", fn: validateMaxAutoSettleFlowCount, bad: "not-a-uint64"},
-		{name: "validateMaxAutoResumeFlowCount", fn: validateMaxAutoResumeFlowCount, bad: "not-a-uint64"},
+		{name: "validateReserveTime", fn: validateReserveTime, bad: notAUint64},
+		{name: "validateForcedSettleTime", fn: validateForcedSettleTime, bad: notAUint64},
+		{name: "validatePaymentAccountCountLimit", fn: validatePaymentAccountCountLimit, bad: notAUint64},
+		{name: "validateMaxAutoSettleFlowCount", fn: validateMaxAutoSettleFlowCount, bad: notAUint64},
+		{name: "validateMaxAutoResumeFlowCount", fn: validateMaxAutoResumeFlowCount, bad: notAUint64},
 		{name: "validateFeeDenom", fn: validateFeeDenom, bad: uint64(1)},
 		{name: "validateValidatorTaxRate", fn: validateValidatorTaxRate, bad: "not-a-dec"},
 		{name: "validateWithdrawTimeLockThreshold", fn: validateWithdrawTimeLockThreshold, bad: "not-an-int-pointer"},
-		{name: "validateWithdrawTimeLockDuration", fn: validateWithdrawTimeLockDuration, bad: "not-a-uint64"},
+		{name: "validateWithdrawTimeLockDuration", fn: validateWithdrawTimeLockDuration, bad: notAUint64},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

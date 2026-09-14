@@ -22,7 +22,7 @@ func TestMsgUpdateParams_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid authority",
 			msg: MsgUpdateParams{
-				Authority: "invalid_address",
+				Authority: invalidAddress,
 				Params:    DefaultParams(),
 			},
 			err: sdkerrors.ErrInvalidAddress,
@@ -66,7 +66,7 @@ func TestMsgUpdateParams_GetSigners(t *testing.T) {
 	// Unlike the other payment messages, GetSigners swallows the address
 	// parse error instead of panicking on an invalid authority -- it still
 	// returns a single (zero-value) signer rather than an empty list.
-	badMsg := MsgUpdateParams{Authority: "invalid_address", Params: DefaultParams()}
+	badMsg := MsgUpdateParams{Authority: invalidAddress, Params: DefaultParams()}
 	require.NotPanics(t, func() { badMsg.GetSigners() })
 	require.Len(t, badMsg.GetSigners(), 1)
 }
