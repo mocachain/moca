@@ -13,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/suite"
@@ -20,7 +21,9 @@ import (
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/sdk/client/test"
 	"github.com/mocachain/moca/v2/testutil/sample"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 	"github.com/mocachain/moca/v2/x/storage/client/cli"
+	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 type CLITestSuite struct {
@@ -91,8 +94,9 @@ func (s *CLITestSuite) TestUpdateGroupMember_SliceBuild_Aligned_NoPanic() {
 
 	s.Require().NotPanics(func() {
 		_, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, args)
-		// We do not expect success because network/EVM context is not configured in unit tests.
-		s.Require().Error(err)
+		// Inputs are aligned and valid, so local validation passes and this must fail at the
+		// private-key gate specifically, not on some other unrelated error.
+		s.Require().ErrorContains(err, gateErrSubstring)
 	})
 }
 
@@ -114,8 +118,8 @@ func (s *CLITestSuite) TestRenewGroupMember_SliceBuild_Aligned_NoPanic() {
 
 	s.Require().NotPanics(func() {
 		_, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, args)
-		// As above, success is not required; ensure no panic from slice construction.
-		s.Require().Error(err)
+		// As above: aligned, valid inputs pass local validation, so this must reach the gate.
+		s.Require().ErrorContains(err, gateErrSubstring)
 	})
 }
 
@@ -133,30 +137,61 @@ func (s *CLITestSuite) execExpectError(cmd *cobra.Command, args []string) error 
 	return err
 }
 
+// gateErrSubstring is the distinctive substring of the error keys.NewPrivateKeyManager returns
+// for every empty --privatekey flag in this file: hex-decoding an empty string yields zero
+// bytes, which fails its 32-byte length check. A "reaches private key gate" case asserts this
+// substring to prove it got past its own local validation; every other case asserts its own
+// validation error instead, which proves the opposite: that it never reached this far.
+const gateErrSubstring = "len of Keybytes is not equal to 32"
+
+// assertValidationErr asserts that err is the specific failure a case names: a sentinel via
+// errIs, or a distinctive substring via errContains (exactly one must be set). Asserting a
+// specific error instead of just "some error" is what makes a case fail if the validation it
+// covers is removed: execution would then fall through to the private-key gate below it and
+// return gateErrSubstring instead, matching neither the sentinel nor the substring.
+func (s *CLITestSuite) assertValidationErr(err error, errIs error, errContains string) {
+	s.T().Helper()
+	switch {
+	case errIs != nil:
+		s.Require().ErrorIs(err, errIs)
+	case errContains != "":
+		s.Require().ErrorContains(err, errContains)
+	default:
+		s.T().Fatal("test case must set errIs or errContains")
+	}
+}
+
 func (s *CLITestSuite) TestCmdCreateBucket() {
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errIs       error
+		errContains string
 	}{
 		{
-			name: "reaches private key gate",
-			args: []string{"create-bucket", "test-bucket", "--privatekey", ""},
+			name:        "reaches private key gate",
+			args:        []string{"create-bucket", "test-bucket", "--privatekey", ""},
+			errContains: gateErrSubstring,
 		},
 		{
-			name: "invalid visibility",
-			args: []string{"create-bucket", "test-bucket", "--visibility", "BOGUS_VISIBILITY", "--privatekey", ""},
+			name:  "invalid visibility",
+			args:  []string{"create-bucket", "test-bucket", "--visibility", "BOGUS_VISIBILITY", "--privatekey", ""},
+			errIs: gnfderrors.ErrInvalidVisibilityType,
 		},
 		{
-			name: "invalid payment account",
-			args: []string{"create-bucket", "test-bucket", "--payment-account", "not-a-registered-key", "--privatekey", ""},
+			name:  "invalid payment account",
+			args:  []string{"create-bucket", "test-bucket", "--payment-account", "not-a-registered-key", "--privatekey", ""},
+			errIs: sdkerrors.ErrKeyNotFound,
 		},
 		{
-			name: "invalid primary sp",
-			args: []string{"create-bucket", "test-bucket", "--primary-sp", "not-a-registered-key", "--privatekey", ""},
+			name:  "invalid primary sp",
+			args:  []string{"create-bucket", "test-bucket", "--primary-sp", "not-a-registered-key", "--privatekey", ""},
+			errIs: sdkerrors.ErrKeyNotFound,
 		},
 		{
-			name: "invalid approve signature",
-			args: []string{"create-bucket", "test-bucket", "--approve-signature", "zz", "--privatekey", ""},
+			name:        "invalid approve signature",
+			args:        []string{"create-bucket", "test-bucket", "--approve-signature", "zz", "--privatekey", ""},
+			errContains: "invalid byte",
 		},
 	}
 
@@ -165,7 +200,8 @@ func (s *CLITestSuite) TestCmdCreateBucket() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.assertValidationErr(err, tc.errIs, tc.errContains)
 		})
 	}
 }
@@ -173,25 +209,31 @@ func (s *CLITestSuite) TestCmdCreateBucket() {
 func (s *CLITestSuite) TestCmdDeleteBucket() {
 	cmd := cli.GetTxCmd()
 	args := []string{"delete-bucket", "test-bucket", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdUpdateBucketInfo() {
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errIs       error
+		errContains string
 	}{
 		{
-			name: "reaches private key gate",
-			args: []string{"update-bucket-info", "test-bucket", "100", "--privatekey", ""},
+			name:        "reaches private key gate",
+			args:        []string{"update-bucket-info", "test-bucket", "100", "--privatekey", ""},
+			errContains: gateErrSubstring,
 		},
 		{
-			name: "invalid charged read quota",
-			args: []string{"update-bucket-info", "test-bucket", "not-a-number", "--privatekey", ""},
+			name:        "invalid charged read quota",
+			args:        []string{"update-bucket-info", "test-bucket", "not-a-number", "--privatekey", ""},
+			errContains: "invalid syntax",
 		},
 		{
-			name: "invalid visibility",
-			args: []string{"update-bucket-info", "test-bucket", "100", "--visibility", "BOGUS_VISIBILITY", "--privatekey", ""},
+			name:  "invalid visibility",
+			args:  []string{"update-bucket-info", "test-bucket", "100", "--visibility", "BOGUS_VISIBILITY", "--privatekey", ""},
+			errIs: gnfderrors.ErrInvalidVisibilityType,
 		},
 	}
 
@@ -200,7 +242,8 @@ func (s *CLITestSuite) TestCmdUpdateBucketInfo() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.assertValidationErr(err, tc.errIs, tc.errContains)
 		})
 	}
 }
@@ -208,7 +251,8 @@ func (s *CLITestSuite) TestCmdUpdateBucketInfo() {
 func (s *CLITestSuite) TestCmdDiscontinueBucket() {
 	cmd := cli.GetTxCmd()
 	args := []string{"discontinue-bucket", "test-bucket", "test reason", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 // TestCmdSetBucketFlowRateLimit exercises CmdSetBucketFlowRateLimit's local validation of the
@@ -232,6 +276,7 @@ func (s *CLITestSuite) TestCmdSetBucketFlowRateLimit() {
 			paymentAcc:    validPaymentAcc,
 			bucketOwner:   validBucketOwner,
 			flowRateLimit: "1000",
+			errContains:   gateErrSubstring,
 		},
 		{
 			name:          "invalid payment account",
@@ -239,6 +284,7 @@ func (s *CLITestSuite) TestCmdSetBucketFlowRateLimit() {
 			paymentAcc:    "not-a-valid-address",
 			bucketOwner:   validBucketOwner,
 			flowRateLimit: "1000",
+			errContains:   "invalid address hex length",
 		},
 		{
 			name:          "invalid bucket owner",
@@ -246,6 +292,7 @@ func (s *CLITestSuite) TestCmdSetBucketFlowRateLimit() {
 			paymentAcc:    validPaymentAcc,
 			bucketOwner:   "not-a-valid-address",
 			flowRateLimit: "1000",
+			errContains:   "invalid address hex length",
 		},
 		{
 			name:          "invalid flow rate limit",
@@ -273,29 +320,31 @@ func (s *CLITestSuite) TestCmdSetBucketFlowRateLimit() {
 			}
 
 			err := s.execExpectError(cmd, args)
-			if tc.errContains != "" {
-				s.Require().Contains(err.Error(), tc.errContains)
-			}
+			s.Require().ErrorContains(err, tc.errContains)
 		})
 	}
 }
 
 func (s *CLITestSuite) TestCmdMigrateBucket() {
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errContains string
 	}{
 		{
-			name: "reaches private key gate",
-			args: []string{"migrate-bucket", "test-bucket", "1", "--privatekey", ""},
+			name:        "reaches private key gate",
+			args:        []string{"migrate-bucket", "test-bucket", "1", "--privatekey", ""},
+			errContains: gateErrSubstring,
 		},
 		{
-			name: "invalid dest primary sp id",
-			args: []string{"migrate-bucket", "test-bucket", "not-a-number", "--privatekey", ""},
+			name:        "invalid dest primary sp id",
+			args:        []string{"migrate-bucket", "test-bucket", "not-a-number", "--privatekey", ""},
+			errContains: "invalid syntax",
 		},
 		{
-			name: "invalid approve signature",
-			args: []string{"migrate-bucket", "test-bucket", "1", "--approve-signature", "zz", "--privatekey", ""},
+			name:        "invalid approve signature",
+			args:        []string{"migrate-bucket", "test-bucket", "1", "--approve-signature", "zz", "--privatekey", ""},
+			errContains: "invalid byte",
 		},
 	}
 
@@ -304,7 +353,8 @@ func (s *CLITestSuite) TestCmdMigrateBucket() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.Require().ErrorContains(err, tc.errContains)
 		})
 	}
 }
@@ -321,33 +371,39 @@ func (s *CLITestSuite) TestCmdCancelMigrateBucket() {
 		"--privatekey", "",
 	}
 
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdCreateGroup() {
 	cmd := cli.GetTxCmd()
 	args := []string{"create-group", "test-group", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdDeleteGroup() {
 	cmd := cli.GetTxCmd()
 	args := []string{"delete-group", "test-group", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdLeaveGroup() {
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errContains string
 	}{
 		{
-			name: "reaches private key gate",
-			args: []string{"leave-group", sample.RandAccAddressHex(), "test-group", "--privatekey", ""},
+			name:        "reaches private key gate",
+			args:        []string{"leave-group", sample.RandAccAddressHex(), "test-group", "--privatekey", ""},
+			errContains: gateErrSubstring,
 		},
 		{
-			name: "invalid group owner",
-			args: []string{"leave-group", "not-a-valid-address", "test-group", "--privatekey", ""},
+			name:        "invalid group owner",
+			args:        []string{"leave-group", "not-a-valid-address", "test-group", "--privatekey", ""},
+			errContains: "invalid address hex length",
 		},
 	}
 
@@ -356,7 +412,8 @@ func (s *CLITestSuite) TestCmdLeaveGroup() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.Require().ErrorContains(err, tc.errContains)
 		})
 	}
 }
@@ -370,24 +427,29 @@ func (s *CLITestSuite) TestUpdateGroupMember_ValidationBranches() {
 	memberToDelete := sample.RandAccAddressHex()
 
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errContains string
 	}{
 		{
-			name: "mismatched add and expiration length",
-			args: []string{"update-group-member", "test-group", memberToAdd, "0,0", "", "--privatekey", ""},
+			name:        "mismatched add and expiration length",
+			args:        []string{"update-group-member", "test-group", memberToAdd, "0,0", "", "--privatekey", ""},
+			errContains: "should have the same length",
 		},
 		{
-			name: "invalid hex in member to add",
-			args: []string{"update-group-member", "test-group", "not-a-valid-address", "0", "", "--privatekey", ""},
+			name:        "invalid hex in member to add",
+			args:        []string{"update-group-member", "test-group", "not-a-valid-address", "0", "", "--privatekey", ""},
+			errContains: "invalid address hex length",
 		},
 		{
-			name: "invalid expiration timestamp",
-			args: []string{"update-group-member", "test-group", memberToAdd, "not-a-number", "", "--privatekey", ""},
+			name:        "invalid expiration timestamp",
+			args:        []string{"update-group-member", "test-group", memberToAdd, "not-a-number", "", "--privatekey", ""},
+			errContains: "invalid syntax",
 		},
 		{
-			name: "invalid hex in member to delete",
-			args: []string{"update-group-member", "test-group", memberToAdd, "0", "not-a-valid-address", "--privatekey", ""},
+			name:        "invalid hex in member to delete",
+			args:        []string{"update-group-member", "test-group", memberToAdd, "0", "not-a-valid-address", "--privatekey", ""},
+			errContains: "invalid address hex length",
 		},
 		{
 			// Second add-entry is empty (skipped) and its paired expiration is empty (defaults
@@ -399,6 +461,7 @@ func (s *CLITestSuite) TestUpdateGroupMember_ValidationBranches() {
 				memberToAdd + ",", ",0", memberToDelete,
 				"--privatekey", "",
 			},
+			errContains: gateErrSubstring,
 		},
 	}
 
@@ -407,7 +470,8 @@ func (s *CLITestSuite) TestUpdateGroupMember_ValidationBranches() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.Require().ErrorContains(err, tc.errContains)
 		})
 	}
 }
@@ -420,26 +484,31 @@ func (s *CLITestSuite) TestRenewGroupMember_ValidationBranches() {
 	member := sample.RandAccAddressHex()
 
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errContains string
 	}{
 		{
-			name: "mismatched member and expiration length",
-			args: []string{"renew-group-member", "test-group", member, "0,0", "--privatekey", ""},
+			name:        "mismatched member and expiration length",
+			args:        []string{"renew-group-member", "test-group", member, "0,0", "--privatekey", ""},
+			errContains: "should have the same length",
 		},
 		{
-			name: "invalid hex member",
-			args: []string{"renew-group-member", "test-group", "not-a-valid-address", "0", "--privatekey", ""},
+			name:        "invalid hex member",
+			args:        []string{"renew-group-member", "test-group", "not-a-valid-address", "0", "--privatekey", ""},
+			errContains: "invalid address hex length",
 		},
 		{
-			name: "invalid expiration timestamp",
-			args: []string{"renew-group-member", "test-group", member, "not-a-number", "--privatekey", ""},
+			name:        "invalid expiration timestamp",
+			args:        []string{"renew-group-member", "test-group", member, "not-a-number", "--privatekey", ""},
+			errContains: "invalid syntax",
 		},
 		{
 			// Second entry is empty (skipped) and its paired expiration is empty (defaults to
 			// zero); local validation still passes so this reaches the private-key gate.
-			name: "empty entries default and skip, reaches private key gate",
-			args: []string{"renew-group-member", "test-group", member + ",", ",0", "--privatekey", ""},
+			name:        "empty entries default and skip, reaches private key gate",
+			args:        []string{"renew-group-member", "test-group", member + ",", ",0", "--privatekey", ""},
+			errContains: gateErrSubstring,
 		},
 	}
 
@@ -448,7 +517,8 @@ func (s *CLITestSuite) TestRenewGroupMember_ValidationBranches() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.Require().ErrorContains(err, tc.errContains)
 		})
 	}
 }
@@ -456,45 +526,53 @@ func (s *CLITestSuite) TestRenewGroupMember_ValidationBranches() {
 func (s *CLITestSuite) TestCmdUpdateGroupExtra() {
 	cmd := cli.GetTxCmd()
 	args := []string{"update-group-extra", "test-group", "extra info", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdPutPolicy() {
 	cmd := cli.GetTxCmd()
 	args := []string{"put-policy", sample.RandAccAddressHex(), "grn:b::test-bucket", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdDeletePolicy() {
 	cmd := cli.GetTxCmd()
 	args := []string{"delete-policy", sample.RandAccAddressHex(), "grn:b::test-bucket", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdSetTag() {
 	cmd := cli.GetTxCmd()
 	args := []string{"set-tag", "grn:b::test-bucket", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdToggleSPAsDelegatedAgent() {
 	cmd := cli.GetTxCmd()
 	args := []string{"toggle-sp-as-delegated-agent", "test-bucket", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdCancelCreateObject() {
 	cmd := cli.GetTxCmd()
 	args := []string{"cancel-create-object", "test-bucket", "test-object", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdCreateObject() {
 	validChecksums := hex.EncodeToString(sample.Checksum()) + "," + hex.EncodeToString(sample.Checksum())
 
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errIs       error
+		errContains string
 	}{
 		{
 			name: "EC redundancy reaches private key gate",
@@ -504,6 +582,7 @@ func (s *CLITestSuite) TestCmdCreateObject() {
 				"--redundancy-type", "EC",
 				"--privatekey", "",
 			},
+			errContains: gateErrSubstring,
 		},
 		{
 			name: "Replica redundancy reaches private key gate",
@@ -513,6 +592,7 @@ func (s *CLITestSuite) TestCmdCreateObject() {
 				"--redundancy-type", "Replica",
 				"--privatekey", "",
 			},
+			errContains: gateErrSubstring,
 		},
 		{
 			name: "invalid payload size",
@@ -522,6 +602,7 @@ func (s *CLITestSuite) TestCmdCreateObject() {
 				"--redundancy-type", "EC",
 				"--privatekey", "",
 			},
+			errContains: "invalid syntax",
 		},
 		{
 			name: "invalid visibility",
@@ -532,6 +613,7 @@ func (s *CLITestSuite) TestCmdCreateObject() {
 				"--redundancy-type", "EC",
 				"--privatekey", "",
 			},
+			errIs: gnfderrors.ErrInvalidVisibilityType,
 		},
 		{
 			name: "invalid checksum hex",
@@ -541,6 +623,7 @@ func (s *CLITestSuite) TestCmdCreateObject() {
 				"--redundancy-type", "EC",
 				"--privatekey", "",
 			},
+			errContains: "invalid byte",
 		},
 		{
 			name: "invalid redundancy type",
@@ -550,6 +633,7 @@ func (s *CLITestSuite) TestCmdCreateObject() {
 				"--redundancy-type", "BOGUS",
 				"--privatekey", "",
 			},
+			errIs: storagetypes.ErrInvalidRedundancyType,
 		},
 		{
 			name: "invalid approve signature",
@@ -560,6 +644,7 @@ func (s *CLITestSuite) TestCmdCreateObject() {
 				"--approve-signature", "zz",
 				"--privatekey", "",
 			},
+			errContains: "invalid byte",
 		},
 	}
 
@@ -568,19 +653,22 @@ func (s *CLITestSuite) TestCmdCreateObject() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.assertValidationErr(err, tc.errIs, tc.errContains)
 		})
 	}
 }
 
 func (s *CLITestSuite) TestCmdCopyObject() {
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errContains string
 	}{
 		{
-			name: "reaches private key gate",
-			args: []string{"copy-object", "src-bucket", "dst-bucket", "src-object", "dst-object", "--privatekey", ""},
+			name:        "reaches private key gate",
+			args:        []string{"copy-object", "src-bucket", "dst-bucket", "src-object", "dst-object", "--privatekey", ""},
+			errContains: gateErrSubstring,
 		},
 		{
 			name: "invalid approve signature",
@@ -589,6 +677,7 @@ func (s *CLITestSuite) TestCmdCopyObject() {
 				"--approve-signature", "zz",
 				"--privatekey", "",
 			},
+			errContains: "invalid byte",
 		},
 	}
 
@@ -597,7 +686,8 @@ func (s *CLITestSuite) TestCmdCopyObject() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.Require().ErrorContains(err, tc.errContains)
 		})
 	}
 }
@@ -605,17 +695,21 @@ func (s *CLITestSuite) TestCmdCopyObject() {
 func (s *CLITestSuite) TestCmdDeleteObject() {
 	cmd := cli.GetTxCmd()
 	args := []string{"delete-object", "test-bucket", "test-object", "--privatekey", ""}
-	s.execExpectError(cmd, args)
+	err := s.execExpectError(cmd, args)
+	s.Require().ErrorContains(err, gateErrSubstring)
 }
 
 func (s *CLITestSuite) TestCmdUpdateObjectInfo() {
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errIs       error
+		errContains string
 	}{
 		{
-			name: "reaches private key gate",
-			args: []string{"update-object-info", "test-bucket", "test-object", "--privatekey", ""},
+			name:        "reaches private key gate",
+			args:        []string{"update-object-info", "test-bucket", "test-object", "--privatekey", ""},
+			errContains: gateErrSubstring,
 		},
 		{
 			name: "invalid visibility",
@@ -624,6 +718,7 @@ func (s *CLITestSuite) TestCmdUpdateObjectInfo() {
 				"--visibility", "BOGUS_VISIBILITY",
 				"--privatekey", "",
 			},
+			errIs: gnfderrors.ErrInvalidVisibilityType,
 		},
 	}
 
@@ -632,30 +727,35 @@ func (s *CLITestSuite) TestCmdUpdateObjectInfo() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.assertValidationErr(err, tc.errIs, tc.errContains)
 		})
 	}
 }
 
 func (s *CLITestSuite) TestCmdDiscontinueObject() {
 	testCases := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		errContains string
 	}{
 		{
-			name: "reaches private key gate",
-			args: []string{"discontinue-object", "test-bucket", "1,2,3", "test reason", "--privatekey", ""},
+			name:        "reaches private key gate",
+			args:        []string{"discontinue-object", "test-bucket", "1,2,3", "test reason", "--privatekey", ""},
+			errContains: gateErrSubstring,
 		},
 		{
-			name: "invalid object id",
-			args: []string{"discontinue-object", "test-bucket", "not-a-number", "test reason", "--privatekey", ""},
+			name:        "invalid object id",
+			args:        []string{"discontinue-object", "test-bucket", "not-a-number", "test reason", "--privatekey", ""},
+			errContains: "invalid object id",
 		},
 		{
 			// "--" stops pflag from trying (and failing) to parse "-1" as a flag; everything
 			// after it is taken as positional args, so --privatekey is left at its zero-value
 			// default ("") which is exactly what every other case sets explicitly.
-			name: "negative object id",
-			args: []string{"discontinue-object", "test-bucket", "--", "-1", "test reason"},
+			name:        "negative object id",
+			args:        []string{"discontinue-object", "test-bucket", "--", "-1", "test reason"},
+			errContains: "object id should not be negative",
 		},
 	}
 
@@ -664,7 +764,8 @@ func (s *CLITestSuite) TestCmdDiscontinueObject() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetTxCmd()
-			s.execExpectError(cmd, tc.args)
+			err := s.execExpectError(cmd, tc.args)
+			s.Require().ErrorContains(err, tc.errContains)
 		})
 	}
 }
