@@ -27,6 +27,9 @@ import (
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 )
 
+// wrongLengthProofHex is a hex string too short to be a valid BLS proof/signature.
+const wrongLengthProofHex = "aabbcc"
+
 func (s *KeeperTestSuite) TestMsgCreateStorageProvider() {
 	govAddr := authtypes.NewModuleAddress(gov.ModuleName)
 	// 1. create new newStorageProvider and grant
@@ -630,7 +633,7 @@ func (s *KeeperTestSuite) TestCheckBlsProof_ErrorBranches() {
 		blsProof string
 	}{
 		{"bad hex proof", validPubHex, "not-a-hex-string!!"},
-		{"wrong length proof", validPubHex, "aabbcc"},
+		{"wrong length proof", validPubHex, wrongLengthProofHex},
 		{"right-length but invalid proof bytes", validPubHex, zeroSigHex},
 		{"right-length but invalid pubkey bytes", zeroPubKeyHex, validProofHex},
 		{"pubkey and proof from different keypairs", validPubHex, otherProofHex},
@@ -787,8 +790,8 @@ func (s *KeeperTestSuite) TestEditStorageProvider_BlsErrors() {
 		blsProof string
 		wantErr  error
 	}{
-		{"invalid bls key format", "zz", "aabbcc", sptypes.ErrStorageProviderInvalidBlsKey},
-		{"checkBlsProof failure", freshPubHex, "aabbcc", nil},
+		{"invalid bls key format", "zz", wrongLengthProofHex, sptypes.ErrStorageProviderInvalidBlsKey},
+		{"checkBlsProof failure", freshPubHex, wrongLengthProofHex, nil},
 	}
 	for _, tc := range tests {
 		s.Suite.T().Run(tc.name, func(t *testing.T) {
