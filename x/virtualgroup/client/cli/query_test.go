@@ -12,6 +12,10 @@ import (
 	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
+// errRPCFailureLog is the mocked ABCI query log used to exercise the "query
+// RPC failed" error branch shared by every query command below.
+const errRPCFailureLog = "boom"
+
 func (s *CLITestSuite) TestQueryCmd() {
 	commonFlags := []string{
 		fmt.Sprintf("--%s=%s", flags.FlagOutput, "json"),
@@ -22,7 +26,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 	// every query command below.
 	errClientCtx := s.clientCtx.WithClient(clitestutil.NewMockCometRPC(abci.ResponseQuery{
 		Code: 1,
-		Log:  "boom",
+		Log:  errRPCFailureLog,
 	}))
 
 	testCases := []struct {
@@ -51,7 +55,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			true, true, "boom", nil,
+			true, true, errRPCFailureLog, nil,
 		},
 		{
 			"query global-virtual-group",
@@ -73,7 +77,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			true, true, "boom", nil,
+			true, true, errRPCFailureLog, nil,
 		},
 		{
 			"query global-virtual-group-by-family-id",
@@ -95,7 +99,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			true, true, "boom", nil,
+			true, true, errRPCFailureLog, nil,
 		},
 		{
 			"query global-virtual-group-families",
@@ -133,7 +137,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			true, true, "boom", nil,
+			true, true, errRPCFailureLog, nil,
 		},
 		{
 			"query global-virtual-group-family",
@@ -155,7 +159,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			true, true, "boom", nil,
+			true, true, errRPCFailureLog, nil,
 		},
 	}
 

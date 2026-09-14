@@ -23,6 +23,9 @@ import (
 	"github.com/mocachain/moca/v2/x/virtualgroup/client/cli"
 )
 
+// cmdSettle is the CmdSettle subcommand name.
+const cmdSettle = "settle"
+
 type CLITestSuite struct {
 	suite.Suite
 
@@ -88,31 +91,31 @@ func (s *CLITestSuite) TestTxCmd() {
 	}{
 		{
 			"settle happy path",
-			append([]string{"settle", "1", "1,2"}, commonFlags...),
+			append([]string{cmdSettle, "1", "1,2"}, commonFlags...),
 			false, "",
 		},
 		{
 			"non-numeric family id",
-			append([]string{"settle", "abc", "1"}, commonFlags...),
+			append([]string{cmdSettle, "abc", "1"}, commonFlags...),
 			true, "invalid GVG family id",
 		},
 		{
 			// "--" stops pflag from treating the leading "-" of the
 			// negative family id as an (unknown) shorthand flag.
 			"negative family id",
-			append(append([]string{"settle"}, commonFlags...), "--", "-1", "1"),
+			append(append([]string{cmdSettle}, commonFlags...), "--", "-1", "1"),
 			true, "invalid GVG family id",
 		},
 		{
 			"non-numeric entry in gvg id list",
-			append([]string{"settle", "1", "1,x"}, commonFlags...),
+			append([]string{cmdSettle, "1", "1,x"}, commonFlags...),
 			true, "invalid GVG id",
 		},
 		{
 			// family id 0 (NoSpecifiedFamilyID) requires between 1 and 10
 			// gvg ids; 11 trips MsgSettle.ValidateBasic's count check.
 			"too many gvg ids when family unspecified",
-			append([]string{"settle", "0", "1,2,3,4,5,6,7,8,9,10,11"}, commonFlags...),
+			append([]string{cmdSettle, "0", "1,2,3,4,5,6,7,8,9,10,11"}, commonFlags...),
 			true, "the count of global virtual group ids is invalid",
 		},
 	}
