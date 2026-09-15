@@ -58,12 +58,6 @@ func TestMultiVersionParams(t *testing.T) {
 	require.EqualValues(t, GetVersionedParamsWithTimestamp(k, ctx, blockTimeT3+1).MaxSegmentSize, 3)
 }
 
-// TestParamsGetters covers the one-line getters that TestGetParams/TestMultiVersionParams
-// never call directly: DiscontinueCountingWindow, DiscontinueObjectMax,
-// DiscontinueBucketMax, DiscontinueConfirmPeriod, MaxSegmentSize,
-// RedundantDataChunkNum, RedundantParityChunkNum, MinChargeSize, and
-// StalePolicyCleanupMax. One SetParams call with distinct non-default values,
-// then one assertion per getter.
 func TestParamsGetters(t *testing.T) {
 	k, ctx := makeKeeper(t)
 	params := types.DefaultParams()
@@ -79,9 +73,7 @@ func TestParamsGetters(t *testing.T) {
 
 	err := k.SetParams(ctx, params)
 	require.NoError(t, err)
-	// MaxSegmentSize resolves through the timestamped-history lookup (unlike the
-	// others, which read the current, non-versioned Params), so it must be
-	// queried strictly after the block time SetParams recorded it at.
+	// MaxSegmentSize is versioned/timestamped (unlike the other getters), so it must be queried strictly after SetParams' block time.
 	ctx = ctx.WithBlockTime(ctx.BlockTime().Add(1 * time.Second))
 
 	require.Equal(t, uint64(111), k.DiscontinueCountingWindow(ctx))

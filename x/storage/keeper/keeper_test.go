@@ -51,25 +51,11 @@ func (s *TestSuite) TestClearDiscontinueObjectCount() {
 	s.Require().Equal(uint64(0), count)
 }
 
-// ---------------------------------------------------------------------------
-// test/storage-keeper-bucket (PR1): bucket lifecycle coverage.
-//
-// Covers keeper.go's GetAuthority/IsPaymentCheckEnabled/GetPaymentCheckInterval/
-// Logger trivial getters, DeleteBucket/doDeleteBucket, ForceDeleteBucket,
-// UpdateBucketInfo, and DiscontinueBucket; payment.go's UpdateBucketInfoAndCharge
-// (UpdateBucketInfo's only caller); and verify.go's VerifyPaymentAccount
-// malformed-non-empty-address branch (driven through UpdateBucketInfo's
-// PaymentAddress field).
-// ---------------------------------------------------------------------------
-
 func (s *TestSuite) TestGetAuthority() {
 	s.Require().Equal(authtypes.NewModuleAddress(govtypes.ModuleName).String(), s.storageKeeper.GetAuthority())
 }
 
-// TestPaymentCheckConfigGetters pins IsPaymentCheckEnabled/GetPaymentCheckInterval
-// against the zero-value paymentCheckConfig NewKeeper constructs the suite's
-// keeper with (Enabled: false, Interval: 0); no setter is exercised elsewhere in
-// this package's tests.
+// TestPaymentCheckConfigGetters pins the zero-value paymentCheckConfig NewKeeper gives the suite's keeper (Enabled: false, Interval: 0).
 func (s *TestSuite) TestPaymentCheckConfigGetters() {
 	s.Require().False(s.storageKeeper.IsPaymentCheckEnabled())
 	s.Require().Equal(uint32(0), s.storageKeeper.GetPaymentCheckInterval())
@@ -79,10 +65,7 @@ func (s *TestSuite) TestLogger() {
 	s.Require().NotNil(s.storageKeeper.Logger(s.ctx))
 }
 
-// mockPrimarySP wires the GVG-family and storage-provider mocks so
-// GetPrimarySPForBucket/MustGetPrimarySPForBucket resolve bucketInfo's family to
-// sp without error. sp.OperatorAddress must be a valid hex address: some callers
-// (ForceDeleteBucket) attribute the deletion event to it.
+// mockPrimarySP wires GVG-family/SP mocks; sp.OperatorAddress must be valid hex since ForceDeleteBucket attributes the deletion event to it.
 func (s *TestSuite) mockPrimarySP(bucketInfo *types.BucketInfo, sp *sptypes.StorageProvider) {
 	family := &virtualgroupmoduletypes.GlobalVirtualGroupFamily{
 		Id:                    bucketInfo.GlobalVirtualGroupFamilyId,
@@ -93,8 +76,7 @@ func (s *TestSuite) mockPrimarySP(bucketInfo *types.BucketInfo, sp *sptypes.Stor
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), sp.Id).Return(sp, true).AnyTimes()
 }
 
-// stubObjectUnlockFee lets UnlockObjectStoreFee (ForceDeleteBucket's per-object
-// CREATED-status path) succeed without asserting on the fee amount charged.
+// stubObjectUnlockFee lets UnlockObjectStoreFee (ForceDeleteBucket's CREATED-status path) succeed without asserting the fee charged.
 func (s *TestSuite) stubObjectUnlockFee() {
 	price := sptypes.GlobalSpStorePrice{
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(1),
@@ -107,9 +89,7 @@ func (s *TestSuite) stubObjectUnlockFee() {
 	s.paymentKeeper.EXPECT().UpdateStreamRecordByAddr(gomock.Any(), gomock.Any()).Return(&paymenttypes.StreamRecord{}, nil).AnyTimes()
 }
 
-// stubGCBookkeepingNoop makes appendResourceIDForGarbageCollection (invoked by
-// every doDeleteBucket/doDeleteObject call) take its early-return path: neither
-// an account nor a group policy references the resource being deleted.
+// stubGCBookkeepingNoop makes appendResourceIDForGarbageCollection take its early-return path (no account/group policy references the resource).
 func (s *TestSuite) stubGCBookkeepingNoop() {
 	s.permissionKeeper.EXPECT().ExistAccountPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	s.permissionKeeper.EXPECT().ExistGroupPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
@@ -205,9 +185,7 @@ func (s *TestSuite) TestDeleteBucket_Success() {
 	s.Require().False(found, "bucket must be gone after DeleteBucket")
 }
 
-// TestDeleteBucket_MigratingBucketEmitsCancelEvent drives doDeleteBucket's
-// remaining branch: deleting a bucket that is mid-migration must also emit an
-// EventCancelMigrationBucket, not just the ordinary EventDeleteBucket.
+// Drives doDeleteBucket's MIGRATING-status branch.
 func (s *TestSuite) TestDeleteBucket_MigratingBucketEmitsCancelEvent() {
 	owner := sample.RandAccAddress()
 	bucketName := "delete-migrating-bucket"
@@ -229,13 +207,8 @@ func (s *TestSuite) TestDeleteBucket_MigratingBucketEmitsCancelEvent() {
 	s.Require().False(found)
 }
 
-// TestForceDeleteBucket_CapReached drives the cap-reached partial-return branch:
-// with two objects in the bucket and cap=1, only the first is processed and the
-// call returns before the bucket itself is deleted.
 func (s *TestSuite) TestForceDeleteBucket_CapReached() {
-	// SetupTest seeds versioned params at the suite's initial block time; move
-	// forward so the objects' CreateAt-keyed GetVersionedParamsWithTS lookup
-	// lands strictly after that seed (see keeper_test.go's off-by-time note).
+	// advance past SetupTest's seeded params so the objects' CreateAt-keyed GetVersionedParamsWithTS lookup lands after them.
 	s.ctx = s.ctx.WithBlockTime(s.ctx.BlockTime().Add(1 * time.Second))
 	owner := sample.RandAccAddress()
 	bucketName := "force-delete-cap-bucket"
@@ -271,8 +244,6 @@ func (s *TestSuite) TestForceDeleteBucket_CapReached() {
 	s.Require().True(found, "the bucket must still exist: only one of its two objects was processed")
 }
 
-// TestForceDeleteBucket_FullIterationDeletesBucket drives the tail branch: once
-// every object under the bucket has been iterated, the bucket itself is deleted.
 func (s *TestSuite) TestForceDeleteBucket_FullIterationDeletesBucket() {
 	s.ctx = s.ctx.WithBlockTime(s.ctx.BlockTime().Add(1 * time.Second))
 	owner := sample.RandAccAddress()
@@ -316,10 +287,6 @@ func (s *TestSuite) TestForceDeleteBucket_AlreadyDeleted() {
 	s.Require().Equal(uint64(0), count)
 }
 
-// TestForceDeleteBucket_PrimarySPResolutionErrorSurfaced distinguishes an
-// orphaned primary SP (garbage-collected, see BurnTestSuite) from any other
-// resolution failure: a missing GVG family is a genuine invariant break and
-// must be surfaced as an error rather than silently GC'd.
 func (s *TestSuite) TestForceDeleteBucket_PrimarySPResolutionErrorSurfaced() {
 	owner := sample.RandAccAddress()
 	bucketName := "force-delete-badfamily-bucket"
@@ -338,9 +305,6 @@ func (s *TestSuite) TestForceDeleteBucket_PrimarySPResolutionErrorSurfaced() {
 	s.Require().Equal(uint64(0), count)
 }
 
-// TestForceDeleteBucket_UnChargeBucketReadFeeErrorSurfaced drives the tail
-// error branch: a bucket with no objects left but a nonzero TotalChargeSize is
-// an invariant violation that must be surfaced, not swallowed.
 func (s *TestSuite) TestForceDeleteBucket_UnChargeBucketReadFeeErrorSurfaced() {
 	owner := sample.RandAccAddress()
 	bucketName := "force-delete-badcharge-bucket"
@@ -438,8 +402,7 @@ func (s *TestSuite) TestDiscontinueBucket_MaxRequestsReached() {
 	s.Require().ErrorIs(err, types.ErrNoMoreDiscontinue)
 }
 
-// TestDiscontinueBucket_Success also covers the previousStatus==MIGRATING branch
-// (the extra EventCancelMigrationBucket emission) by starting the bucket mid-migration.
+// Also covers the previousStatus==MIGRATING branch (extra EventCancelMigrationBucket emission).
 func (s *TestSuite) TestDiscontinueBucket_Success() {
 	operator := sample.RandAccAddress()
 	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE}
@@ -520,11 +483,7 @@ func (s *TestSuite) TestUpdateBucketInfo_PermissionDenied() {
 	s.Require().ErrorIs(err, types.ErrAccessDenied)
 }
 
-// TestUpdateBucketInfo_QuotaDecreaseFirstAttemptRejected drives the
-// getQuotaUpdateTime too-soon guard on a bucket whose quota was never
-// explicitly changed before: getQuotaUpdateTime falls back to the bucket's
-// CreateAt as the "last update time" for such buckets, so a decrease attempted
-// right after creation is still too soon and must be rejected.
+// getQuotaUpdateTime falls back to CreateAt as the "last update time" when quota was never explicitly changed.
 func (s *TestSuite) TestUpdateBucketInfo_QuotaDecreaseFirstAttemptRejected() {
 	owner := sample.RandAccAddress()
 	bucketName := "update-quota-first-bucket"
@@ -552,10 +511,7 @@ func (s *TestSuite) TestUpdateBucketInfo_QuotaDecreaseFirstAttemptRejected() {
 	s.Require().Equal(uint64(100), got.ChargedReadQuota, "the rejected decrease must not have been applied")
 }
 
-// TestUpdateBucketInfo_QuotaIncreaseThenTooSoonDecrease covers the
-// visibility/quota happy path (a quota increase paired with a visibility change)
-// and then, in the same bucket's next call, the getQuotaUpdateTime-found
-// too-soon guard: a quota that was just changed cannot immediately be decreased.
+// Also exercises getQuotaUpdateTime's found (not fallback) path: a just-changed quota cannot immediately decrease.
 func (s *TestSuite) TestUpdateBucketInfo_QuotaIncreaseThenTooSoonDecrease() {
 	owner := sample.RandAccAddress()
 	bucketName := "update-quota-cycle-bucket"
@@ -574,8 +530,7 @@ func (s *TestSuite) TestUpdateBucketInfo_QuotaIncreaseThenTooSoonDecrease() {
 	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE}
 	s.mockPrimarySP(bucketInfo, sp)
 
-	// Billing mocks: ChargedReadQuota becomes non-zero, so GetBucketReadStoreBill
-	// prices the bucket instead of taking its ChargedReadQuota==0 short-circuit.
+	// ChargedReadQuota becomes non-zero, so GetBucketReadStoreBill prices the bucket instead of short-circuiting.
 	price := sptypes.GlobalSpStorePrice{
 		PrimaryStorePrice:   sdkmath.LegacyNewDec(1),
 		SecondaryStorePrice: sdkmath.LegacyNewDec(1),
@@ -585,9 +540,7 @@ func (s *TestSuite) TestUpdateBucketInfo_QuotaIncreaseThenTooSoonDecrease() {
 	payVer := paymenttypes.VersionedParams{ReserveTime: 0, ValidatorTaxRate: sdkmath.LegacyZeroDec()}
 	s.paymentKeeper.EXPECT().GetVersionedParamsWithTs(gomock.Any(), gomock.Any()).Return(payVer, nil).AnyTimes()
 	s.paymentKeeper.EXPECT().ApplyUserFlowsList(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	// the new bill's flow rate is non-zero (quota 200 * price 1) and no explicit
-	// rate limit was ever set for this bucket, so isBucketFlowRateUnderLimitWithRate
-	// falls back to asking whether owner==payment-account.
+	// no explicit rate limit was set, so isBucketFlowRateUnderLimitWithRate falls back to owner==payment-account.
 	s.paymentKeeper.EXPECT().IsPaymentAccountOwner(gomock.Any(), gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 
 	increased := uint64(200)
@@ -611,9 +564,7 @@ func (s *TestSuite) TestUpdateBucketInfo_QuotaIncreaseThenTooSoonDecrease() {
 	s.Require().Equal(increased, got.ChargedReadQuota, "the rejected decrease must not have been applied")
 }
 
-// TestUpdateBucketInfo_MalformedPaymentAddress covers VerifyPaymentAccount's
-// malformed-non-empty-address branch (verify.go): a non-empty PaymentAddress
-// that is not valid hex must be rejected rather than silently accepted.
+// Covers VerifyPaymentAccount's malformed-non-empty-address branch (verify.go).
 func (s *TestSuite) TestUpdateBucketInfo_MalformedPaymentAddress() {
 	owner := sample.RandAccAddress()
 	bucketName := "update-malformed-payment-bucket"
@@ -656,9 +607,7 @@ func (s *TestSuite) TestUpdateBucketInfo_PaymentAddressChangeWithOpenObjects() {
 	s.Require().ErrorIs(err, types.ErrUpdatePaymentAccountFailed)
 }
 
-// TestUpdateBucketInfo_CannotChangeAddressAndQuotaTogether covers payment.go's
-// UpdateBucketInfoAndCharge guard: the payment address and the read quota
-// cannot both change in the same call.
+// Covers payment.go's UpdateBucketInfoAndCharge guard: address and quota cannot both change in one call.
 func (s *TestSuite) TestUpdateBucketInfo_CannotChangeAddressAndQuotaTogether() {
 	owner := sample.RandAccAddress()
 	bucketName := "update-both-changed-bucket"
@@ -684,17 +633,7 @@ func (s *TestSuite) TestUpdateBucketInfo_CannotChangeAddressAndQuotaTogether() {
 	s.Require().Error(err, "the payment address and read quota must not both change in one call")
 }
 
-// ---------------------------------------------------------------------------
-// test/storage-keeper-bucket (PR1) gap-fill: raise ForceDeleteBucket,
-// CreateBucket, appendDiscontinueBucketIDs, DeleteDiscontinueBucketsUntil,
-// GetInternalBucketInfo/MustGetInternalBucketInfo, and fromSpMaintenanceAcct
-// coverage on this branch's own test run.
-// ---------------------------------------------------------------------------
-
-// stubSealedObjectFeesZero wires zero-priced billing mocks so
-// UnChargeObjectStoreFee/ChargeViaObjectChange (ForceDeleteBucket's SEALED-object
-// path) succeed without generating any outflow, sidestepping the bucket
-// flow-rate-limit check entirely.
+// stubSealedObjectFeesZero wires zero-priced billing mocks so ForceDeleteBucket's SEALED-object path succeeds without tripping the flow-rate-limit check.
 func (s *TestSuite) stubSealedObjectFeesZero() {
 	zero := sptypes.GlobalSpStorePrice{
 		PrimaryStorePrice:   sdkmath.LegacyZeroDec(),
@@ -709,9 +648,7 @@ func (s *TestSuite) stubSealedObjectFeesZero() {
 	s.paymentKeeper.EXPECT().MergeOutFlows(gomock.Any()).Return([]paymenttypes.OutFlow{}).AnyTimes()
 }
 
-// signBucketApproval builds a signed PrimarySpApproval for a CreateBucket call
-// and points sp's approval key at the signing key, mirroring the recipe in
-// keeper_object_copy_test.go's createBucketForCopy.
+// signBucketApproval builds a signed PrimarySpApproval and sets sp.ApprovalAddress to the signing key (mirrors keeper_object_copy_test.go's createBucketForCopy).
 func (s *TestSuite) signBucketApproval(sp *sptypes.StorageProvider, bucketName string, familyID uint32) (*common.Approval, []byte) {
 	privKey, err := gethcrypto.GenerateKey()
 	s.Require().NoError(err)
@@ -760,10 +697,7 @@ func (s *TestSuite) TestCreateBucket_StorageProviderNotFound() {
 	s.Require().ErrorIs(err, types.ErrNoSuchStorageProvider)
 }
 
-// TestCreateBucket_StorageProviderNotInService also drives fromSpMaintenanceAcct:
-// with a non-maintenance status its condition short-circuits to false without
-// panicking on an empty MaintenanceAddress, so CreateBucket correctly rejects
-// the request instead of silently proceeding.
+// Also drives fromSpMaintenanceAcct: a non-maintenance status short-circuits to false without panicking on an empty MaintenanceAddress.
 func (s *TestSuite) TestCreateBucket_StorageProviderNotInService() {
 	owner := sample.RandAccAddress()
 	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_GRACEFUL_EXITING}
@@ -788,9 +722,7 @@ func (s *TestSuite) TestCreateBucket_GVGFamilyUnavailable() {
 	s.Require().Error(err)
 }
 
-// TestCreateBucket_ChargesReadQuotaOnCreate drives CreateBucket's
-// ChargedReadQuota != 0 branch: a paid bucket must be charged via
-// ChargeBucketReadFee before it is persisted.
+// Drives CreateBucket's ChargedReadQuota != 0 branch (charged via ChargeBucketReadFee before persisting).
 func (s *TestSuite) TestCreateBucket_ChargesReadQuotaOnCreate() {
 	owner := sample.RandAccAddress()
 	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: sample.RandAccAddress().String()}
@@ -824,11 +756,7 @@ func (s *TestSuite) TestCreateBucket_ChargesReadQuotaOnCreate() {
 	s.Require().Equal(uint64(100), bucketInfo.ChargedReadQuota)
 }
 
-// TestForceDeleteBucket_DiscontinuedObjectResolvesToSealed drives
-// ForceDeleteBucket's DISCONTINUED-object branch: an object discontinued while
-// SEALED must have its pre-discontinue status restored (via
-// getAndDeleteDiscontinueObjectStatus) and be uncharged through the same
-// GVG/LVG billing path a plain SEALED object takes.
+// Drives ForceDeleteBucket's DISCONTINUED-object branch: status restored via getAndDeleteDiscontinueObjectStatus, then uncharged like a plain SEALED object.
 func (s *TestSuite) TestForceDeleteBucket_DiscontinuedObjectResolvesToSealed() {
 	s.ctx = s.ctx.WithBlockTime(s.ctx.BlockTime().Add(1 * time.Second))
 	owner := sample.RandAccAddress()
@@ -854,8 +782,7 @@ func (s *TestSuite) TestForceDeleteBucket_DiscontinuedObjectResolvesToSealed() {
 		ObjectStatus: types.OBJECT_STATUS_DISCONTINUED, PayloadSize: 100, LocalVirtualGroupId: 1,
 		CreateAt: s.ctx.BlockTime().Unix(),
 	})
-	// simulate DiscontinueObject having recorded the object's pre-discontinue
-	// status (SEALED) via the unexported saveDiscontinueObjectStatus.
+	// simulates DiscontinueObject's unexported saveDiscontinueObjectStatus recording SEALED as the pre-discontinue status.
 	statusBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(statusBytes, uint32(types.OBJECT_STATUS_SEALED))
 	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueObjectStatusKey(objectID), statusBytes)
@@ -900,9 +827,7 @@ func (s *TestSuite) TestForceDeleteBucket_DiscontinuedObjectMissingStatusErrorSu
 	s.Require().False(deleted)
 }
 
-// TestForceDeleteBucket_UpdatingSealedObjectUnlocksShadowFee drives the
-// objectInfo.IsUpdating branch: a sealed object mid-UpdateObjectContent must
-// have its shadow object's locked fee unlocked and the shadow record deleted.
+// Drives the objectInfo.IsUpdating branch (shadow object's locked fee unlocked, shadow record deleted).
 func (s *TestSuite) TestForceDeleteBucket_UpdatingSealedObjectUnlocksShadowFee() {
 	s.ctx = s.ctx.WithBlockTime(s.ctx.BlockTime().Add(1 * time.Second))
 	owner := sample.RandAccAddress()
@@ -949,10 +874,7 @@ func (s *TestSuite) TestForceDeleteBucket_UpdatingSealedObjectUnlocksShadowFee()
 	s.Require().False(found, "the shadow object must be unlocked and deleted alongside the sealed object")
 }
 
-// TestForceDeleteBucket_CreatedObjectUnlockFeeErrorSurfaced leaves the object's
-// CreateAt at its zero value: no versioned params are ever seeded before time
-// zero (SetupTest seeds them at the suite's start time), so GetObjectChargeSize
-// fails and UnlockObjectStoreFee's error must be surfaced rather than swallowed.
+// Leaves CreateAt at zero: no versioned params exist before SetupTest's seed time, so GetObjectChargeSize fails.
 func (s *TestSuite) TestForceDeleteBucket_CreatedObjectUnlockFeeErrorSurfaced() {
 	owner := sample.RandAccAddress()
 	bucketName := "force-delete-created-noparams-bucket"
@@ -979,9 +901,7 @@ func (s *TestSuite) TestForceDeleteBucket_CreatedObjectUnlockFeeErrorSurfaced() 
 	s.Require().False(deleted)
 }
 
-// TestForceDeleteBucket_SealedObjectChargeSizeErrorSurfaced mirrors the CREATED
-// case above for the SEALED branch: UnChargeObjectStoreFee's own
-// GetObjectChargeSize call fails first, before any GVG/LVG lookup is attempted.
+// Mirrors the CREATED case for SEALED: UnChargeObjectStoreFee's GetObjectChargeSize call fails before any GVG/LVG lookup.
 func (s *TestSuite) TestForceDeleteBucket_SealedObjectChargeSizeErrorSurfaced() {
 	owner := sample.RandAccAddress()
 	bucketName := "force-delete-sealed-noparams-bucket"
@@ -1013,10 +933,7 @@ func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_NoEntries() {
 	s.Require().Equal(uint64(0), deleted)
 }
 
-// TestDiscontinueBucket_SecondRequestAppendsToSameDeleteAtEntry drives
-// appendDiscontinueBucketIDs' merge branch: two buckets discontinued by the
-// same operator at the same block time land under the same delete-at entry,
-// and DeleteDiscontinueBucketsUntil must force-delete both.
+// Drives appendDiscontinueBucketIDs' merge branch: two same-time discontinues land under one delete-at entry.
 func (s *TestSuite) TestDiscontinueBucket_SecondRequestAppendsToSameDeleteAtEntry() {
 	operator := sample.RandAccAddress()
 	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: sample.RandAccAddress().String()}
@@ -1047,10 +964,7 @@ func (s *TestSuite) TestDiscontinueBucket_SecondRequestAppendsToSameDeleteAtEntr
 	s.Require().False(found)
 }
 
-// TestDeleteDiscontinueBucketsUntil_CapReachedMidEntryDefersRemainingID drives
-// the inner id-loop's cap-reached branch: once maxToDelete is hit partway
-// through one delete-at entry's bucket list, the remaining ids are written
-// back instead of being dropped.
+// Drives the inner id-loop's cap-reached branch: once maxToDelete is hit mid-entry, remaining ids are written back.
 func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_CapReachedMidEntryDefersRemainingID() {
 	operator := sample.RandAccAddress()
 	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: sample.RandAccAddress().String()}
@@ -1081,10 +995,6 @@ func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_CapReachedMidEntryDefersRe
 	s.Require().True(found, "the second queued bucket must be deferred once the cap is reached")
 }
 
-// TestDeleteDiscontinueBucketsUntil_ForceDeleteErrorSurfaced drives the loop's
-// error-propagation branch: a queued bucket whose GVG family cannot be
-// resolved is a genuine invariant break, and the error must surface rather
-// than be swallowed.
 func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_ForceDeleteErrorSurfaced() {
 	bucketID := sdkmath.NewUint(1)
 	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
