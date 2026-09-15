@@ -88,6 +88,9 @@ jobs:
             script: test_rpc_suite.sh
             foundry: true
             go: true
+          - name: EIP-7702
+            script: test_eip7702.sh
+            foundry: true
 
     steps:
       - uses: actions/checkout@v7
