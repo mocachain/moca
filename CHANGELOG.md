@@ -47,6 +47,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (deps) [#476](https://github.com/mocachain/moca/pull/476) Advance `moca-cometbft` from `ebc321cbf` to `993fd7105`, picking up: the vote signature preimage now binds the event type (`keccak256(EventType || EventHash)`, matching the chain-side attestation check from #403); per-peer vote-gossip recovery on subscription loss and a rate limit on `broadcast_vote`; bounded async mempool reactor queues; removal of the fork-only `rpc/client/http/v2` client (its last importer left in #472). Validators and challengers on this line must be built against the same `moca-cometbft`, since votes signed over the bare event hash are no longer accepted
 - (permission) [#478](https://github.com/mocachain/moca/pull/478) Add unit tests for `x/permission`'s module/abci/simulation wiring, raising its coverage from 11.6% to 97.7%.
 - (permission) [#478](https://github.com/mocachain/moca/pull/478) Add unit tests for the CLI's `GetTxCmd` and query RPC-failure branch, raising `x/permission/client/cli` coverage from 78.6% to 100%.
 - (permission) [#478](https://github.com/mocachain/moca/pull/478) Add the first unit tests for `x/permission/simulation`, raising its coverage from 0% to 100%.
