@@ -10,7 +10,135 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mocachain/moca/v2/testutil/sample"
+	gnfderrors "github.com/mocachain/moca/v2/types/errors"
 )
+
+// Shared test fixtures reused across this package's message tests.
+const (
+	testBucketName     = "bucket"
+	testObjectName     = "object"
+	testInvalidAddress = "invalid_address"
+)
+
+func TestNewMsgSubmit(t *testing.T) {
+	challenger := sample.RandAccAddress()
+	spOperatorAddress := sample.RandAccAddress()
+
+	msg := NewMsgSubmit(challenger, spOperatorAddress, testBucketName, testObjectName, true, 5)
+
+	require.Equal(t, challenger.String(), msg.Challenger)
+	require.Equal(t, spOperatorAddress.String(), msg.SpOperatorAddress)
+	require.Equal(t, testBucketName, msg.BucketName)
+	require.Equal(t, testObjectName, msg.ObjectName)
+	require.True(t, msg.RandomIndex)
+	require.Equal(t, uint32(5), msg.SegmentIndex)
+}
+
+func TestMsgSubmit_RouteAndType(t *testing.T) {
+	msg := MsgSubmit{}
+	require.Equal(t, RouterKey, msg.Route())
+	require.Equal(t, TypeMsgSubmit, msg.Type())
+}
+
+func TestMsgSubmit_GetSigners(t *testing.T) {
+	challenger := sample.RandAccAddress()
+	msg := MsgSubmit{Challenger: challenger.String()}
+
+	signers := msg.GetSigners()
+	require.Len(t, signers, 1)
+	require.Equal(t, challenger, signers[0])
+
+	invalid := MsgSubmit{Challenger: testInvalidAddress}
+	require.Panics(t, func() { invalid.GetSigners() })
+}
+
+func TestMsgSubmit_GetSignBytes(t *testing.T) {
+	msg := MsgSubmit{
+		Challenger:        sample.RandAccAddressHex(),
+		SpOperatorAddress: sample.RandAccAddressHex(),
+		BucketName:        testBucketName,
+		ObjectName:        testObjectName,
+	}
+
+	bz := msg.GetSignBytes()
+	require.NotEmpty(t, bz)
+
+	var decoded MsgSubmit
+	require.NoError(t, ModuleCdc.UnmarshalJSON(bz, &decoded))
+	require.Equal(t, msg.Challenger, decoded.Challenger)
+	require.Equal(t, msg.BucketName, decoded.BucketName)
+	require.Equal(t, msg.ObjectName, decoded.ObjectName)
+}
+
+func TestMsgSubmit_ValidateBasic(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  MsgSubmit
+		err  error
+	}{
+		{
+			name: "invalid address",
+			msg: MsgSubmit{
+				Challenger: testInvalidAddress,
+			},
+			err: sdkerrors.ErrInvalidAddress,
+		}, {
+			name: "invalid sp operator address",
+			msg: MsgSubmit{
+				Challenger:        sample.RandAccAddressHex(),
+				SpOperatorAddress: testInvalidAddress,
+			},
+			err: sdkerrors.ErrInvalidAddress,
+		}, {
+			name: "invalid bucket name",
+			msg: MsgSubmit{
+				Challenger:        sample.RandAccAddressHex(),
+				SpOperatorAddress: sample.RandAccAddressHex(),
+				BucketName:        "1",
+			},
+			err: gnfderrors.ErrInvalidBucketName,
+		}, {
+			name: "invalid object name",
+			msg: MsgSubmit{
+				Challenger:        sample.RandAccAddressHex(),
+				SpOperatorAddress: sample.RandAccAddressHex(),
+				BucketName:        testBucketName,
+				ObjectName:        "",
+			},
+			err: gnfderrors.ErrInvalidObjectName,
+		}, {
+			name: "valid message with random index",
+			msg: MsgSubmit{
+				Challenger:        sample.RandAccAddressHex(),
+				SpOperatorAddress: sample.RandAccAddressHex(),
+				BucketName:        testBucketName,
+				ObjectName:        testObjectName,
+				RandomIndex:       true,
+				SegmentIndex:      10,
+			},
+		}, {
+			name: "valid message with specific index",
+			msg: MsgSubmit{
+				Challenger:        sample.RandAccAddressHex(),
+				SpOperatorAddress: sample.RandAccAddressHex(),
+				BucketName:        testBucketName,
+				ObjectName:        testObjectName,
+				RandomIndex:       false,
+				SegmentIndex:      2,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.msg.ValidateBasic()
+			if tt.err != nil {
+				require.ErrorIs(t, err, tt.err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
 
 func TestNewMsgAttest(t *testing.T) {
 	submitter := sample.RandAccAddress()
@@ -183,4 +311,70 @@ func TestMsgAttest_GetVotePoolSignBytesMatchesVotePool(t *testing.T) {
 	// the change is lost and this test would pass against the bare hash.
 	require.NotEqual(t, eventHash[:], msg.GetVotePoolSignBytes(chainID),
 		"the preimage must not be the bare event hash")
+}
+
+func TestMsgUpdateParams_GetSignBytes(t *testing.T) {
+	msg := MsgUpdateParams{
+		Authority: sample.RandAccAddressHex(),
+		Params:    DefaultParams(),
+	}
+
+	bz := msg.GetSignBytes()
+	require.NotEmpty(t, bz)
+
+	var decoded MsgUpdateParams
+	require.NoError(t, ModuleCdc.UnmarshalJSON(bz, &decoded))
+	require.Equal(t, msg.Authority, decoded.Authority)
+}
+
+func TestMsgUpdateParams_GetSigners(t *testing.T) {
+	authority := sample.RandAccAddress()
+	msg := MsgUpdateParams{Authority: authority.String()}
+
+	signers := msg.GetSigners()
+	require.Len(t, signers, 1)
+	require.Equal(t, authority, signers[0])
+}
+
+func TestMsgUpdateParams_ValidateBasic(t *testing.T) {
+	wrongParams := DefaultParams()
+	wrongParams.HeartbeatInterval = 0
+
+	tests := []struct {
+		name string
+		msg  MsgUpdateParams
+		err  error
+	}{
+		{
+			name: "invalid authority",
+			msg: MsgUpdateParams{
+				Authority: testInvalidAddress,
+				Params:    DefaultParams(),
+			},
+			err: sdkerrors.ErrInvalidAddress,
+		}, {
+			name: "invalid params",
+			msg: MsgUpdateParams{
+				Authority: sample.RandAccAddressHex(),
+				Params:    wrongParams,
+			},
+			err: ErrInvalidParams,
+		}, {
+			name: "valid authority and params",
+			msg: MsgUpdateParams{
+				Authority: sample.RandAccAddressHex(),
+				Params:    DefaultParams(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.msg.ValidateBasic()
+			if tt.err != nil {
+				require.ErrorContains(t, err, tt.err.Error())
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
