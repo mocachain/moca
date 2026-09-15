@@ -65,3 +65,28 @@ func TestGenesis(t *testing.T) {
 	nullify.Fill(&genesisState)
 	nullify.Fill(got)
 }
+
+// TestInitGenesis_PanicsOnInvalidParams covers the panic(err) branch: a
+// genesis Params blob that fails validation must make InitGenesis panic
+// rather than silently swallowing SetParams' error.
+func TestInitGenesis_PanicsOnInvalidParams(t *testing.T) {
+	encCfg := moduletestutil.MakeTestEncodingConfig(mint.AppModuleBasic{})
+	key := storetypes.NewKVStoreKey(types.StoreKey)
+	testCtx := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_test"))
+
+	k := keeper.NewKeeper(
+		encCfg.Codec,
+		key,
+		&types.MockAccountKeeper{},
+		&types.MockBankKeeper{},
+		&types.MockAuthzKeeper{},
+		"",
+	)
+
+	invalidParams := types.DefaultParams()
+	invalidParams.DepositDenom = ""
+
+	require.Panics(t, func() {
+		sp.InitGenesis(testCtx.Ctx, *k, types.GenesisState{Params: invalidParams})
+	})
+}
