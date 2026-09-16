@@ -403,21 +403,28 @@ func (s *TestSuite) TestDiscontinueBucket_MaxRequestsReached() {
 }
 
 // Also covers the previousStatus==MIGRATING branch (extra EventCancelMigrationBucket emission).
+// Also proves the bucket is actually queued for GC at now+DiscontinueConfirmPeriod (neither
+// dropped nor scheduled early): DeleteDiscontinueBucketsUntil must be a no-op right up until
+// that instant, then collect the bucket exactly at it.
 func (s *TestSuite) TestDiscontinueBucket_Success() {
 	operator := sample.RandAccAddress()
-	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE}
+	owner := sample.RandAccAddress()
+	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: sample.RandAccAddress().String()}
 	s.spKeeper.EXPECT().GetStorageProviderByGcAddr(gomock.Any(), gomock.Any()).Return(sp, true).AnyTimes()
 	bucketName := "discontinue-success-bucket"
 	bucketInfo := &types.BucketInfo{
-		Owner:                      sample.RandAccAddress().String(),
+		Owner:                      owner.String(),
 		BucketName:                 bucketName,
 		Id:                         sdkmath.NewUint(1),
 		GlobalVirtualGroupFamilyId: 1,
 		BucketStatus:               types.BUCKET_STATUS_MIGRATING,
+		PaymentAddress:             owner.String(),
 	}
 	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketInfo.Id, &types.InternalBucketInfo{})
 	s.mockPrimarySP(bucketInfo, sp)
 
+	beforeDiscontinue := s.ctx.BlockTime().Unix()
 	err := s.storageKeeper.DiscontinueBucket(s.ctx, operator, bucketName, "final call")
 	s.Require().NoError(err)
 
@@ -425,6 +432,21 @@ func (s *TestSuite) TestDiscontinueBucket_Success() {
 	s.Require().True(found)
 	s.Require().Equal(types.BUCKET_STATUS_DISCONTINUED, got.BucketStatus)
 	s.Require().Equal(uint64(1), s.storageKeeper.GetDiscontinueBucketCount(s.ctx, operator))
+
+	expectedDeleteAt := beforeDiscontinue + types.DefaultDiscontinueConfirmPeriod
+	s.stubGCBookkeepingNoop()
+
+	deletedEarly, err := s.storageKeeper.DeleteDiscontinueBucketsUntil(s.ctx, expectedDeleteAt-1, 10)
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(0), deletedEarly, "the bucket must not be collectible before its DiscontinueConfirmPeriod grace elapses")
+	_, found = s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().True(found, "the bucket must still exist before its grace period elapses")
+
+	deleted, err := s.storageKeeper.DeleteDiscontinueBucketsUntil(s.ctx, expectedDeleteAt, 10)
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(1), deleted, "the bucket must be garbage-collected exactly at now+DiscontinueConfirmPeriod")
+	_, found = s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().False(found, "the bucket must be deleted once garbage-collected")
 }
 
 func (s *TestSuite) TestUpdateBucketInfo_NotFound() {
@@ -735,10 +757,14 @@ func (s *TestSuite) TestCreateBucket_ChargesReadQuotaOnCreate() {
 		SecondaryStorePrice: sdkmath.LegacyZeroDec(),
 		ReadPrice:           sdkmath.LegacyZeroDec(),
 	}
-	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(zero, nil).AnyTimes()
+	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).Return(zero, nil).Times(1)
 	s.paymentKeeper.EXPECT().GetVersionedParamsWithTs(gomock.Any(), gomock.Any()).
-		Return(paymenttypes.VersionedParams{ValidatorTaxRate: sdkmath.LegacyZeroDec()}, nil).AnyTimes()
-	s.paymentKeeper.EXPECT().ApplyUserFlowsList(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		Return(paymenttypes.VersionedParams{ValidatorTaxRate: sdkmath.LegacyZeroDec()}, nil).Times(1)
+	// Times(1) with the exact billed party proves CreateBucket actually invoked the charge
+	// (ChargeBucketReadFee -> ApplyUserFlowsList) rather than merely persisting ChargedReadQuota.
+	s.paymentKeeper.EXPECT().
+		ApplyUserFlowsList(gomock.Any(), []paymenttypes.UserFlows{{From: owner, Flows: nil}}).
+		Return(nil).Times(1)
 	approval, approvalBytes := s.signBucketApproval(sp, "create-bucket-quota", gvgFamily.Id)
 
 	bucketID, err := s.storageKeeper.CreateBucket(s.ctx, owner, "create-bucket-quota", sdk.MustAccAddressFromHex(sp.OperatorAddress), &types.CreateBucketOptions{
