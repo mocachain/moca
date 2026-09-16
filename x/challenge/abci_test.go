@@ -474,7 +474,7 @@ func (s *TestSuite) TestEndBlocker_SkipsExistingSlash() {
 	s.challengeKeeper.SaveSlash(s.ctx, types.Slash{
 		SpId:     sp.Id,
 		ObjectId: existObject.Id,
-		Height:   uint64(s.ctx.BlockHeight()),
+		Height:   uint64(s.ctx.BlockHeight()), //nolint:gosec // block height is non-negative
 	})
 
 	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
