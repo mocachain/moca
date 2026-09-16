@@ -25,6 +25,14 @@ const (
 	argTestBucketName    = "test-bucket"
 	argTestObjectName    = "test-object"
 	argTrue              = "true"
+	argFalse             = "false"
+
+	// argChallengeID/argObjectID are deliberately distinct (and non-numeric
+	// look-alikes of each other) so a mutation that swaps the challenge-id
+	// and object-id positional arguments in CmdAttest changes the decoded
+	// message instead of silently reproducing the same "1"/"1" row.
+	argChallengeID = "7"
+	argObjectID    = "11"
 )
 
 func (s *CLITestSuite) TestQueryCmd() {
