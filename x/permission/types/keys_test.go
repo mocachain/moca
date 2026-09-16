@@ -10,6 +10,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/types/resource"
 )
 
@@ -39,4 +40,89 @@ func TestPrefixKeyCollision(t *testing.T) {
 		hex.EncodeToString(PolicyForAccountPrefix(resourceID2, resource.RESOURCE_TYPE_BUCKET, true)),
 		hex.EncodeToString(PolicyForAccountPrefix(resourceID1, resource.RESOURCE_TYPE_BUCKET, true)),
 	))
+}
+
+func TestGetPolicyForAccountKey(t *testing.T) {
+	addr := sample.RandAccAddress()
+	resourceID := math.NewUint(7)
+
+	tests := []struct {
+		name    string
+		resType resource.ResourceType
+		prefix  []byte
+	}{
+		{"bucket", resource.RESOURCE_TYPE_BUCKET, BucketPolicyForAccountPrefix},
+		{"object", resource.RESOURCE_TYPE_OBJECT, ObjectPolicyForAccountPrefix},
+		{"group", resource.RESOURCE_TYPE_GROUP, GroupPolicyForAccountPrefix},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := GetPolicyForAccountKey(resourceID, tt.resType, addr, false)
+			want := append(append([]byte{}, tt.prefix...), resourceID.BigInt().Bytes()...)
+			want = append(want, addr.Bytes()...)
+			assert.Equal(t, want, key)
+		})
+	}
+}
+
+func TestGetPolicyForAccountKey_InvalidResourceTypePanics(t *testing.T) {
+	assert.Panics(t, func() {
+		GetPolicyForAccountKey(math.OneUint(), resource.ResourceType(99), sample.RandAccAddress(), false)
+	})
+}
+
+func TestGetPolicyForGroupKey(t *testing.T) {
+	resourceID := math.NewUint(11)
+
+	tests := []struct {
+		name    string
+		resType resource.ResourceType
+		prefix  []byte
+	}{
+		{"bucket", resource.RESOURCE_TYPE_BUCKET, BucketPolicyForGroupPrefix},
+		{"object", resource.RESOURCE_TYPE_OBJECT, ObjectPolicyForGroupPrefix},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := GetPolicyForGroupKey(resourceID, tt.resType)
+			want := append(append([]byte{}, tt.prefix...), resourceID.BigInt().Bytes()...)
+			assert.Equal(t, want, key)
+		})
+	}
+}
+
+func TestGetPolicyForGroupKey_InvalidResourceTypePanics(t *testing.T) {
+	assert.Panics(t, func() {
+		GetPolicyForGroupKey(math.OneUint(), resource.RESOURCE_TYPE_GROUP)
+	})
+}
+
+func TestGetPolicyByIDKey(t *testing.T) {
+	policyID := math.NewUint(300)
+	want := append(append([]byte{}, PolicyByIDPrefix...), policyID.BigInt().Bytes()...)
+	assert.Equal(t, want, GetPolicyByIDKey(policyID))
+}
+
+func TestGroupMembersPrefix(t *testing.T) {
+	groupID := math.NewUint(12345)
+	want := append(append([]byte{}, GroupMemberPrefix...), LengthPrefix(groupID)...)
+	assert.Equal(t, want, GroupMembersPrefix(groupID))
+}
+
+func TestGetGroupMemberKey(t *testing.T) {
+	groupID := math.NewUint(555)
+	member := sample.RandAccAddress()
+	want := append(append([]byte{}, GroupMemberPrefix...), LengthPrefix(groupID)...)
+	want = append(want, member.Bytes()...)
+	assert.Equal(t, want, GetGroupMemberKey(groupID, member))
+}
+
+func TestGetGroupMemberByIDKey(t *testing.T) {
+	memberID := math.NewUint(9001)
+	want := append(append([]byte{}, GroupMemberByIDPrefix...), memberID.BigInt().Bytes()...)
+	assert.Equal(t, want, GetGroupMemberByIDKey(memberID))
+}
+
+func TestLengthPrefix_Zero(t *testing.T) {
+	assert.Empty(t, LengthPrefix(math.ZeroUint()))
 }

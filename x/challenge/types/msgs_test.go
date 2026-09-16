@@ -6,7 +6,6 @@ import (
 	"cosmossdk.io/math"
 	"github.com/cometbft/cometbft/votepool"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mocachain/moca/v2/testutil/sample"
@@ -299,10 +298,8 @@ func TestMsgAttest_GetVotePoolSignBytesMatchesVotePool(t *testing.T) {
 
 	eventHash := msg.GetBlsSignBytes(chainID)
 
-	// Mirrors votepool.Vote.SignBytes. Kept inline only because the pinned
-	// cometbft does not export it yet; once the vote-pool side lands, assert
-	// against vote.SignBytes() directly so the two cannot drift unnoticed.
-	want := crypto.Keccak256(append([]byte{byte(votepool.DataAvailabilityChallengeEvent)}, eventHash[:]...))
+	// Assert against the vote pool's own preimage so the two cannot drift unnoticed.
+	want := (&votepool.Vote{EventType: votepool.DataAvailabilityChallengeEvent, EventHash: eventHash[:]}).SignBytes()
 
 	require.Equal(t, want, msg.GetVotePoolSignBytes(chainID),
 		"x/challenge and votepool must sign byte-identical payloads")

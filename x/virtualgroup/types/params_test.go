@@ -14,7 +14,7 @@ func TestDepositDenom(t *testing.T) {
 		err   string
 	}{
 		{
-			name:  "valid",
+			name:  caseValid,
 			denom: "denom",
 		},
 		{
@@ -53,7 +53,7 @@ func TestGVGStakingPerBytes(t *testing.T) {
 		err   string
 	}{
 		{
-			name:  "valid",
+			name:  caseValid,
 			ratio: math.NewInt(1),
 		},
 		{
@@ -86,7 +86,7 @@ func TestMaxGlobalVirtualGroupNumPerFamily(t *testing.T) {
 		err    string
 	}{
 		{
-			name:   "valid",
+			name:   caseValid,
 			number: uint32(1),
 		},
 		{
@@ -119,7 +119,7 @@ func TestMaxStoreSizePerFamily(t *testing.T) {
 		err  string
 	}{
 		{
-			name: "valid",
+			name: caseValid,
 			size: uint64(1),
 		},
 		{
@@ -146,8 +146,67 @@ func TestMaxStoreSizePerFamily(t *testing.T) {
 }
 
 func TestValidateParams(t *testing.T) {
-	err := DefaultParams().Validate()
-	require.NoError(t, err)
+	tests := []struct {
+		name    string
+		params  Params
+		wantErr string
+	}{
+		{
+			name:   caseValid,
+			params: DefaultParams(),
+		},
+		{
+			name: "invalid deposit denom",
+			params: NewParams("%", DefaultGVGStakingPerBytes, DefaultMaxGlobalVirtualGroupNumPerFamily,
+				DefaultMaxStoreSizePerFamily, DefaultSwapInValidityPeriod, DefaultSPConcurrentExitNum),
+			wantErr: "invalid denom",
+		},
+		{
+			name: "invalid gvg staking per bytes",
+			params: NewParams(DefaultDepositDenom, math.NewInt(0), DefaultMaxGlobalVirtualGroupNumPerFamily,
+				DefaultMaxStoreSizePerFamily, DefaultSwapInValidityPeriod, DefaultSPConcurrentExitNum),
+			wantErr: "invalid value for GVG staking per bytes",
+		},
+		{
+			name: "invalid max gvg per family",
+			params: NewParams(DefaultDepositDenom, DefaultGVGStakingPerBytes, 0,
+				DefaultMaxStoreSizePerFamily, DefaultSwapInValidityPeriod, DefaultSPConcurrentExitNum),
+			wantErr: "max GVG per family must be positive",
+		},
+		{
+			name: "invalid max store size per family",
+			params: NewParams(DefaultDepositDenom, DefaultGVGStakingPerBytes, DefaultMaxGlobalVirtualGroupNumPerFamily,
+				0, DefaultSwapInValidityPeriod, DefaultSPConcurrentExitNum),
+			wantErr: "max store size per GVG family must be positive",
+		},
+		{
+			name: "invalid swap in validity period",
+			params: NewParams(DefaultDepositDenom, DefaultGVGStakingPerBytes, DefaultMaxGlobalVirtualGroupNumPerFamily,
+				DefaultMaxStoreSizePerFamily, math.NewInt(-1), DefaultSPConcurrentExitNum),
+			wantErr: "swapIn info validity period must be positive",
+		},
+		{
+			name: "invalid sp concurrent exit num",
+			params: NewParams(DefaultDepositDenom, DefaultGVGStakingPerBytes, DefaultMaxGlobalVirtualGroupNumPerFamily,
+				DefaultMaxStoreSizePerFamily, DefaultSwapInValidityPeriod, math.NewInt(-1)),
+			wantErr: "number of sp concurrent exit must be positive",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.params.Validate()
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestParamsString(t *testing.T) {
+	out := DefaultParams().String()
+	require.Contains(t, out, DefaultDepositDenom)
 }
 
 // TestSPConcurrentExitNumBound covers the bound on the concurrent-exit count.
@@ -178,6 +237,103 @@ func TestSPConcurrentExitNumBound(t *testing.T) {
 			if tc.wantErr {
 				require.Error(t, err, "a count that cannot be held as a uint32 must be rejected")
 				require.Contains(t, err.Error(), "number of sp concurrent exit too large")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestSwapInValidityPeriod calls the unexported validator directly (rather
+// than through Params.Validate) because the "invalid parameter type" branch
+// can only be reached with a non-*math.Int value, which the struct field
+// never holds in practice.
+func TestSwapInValidityPeriod(t *testing.T) {
+	var zeroInt math.Int
+	valid := math.NewInt(1)
+	invalid := math.NewInt(-1)
+
+	tests := []struct {
+		name   string
+		period interface{}
+		err    string
+	}{
+		{
+			name:   caseValid,
+			period: &valid,
+		},
+		{
+			name:   "invalid type",
+			period: 1,
+			err:    "invalid parameter type",
+		},
+		{
+			name:   "nil pointer is allowed",
+			period: (*math.Int)(nil),
+		},
+		{
+			name:   "zero-value Int is allowed",
+			period: &zeroInt,
+		},
+		{
+			name:   "negative",
+			period: &invalid,
+			err:    "swapIn info validity period must be positive",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSwapInValidityPeriod(tt.period)
+			if tt.err != "" {
+				require.ErrorContains(t, err, tt.err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestSPConcurrentExitNum covers the same type-assertion and nil-skip
+// branches as TestSwapInValidityPeriod; the too-large-for-uint32 branch is
+// covered separately by TestSPConcurrentExitNumBound via Params.Validate.
+func TestSPConcurrentExitNum(t *testing.T) {
+	var zeroInt math.Int
+	valid := math.NewInt(1)
+	invalid := math.NewInt(-1)
+
+	tests := []struct {
+		name   string
+		number interface{}
+		err    string
+	}{
+		{
+			name:   caseValid,
+			number: &valid,
+		},
+		{
+			name:   "invalid type",
+			number: 1,
+			err:    "invalid parameter type",
+		},
+		{
+			name:   "nil pointer is allowed",
+			number: (*math.Int)(nil),
+		},
+		{
+			name:   "zero-value Int is allowed",
+			number: &zeroInt,
+		},
+		{
+			name:   "negative",
+			number: &invalid,
+			err:    "number of sp concurrent exit must be positive",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSPConcurrentExitNum(tt.number)
+			if tt.err != "" {
+				require.ErrorContains(t, err, tt.err)
 				return
 			}
 			require.NoError(t, err)
