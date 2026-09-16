@@ -21,6 +21,7 @@ import (
 
 	"github.com/mocachain/moca/v2/testutil/sample"
 	types2 "github.com/mocachain/moca/v2/types"
+	"github.com/mocachain/moca/v2/types/resource"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	permtypes "github.com/mocachain/moca/v2/x/permission/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
@@ -92,17 +93,19 @@ func (s *TestSuite) TestQueryVersionedParams() {
 
 func (s *TestSuite) TestQueryGroupMembersExist() {
 	groupId := rand.Intn(1000) //nolint
+	groupIDUint := sdkmath.NewUint(uint64(groupId))
 	members := make([]string, 3)
 	exists := make(map[string]bool)
 	for i := 0; i < 3; i++ {
 		members[i] = sample.RandAccAddressHex()
+		memberAddr := sdk.MustAccAddressFromHex(members[i])
 		exist := rand.Intn(2) //nolint
 		if exist == 0 {
 			exists[members[i]] = false
-			s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).Times(1)
+			s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), groupIDUint, memberAddr).Return(nil, false).Times(1)
 		} else {
 			exists[members[i]] = true
-			s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, true).Times(1)
+			s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), groupIDUint, memberAddr).Return(nil, true).Times(1)
 		}
 	}
 
@@ -923,8 +926,8 @@ func (s *TestSuite) TestQueryPolicyForAccount_Found() {
 
 	principal := sample.RandAccAddress()
 	policy := &permtypes.Policy{Id: sdkmath.NewUint(1), Principal: permtypes.NewPrincipalWithAccount(principal)}
-	s.permissionKeeper.EXPECT().GetPolicyForAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(policy, true).AnyTimes()
+	s.permissionKeeper.EXPECT().GetPolicyForAccount(gomock.Any(), bucketInfo.Id, resource.RESOURCE_TYPE_BUCKET, principal).
+		Return(policy, true).Times(1)
 
 	res, err := s.storageKeeper.QueryPolicyForAccount(s.ctx, &types.QueryPolicyForAccountRequest{
 		PrincipalAddress: principal.String(),
@@ -939,12 +942,13 @@ func (s *TestSuite) TestQueryPolicyForGroup_Found() {
 	bucketInfo := &types.BucketInfo{Owner: sample.RandAccAddressHex(), BucketName: bucketName, Id: sdkmath.NewUint(42)}
 	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
 
-	policy := &permtypes.Policy{Id: sdkmath.NewUint(2), Principal: permtypes.NewPrincipalWithGroupID(sdkmath.NewUint(7))}
-	s.permissionKeeper.EXPECT().GetPolicyForGroup(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(policy, true).AnyTimes()
+	principalGroupID := sdkmath.NewUint(7)
+	policy := &permtypes.Policy{Id: sdkmath.NewUint(2), Principal: permtypes.NewPrincipalWithGroupID(principalGroupID)}
+	s.permissionKeeper.EXPECT().GetPolicyForGroup(gomock.Any(), bucketInfo.Id, resource.RESOURCE_TYPE_BUCKET, principalGroupID).
+		Return(policy, true).Times(1)
 
 	res, err := s.storageKeeper.QueryPolicyForGroup(s.ctx, &types.QueryPolicyForGroupRequest{
-		PrincipalGroupId: "7",
+		PrincipalGroupId: principalGroupID.String(),
 		Resource:         types2.NewBucketGRN(bucketName).String(),
 	})
 	s.Require().NoError(err)
@@ -952,18 +956,20 @@ func (s *TestSuite) TestQueryPolicyForGroup_Found() {
 }
 
 func (s *TestSuite) TestQueryPolicyById_Found() {
-	policy := &permtypes.Policy{Id: sdkmath.NewUint(3)}
-	s.permissionKeeper.EXPECT().GetPolicyByID(gomock.Any(), gomock.Any()).Return(policy, true).AnyTimes()
+	policyID := sdkmath.NewUint(3)
+	policy := &permtypes.Policy{Id: policyID}
+	s.permissionKeeper.EXPECT().GetPolicyByID(gomock.Any(), policyID).Return(policy, true).Times(1)
 
-	res, err := s.storageKeeper.QueryPolicyById(s.ctx, &types.QueryPolicyByIdRequest{PolicyId: "3"})
+	res, err := s.storageKeeper.QueryPolicyById(s.ctx, &types.QueryPolicyByIdRequest{PolicyId: policyID.String()})
 	s.Require().NoError(err)
 	s.Require().Equal(policy, res.Policy)
 }
 
 func (s *TestSuite) TestQueryPolicyById_NotFound() {
-	s.permissionKeeper.EXPECT().GetPolicyByID(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+	policyID := sdkmath.NewUint(999)
+	s.permissionKeeper.EXPECT().GetPolicyByID(gomock.Any(), policyID).Return(nil, false).Times(1)
 
-	_, err := s.storageKeeper.QueryPolicyById(s.ctx, &types.QueryPolicyByIdRequest{PolicyId: "999"})
+	_, err := s.storageKeeper.QueryPolicyById(s.ctx, &types.QueryPolicyByIdRequest{PolicyId: policyID.String()})
 	s.Require().ErrorIs(err, types.ErrNoSuchPolicy)
 }
 
@@ -1054,7 +1060,7 @@ func (s *TestSuite) TestHeadGroupMember_Found() {
 	s.Require().NoError(err)
 
 	groupMember := &permtypes.GroupMember{Id: sdkmath.NewUint(1), GroupId: groupID, Member: member.String()}
-	s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), groupID, gomock.Any()).Return(groupMember, true).AnyTimes()
+	s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), groupID, member).Return(groupMember, true).Times(1)
 
 	res, err := s.storageKeeper.HeadGroupMember(s.ctx, &types.QueryHeadGroupMemberRequest{
 		Member:     member.String(),
@@ -1068,10 +1074,10 @@ func (s *TestSuite) TestHeadGroupMember_Found() {
 func (s *TestSuite) TestHeadGroupMember_NotFound() {
 	owner := sample.RandAccAddress()
 	member := sample.RandAccAddress()
-	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, "grpc-group-member-missing", types.CreateGroupOptions{})
+	groupID, err := s.storageKeeper.CreateGroup(s.ctx, owner, "grpc-group-member-missing", types.CreateGroupOptions{})
 	s.Require().NoError(err)
 
-	s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+	s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), groupID, member).Return(nil, false).Times(1)
 
 	_, err = s.storageKeeper.HeadGroupMember(s.ctx, &types.QueryHeadGroupMemberRequest{
 		Member:     member.String(),
