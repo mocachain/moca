@@ -2,14 +2,28 @@ package cli_test
 
 import (
 	"fmt"
+	"math/big"
+	"testing"
 
+	sdkmath "cosmossdk.io/math"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
+	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/cosmos/gogoproto/proto"
+	"github.com/stretchr/testify/require"
 
+	"github.com/mocachain/moca/v2/precompiles/payment"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/payment/client/cli"
 	"github.com/mocachain/moca/v2/x/payment/types"
+)
+
+const (
+	errMockQueryFailure   = "mock query failure"
+	errPageOffsetConflict = "page and offset cannot be used together"
+	errInvalidNodeURL     = "invalid control character in URL"
+	testBadNodeURL        = "://bad host \x00"
 )
 
 func (s *CLITestSuite) TestQueryCmd() {
@@ -17,12 +31,22 @@ func (s *CLITestSuite) TestQueryCmd() {
 		fmt.Sprintf("--%s=%s", flags.FlagOutput, "json"),
 	}
 
+	// errClientCtx behaves like s.clientCtx for everything except that the
+	// mocked CometBFT RPC returns a non-OK ABCI response, so any query that
+	// reaches queryClient.<Method>(...) deterministically fails without a
+	// live backend.
+	errClientCtx := s.clientCtx.WithClient(clitestutil.NewMockCometRPC(abci.ResponseQuery{
+		Code: 1,
+		Log:  errMockQueryFailure,
+	}))
+
 	testCases := []struct {
 		name         string
 		args         []string
 		expectErr    bool
 		expectErrMsg string
 		respType     proto.Message
+		useErrCtx    bool
 	}{
 		{
 			"query params",
@@ -32,7 +56,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryParamsResponse{},
+			false, "", &types.QueryParamsResponse{}, false,
 		},
 		{
 			"query dynamic-balance",
@@ -43,7 +67,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryDynamicBalanceResponse{},
+			false, "", &types.QueryDynamicBalanceResponse{}, false,
 		},
 		{
 			"query get-payment-accounts-by-owner",
@@ -54,7 +78,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryPaymentAccountsByOwnerResponse{},
+			false, "", &types.QueryPaymentAccountsByOwnerResponse{}, false,
 		},
 		{
 			"query list-auto-settle-record",
@@ -64,7 +88,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryAutoSettleRecordsResponse{},
+			false, "", &types.QueryAutoSettleRecordsResponse{}, false,
 		},
 		{
 			"query list-payment-account",
@@ -74,7 +98,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryPaymentAccountsResponse{},
+			false, "", &types.QueryPaymentAccountsResponse{}, false,
 		},
 		{
 			"query list-payment-account-count",
@@ -84,7 +108,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryPaymentAccountCountsResponse{},
+			false, "", &types.QueryPaymentAccountCountsResponse{}, false,
 		},
 		{
 			"query list-stream-record",
@@ -94,7 +118,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryStreamRecordsResponse{},
+			false, "", &types.QueryStreamRecordsResponse{}, false,
 		},
 		{
 			"query show-payment-account",
@@ -105,7 +129,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryPaymentAccountResponse{},
+			false, "", &types.QueryPaymentAccountResponse{}, false,
 		},
 		{
 			"query show-payment-account-count",
@@ -116,7 +140,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryPaymentAccountCountResponse{},
+			false, "", &types.QueryPaymentAccountCountResponse{}, false,
 		},
 		{
 			"query show-stream-record",
@@ -127,7 +151,187 @@ func (s *CLITestSuite) TestQueryCmd() {
 				},
 				commonFlags...,
 			),
-			false, "", &types.QueryGetStreamRecordResponse{},
+			false, "", &types.QueryGetStreamRecordResponse{}, false,
+		},
+		// --- error paths below: none of the happy-path cases above ever hit an
+		// "if err != nil { return err }" branch, so every one of those branches
+		// was 0% covered. Each case here forces exactly one such branch.
+		{
+			"query params - query error",
+			append(
+				[]string{
+					"params",
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query dynamic-balance - bad node",
+			append(
+				[]string{
+					"dynamic-balance",
+					sample.RandAccAddressHex(),
+					fmt.Sprintf("--%s=%s", flags.FlagNode, testBadNodeURL),
+				},
+				commonFlags...,
+			),
+			true, errInvalidNodeURL, nil, false,
+		},
+		{
+			"query dynamic-balance - query error",
+			append(
+				[]string{
+					"dynamic-balance",
+					sample.RandAccAddressHex(),
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query get-payment-accounts-by-owner - bad node",
+			append(
+				[]string{
+					"get-payment-accounts-by-owner",
+					sample.RandAccAddressHex(),
+					fmt.Sprintf("--%s=%s", flags.FlagNode, testBadNodeURL),
+				},
+				commonFlags...,
+			),
+			true, errInvalidNodeURL, nil, false,
+		},
+		{
+			"query get-payment-accounts-by-owner - query error",
+			append(
+				[]string{
+					"get-payment-accounts-by-owner",
+					sample.RandAccAddressHex(),
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query list-auto-settle-record - page and offset conflict",
+			append(
+				[]string{
+					"list-auto-settle-record",
+					fmt.Sprintf("--%s=%d", flags.FlagPage, 2),
+					fmt.Sprintf("--%s=%d", flags.FlagOffset, 5),
+				},
+				commonFlags...,
+			),
+			true, errPageOffsetConflict, nil, false,
+		},
+		{
+			"query list-auto-settle-record - query error",
+			append(
+				[]string{
+					"list-auto-settle-record",
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query list-payment-account - page and offset conflict",
+			append(
+				[]string{
+					"list-payment-account",
+					fmt.Sprintf("--%s=%d", flags.FlagPage, 2),
+					fmt.Sprintf("--%s=%d", flags.FlagOffset, 5),
+				},
+				commonFlags...,
+			),
+			true, errPageOffsetConflict, nil, false,
+		},
+		{
+			"query list-payment-account - query error",
+			append(
+				[]string{
+					"list-payment-account",
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query list-payment-account-count - page and offset conflict",
+			append(
+				[]string{
+					"list-payment-account-count",
+					fmt.Sprintf("--%s=%d", flags.FlagPage, 2),
+					fmt.Sprintf("--%s=%d", flags.FlagOffset, 5),
+				},
+				commonFlags...,
+			),
+			true, errPageOffsetConflict, nil, false,
+		},
+		{
+			"query list-payment-account-count - query error",
+			append(
+				[]string{
+					"list-payment-account-count",
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query list-stream-record - page and offset conflict",
+			append(
+				[]string{
+					"list-stream-record",
+					fmt.Sprintf("--%s=%d", flags.FlagPage, 2),
+					fmt.Sprintf("--%s=%d", flags.FlagOffset, 5),
+				},
+				commonFlags...,
+			),
+			true, errPageOffsetConflict, nil, false,
+		},
+		{
+			"query list-stream-record - query error",
+			append(
+				[]string{
+					"list-stream-record",
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query show-payment-account - query error",
+			append(
+				[]string{
+					"show-payment-account",
+					sample.RandAccAddressHex(),
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query show-payment-account-count - query error",
+			append(
+				[]string{
+					"show-payment-account-count",
+					sample.RandAccAddressHex(),
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
+		},
+		{
+			"query show-stream-record - query error",
+			append(
+				[]string{
+					"show-stream-record",
+					sample.RandAccAddressHex(),
+				},
+				commonFlags...,
+			),
+			true, errMockQueryFailure, nil, true,
 		},
 	}
 
@@ -136,7 +340,13 @@ func (s *CLITestSuite) TestQueryCmd() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetQueryCmd()
-			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
+
+			cctx := s.clientCtx
+			if tc.useErrCtx {
+				cctx = errClientCtx
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(cctx, cmd, tc.args)
 
 			if tc.expectErr {
 				s.Require().Error(err)
@@ -147,4 +357,122 @@ func (s *CLITestSuite) TestQueryCmd() {
 			}
 		})
 	}
+}
+
+// TestGetEvmQueryCmd only exercises command construction (GetEvmQueryCmd and,
+// transitively, every CmdEvmXxx constructor): building the cobra tree does not
+// invoke any RunE closure, so this never reaches the live-EVM-RPC calls inside
+// them. Those RunE bodies are out of scope for this PR (see PR body).
+func TestGetEvmQueryCmd(t *testing.T) {
+	cmd := cli.GetEvmQueryCmd()
+	require.Equal(t, types.ModuleName, cmd.Name())
+	require.Len(t, cmd.Commands(), 10)
+}
+
+func TestToPaymentPageReq(t *testing.T) {
+	require.Nil(t, cli.ToPaymentPageReq(nil))
+
+	in := &query.PageRequest{
+		Key:        []byte("some-key"),
+		Offset:     3,
+		Limit:      10,
+		CountTotal: true,
+		Reverse:    true,
+	}
+	out := cli.ToPaymentPageReq(in)
+	require.Equal(t, &payment.PageRequest{
+		Key:        in.Key,
+		Offset:     in.Offset,
+		Limit:      in.Limit,
+		CountTotal: in.CountTotal,
+		Reverse:    in.Reverse,
+	}, out)
+}
+
+func TestToPageResp(t *testing.T) {
+	require.Nil(t, cli.ToPageResp(nil))
+
+	in := &payment.PageResponse{
+		NextKey: []byte("next-key"),
+		Total:   7,
+	}
+	out := cli.ToPageResp(in)
+	require.Equal(t, &query.PageResponse{
+		NextKey: in.NextKey,
+		Total:   in.Total,
+	}, out)
+}
+
+func TestToStreamRecord(t *testing.T) {
+	require.Nil(t, cli.ToStreamRecord(nil))
+
+	in := &payment.StreamRecord{
+		Account:           sample.RandAccAddressHex(),
+		CrudTimestamp:     100,
+		NetflowRate:       big.NewInt(5),
+		StaticBalance:     big.NewInt(10),
+		BufferBalance:     big.NewInt(15),
+		LockBalance:       big.NewInt(20),
+		Status:            int32(types.STREAM_ACCOUNT_STATUS_FROZEN),
+		SettleTimestamp:   200,
+		OutFlowCount:      3,
+		FrozenNetflowRate: big.NewInt(25),
+	}
+	out := cli.ToStreamRecord(in)
+	require.Equal(t, &types.StreamRecord{
+		Account:           in.Account,
+		CrudTimestamp:     in.CrudTimestamp,
+		NetflowRate:       sdkmath.NewIntFromBigInt(in.NetflowRate),
+		StaticBalance:     sdkmath.NewIntFromBigInt(in.StaticBalance),
+		BufferBalance:     sdkmath.NewIntFromBigInt(in.BufferBalance),
+		LockBalance:       sdkmath.NewIntFromBigInt(in.LockBalance),
+		Status:            types.STREAM_ACCOUNT_STATUS_FROZEN,
+		SettleTimestamp:   in.SettleTimestamp,
+		OutFlowCount:      in.OutFlowCount,
+		FrozenNetflowRate: sdkmath.NewIntFromBigInt(in.FrozenNetflowRate),
+	}, out)
+}
+
+func TestToPaymentAccount(t *testing.T) {
+	require.Nil(t, cli.ToPaymentAccount(nil))
+
+	in := &payment.PaymentAccount{
+		Addr:       sample.RandAccAddressHex(),
+		Owner:      sample.RandAccAddressHex(),
+		Refundable: true,
+	}
+	out := cli.ToPaymentAccount(in)
+	require.Equal(t, &types.PaymentAccount{
+		Addr:       in.Addr,
+		Owner:      in.Owner,
+		Refundable: in.Refundable,
+	}, out)
+}
+
+func TestToPaymentAccountCount(t *testing.T) {
+	require.Nil(t, cli.ToPaymentAccountCount(nil))
+
+	in := &payment.PaymentAccountCount{
+		Owner: sample.RandAccAddressHex(),
+		Count: 4,
+	}
+	out := cli.ToPaymentAccountCount(in)
+	require.Equal(t, &types.PaymentAccountCount{
+		Owner: in.Owner,
+		Count: in.Count,
+	}, out)
+}
+
+func TestToAutoSettleRecord(t *testing.T) {
+	require.Nil(t, cli.ToAutoSettleRecord(nil))
+
+	in := &payment.AutoSettleRecord{
+		Timestamp: 42,
+		Addr:      sample.RandAccAddressHex(),
+	}
+	out := cli.ToAutoSettleRecord(in)
+	require.Equal(t, &types.AutoSettleRecord{
+		Timestamp: in.Timestamp,
+		Addr:      in.Addr,
+	}, out)
 }
