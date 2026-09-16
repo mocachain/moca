@@ -49,3 +49,16 @@ func TestGenesis(t *testing.T) {
 	nullify.Fill(&genesisState)
 	nullify.Fill(got)
 }
+
+func TestInitGenesis_PanicsOnInvalidParams(t *testing.T) {
+	// A zero-value Params fails Params.Validate() (e.g. MaxSegmentSize must be
+	// positive), so SetParams returns an error and InitGenesis must panic on it.
+	invalidGenesisState := types.GenesisState{
+		Params: types.Params{},
+	}
+
+	k, ctx := makeKeeper(t)
+	require.Panics(t, func() {
+		storage.InitGenesis(ctx, *k, invalidGenesisState)
+	})
+}
