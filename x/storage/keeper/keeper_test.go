@@ -1019,6 +1019,13 @@ func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_CapReachedMidEntryDefersRe
 	s.Require().False(found, "the first queued bucket must be force-deleted")
 	_, found = s.storageKeeper.GetBucketInfo(s.ctx, "discontinue-cap-b")
 	s.Require().True(found, "the second queued bucket must be deferred once the cap is reached")
+
+	// The deferred id must have been re-queued, not dropped: the next run collects it.
+	deleted, err = s.storageKeeper.DeleteDiscontinueBucketsUntil(s.ctx, deleteAt, 1)
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(1), deleted, "the deferred bucket must be collected by the next run")
+	_, found = s.storageKeeper.GetBucketInfo(s.ctx, "discontinue-cap-b")
+	s.Require().False(found, "the deferred bucket must be garbage-collected on the next run")
 }
 
 func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_ForceDeleteErrorSurfaced() {
