@@ -167,17 +167,28 @@ func (s *TestSuite) TestSubmit() {
 			},
 		},
 	}
+	var secondaryChallengeID uint64
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
 			m := tt.msg
-			_, err := s.msgServer.Submit(s.ctx, &m)
+			resp, err := s.msgServer.Submit(s.ctx, &m)
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
 				return
 			}
 			require.NoError(t, err)
+			if tt.name == "success with secondary sp" {
+				secondaryChallengeID = resp.ChallengeId
+			}
 		})
 	}
+
+	// the challenge raised against the secondary sp must bind the challenged secondary's id,
+	// not the bucket's primary sp: SetDepositLockUntil and the attestation slash resolve
+	// against whatever id is bound here
+	spID, bound := s.challengeKeeper.GetChallengeSpID(s.ctx, secondaryChallengeID)
+	s.Require().True(bound)
+	s.Require().Equal(secondarySp.Id, spID)
 
 	// verify storage
 	s.Require().Equal(uint64(3), s.challengeKeeper.GetChallengeCountCurrentBlock(s.ctx))

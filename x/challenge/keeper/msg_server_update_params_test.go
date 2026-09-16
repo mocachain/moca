@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"testing"
 
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mocachain/moca/v2/testutil/sample"
@@ -14,23 +15,31 @@ func (s *TestSuite) TestUpdateParams() {
 	params.HeartbeatInterval = 10
 
 	tests := []struct {
-		name string
-		msg  types.MsgUpdateParams
-		err  bool
+		name    string
+		msg     types.MsgUpdateParams
+		errIs   error
+		errText string
 	}{
 		{
 			name: "invalid authority",
 			msg: types.MsgUpdateParams{
 				Authority: sample.RandAccAddressHex(),
+				Params:    types.DefaultParams(),
 			},
-			err: true,
+			errIs: govtypes.ErrInvalidSigner,
 		}, {
 			name: "invalid params",
 			msg: types.MsgUpdateParams{
 				Authority: s.challengeKeeper.GetAuthority(),
 				Params:    types.Params{},
 			},
-			err: true,
+			errText: "keep alive period cannot be zero",
+		}, {
+			name: "valid authority accepts the params invalid authority was rejected with",
+			msg: types.MsgUpdateParams{
+				Authority: s.challengeKeeper.GetAuthority(),
+				Params:    types.DefaultParams(),
+			},
 		}, {
 			name: "success",
 			msg: types.MsgUpdateParams{
@@ -43,11 +52,14 @@ func (s *TestSuite) TestUpdateParams() {
 		s.T().Run(tt.name, func(t *testing.T) {
 			msg := tt.msg
 			_, err := s.msgServer.UpdateParams(s.ctx, &msg)
-			if tt.err {
-				require.Error(t, err)
-				return
+			switch {
+			case tt.errIs != nil:
+				require.ErrorIs(t, err, tt.errIs)
+			case tt.errText != "":
+				require.ErrorContains(t, err, tt.errText)
+			default:
+				require.NoError(t, err)
 			}
-			require.NoError(t, err)
 		})
 	}
 
