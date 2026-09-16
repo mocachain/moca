@@ -310,6 +310,59 @@ func TestTryResumeStreamRecord_ResumeInMultipleBlocks_BalanceNotEnoughFinally(t 
 	require.Equal(t, userStreamRecord.FrozenNetflowRate, rate.Neg())
 }
 
+// TestTryResumeStreamRecord_OutFlowCountThresholdBoundary pins the exact
+// OutFlowCount<=MaxAutoResumeFlowCount comparison that decides whether a
+// frozen account resumes immediately or is deferred to AutoResume: at
+// OutFlowCount == threshold it resumes within this same call, and one past
+// the threshold it must instead be queued.
+func TestTryResumeStreamRecord_OutFlowCountThresholdBoundary(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Now())
+
+	params := k.GetParams(ctx)
+	const threshold = 2
+	params.MaxAutoResumeFlowCount = threshold
+	require.NoError(t, k.SetParams(ctx, params))
+
+	rate := sdkmath.NewInt(100)
+	deposit := rate.MulRaw(int64(params.VersionedParams.ReserveTime)) //nolint:gosec // G115
+
+	newFrozenRecord := func(outFlowCount uint64) sdk.AccAddress {
+		user := sample.RandAccAddress()
+		record := &types.StreamRecord{
+			StaticBalance:     sdkmath.ZeroInt(),
+			BufferBalance:     sdkmath.ZeroInt(),
+			LockBalance:       sdkmath.ZeroInt(),
+			Account:           user.String(),
+			Status:            types.STREAM_ACCOUNT_STATUS_FROZEN,
+			NetflowRate:       sdkmath.ZeroInt(),
+			FrozenNetflowRate: rate.Neg(),
+			OutFlowCount:      outFlowCount,
+		}
+		k.SetStreamRecord(ctx, record)
+		return user
+	}
+
+	// at the threshold: resumes immediately, within this same call
+	atThreshold := newFrozenRecord(threshold)
+	record, _ := k.GetStreamRecord(ctx, atThreshold)
+	require.NoError(t, k.TryResumeStreamRecord(ctx, record, deposit))
+	updated, _ := k.GetStreamRecord(ctx, atThreshold)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, updated.Status,
+		"OutFlowCount == threshold must resume immediately")
+	require.False(t, k.ExistsAutoResumeRecord(ctx, ctx.BlockTime().Unix(), atThreshold))
+
+	// one past the threshold: deferred to AutoResume instead
+	overThreshold := newFrozenRecord(threshold + 1)
+	record, _ = k.GetStreamRecord(ctx, overThreshold)
+	require.NoError(t, k.TryResumeStreamRecord(ctx, record, deposit))
+	updated, _ = k.GetStreamRecord(ctx, overThreshold)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, updated.Status,
+		"OutFlowCount == threshold+1 must not resume immediately")
+	require.True(t, k.ExistsAutoResumeRecord(ctx, ctx.BlockTime().Unix(), overThreshold),
+		"it must be queued for AutoResume instead")
+}
+
 func TestAutoSettle_AccountIsInResuming(t *testing.T) {
 	keeper, ctx, _ := makePaymentKeeper(t)
 	ctx = ctx.WithBlockTime(time.Now())
@@ -1094,6 +1147,49 @@ func TestTryResumeStreamRecord_SettleTimestampInt64Overflow(t *testing.T) {
 		"deposit that overflows settle timestamp must be rejected, not silently absorbed")
 }
 
+// TestTryResumeStreamRecord_ImmediateResume_SettleTimestampFormula pins the
+// exact SettleTimestamp formula applied on the immediate-resume path:
+// now + floor(StaticBalance / |totalRate|) - ForcedSettleTime, where
+// StaticBalance is the balance after the deposit but before the reserve
+// buffer is carved back out of it.
+func TestTryResumeStreamRecord_ImmediateResume_SettleTimestampFormula(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(5000, 0))
+	now := ctx.BlockTime().Unix()
+
+	params := k.GetParams(ctx)
+	reserveTime := int64(params.VersionedParams.ReserveTime) //nolint:gosec // G115
+	forcedSettleTime := int64(params.ForcedSettleTime)       //nolint:gosec // G115
+
+	const extraRunway int64 = 50
+	rate := sdkmath.NewInt(100)
+	user := sample.RandAccAddress()
+	sr := &types.StreamRecord{
+		Account:           user.String(),
+		Status:            types.STREAM_ACCOUNT_STATUS_FROZEN,
+		StaticBalance:     sdkmath.ZeroInt(),
+		BufferBalance:     sdkmath.ZeroInt(),
+		LockBalance:       sdkmath.ZeroInt(),
+		NetflowRate:       sdkmath.ZeroInt(),
+		FrozenNetflowRate: rate.Neg(),
+		OutFlowCount:      1,
+	}
+	k.SetStreamRecord(ctx, sr)
+
+	// deposit = rate*(reserveTime+extraRunway): the reserve buffer consumes
+	// rate*reserveTime of it, leaving exactly extraRunway seconds of runway.
+	deposit := rate.MulRaw(reserveTime + extraRunway)
+	require.NoError(t, k.TryResumeStreamRecord(ctx, sr, deposit))
+
+	updated, found := k.GetStreamRecord(ctx, user)
+	require.True(t, found)
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, updated.Status)
+
+	expected := now + (reserveTime + extraRunway) - forcedSettleTime
+	require.Equal(t, expected, updated.SettleTimestamp,
+		"SettleTimestamp must equal now + floor(staticBalance/|rate|) - ForcedSettleTime")
+}
+
 // TestUpdateStreamRecord_SettleTimestampSilentWrap catches the secondary overflow:
 // even when payDuration < MaxInt64 (so Int64() would not have panicked), the full
 // expression currentTimestamp - forcedSettleTime + payDuration can itself overflow
@@ -1830,6 +1926,54 @@ func hasAutoSettleRecord(k *keeper.Keeper, ctx sdk.Context, addr sdk.AccAddress)
 		}
 	}
 	return false
+}
+
+// TestAutoSettle_PerBlockBudgetDefersExcessRecords pins the top-level
+// count>=max gate in AutoSettle (the per-block processing budget): with
+// MaxAutoSettleFlowCount == N and N+1 independently queued ACTIVE records
+// eligible for processing, exactly N are settled (their CrudTimestamp is
+// advanced to the current block time) in a single call, and the (N+1)th is
+// left completely untouched, to be picked up on the next block.
+func TestAutoSettle_PerBlockBudgetDefersExcessRecords(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(1000, 0))
+
+	params := k.GetParams(ctx)
+	const budget = 2
+	params.MaxAutoSettleFlowCount = budget
+	require.NoError(t, k.SetParams(ctx, params))
+
+	const total = budget + 1
+	staleTimestamp := ctx.BlockTime().Unix() - 100
+	users := make([]sdk.AccAddress, total)
+	for i := 0; i < total; i++ {
+		users[i] = sample.RandAccAddress()
+		record := &types.StreamRecord{
+			Account:           users[i].String(),
+			Status:            types.STREAM_ACCOUNT_STATUS_ACTIVE,
+			StaticBalance:     sdkmath.NewInt(1000),
+			BufferBalance:     sdkmath.ZeroInt(),
+			LockBalance:       sdkmath.ZeroInt(),
+			NetflowRate:       sdkmath.ZeroInt(),
+			FrozenNetflowRate: sdkmath.ZeroInt(),
+			CrudTimestamp:     staleTimestamp,
+		}
+		k.SetStreamRecord(ctx, record)
+		k.SetAutoSettleRecord(ctx, &types.AutoSettleRecord{Timestamp: staleTimestamp, Addr: users[i].String()})
+	}
+
+	k.AutoSettle(ctx)
+
+	settled := 0
+	for i := 0; i < total; i++ {
+		rec, _ := k.GetStreamRecord(ctx, users[i])
+		if rec.CrudTimestamp == ctx.BlockTime().Unix() {
+			settled++
+		} else {
+			require.Equal(t, staleTimestamp, rec.CrudTimestamp, "a deferred record must be left completely untouched")
+		}
+	}
+	require.Equal(t, budget, settled, "exactly the per-block budget of records may be processed in one call")
 }
 
 // TestAutoSettle_SettleActiveOutFlows_MultipleFrozenAccounts covers

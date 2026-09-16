@@ -221,3 +221,37 @@ func (s *TestSuite) TestWithdraw_TimeLockThreshold() {
 	_, err = s.msgServer.Withdraw(s.ctx, msg)
 	s.Require().ErrorIs(err, types.ErrExistsDelayedWithdrawal)
 }
+
+// TestWithdraw_DelayedRedemption_UnlockInstantBoundary pins the exact
+// now<=end comparison that gates a delayed withdrawal's unlock: at now==end
+// the withdrawal is still locked, and one second later, at now==end+1, it is
+// unlocked.
+func (s *TestSuite) TestWithdraw_DelayedRedemption_UnlockInstantBoundary() {
+	now := s.ctx.BlockTime().Unix()
+
+	// now == end: still locked
+	lockedCreator := sample.RandAccAddress()
+	s.paymentKeeper.SetDelayedWithdrawalRecord(s.ctx, &types.DelayedWithdrawalRecord{
+		Addr:            lockedCreator.String(),
+		Amount:          sdkmath.NewInt(500),
+		From:            sample.RandAccAddress().String(),
+		UnlockTimestamp: now,
+	})
+	lockedMsg := types.NewMsgWithdraw(lockedCreator.String(), "", sdkmath.NewInt(500))
+	_, err := s.msgServer.Withdraw(s.ctx, lockedMsg)
+	s.Require().ErrorIs(err, types.ErrNotReachTimeLockDuration, "now == end must still be locked")
+
+	// now == end+1: unlocked
+	unlockedCreator := sample.RandAccAddress()
+	s.paymentKeeper.SetDelayedWithdrawalRecord(s.ctx, &types.DelayedWithdrawalRecord{
+		Addr:            unlockedCreator.String(),
+		Amount:          sdkmath.NewInt(500),
+		From:            sample.RandAccAddress().String(),
+		UnlockTimestamp: now - 1,
+	})
+	s.bankKeeper.EXPECT().SendCoinsFromModuleToAccount(gomock.Any(), gomock.Any(), unlockedCreator, gomock.Any()).
+		Return(nil).Times(1)
+	unlockedMsg := types.NewMsgWithdraw(unlockedCreator.String(), "", sdkmath.NewInt(500))
+	_, err = s.msgServer.Withdraw(s.ctx, unlockedMsg)
+	s.Require().NoError(err, "now == end+1 must be unlocked")
+}

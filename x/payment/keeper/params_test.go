@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"testing"
+	"time"
 
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
@@ -69,4 +70,37 @@ func TestGetVersionedParamsWithTs_NotFound(t *testing.T) {
 	// no versioned params were ever stored
 	_, err := k.GetVersionedParamsWithTs(testCtx.Ctx, testCtx.Ctx.BlockTime().Unix()+1)
 	require.ErrorContains(t, err, "no versioned params found")
+}
+
+// TestGetVersionedParamsWithTs_ExclusiveUpperBound pins the deliberately
+// exclusive upper bound documented on GetVersionedParamsWithTs: a version
+// written exactly at ts is not yet visible to a query at that same ts (the
+// prior version is returned instead, matching txs executed "at" ts using the
+// old parameters), and becomes visible starting at ts+1.
+func TestGetVersionedParamsWithTs_ExclusiveUpperBound(t *testing.T) {
+	k, ctx, _ := makePaymentKeeper(t)
+
+	const t1 = int64(1000)
+	const t2 = int64(2000)
+
+	params1 := types.DefaultParams()
+	params1.VersionedParams.ReserveTime = 100_000
+	ctx = ctx.WithBlockTime(time.Unix(t1, 0))
+	require.NoError(t, k.SetParams(ctx, params1))
+
+	params2 := types.DefaultParams()
+	params2.VersionedParams.ReserveTime = 200_000
+	ctx = ctx.WithBlockTime(time.Unix(t2, 0))
+	require.NoError(t, k.SetParams(ctx, params2))
+
+	// exactly at t2: the version written at t2 must be excluded, so the t1
+	// version (still in effect for anything executing "at" t2) is returned.
+	got, err := k.GetVersionedParamsWithTs(ctx, t2)
+	require.NoError(t, err)
+	require.Equal(t, uint64(100_000), got.ReserveTime, "query at t2 must still return the t1 version")
+
+	// t2+1: the t2 version is now visible
+	got, err = k.GetVersionedParamsWithTs(ctx, t2+1)
+	require.NoError(t, err)
+	require.Equal(t, uint64(200_000), got.ReserveTime, "query at t2+1 must return the t2 version")
 }
