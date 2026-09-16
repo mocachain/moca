@@ -12,6 +12,14 @@ import (
 	"github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
+// invalidIDMsg is the error the global-virtual-group query commands return for an unusable id.
+func invalidIDMsg(id string) string { return "invalid GVG id " + id }
+
+const (
+	nonNumericID  = "abc"
+	nonPositiveID = "0"
+)
+
 // errRPCFailureLog is the mocked ABCI query log used to exercise the "query
 // RPC failed" error branch shared by every query command below.
 const errRPCFailureLog = "boom"
@@ -160,6 +168,72 @@ func (s *CLITestSuite) TestQueryCmd() {
 				commonFlags...,
 			),
 			true, true, errRPCFailureLog, nil,
+		},
+		{
+			"query global-virtual-group rejects id abc",
+			append(
+				[]string{
+					"global-virtual-group",
+					nonNumericID,
+				},
+				commonFlags...,
+			),
+			false, true, invalidIDMsg(nonNumericID), nil,
+		},
+		{
+			"query global-virtual-group rejects id 0",
+			append(
+				[]string{
+					"global-virtual-group",
+					nonPositiveID,
+				},
+				commonFlags...,
+			),
+			false, true, invalidIDMsg(nonPositiveID), nil,
+		},
+		{
+			"query global-virtual-group-by-family-id rejects id abc",
+			append(
+				[]string{
+					"global-virtual-group-by-family-id",
+					nonNumericID,
+				},
+				commonFlags...,
+			),
+			false, true, invalidIDMsg(nonNumericID), nil,
+		},
+		{
+			"query global-virtual-group-by-family-id rejects id 0",
+			append(
+				[]string{
+					"global-virtual-group-by-family-id",
+					nonPositiveID,
+				},
+				commonFlags...,
+			),
+			false, true, invalidIDMsg(nonPositiveID), nil,
+		},
+		{
+			"query global-virtual-group-family rejects id abc",
+			append(
+				[]string{
+					"global-virtual-group-family",
+					nonNumericID,
+				},
+				commonFlags...,
+			),
+			false, true, invalidIDMsg(nonNumericID), nil,
+		},
+		{
+			"query global-virtual-group-family rejects id 0",
+			append(
+				[]string{
+					"global-virtual-group-family",
+					nonPositiveID,
+				},
+				commonFlags...,
+			),
+			false, true, invalidIDMsg(nonPositiveID), nil,
 		},
 	}
 
