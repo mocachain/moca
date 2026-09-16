@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 
@@ -36,4 +37,17 @@ func TestMsgStorageProviderExit_ValidateBasic(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestMsgStorageProviderExit_RouteTypeSignBytesSigners(t *testing.T) {
+	addr := sample.RandAccAddress()
+	msg := NewMsgStorageProviderExit(addr)
+
+	require.Equal(t, RouterKey, msg.Route())
+	require.Equal(t, TypeMsgStorageProviderExit, msg.Type())
+	require.Equal(t, []sdk.AccAddress{addr}, msg.GetSigners())
+
+	bz := msg.GetSignBytes()
+	require.NotEmpty(t, bz)
+	require.Contains(t, string(bz), addr.String())
 }
