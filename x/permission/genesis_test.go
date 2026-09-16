@@ -31,6 +31,18 @@ func TestGenesis(t *testing.T) {
 	nullify.Fill(got)
 }
 
+// TestInitGenesis_PanicsOnInvalidParams covers the panic(err) branch: a
+// genesis state whose params fail validation must make InitGenesis panic
+// rather than silently leaving the store without params.
+func TestInitGenesis_PanicsOnInvalidParams(t *testing.T) {
+	k, ctx := makeKeeper(t)
+	genesisState := types.GenesisState{Params: types.Params{}}
+
+	require.Panics(t, func() {
+		permission.InitGenesis(ctx, *k, genesisState)
+	})
+}
+
 func makeKeeper(t *testing.T) (*keeper.Keeper, sdk.Context) {
 	encCfg := moduletestutil.MakeTestEncodingConfig(mint.AppModuleBasic{})
 	key := storetypes.NewKVStoreKey(types.StoreKey)
