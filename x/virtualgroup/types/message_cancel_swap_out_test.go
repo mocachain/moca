@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 
@@ -61,4 +62,17 @@ func TestMsgCancelSwapOut_ValidateBasic(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestMsgCancelSwapOut_RouteTypeSignBytesSigners(t *testing.T) {
+	addr := sample.RandAccAddress()
+	msg := NewMsgCancelSwapOut(addr, 1, []uint32{})
+
+	require.Equal(t, RouterKey, msg.Route())
+	require.Equal(t, TypeMsgCancelSwapOut, msg.Type())
+	require.Equal(t, []sdk.AccAddress{addr}, msg.GetSigners())
+
+	bz := msg.GetSignBytes()
+	require.NotEmpty(t, bz)
+	require.Contains(t, string(bz), addr.String())
 }
