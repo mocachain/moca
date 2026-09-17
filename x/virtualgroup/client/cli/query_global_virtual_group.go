@@ -21,7 +21,7 @@ func CmdGlobalVirtualGroup() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			gvgID, err := strconv.ParseInt(args[0], 10, 32)
 			if err != nil || gvgID <= 0 {
-				return fmt.Errorf("invalid GVG id %s", args[1])
+				return fmt.Errorf("invalid GVG id %s", args[0])
 			}
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {

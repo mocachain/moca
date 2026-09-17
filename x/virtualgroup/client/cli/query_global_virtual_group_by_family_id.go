@@ -21,7 +21,7 @@ func CmdGlobalVirtualGroupByFamilyID() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			familyID, err := strconv.ParseInt(args[0], 10, 32)
 			if err != nil || familyID <= 0 {
-				return fmt.Errorf("invalid GVG id %s", args[1])
+				return fmt.Errorf("invalid GVG id %s", args[0])
 			}
 
 			clientCtx, err := client.GetClientQueryContext(cmd)

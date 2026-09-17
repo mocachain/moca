@@ -31,6 +31,20 @@ func TestGenesis(t *testing.T) {
 	nullify.Fill(got)
 }
 
+// InitGenesis must panic rather than silently accept params that fail
+// validation: SetParams rejects them, and InitGenesis panics on that error.
+func TestInitGenesis_InvalidParams_Panics(t *testing.T) {
+	genesisState := types.GenesisState{
+		Params: types.DefaultParams(),
+	}
+	genesisState.Params.HeartbeatInterval = 0
+
+	k, ctx := makeKeeper(t)
+	require.Panics(t, func() {
+		challenge.InitGenesis(ctx, *k, genesisState)
+	})
+}
+
 func makeKeeper(t *testing.T) (*keeper.Keeper, sdk.Context) {
 	encCfg := moduletestutil.MakeTestEncodingConfig(mint.AppModuleBasic{})
 	key := storetypes.NewKVStoreKey(types.StoreKey)
