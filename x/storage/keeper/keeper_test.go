@@ -1028,6 +1028,70 @@ func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_CapReachedMidEntryDefersRe
 	s.Require().False(found, "the deferred bucket must be garbage-collected on the next run")
 }
 
+// A bucket whose objects outlast the per-run cap is only partially drained: ForceDeleteBucket
+// returns bucketDeleted=false, and the id must be re-queued so a later run finishes it. Without
+// the re-queue the queue entry is deleted and the half-emptied bucket — with its remaining
+// objects still billed — is never collected again.
+func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_PartiallyDrainedBucketIsRequeued() {
+	// GetVersionedParamsWithTS reverse-iterates with an exclusive bound, so the params must be
+	// written strictly before the timestamp the objects are charged at.
+	s.Require().NoError(s.storageKeeper.SetVersionedParamsWithTS(s.ctx, types.VersionedParams{MaxSegmentSize: 1, RedundantDataChunkNum: 0, RedundantParityChunkNum: 0, MinChargeSize: 0}))
+	s.ctx = s.ctx.WithBlockTime(s.ctx.BlockTime().Add(time.Second))
+
+	operator := sample.RandAccAddress()
+	owner := sample.RandAccAddress()
+	bucketName := "discontinue-partial-bucket"
+	bucketID := sdkmath.NewUint(1)
+	bucketInfo := &types.BucketInfo{
+		Owner:                      owner.String(),
+		BucketName:                 bucketName,
+		Id:                         bucketID,
+		PaymentAddress:             owner.String(),
+		GlobalVirtualGroupFamilyId: 1,
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+	// MinChargeSize is 0 in the seeded params, so each 100-byte object charges exactly 100.
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketID, &types.InternalBucketInfo{
+		TotalChargeSize: 200,
+		LocalVirtualGroups: []*types.LocalVirtualGroup{
+			{Id: 1, GlobalVirtualGroupId: 1, StoredSize: 200, TotalChargeSize: 200},
+		},
+	})
+	for i, name := range []string{"partial-obj-a", "partial-obj-b"} {
+		s.storageKeeper.StoreObjectInfo(s.ctx, &types.ObjectInfo{
+			Id: sdkmath.NewUint(uint64(10 + i)), BucketName: bucketName, ObjectName: name, Owner: owner.String(),
+			ObjectStatus: types.OBJECT_STATUS_SEALED, PayloadSize: 100, LocalVirtualGroupId: 1,
+			CreateAt: s.ctx.BlockTime().Unix(),
+		})
+	}
+
+	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: sample.RandAccAddress().String()}
+	s.spKeeper.EXPECT().GetStorageProviderByGcAddr(gomock.Any(), gomock.Any()).Return(sp, true).AnyTimes()
+	s.mockPrimarySP(bucketInfo, sp)
+	s.stubSealedObjectFeesZero()
+	gvg := &virtualgroupmoduletypes.GlobalVirtualGroup{Id: 1, FamilyId: 1, PrimarySpId: sp.Id, SecondarySpIds: []uint32{}, StoredSize: 200}
+	s.virtualGroupKeeper.EXPECT().GetGVG(gomock.Any(), gomock.Any()).Return(gvg, true).AnyTimes()
+	s.virtualGroupKeeper.EXPECT().SetGVGAndEmitUpdateEvent(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	s.stubGCBookkeepingNoop()
+
+	s.Require().NoError(s.storageKeeper.DiscontinueBucket(s.ctx, operator, bucketName, "reason"))
+	deleteAt := s.ctx.BlockTime().Unix() + s.storageKeeper.DiscontinueConfirmPeriod(s.ctx)
+
+	// Cap of 1 drains one of the two objects, so the bucket survives this run.
+	deleted, err := s.storageKeeper.DeleteDiscontinueBucketsUntil(s.ctx, deleteAt, 1)
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(1), deleted, "the cap must stop the run after the first object")
+	_, found := s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().True(found, "a partially drained bucket must not be removed yet")
+
+	// The partially drained id must have been re-queued, not dropped: a later run finishes it.
+	deleted, err = s.storageKeeper.DeleteDiscontinueBucketsUntil(s.ctx, deleteAt, 10)
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(2), deleted, "the next run must drain the remaining object and collect the bucket")
+	_, found = s.storageKeeper.GetBucketInfo(s.ctx, bucketName)
+	s.Require().False(found, "the re-queued bucket must be garbage-collected on the next run")
+}
+
 func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_ForceDeleteErrorSurfaced() {
 	bucketID := sdkmath.NewUint(1)
 	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
