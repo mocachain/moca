@@ -283,10 +283,11 @@ func (k Keeper) UpdateStreamRecordByAddr(ctx sdk.Context, change *types.StreamRe
 }
 
 // isGovernanceAccount reports whether account is the governance stream
-// account, compared in the same string form the store uses for
-// StreamRecord.Account.
+// account. The comparison goes through the parsed address, not the string,
+// because the 0x hex form of an address can differ in letter case.
 func isGovernanceAccount(account string) bool {
-	return account == types.GovernanceAddress.String()
+	addr, err := sdk.AccAddressFromHexUnsafe(account)
+	return err == nil && addr.Equals(types.GovernanceAddress)
 }
 
 func (k Keeper) ForceSettle(ctx sdk.Context, streamRecord *types.StreamRecord) error {

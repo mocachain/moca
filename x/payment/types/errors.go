@@ -23,4 +23,5 @@ var (
 	ErrSettleTimestampOverflow            = errorsmod.Register(ModuleName, 1214, "settle timestamp overflow: deposit would fund the account beyond the representable future")
 	ErrForceSettleGovernanceAccount       = errorsmod.Register(ModuleName, 1215, "the governance stream account cannot be force settled")
 	ErrGovernanceAccountOutFlow           = errorsmod.Register(ModuleName, 1216, "the governance stream account cannot pay out flows")
+	ErrGovernancePaymentAccount           = errorsmod.Register(ModuleName, 1217, "the governance stream account cannot own payment accounts")
 )
