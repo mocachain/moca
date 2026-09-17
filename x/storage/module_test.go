@@ -132,7 +132,7 @@ func TestNewAppModule(t *testing.T) {
 	am := newAppModule(*k, encCfg.Codec)
 
 	require.Equal(t, types.ModuleName, am.Name())
-	require.Equal(t, uint64(1), am.ConsensusVersion())
+	require.Equal(t, uint64(2), am.ConsensusVersion())
 	require.NotPanics(t, func() {
 		am.IsAppModule()
 		am.IsOnePerModuleType()
