@@ -201,6 +201,9 @@ wait_for_evm_rpc_ready() {
 # wait_for_evm_rpc_ready cannot see. Prints cast's combined output and returns
 # its exit status, so callers keep parsing `--json` output exactly as before.
 #
+# Any other failure is returned immediately. CAST_SEND_RETRY_SLEEP (seconds,
+# default 2) is the pause between attempts; lib_test.sh sets it to 0.
+#
 # Usage: out=$(cast_send_retry <cast send args...>)
 cast_send_retry() {
     local out rc attempt
@@ -211,8 +214,8 @@ cast_send_retry() {
             printf '%s\n' "$out"
             return "$rc"
         fi
-        log_warn "cast send got a null RPC response (attempt ${attempt}/5), retrying in 2s..."
-        sleep 2
+        log_warn "cast send got a null RPC response (attempt ${attempt}/5), retrying in ${CAST_SEND_RETRY_SLEEP:-2}s..."
+        sleep "${CAST_SEND_RETRY_SLEEP:-2}"
     done
     printf '%s\n' "$out"
     return "$rc"

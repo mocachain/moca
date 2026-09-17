@@ -338,6 +338,10 @@ e2e-fw-test:
 e2e-fw-dev:
 	@FW_SKIP_CLEANUP=true bash $(E2E_KIND_DIR)/tests/test_$(TEST).sh
 
+# Unit tests for the Kind e2e shell helpers (no cluster needed)
+e2e-scripts-test:
+	@bash $(E2E_KIND_DIR)/scripts/lib_test.sh
+
 # Individual Kind e2e steps
 e2e-kind-setup:
 	@bash $(E2E_KIND_DIR)/scripts/setup-kind.sh
@@ -351,7 +355,7 @@ e2e-kind-deploy:
 e2e-kind-cleanup:
 	@bash $(E2E_KIND_DIR)/scripts/cleanup.sh
 
-.PHONY: e2e-fw e2e-fw-test e2e-fw-dev e2e-kind-setup e2e-kind-build e2e-kind-deploy e2e-kind-cleanup
+.PHONY: e2e-fw e2e-fw-test e2e-fw-dev e2e-scripts-test e2e-kind-setup e2e-kind-build e2e-kind-deploy e2e-kind-cleanup
 
 run-tests:
 ifneq (,$(shell which tparse 2>/dev/null))
