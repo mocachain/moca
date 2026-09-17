@@ -186,7 +186,7 @@ func GetBucketFlowRateLimitKey(paymentAccount, bucketOwner sdk.AccAddress, bucke
 // GetBucketFlowRateLimitStatusKey return the bucket rate limit store key
 func GetBucketFlowRateLimitStatusKey(bucketName string) []byte {
 	bucketNameHash := crypto.Keccak256([]byte(bucketName))
-	return append(BucketRateLimitPrefix, bucketNameHash...)
+	return append(BucketRateLimitStatusPrefix, bucketNameHash...)
 }
 
 // GetBucketCountByOwnerKey return the bucket count by owner store key

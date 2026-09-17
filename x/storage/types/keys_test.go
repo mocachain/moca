@@ -166,9 +166,13 @@ func TestGetBucketCountByOwnerKey(t *testing.T) {
 	require.NotEqual(t, got, types.GetBucketCountByOwnerKey(other), "different owners must not collide")
 }
 
-// NOTE: GetBucketFlowRateLimitStatusKey is deliberately not covered here --
-// see "Findings" in the PR description. It builds its key from
-// BucketRateLimitPrefix (the same prefix GetBucketFlowRateLimitKey uses)
-// instead of the dedicated BucketRateLimitStatusPrefix the file declares, so
-// asserting today's byte layout would enshrine what looks like a copy-paste
-// prefix mistake rather than a deliberate contract.
+func TestGetBucketFlowRateLimitStatusKey(t *testing.T) {
+	got := types.GetBucketFlowRateLimitStatusKey("mybucket")
+	want := concatBytes(types.BucketRateLimitStatusPrefix, crypto.Keccak256([]byte("mybucket")))
+	require.Equal(t, want, got)
+
+	require.NotEqual(t, got, types.GetBucketFlowRateLimitStatusKey("other-bucket"),
+		"different bucket names must not collide")
+	require.NotEqual(t, types.BucketRateLimitStatusPrefix, types.BucketRateLimitPrefix,
+		"status entries must live under their own prefix, not the rate-limit prefix")
+}
