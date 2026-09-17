@@ -2975,6 +2975,399 @@ func (s *TestSuite) TestPutPolicy_AcceptsRegexpMetacharacterInObjectName() {
 	s.Require().NoError(err, "a legal object name that is not a legal regexp must remain storable")
 }
 
+// TestSetGroupInfo_PersistsAndOverwrites covers the raw ID-indexed setter used
+// to persist mutations made through the higher-level group methods.
+func (s *TestSuite) TestSetGroupInfo_PersistsAndOverwrites() {
+	groupID := sdkmath.NewUint(9001)
+	groupInfo := &types.GroupInfo{
+		Id:        groupID,
+		Owner:     sample.RandAccAddress().String(),
+		GroupName: "set-group-info-name",
+		Extra:     "v1",
+	}
+	s.storageKeeper.SetGroupInfo(s.ctx, groupInfo)
+
+	got, found := s.storageKeeper.GetGroupInfoById(s.ctx, groupID)
+	s.Require().True(found)
+	s.Require().Equal("v1", got.Extra)
+
+	groupInfo.Extra = "v2"
+	s.storageKeeper.SetGroupInfo(s.ctx, groupInfo)
+
+	got, found = s.storageKeeper.GetGroupInfoById(s.ctx, groupID)
+	s.Require().True(found)
+	s.Require().Equal("v2", got.Extra, "SetGroupInfo must overwrite the existing record")
+}
+
+// TestCreateGroup_DuplicateNameRejected covers CreateGroup's remaining branch:
+// a second group with the same owner+name must be rejected rather than
+// silently overwriting or double-minting the group NFT.
+func (s *TestSuite) TestCreateGroup_DuplicateNameRejected() {
+	owner := sample.RandAccAddress()
+	groupName := "dup-group"
+
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+
+	_, err = s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().ErrorIs(err, types.ErrGroupAlreadyExists)
+}
+
+func (s *TestSuite) TestDeleteGroup_NotFound() {
+	operator := sample.RandAccAddress()
+	err := s.storageKeeper.DeleteGroup(s.ctx, operator, "missing-group", types.DeleteGroupOptions{})
+	s.Require().ErrorIs(err, types.ErrNoSuchGroup)
+}
+
+func (s *TestSuite) TestDeleteGroup_SourceTypeMismatch() {
+	owner := sample.RandAccAddress()
+	groupName := "deletegroup-sourcetype"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{SourceType: types.SOURCE_TYPE_ORIGIN})
+	s.Require().NoError(err)
+
+	err = s.storageKeeper.DeleteGroup(s.ctx, owner, groupName, types.DeleteGroupOptions{SourceType: types.SOURCE_TYPE_MIRROR_PENDING})
+	s.Require().ErrorIs(err, types.ErrSourceTypeMismatch)
+}
+
+// DeleteGroup's ErrAccessDenied branch is not covered here: it is dead code
+// through the public API (see "Findings" in the PR body).
+func (s *TestSuite) TestDeleteGroup_Success() {
+	owner := sample.RandAccAddress()
+	groupName := "deletegroup-success"
+	groupID, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+
+	s.permissionKeeper.EXPECT().ExistAccountPolicyForResource(gomock.Any(), gnfdresource.RESOURCE_TYPE_GROUP, groupID).Return(false).AnyTimes()
+	s.permissionKeeper.EXPECT().ExistGroupPolicyForResource(gomock.Any(), gnfdresource.RESOURCE_TYPE_GROUP, groupID).Return(false).AnyTimes()
+	s.permissionKeeper.EXPECT().ExistGroupMemberForGroup(gomock.Any(), groupID).Return(false).AnyTimes()
+
+	err = s.storageKeeper.DeleteGroup(s.ctx, owner, groupName, types.DeleteGroupOptions{})
+	s.Require().NoError(err)
+
+	_, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().False(found, "group must be removed from the name index")
+	_, found = s.storageKeeper.GetGroupInfoById(s.ctx, groupID)
+	s.Require().False(found, "group must be removed from the id index")
+}
+
+func (s *TestSuite) TestLeaveGroup_NotFound() {
+	member := sample.RandAccAddress()
+	owner := sample.RandAccAddress()
+	err := s.storageKeeper.LeaveGroup(s.ctx, member, owner, "missing-group", types.LeaveGroupOptions{})
+	s.Require().ErrorIs(err, types.ErrNoSuchGroup)
+}
+
+func (s *TestSuite) TestLeaveGroup_SourceTypeMismatch() {
+	owner := sample.RandAccAddress()
+	member := sample.RandAccAddress()
+	groupName := "leavegroup-sourcetype"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+
+	err = s.storageKeeper.LeaveGroup(s.ctx, member, owner, groupName, types.LeaveGroupOptions{SourceType: types.SOURCE_TYPE_MIRROR_PENDING})
+	s.Require().ErrorIs(err, types.ErrSourceTypeMismatch)
+}
+
+func (s *TestSuite) TestLeaveGroup_RemoveGroupMemberError() {
+	owner := sample.RandAccAddress()
+	member := sample.RandAccAddress()
+	groupName := "leavegroup-removeerr"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	s.permissionKeeper.EXPECT().RemoveGroupMember(gomock.Any(), groupInfo.Id, member).Return(errors.New("remove failed"))
+
+	err = s.storageKeeper.LeaveGroup(s.ctx, member, owner, groupName, types.LeaveGroupOptions{})
+	s.Require().Error(err)
+}
+
+func (s *TestSuite) TestLeaveGroup_Success() {
+	owner := sample.RandAccAddress()
+	member := sample.RandAccAddress()
+	groupName := "leavegroup-success"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	s.permissionKeeper.EXPECT().RemoveGroupMember(gomock.Any(), groupInfo.Id, member).Return(nil)
+
+	err = s.storageKeeper.LeaveGroup(s.ctx, member, owner, groupName, types.LeaveGroupOptions{})
+	s.Require().NoError(err)
+}
+
+func (s *TestSuite) TestUpdateGroupMember_SourceTypeMismatch() {
+	owner := sample.RandAccAddress()
+	groupName := "updatemember-sourcetype"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	err = s.storageKeeper.UpdateGroupMember(s.ctx, owner, groupInfo, types.UpdateGroupMemberOptions{SourceType: types.SOURCE_TYPE_MIRROR_PENDING})
+	s.Require().ErrorIs(err, types.ErrSourceTypeMismatch)
+}
+
+func (s *TestSuite) TestUpdateGroupMember_AccessDenied() {
+	owner := sample.RandAccAddress()
+	nonOwner := sample.RandAccAddress()
+	groupName := "updatemember-denied"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	s.permissionKeeper.EXPECT().GetPolicyForAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+	s.permissionKeeper.EXPECT().GetPolicyGroupForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	err = s.storageKeeper.UpdateGroupMember(s.ctx, nonOwner, groupInfo, types.UpdateGroupMemberOptions{})
+	s.Require().ErrorIs(err, types.ErrAccessDenied)
+}
+
+func (s *TestSuite) TestUpdateGroupMember_InvalidAddAddress() {
+	owner := sample.RandAccAddress()
+	groupName := "updatemember-badadd"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	err = s.storageKeeper.UpdateGroupMember(s.ctx, owner, groupInfo, types.UpdateGroupMemberOptions{
+		MembersToAdd:           []string{""},
+		MembersExpirationToAdd: []*time.Time{nil},
+	})
+	s.Require().Error(err)
+}
+
+func (s *TestSuite) TestUpdateGroupMember_AddGroupMemberError() {
+	owner := sample.RandAccAddress()
+	groupName := "updatemember-adderr"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+	newMember := sample.RandAccAddress()
+
+	s.permissionKeeper.EXPECT().AddGroupMember(gomock.Any(), groupInfo.Id, newMember, gomock.Any()).Return(errors.New("add failed"))
+
+	err = s.storageKeeper.UpdateGroupMember(s.ctx, owner, groupInfo, types.UpdateGroupMemberOptions{
+		MembersToAdd:           []string{newMember.String()},
+		MembersExpirationToAdd: []*time.Time{nil},
+	})
+	s.Require().Error(err)
+}
+
+func (s *TestSuite) TestUpdateGroupMember_InvalidDeleteAddress() {
+	owner := sample.RandAccAddress()
+	groupName := "updatemember-baddelete"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	err = s.storageKeeper.UpdateGroupMember(s.ctx, owner, groupInfo, types.UpdateGroupMemberOptions{
+		MembersToDelete: []string{""},
+	})
+	s.Require().Error(err)
+}
+
+func (s *TestSuite) TestUpdateGroupMember_RemoveGroupMemberError() {
+	owner := sample.RandAccAddress()
+	groupName := "updatemember-removeerr"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+	member := sample.RandAccAddress()
+
+	s.permissionKeeper.EXPECT().RemoveGroupMember(gomock.Any(), groupInfo.Id, member).Return(errors.New("remove failed"))
+
+	err = s.storageKeeper.UpdateGroupMember(s.ctx, owner, groupInfo, types.UpdateGroupMemberOptions{
+		MembersToDelete: []string{member.String()},
+	})
+	s.Require().Error(err)
+}
+
+func (s *TestSuite) TestUpdateGroupMember_Success() {
+	owner := sample.RandAccAddress()
+	groupName := "updatemember-success"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+	added := sample.RandAccAddress()
+	removed := sample.RandAccAddress()
+
+	s.permissionKeeper.EXPECT().AddGroupMember(gomock.Any(), groupInfo.Id, added, gomock.Any()).Return(nil)
+	s.permissionKeeper.EXPECT().RemoveGroupMember(gomock.Any(), groupInfo.Id, removed).Return(nil)
+
+	err = s.storageKeeper.UpdateGroupMember(s.ctx, owner, groupInfo, types.UpdateGroupMemberOptions{
+		MembersToAdd:           []string{added.String()},
+		MembersExpirationToAdd: []*time.Time{nil},
+		MembersToDelete:        []string{removed.String()},
+	})
+	s.Require().NoError(err)
+}
+
+func (s *TestSuite) TestRenewGroupMember_SourceTypeMismatch() {
+	owner := sample.RandAccAddress()
+	groupName := "renewmember-sourcetype"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	err = s.storageKeeper.RenewGroupMember(s.ctx, owner, groupInfo, types.RenewGroupMemberOptions{SourceType: types.SOURCE_TYPE_MIRROR_PENDING})
+	s.Require().ErrorIs(err, types.ErrSourceTypeMismatch)
+}
+
+func (s *TestSuite) TestRenewGroupMember_AccessDenied() {
+	owner := sample.RandAccAddress()
+	nonOwner := sample.RandAccAddress()
+	groupName := "renewmember-denied"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	s.permissionKeeper.EXPECT().GetPolicyForAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+	s.permissionKeeper.EXPECT().GetPolicyGroupForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	err = s.storageKeeper.RenewGroupMember(s.ctx, nonOwner, groupInfo, types.RenewGroupMemberOptions{})
+	s.Require().ErrorIs(err, types.ErrAccessDenied)
+}
+
+func (s *TestSuite) TestRenewGroupMember_InvalidAddress() {
+	owner := sample.RandAccAddress()
+	groupName := "renewmember-badaddr"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	err = s.storageKeeper.RenewGroupMember(s.ctx, owner, groupInfo, types.RenewGroupMemberOptions{
+		Members:           []string{""},
+		MembersExpiration: []*time.Time{nil},
+	})
+	s.Require().Error(err)
+}
+
+func (s *TestSuite) TestRenewGroupMember_NewMemberAddError() {
+	owner := sample.RandAccAddress()
+	groupName := "renewmember-adderr"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+	member := sample.RandAccAddress()
+
+	s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), groupInfo.Id, member).Return(nil, false)
+	s.permissionKeeper.EXPECT().AddGroupMember(gomock.Any(), groupInfo.Id, member, gomock.Any()).Return(errors.New("add failed"))
+
+	err = s.storageKeeper.RenewGroupMember(s.ctx, owner, groupInfo, types.RenewGroupMemberOptions{
+		Members:           []string{member.String()},
+		MembersExpiration: []*time.Time{nil},
+	})
+	s.Require().Error(err)
+}
+
+// TestRenewGroupMember_AddsNewMember covers the branch where the renewed
+// address is not yet a member: RenewGroupMember must add it rather than error.
+func (s *TestSuite) TestRenewGroupMember_AddsNewMember() {
+	owner := sample.RandAccAddress()
+	groupName := "renewmember-new"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+	member := sample.RandAccAddress()
+
+	s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), groupInfo.Id, member).Return(nil, false)
+	s.permissionKeeper.EXPECT().AddGroupMember(gomock.Any(), groupInfo.Id, member, gomock.Any()).Return(nil)
+
+	err = s.storageKeeper.RenewGroupMember(s.ctx, owner, groupInfo, types.RenewGroupMemberOptions{
+		Members:           []string{member.String()},
+		MembersExpiration: []*time.Time{nil},
+	})
+	s.Require().NoError(err)
+}
+
+// TestRenewGroupMember_UpdatesExistingMember covers the branch where the
+// renewed address is already a member: RenewGroupMember must update its
+// expiration in place rather than adding a duplicate.
+func (s *TestSuite) TestRenewGroupMember_UpdatesExistingMember() {
+	owner := sample.RandAccAddress()
+	groupName := "renewmember-existing"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+	member := sample.RandAccAddress()
+	existing := &permtypes.GroupMember{Id: sdkmath.NewUint(77), GroupId: groupInfo.Id, Member: member.String()}
+
+	s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), groupInfo.Id, member).Return(existing, true)
+	s.permissionKeeper.EXPECT().UpdateGroupMember(gomock.Any(), groupInfo.Id, member, existing.Id, gomock.Any())
+
+	err = s.storageKeeper.RenewGroupMember(s.ctx, owner, groupInfo, types.RenewGroupMemberOptions{
+		Members:           []string{member.String()},
+		MembersExpiration: []*time.Time{nil},
+	})
+	s.Require().NoError(err)
+}
+
+func (s *TestSuite) TestUpdateGroupExtra_AccessDenied() {
+	owner := sample.RandAccAddress()
+	nonOwner := sample.RandAccAddress()
+	groupName := "updateextra-denied"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	s.permissionKeeper.EXPECT().GetPolicyForAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+	s.permissionKeeper.EXPECT().GetPolicyGroupForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	err = s.storageKeeper.UpdateGroupExtra(s.ctx, nonOwner, groupInfo, "new-extra")
+	s.Require().ErrorIs(err, types.ErrAccessDenied)
+}
+
+// TestUpdateGroupExtra_Changed covers the branch that persists a new value.
+func (s *TestSuite) TestUpdateGroupExtra_Changed() {
+	owner := sample.RandAccAddress()
+	groupName := "updateextra-changed"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{Extra: "old"})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	err = s.storageKeeper.UpdateGroupExtra(s.ctx, owner, groupInfo, "new")
+	s.Require().NoError(err)
+
+	got, found := s.storageKeeper.GetGroupInfoById(s.ctx, groupInfo.Id)
+	s.Require().True(found)
+	s.Require().Equal("new", got.Extra)
+}
+
+// TestUpdateGroupExtra_Unchanged covers the branch that skips the KV write
+// when the new value equals the current one.
+func (s *TestSuite) TestUpdateGroupExtra_Unchanged() {
+	owner := sample.RandAccAddress()
+	groupName := "updateextra-unchanged"
+	_, err := s.storageKeeper.CreateGroup(s.ctx, owner, groupName, types.CreateGroupOptions{Extra: "same"})
+	s.Require().NoError(err)
+	groupInfo, found := s.storageKeeper.GetGroupInfo(s.ctx, owner, groupName)
+	s.Require().True(found)
+
+	err = s.storageKeeper.UpdateGroupExtra(s.ctx, owner, groupInfo, "same")
+	s.Require().NoError(err)
+
+	got, found := s.storageKeeper.GetGroupInfoById(s.ctx, groupInfo.Id)
+	s.Require().True(found)
+	s.Require().Equal("same", got.Extra)
+}
+
 // realPermissionKeeper mounts a real x/permission keeper on the suite's own
 // CommitMultiStore so VerifyPolicy exercises the production PutPolicy, not a mock.
 func (s *TestSuite) realPermissionKeeper() *permkeeper.Keeper {
