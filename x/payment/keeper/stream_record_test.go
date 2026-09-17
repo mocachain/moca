@@ -1403,6 +1403,33 @@ func TestForceSettle_SelfOutFlowDoesNotReenter(t *testing.T) {
 	require.NotNil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_FROZEN, payer))
 }
 
+// The governance account backstops other accounts' settlements; it is never
+// itself the target of one, so ForceSettle must reject it outright and leave
+// its record exactly as it was.
+func TestForceSettle_RejectsGovernanceAccount(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(100, 0))
+
+	governanceRecord := types.NewStreamRecord(types.GovernanceAddress, ctx.BlockTime().Unix())
+	governanceRecord.StaticBalance = sdkmath.NewInt(500)
+	governanceRecord.BufferBalance = sdkmath.NewInt(50)
+	keeper.SetStreamRecord(ctx, governanceRecord)
+
+	before, found := keeper.GetStreamRecord(ctx, types.GovernanceAddress)
+	require.True(t, found)
+
+	err := keeper.ForceSettle(ctx, before)
+	require.ErrorIs(t, err, types.ErrForceSettleGovernanceAccount)
+
+	after, found := keeper.GetStreamRecord(ctx, types.GovernanceAddress)
+	require.True(t, found)
+	require.Equal(t, sdkmath.NewInt(500), after.StaticBalance, "static balance must be untouched")
+	require.Equal(t, sdkmath.NewInt(50), after.BufferBalance, "buffer balance must be untouched")
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, after.Status, "status must be untouched")
+	require.Equal(t, sdkmath.NewInt(500), before.StaticBalance, "the passed-in record must be untouched in place")
+	require.Equal(t, sdkmath.NewInt(50), before.BufferBalance, "the passed-in record must be untouched in place")
+}
+
 // Freezing a payer removes its rate from each recipient, which can push a
 // recipient that was only solvent on that inflow into a force settle of its
 // own. That second freeze must cascade to the recipient's own out-flows.
