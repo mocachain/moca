@@ -50,3 +50,24 @@ func TestPaymentAccount(t *testing.T) {
 	resp3 := keeper.GetAllPaymentAccount(ctx)
 	require.True(t, len(resp3) == 2)
 }
+
+func TestIsPaymentAccountOwner(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	// identity: an address is always its own owner, payment account or not
+	addr := sample.RandAccAddress()
+	require.True(t, keeper.IsPaymentAccountOwner(ctx, addr, addr))
+
+	// no payment account recorded for addr -> false
+	other := sample.RandAccAddress()
+	require.False(t, keeper.IsPaymentAccountOwner(ctx, addr, other))
+
+	// payment account recorded, but owner is a different, valid address -> false
+	realOwner := sample.RandAccAddress()
+	keeper.SetPaymentAccount(ctx, &types.PaymentAccount{
+		Addr:  addr.String(),
+		Owner: realOwner.String(),
+	})
+	require.False(t, keeper.IsPaymentAccountOwner(ctx, addr, other))
+	require.True(t, keeper.IsPaymentAccountOwner(ctx, addr, realOwner))
+}
