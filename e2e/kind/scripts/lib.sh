@@ -193,6 +193,34 @@ wait_for_evm_rpc_ready() {
     done
 }
 
+# cast_send_retry: run `cast send "$@"` and retry a few times when the
+# JSON-RPC answers with a null result ("server returned a null response when a
+# non-null response was expected"). Right after a (re)start the port-forwarded
+# EVM RPC can answer eth_getTransactionCount or eth_sendRawTransaction with a
+# null result for a moment even though eth_blockNumber already serves, which
+# wait_for_evm_rpc_ready cannot see. Prints cast's combined output and returns
+# its exit status, so callers keep parsing `--json` output exactly as before.
+#
+# Any other failure is returned immediately. CAST_SEND_RETRY_SLEEP (seconds,
+# default 2) is the pause between attempts; lib_test.sh sets it to 0.
+#
+# Usage: out=$(cast_send_retry <cast send args...>)
+cast_send_retry() {
+    local out rc attempt
+    for attempt in 1 2 3 4 5; do
+        out=$(cast send "$@" 2>&1)
+        rc=$?
+        if [ "$rc" -eq 0 ] || ! printf '%s' "$out" | grep -q 'null response'; then
+            printf '%s\n' "$out"
+            return "$rc"
+        fi
+        log_warn "cast send got a null RPC response (attempt ${attempt}/5), retrying in ${CAST_SEND_RETRY_SLEEP:-2}s..."
+        sleep "${CAST_SEND_RETRY_SLEEP:-2}"
+    done
+    printf '%s\n' "$out"
+    return "$rc"
+}
+
 # kind_load_image: load a local docker image into the Kind cluster's containerd
 # snapshotter. Uses `docker save | docker exec ctr import` instead of the
 # default `kind load docker-image` because the latter can silently fail with

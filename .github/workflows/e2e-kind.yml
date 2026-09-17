@@ -19,6 +19,17 @@ env:
   CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
 
 jobs:
+  # ── Shell helper unit tests (no cluster needed) ─────────────────────────────
+  scripts-unit:
+    name: E2E helper unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run lib.sh tests
+        run: bash e2e/kind/scripts/lib_test.sh
+
   # ── Build Docker images once, share via artifact ─────────────────────────────
   build-e2e-images:
     name: Build E2E Images

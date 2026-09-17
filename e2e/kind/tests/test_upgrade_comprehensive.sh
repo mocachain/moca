@@ -105,9 +105,9 @@ cosmos_tx_on() {
 # swallowed) and so callers can verify status explicitly if needed.
 evm_transfer() {
     local out hash
-    out=$(cast send "$1" --value "$2" \
+    out=$(cast_send_retry "$1" --value "$2" \
         --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json 2>&1) || {
+        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json) || {
         log_error "  evm_transfer broadcast failed: $out"
         return 1
     }
@@ -118,8 +118,8 @@ evm_transfer() {
 
 evm_send() {
     local out hash
-    out=$(cast send "$@" --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json 2>&1) || {
+    out=$(cast_send_retry "$@" --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
+        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json) || {
         log_error "  evm_send broadcast failed: $out"
         return 1
     }
@@ -135,8 +135,8 @@ evm_call() {
 evm_deploy() {
     local bytecode="$1"
     local output hash
-    output=$(cast send --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json --create "$bytecode" 2>&1) || {
+    output=$(cast_send_retry --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
+        --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json --create "$bytecode") || {
         log_error "  evm_deploy broadcast failed: $output"
         return 1
     }
