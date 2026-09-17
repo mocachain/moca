@@ -129,9 +129,9 @@ func TestToPbPrice(t *testing.T) {
 	require.Equal(t, &types.SpStoragePrice{
 		SpId:          in.SpId,
 		UpdateTimeSec: in.UpdateTimeSec.Int64(),
-		ReadPrice:     math.LegacyNewDecFromInt(math.NewIntFromBigInt(in.ReadPrice)),
+		ReadPrice:     math.LegacyNewDecFromBigIntWithPrec(in.ReadPrice, math.LegacyPrecision),
 		FreeReadQuota: in.FreeReadQuota,
-		StorePrice:    math.LegacyNewDecFromInt(math.NewIntFromBigInt(in.StorePrice)),
+		StorePrice:    math.LegacyNewDecFromBigIntWithPrec(in.StorePrice, math.LegacyPrecision),
 	}, toPbPrice(in))
 }
 

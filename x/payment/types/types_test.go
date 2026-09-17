@@ -9,6 +9,9 @@ import (
 	"github.com/mocachain/moca/v2/testutil/sample"
 )
 
+// invalidAddress is a shared bad-address fixture used across this package's message tests.
+const invalidAddress = "invalid_address"
+
 func TestVerifyModuleAddress(t *testing.T) {
 	require.Equal(t, "0x25b2f7C1aA3cCCeF718e8e3A7Ec1A7C521eef2a9", GovernanceAddress.String())
 	require.Equal(t, "0xdF5F0588f6B09f0B9E58D3426252db25Dc74E7a1", ValidatorTaxPoolAddress.String())
@@ -22,4 +25,12 @@ func TestStreamRecordChange(t *testing.T) {
 	t.Logf("src2: %+v", src2)
 	src3 := NewDefaultStreamRecordChangeWithAddr(addr).WithRateChange(sdkmath.ZeroInt()).WithStaticBalanceChange(sdkmath.NewIntFromUint64(111))
 	t.Logf("src3: %+v", src3)
+
+	lockChange := sdkmath.NewIntFromUint64(222)
+	frozenChange := sdkmath.NewIntFromUint64(333)
+	src4 := NewDefaultStreamRecordChangeWithAddr(addr).
+		WithLockBalanceChange(lockChange).
+		WithFrozenRateChange(frozenChange)
+	require.True(t, lockChange.Equal(src4.LockBalanceChange))
+	require.True(t, frozenChange.Equal(src4.FrozenRateChange))
 }

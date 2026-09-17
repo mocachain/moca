@@ -34,7 +34,7 @@ func CmdEvmQueryParams() *cobra.Command {
 				Params: types.Params{
 					VersionedParams: types.VersionedParams{
 						ReserveTime:      result.VersionedParams.ReserveTime,
-						ValidatorTaxRate: math.LegacyNewDecFromBigInt(result.VersionedParams.ValidatorTaxRate),
+						ValidatorTaxRate: math.LegacyNewDecFromBigIntWithPrec(result.VersionedParams.ValidatorTaxRate, math.LegacyPrecision),
 					},
 					PaymentAccountCountLimit:  result.PaymentAccountCountLimit,
 					ForcedSettleTime:          result.ForcedSettleTime,

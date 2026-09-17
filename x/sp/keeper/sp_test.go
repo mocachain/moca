@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/math"
@@ -166,6 +167,139 @@ func (s *KeeperTestSuite) TestSlashBasic() {
 	require.True(s.T(), found)
 	s.T().Logf("%s", spAfterSlash.TotalDeposit.String())
 	require.True(s.T(), spAfterSlash.TotalDeposit.Equal(math.NewIntWithDecimal(2000, types2.DecimalMOCA)))
+}
+
+// TestGetStorageProviderNotFound exercises GetStorageProvider's own not-found
+// branch directly. The By...Addr getters short-circuit on their own index miss
+// before ever reaching this lookup, so this path needs a direct call.
+func (s *KeeperTestSuite) TestGetStorageProviderNotFound() {
+	_, found := s.spKeeper.GetStorageProvider(s.ctx, 999999)
+	require.False(s.T(), found)
+}
+
+func (s *KeeperTestSuite) TestMustGetStorageProvider() {
+	k := s.spKeeper
+	ctx := s.ctx
+	sp := &types.StorageProvider{Id: 500}
+	k.SetStorageProvider(ctx, sp)
+
+	got := k.MustGetStorageProvider(ctx, 500)
+	require.Equal(s.T(), sp.Id, got.Id)
+
+	require.Panics(s.T(), func() {
+		k.MustGetStorageProvider(ctx, 999999)
+	})
+}
+
+// TestDepositLockUntil covers the SetDepositLockUntil/ReleaseDepositLockUntil/
+// GetDepositLockUntil trio: the watermark-only-moves-forward behavior of Set,
+// the unconditional overwrite (including delete-on-zero) behavior of Release,
+// and the zero-value default of Get on an unset key.
+func (s *KeeperTestSuite) TestDepositLockUntil() {
+	k := s.spKeeper
+	ctx := s.ctx
+	spID := uint32(700)
+
+	require.EqualValues(s.T(), 0, k.GetDepositLockUntil(ctx, spID))
+
+	k.SetDepositLockUntil(ctx, spID, 100)
+	require.EqualValues(s.T(), 100, k.GetDepositLockUntil(ctx, spID))
+
+	// A lower height must not move the watermark backward.
+	k.SetDepositLockUntil(ctx, spID, 50)
+	require.EqualValues(s.T(), 100, k.GetDepositLockUntil(ctx, spID))
+
+	// A higher height moves it forward.
+	k.SetDepositLockUntil(ctx, spID, 150)
+	require.EqualValues(s.T(), 150, k.GetDepositLockUntil(ctx, spID))
+
+	// ReleaseDepositLockUntil sets unconditionally, even backward.
+	k.ReleaseDepositLockUntil(ctx, spID, 30)
+	require.EqualValues(s.T(), 30, k.GetDepositLockUntil(ctx, spID))
+
+	// A zero height deletes the entry.
+	k.ReleaseDepositLockUntil(ctx, spID, 0)
+	require.EqualValues(s.T(), 0, k.GetDepositLockUntil(ctx, spID))
+}
+
+func (s *KeeperTestSuite) TestSlashNotFound() {
+	err := s.spKeeper.Slash(s.ctx, 999999, []types.RewardInfo{})
+	require.ErrorIs(s.T(), err, types.ErrStorageProviderNotFound)
+}
+
+func (s *KeeperTestSuite) TestSlashInvalidDenom() {
+	k := s.spKeeper
+	ctx := s.ctx
+	sp := &types.StorageProvider{
+		Id:              900,
+		OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		TotalDeposit:    math.NewIntWithDecimal(100, types2.DecimalMOCA),
+	}
+	k.SetStorageProvider(ctx, sp)
+
+	rewardInfo := types.RewardInfo{
+		Address: sample.RandAccAddressHex(),
+		Amount:  sdk.NewCoin("wrongdenom", math.NewInt(1)),
+	}
+	err := k.Slash(ctx, sp.Id, []types.RewardInfo{rewardInfo})
+	require.ErrorIs(s.T(), err, types.ErrInvalidDenom)
+}
+
+func (s *KeeperTestSuite) TestSlashInsufficientDeposit() {
+	k := s.spKeeper
+	ctx := s.ctx
+	sp := &types.StorageProvider{
+		Id:              901,
+		OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		TotalDeposit:    math.NewIntWithDecimal(10, types2.DecimalMOCA),
+	}
+	k.SetStorageProvider(ctx, sp)
+
+	rewardInfo := types.RewardInfo{
+		Address: sample.RandAccAddressHex(),
+		Amount:  sdk.NewCoin(types2.Denom, math.NewIntWithDecimal(20, types2.DecimalMOCA)),
+	}
+	err := k.Slash(ctx, sp.Id, []types.RewardInfo{rewardInfo})
+	require.ErrorIs(s.T(), err, types.ErrInsufficientDepositAmount)
+}
+
+func (s *KeeperTestSuite) TestSlashInvalidRewardAddress() {
+	k := s.spKeeper
+	ctx := s.ctx
+	sp := &types.StorageProvider{
+		Id:              903,
+		OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		TotalDeposit:    math.NewIntWithDecimal(100, types2.DecimalMOCA),
+	}
+	k.SetStorageProvider(ctx, sp)
+
+	rewardInfo := types.RewardInfo{
+		Address: "", // sdk.AccAddressFromHexUnsafe rejects the empty address outright
+		Amount:  sdk.NewCoin(types2.Denom, math.NewIntWithDecimal(10, types2.DecimalMOCA)),
+	}
+	err := k.Slash(ctx, sp.Id, []types.RewardInfo{rewardInfo})
+	require.Error(s.T(), err)
+}
+
+func (s *KeeperTestSuite) TestSlashSendCoinsError() {
+	k := s.spKeeper
+	ctx := s.ctx
+	sp := &types.StorageProvider{
+		Id:              902,
+		OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		TotalDeposit:    math.NewIntWithDecimal(100, types2.DecimalMOCA),
+	}
+	k.SetStorageProvider(ctx, sp)
+
+	wantErr := errors.New("send failed")
+	s.bankKeeper.EXPECT().SendCoinsFromModuleToAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(wantErr)
+
+	rewardInfo := types.RewardInfo{
+		Address: sample.RandAccAddressHex(),
+		Amount:  sdk.NewCoin(types2.Denom, math.NewIntWithDecimal(10, types2.DecimalMOCA)),
+	}
+	err := k.Slash(ctx, sp.Id, []types.RewardInfo{rewardInfo})
+	require.ErrorIs(s.T(), err, wantErr)
 }
 
 // Exit has to remove the BLS-key index entry it wrote. The entry is only
