@@ -659,6 +659,46 @@ func (k Keeper) GetBucketInfoById(ctx sdk.Context, bucketId sdkmath.Uint) (*stor
 	return &bucketInfo, true
 }
 
+// IterateBucketInfos iterates over every bucket in state, invoking cb for
+// each one. Iteration stops early once cb returns true.
+func (k Keeper) IterateBucketInfos(ctx sdk.Context, cb func(bucketInfo storagetypes.BucketInfo) (stop bool)) {
+	store := ctx.KVStore(k.storeKey)
+	iterator := storetypes.KVStorePrefixIterator(store, storagetypes.BucketByIDPrefix)
+	defer iterator.Close()
+
+	for ; iterator.Valid(); iterator.Next() {
+		var bucketInfo storagetypes.BucketInfo
+		k.cdc.MustUnmarshal(iterator.Value(), &bucketInfo)
+		if cb(bucketInfo) {
+			break
+		}
+	}
+}
+
+// IterateBucketObjects iterates over every object in the named bucket,
+// invoking cb for each one. Iteration stops early once cb returns true. This
+// resolves the same name-to-id mapping ForceDeleteBucket walks.
+func (k Keeper) IterateBucketObjects(ctx sdk.Context, bucketName string, cb func(objectInfo storagetypes.ObjectInfo) (stop bool)) {
+	store := ctx.KVStore(k.storeKey)
+	objectPrefixStore := prefix.NewStore(store, storagetypes.GetObjectKeyOnlyBucketPrefix(bucketName))
+	iterator := objectPrefixStore.Iterator(nil, nil)
+	defer iterator.Close()
+
+	u256Seq := sequence.Sequence[sdkmath.Uint]{}
+	for ; iterator.Valid(); iterator.Next() {
+		bz := store.Get(storagetypes.GetObjectByIDKey(u256Seq.DecodeSequence(iterator.Value())))
+		if bz == nil {
+			panic("should not happen")
+		}
+
+		var objectInfo storagetypes.ObjectInfo
+		k.cdc.MustUnmarshal(bz, &objectInfo)
+		if cb(objectInfo) {
+			break
+		}
+	}
+}
+
 func (k Keeper) CreateObject(
 	ctx sdk.Context, operator sdk.AccAddress, bucketName, objectName string, payloadSize uint64,
 	opts storagetypes.CreateObjectOptions,

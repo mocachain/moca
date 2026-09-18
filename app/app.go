@@ -1480,6 +1480,11 @@ func (app *Moca) setupUpgradeHandlers() {
 		// Remove the storage-price and maintenance-record entries left behind by
 		// storage providers that exited before Keeper.Exit deleted them.
 		if _, _, err := upgrades.PruneExitedStorageProviderEntries(ctx, app.SpKeeper, app.GetKey(spmoduletypes.StoreKey)); err != nil {
+		// Move any bucket still paying through the governance stream account
+		// over to its own owner. Bucket creation never checked payment-account
+		// ownership before this release, so live state can hold buckets that
+		// predate the new receive-only guard on that account.
+		if _, _, err := upgrades.ReassignGovernancePayerBuckets(sdkCtx, app.StorageKeeper); err != nil {
 			return fromVM, err
 		}
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
