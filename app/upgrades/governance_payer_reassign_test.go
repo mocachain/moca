@@ -94,13 +94,13 @@ func setupReassignTest(t *testing.T) (
 	return sk, pk, ctx, virtualGroupKeeper, spKeeper
 }
 
-// TestReassignGovernancePayerBuckets seeds two governance-payer buckets, one self-paying bucket and one
-// governance-payer bucket with an unsealed object, then checks the reassignment and cleanup.
+// TestReassignGovernancePayerBuckets seeds governance-payer buckets (funded/unfunded owner, unsealed
+// object, legacy zero-counter object, in-progress update) plus one self-paying bucket, then checks cleanup.
 func TestReassignGovernancePayerBuckets(t *testing.T) {
 	sk, pk, ctx, virtualGroupKeeper, spKeeper := setupReassignTest(t)
 
 	// ReadPrice * quota(1) = 50 with a 1% tax truncating to zero: one recipient flow per bucket;
-	// the small PrimaryStorePrice only feeds the locked-object case's lock amount.
+	// the small PrimaryStorePrice only feeds the locked-object cases' lock amount.
 	spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).
 		Return(sptypes.GlobalSpStorePrice{
 			ReadPrice:           sdkmath.LegacyNewDec(50),
@@ -114,8 +114,7 @@ func TestReassignGovernancePayerBuckets(t *testing.T) {
 		Return(&virtualgroupmoduletypes.GlobalVirtualGroupFamily{Id: 1, PrimarySpId: 1, VirtualPaymentAddress: family1.String()}, true).AnyTimes()
 	virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), uint32(2)).
 		Return(&virtualgroupmoduletypes.GlobalVirtualGroupFamily{Id: 2, VirtualPaymentAddress: family2.String()}, true).AnyTimes()
-	// Resolved by CancelCreateObject's primary-SP lookup for bucket4, which
-	// shares family 1.
+	// Resolved by CancelCreateObject's primary-SP lookup; buckets 4 and 5 share family 1.
 	spKeeper.EXPECT().GetStorageProvider(gomock.Any(), uint32(1)).
 		Return(&sptypes.StorageProvider{Id: 1}, true).AnyTimes()
 
@@ -123,6 +122,8 @@ func TestReassignGovernancePayerBuckets(t *testing.T) {
 	owner2 := sample.RandAccAddress() // unfunded: never funded a payment account
 	owner3 := sample.RandAccAddress() // already pays through itself
 	owner4 := sample.RandAccAddress() // bucket has an unsealed object
+	owner5 := sample.RandAccAddress() // bucket has a legacy unsealed object, counter stuck at zero
+	owner6 := sample.RandAccAddress() // bucket has a sealed object with an in-progress update
 
 	rate := sdkmath.NewInt(50)
 
@@ -142,36 +143,66 @@ func TestReassignGovernancePayerBuckets(t *testing.T) {
 		Owner: owner4.String(), BucketName: "gov-payer-unsealed-object", Id: sdkmath.NewUint(4),
 		PaymentAddress: paymenttypes.GovernanceAddress.String(), GlobalVirtualGroupFamilyId: 1,
 	}
+	bucket5 := &storagetypes.BucketInfo{
+		Owner: owner5.String(), BucketName: "gov-payer-legacy-unsealed-object", Id: sdkmath.NewUint(5),
+		PaymentAddress: paymenttypes.GovernanceAddress.String(), GlobalVirtualGroupFamilyId: 1,
+	}
+	bucket6 := &storagetypes.BucketInfo{
+		Owner: owner6.String(), BucketName: "gov-payer-in-progress-update", Id: sdkmath.NewUint(6),
+		PaymentAddress: paymenttypes.GovernanceAddress.String(), GlobalVirtualGroupFamilyId: 6,
+	}
 
-	for _, b := range []*storagetypes.BucketInfo{bucket1, bucket2, bucket3, bucket4} {
+	for _, b := range []*storagetypes.BucketInfo{bucket1, bucket2, bucket3, bucket4, bucket5, bucket6} {
 		sk.StoreBucketInfo(ctx, b)
 		sk.SetInternalBucketInfo(ctx, b.Id, &storagetypes.InternalBucketInfo{PriceTime: ctx.BlockTime().Unix()})
 	}
 
-	// bucket4's still-unsealed object: its fee is locked against the current
-	// payer (governance), not charged as an ongoing rate.
+	// Every locked-object case shares one payload size, so each locks the same
+	// fee and their sum on the governance record is exactly 3x lockedAmount.
 	const objectPayloadSize = uint64(100)
 	lockedAmount, _, err := sk.GetObjectLockFee(ctx, ctx.BlockTime().Unix(), objectPayloadSize)
 	require.NoError(t, err)
 	require.True(t, lockedAmount.IsPositive(), "setup sanity: the seeded price must lock a non-zero amount")
+
+	// bucket4: a still-unsealed object, with the locked-object counter kept correctly.
 	unsealedObject := &storagetypes.ObjectInfo{
-		Owner:        owner4.String(),
-		BucketName:   bucket4.BucketName,
-		ObjectName:   "still-uploading",
-		Id:           sdkmath.NewUint(400),
-		PayloadSize:  objectPayloadSize,
-		CreateAt:     ctx.BlockTime().Unix(),
+		Owner: owner4.String(), BucketName: bucket4.BucketName, ObjectName: "still-uploading",
+		Id: sdkmath.NewUint(400), PayloadSize: objectPayloadSize, CreateAt: ctx.BlockTime().Unix(),
 		ObjectStatus: storagetypes.OBJECT_STATUS_CREATED,
 	}
 	sk.StoreObjectInfo(ctx, unsealedObject)
 	sk.IncreaseLockedObjectCount(ctx, bucket4.Id)
 
+	// bucket5: an unsealed object from before the counter existed -- it stays
+	// at zero, as the keeper's own DecreaseLockedObjectCount comment expects.
+	legacyObject := &storagetypes.ObjectInfo{
+		Owner: owner5.String(), BucketName: bucket5.BucketName, ObjectName: "legacy-uploading",
+		Id: sdkmath.NewUint(500), PayloadSize: objectPayloadSize, CreateAt: ctx.BlockTime().Unix(),
+		ObjectStatus: storagetypes.OBJECT_STATUS_CREATED,
+	}
+	sk.StoreObjectInfo(ctx, legacyObject)
+
+	// bucket6: a sealed object with an in-progress update, mirroring the state
+	// UpdateObjectContent's non-empty-payload branch leaves behind.
+	sealedUpdatingObject := &storagetypes.ObjectInfo{
+		Owner: owner6.String(), BucketName: bucket6.BucketName, ObjectName: "sealed-and-updating",
+		Id: sdkmath.NewUint(600), PayloadSize: objectPayloadSize, CreateAt: ctx.BlockTime().Unix(),
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED, IsUpdating: true,
+	}
+	sk.StoreObjectInfo(ctx, sealedUpdatingObject)
+	shadowObject := &storagetypes.ShadowObjectInfo{
+		Operator: owner6.String(), Id: sealedUpdatingObject.Id, PayloadSize: objectPayloadSize,
+		UpdatedAt: ctx.BlockTime().Unix(), Version: 1,
+	}
+	sk.StoreShadowObjectInfo(ctx, bucket6.BucketName, sealedUpdatingObject.ObjectName, shadowObject)
+	sk.IncreaseLockedObjectCount(ctx, bucket6.Id)
+
 	// Pre-existing state: the governance account carries bucket1's and bucket2's out-flow rates plus
-	// bucket4's locked fee, with a static balance far above the forced-settle threshold.
+	// the three locked-object cases' combined fee, with a static balance far above the settle threshold.
 	govRecord := paymenttypes.NewStreamRecord(paymenttypes.GovernanceAddress, ctx.BlockTime().Unix())
 	govRecord.NetflowRate = rate.MulRaw(2).Neg()
 	govRecord.StaticBalance = sdkmath.NewInt(1_000_000_000_000)
-	govRecord.LockBalance = lockedAmount
+	govRecord.LockBalance = lockedAmount.MulRaw(3)
 	govRecord.OutFlowCount = 2
 	pk.SetStreamRecord(ctx, govRecord)
 	pk.SetOutFlow(ctx, paymenttypes.GovernanceAddress,
@@ -193,10 +224,11 @@ func TestReassignGovernancePayerBuckets(t *testing.T) {
 	pk.SetStreamRecord(ctx, funded)
 	// owner2 has no stream record at all: an owner who never funded one.
 
-	reassigned, canceled, err := upgrades.ReassignGovernancePayerBuckets(ctx, *sk)
+	reassigned, canceledCreates, canceledUpdates, err := upgrades.ReassignGovernancePayerBuckets(ctx, *sk)
 	require.NoError(t, err)
-	require.Equal(t, 3, reassigned)
-	require.Equal(t, 1, canceled)
+	require.Equal(t, 5, reassigned)
+	require.Equal(t, 2, canceledCreates, "bucket4's and bucket5's unsealed objects")
+	require.Equal(t, 1, canceledUpdates, "bucket6's in-progress update")
 
 	got1, found := sk.GetBucketInfoById(ctx, bucket1.Id)
 	require.True(t, found)
@@ -217,6 +249,23 @@ func TestReassignGovernancePayerBuckets(t *testing.T) {
 	_, found = sk.GetObjectInfo(ctx, bucket4.BucketName, unsealedObject.ObjectName)
 	require.False(t, found, "the unsealed object must be gone")
 
+	got5, found := sk.GetBucketInfoById(ctx, bucket5.Id)
+	require.True(t, found)
+	require.Equal(t, owner5.String(), got5.PaymentAddress, "bucket5 must now pay through its owner despite its stuck counter")
+	require.Zero(t, sk.GetLockedObjectCount(ctx, bucket5.Id))
+	_, found = sk.GetObjectInfo(ctx, bucket5.BucketName, legacyObject.ObjectName)
+	require.False(t, found, "the legacy unsealed object must be gone even though the counter never saw it")
+
+	got6, found := sk.GetBucketInfoById(ctx, bucket6.Id)
+	require.True(t, found)
+	require.Equal(t, owner6.String(), got6.PaymentAddress, "bucket6 must now pay through its owner")
+	require.Zero(t, sk.GetLockedObjectCount(ctx, bucket6.Id))
+	sealedAfter, found := sk.GetObjectInfo(ctx, bucket6.BucketName, sealedUpdatingObject.ObjectName)
+	require.True(t, found, "the sealed object itself must survive, only its update is canceled")
+	require.False(t, sealedAfter.IsUpdating)
+	_, found = sk.GetShadowObjectInfo(ctx, bucket6.BucketName, sealedUpdatingObject.ObjectName)
+	require.False(t, found, "the shadow object must be gone")
+
 	govAfter, found := pk.GetStreamRecord(ctx, paymenttypes.GovernanceAddress)
 	require.True(t, found)
 	require.True(t, govAfter.NetflowRate.IsZero(), "the governance account must have no out-flow rate left")
@@ -232,14 +281,14 @@ func TestReassignGovernancePayerBuckets(t *testing.T) {
 	require.True(t, found)
 	require.Equal(t, paymenttypes.STREAM_ACCOUNT_STATUS_FROZEN, owner2After.Status,
 		"an owner who cannot afford the reassigned rate is force-settled instead of failing the upgrade")
-	// Freezing moves the rate out of NetflowRate (active obligations) and into
-	// FrozenNetflowRate, the same accounting any other forced settlement uses.
+	// Freezing moves the rate from NetflowRate (active) into FrozenNetflowRate.
 	require.True(t, owner2After.NetflowRate.IsZero())
 	require.Equal(t, rate.Neg(), owner2After.FrozenNetflowRate)
 
 	// A second pass has nothing left to reassign or cancel.
-	reassigned2, canceled2, err := upgrades.ReassignGovernancePayerBuckets(ctx, *sk)
+	reassigned2, canceledCreates2, canceledUpdates2, err := upgrades.ReassignGovernancePayerBuckets(ctx, *sk)
 	require.NoError(t, err)
 	require.Equal(t, 0, reassigned2)
-	require.Equal(t, 0, canceled2)
+	require.Equal(t, 0, canceledCreates2)
+	require.Equal(t, 0, canceledUpdates2)
 }

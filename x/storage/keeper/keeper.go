@@ -842,6 +842,13 @@ func (k Keeper) StoreObjectInfo(ctx sdk.Context, objectInfo *storagetypes.Object
 	store.Set(storagetypes.GetObjectByIDKey(objectInfo.Id), obz)
 }
 
+// StoreShadowObjectInfo stores a shadow (in-progress update) object record.
+// It's designed to be used in tests.
+func (k Keeper) StoreShadowObjectInfo(ctx sdk.Context, bucketName, objectName string, shadowObjectInfo *storagetypes.ShadowObjectInfo) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(storagetypes.GetShadowObjectKey(bucketName, objectName), k.cdc.MustMarshal(shadowObjectInfo))
+}
+
 // DeleteObjectInfo deletes object related keys from KVStore,
 // it's designed to be used in tests
 func (k Keeper) DeleteObjectInfo(ctx sdk.Context, objectInfo *storagetypes.ObjectInfo) {

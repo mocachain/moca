@@ -11,9 +11,9 @@ import (
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
-// ReassignGovernancePayerBuckets cancels the unsealed objects of every bucket paying through the
-// governance account and moves the bucket's payer to its owner; sealed charges move with the switch.
-func ReassignGovernancePayerBuckets(ctx sdk.Context, k storagekeeper.Keeper) (reassignedCount, canceledCount int, err error) {
+// ReassignGovernancePayerBuckets cancels every create/update still locked against a governance-payer
+// bucket's objects and moves the bucket's payer to its owner; sealed charges move with the switch.
+func ReassignGovernancePayerBuckets(ctx sdk.Context, k storagekeeper.Keeper) (reassignedCount, canceledCreateCount, canceledUpdateCount int, err error) {
 	var candidateIDs []sdkmath.Uint
 	k.IterateBucketInfos(ctx, func(bucketInfo storagetypes.BucketInfo) bool {
 		payer, addrErr := sdk.AccAddressFromHexUnsafe(bucketInfo.PaymentAddress)
@@ -32,28 +32,41 @@ func ReassignGovernancePayerBuckets(ctx sdk.Context, k storagekeeper.Keeper) (re
 		}
 		owner := sdk.MustAccAddressFromHex(bucketInfo.Owner)
 
-		if k.GetLockedObjectCount(ctx, bucketInfo.Id) != 0 {
-			type unsealedObject struct {
-				name       string
-				sourceType storagetypes.SourceType
+		// The locked-object counter can read zero on state older than the counter
+		// itself, so every bucket is scanned regardless of its count.
+		type unsealedObject struct {
+			name       string
+			sourceType storagetypes.SourceType
+		}
+		var unsealed []unsealedObject
+		var updating []string
+		k.IterateBucketObjects(ctx, bucketInfo.BucketName, func(objectInfo storagetypes.ObjectInfo) bool {
+			switch {
+			case objectInfo.ObjectStatus == storagetypes.OBJECT_STATUS_CREATED:
+				unsealed = append(unsealed, unsealedObject{objectInfo.ObjectName, objectInfo.SourceType})
+			case objectInfo.ObjectStatus == storagetypes.OBJECT_STATUS_SEALED && objectInfo.IsUpdating:
+				updating = append(updating, objectInfo.ObjectName)
 			}
-			var unsealed []unsealedObject
-			k.IterateBucketObjects(ctx, bucketInfo.BucketName, func(objectInfo storagetypes.ObjectInfo) bool {
-				if objectInfo.ObjectStatus == storagetypes.OBJECT_STATUS_CREATED {
-					unsealed = append(unsealed, unsealedObject{objectInfo.ObjectName, objectInfo.SourceType})
-				}
-				return false
-			})
+			return false
+		})
 
-			for _, obj := range unsealed {
-				cancelErr := k.CancelCreateObject(forcedCtx, owner, bucketInfo.BucketName, obj.name,
-					storagetypes.CancelCreateObjectOptions{SourceType: obj.sourceType})
-				if cancelErr != nil {
-					return reassignedCount, canceledCount, fmt.Errorf(
-						"cancel unsealed object %s in bucket %s: %w", obj.name, bucketInfo.BucketName, cancelErr)
-				}
-				canceledCount++
+		for _, obj := range unsealed {
+			cancelErr := k.CancelCreateObject(forcedCtx, owner, bucketInfo.BucketName, obj.name,
+				storagetypes.CancelCreateObjectOptions{SourceType: obj.sourceType})
+			if cancelErr != nil {
+				return reassignedCount, canceledCreateCount, canceledUpdateCount, fmt.Errorf(
+					"cancel unsealed object %s in bucket %s: %w", obj.name, bucketInfo.BucketName, cancelErr)
 			}
+			canceledCreateCount++
+		}
+
+		for _, name := range updating {
+			cancelErr := k.CancelUpdateObjectContent(forcedCtx, owner, bucketInfo.BucketName, name)
+			if cancelErr != nil {
+				return reassignedCount, canceledCreateCount, canceledUpdateCount, fmt.Errorf(
+					"cancel in-progress update %s in bucket %s: %w", name, bucketInfo.BucketName, cancelErr)
+			}
+			canceledUpdateCount++
 		}
 
 		internalBucketInfo, found := k.GetInternalBucketInfo(ctx, bucketInfo.Id)
@@ -66,7 +79,7 @@ func ReassignGovernancePayerBuckets(ctx sdk.Context, k storagekeeper.Keeper) (re
 		}
 
 		if updateErr := k.UpdateBucketInfoAndCharge(forcedCtx, bucketInfo, internalBucketInfo, owner.String(), bucketInfo.ChargedReadQuota); updateErr != nil {
-			return reassignedCount, canceledCount, fmt.Errorf(
+			return reassignedCount, canceledCreateCount, canceledUpdateCount, fmt.Errorf(
 				"reassign governance payer for bucket %s: %w", bucketInfo.Id.String(), updateErr)
 		}
 		k.StoreBucketInfo(ctx, bucketInfo)
@@ -75,6 +88,6 @@ func ReassignGovernancePayerBuckets(ctx sdk.Context, k storagekeeper.Keeper) (re
 	}
 
 	ctx.Logger().Info("storage: reassigned governance-payer buckets to their owners",
-		"reassigned", reassignedCount, "objects_canceled", canceledCount)
-	return reassignedCount, canceledCount, nil
+		"reassigned", reassignedCount, "creates_canceled", canceledCreateCount, "updates_canceled", canceledUpdateCount)
+	return reassignedCount, canceledCreateCount, canceledUpdateCount, nil
 }
