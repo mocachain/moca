@@ -33,7 +33,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 
 	a := app.EthSetup(false, nil)
-	ctx := a.BaseApp.NewContext(false)
+	ctx := a.NewContext(false)
 	caller := common.HexToAddress("0x1111111111111111111111111111111111111111")
 	require.NoError(t, testutil.FundAccountWithBaseDenom(ctx, a.BankKeeper, sdk.AccAddress(caller.Bytes()), 1_000_000_000_000))
 
