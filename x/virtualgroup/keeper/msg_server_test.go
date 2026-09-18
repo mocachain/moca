@@ -1235,6 +1235,52 @@ func (s *TestSuite) TestReserveSwapIn_CannotSwapSelf() {
 	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
 }
 
+// An SP that is itself exiting must not be able to reserve a swap-in: it would take
+// over a family it is in the middle of handing off, and owning one keeps its own exit
+// from ever completing. MsgSwapOut already requires its successor to be in service.
+func (s *TestSuite) TestReserveSwapIn_SuccessorNotInService() {
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+	const familyID = uint32(30)
+	successor := spWithOperator(5, sample.RandAccAddress())
+	successor.Status = sptypes.STATUS_FORCED_EXITING
+	target := &sptypes.StorageProvider{Id: 9, Status: sptypes.STATUS_GRACEFUL_EXITING}
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{Id: familyID, PrimarySpId: target.Id})
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).Return(successor, true)
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(target, true).AnyTimes()
+
+	_, err := msgServer.ReserveSwapIn(s.ctx, &types.MsgReserveSwapIn{
+		StorageProvider:            successor.OperatorAddress,
+		TargetSpId:                 target.Id,
+		GlobalVirtualGroupFamilyId: familyID,
+	})
+	require.ErrorIs(s.T(), err, sptypes.ErrStorageProviderNotInService)
+
+	_, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, familyID, 0)
+	require.False(s.T(), found, "no reservation may be recorded for a successor that is not in service")
+}
+
+// Same for an SP in maintenance, which cannot serve the slot it is reserving.
+func (s *TestSuite) TestReserveSwapIn_SuccessorInMaintenance() {
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+	const familyID = uint32(31)
+	successor := spWithOperator(5, sample.RandAccAddress())
+	successor.Status = sptypes.STATUS_IN_MAINTENANCE
+	target := &sptypes.StorageProvider{Id: 9, Status: sptypes.STATUS_GRACEFUL_EXITING}
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{Id: familyID, PrimarySpId: target.Id})
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).Return(successor, true)
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(target, true).AnyTimes()
+
+	_, err := msgServer.ReserveSwapIn(s.ctx, &types.MsgReserveSwapIn{
+		StorageProvider:            successor.OperatorAddress,
+		TargetSpId:                 target.Id,
+		GlobalVirtualGroupFamilyId: familyID,
+	})
+	require.ErrorIs(s.T(), err, sptypes.ErrStorageProviderNotInService)
+
+	_, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, familyID, 0)
+	require.False(s.T(), found)
+}
+
 func (s *TestSuite) TestReserveSwapIn_TargetSPNotFound() {
 	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
 	successor := spWithOperator(5, sample.RandAccAddress())
@@ -1372,6 +1418,42 @@ func (s *TestSuite) TestCompleteSwapIn_Success() {
 
 	_, found = s.virtualgroupKeeper.GetSwapInInfo(s.ctx, familyID, 0)
 	require.False(s.T(), found)
+}
+
+// The successor's status is checked again at completion: an SP that started exiting
+// between reserving and completing must not be handed the family.
+func (s *TestSuite) TestCompleteSwapIn_SuccessorNotInService() {
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+	const (
+		familyID  = uint32(7)
+		targetID  = uint32(1)
+		successID = uint32(2)
+	)
+	successor := spWithOperator(successID, sample.RandAccAddress())
+	target := &sptypes.StorageProvider{Id: targetID, Status: sptypes.STATUS_GRACEFUL_EXITING}
+
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{
+		Id: familyID, PrimarySpId: targetID, VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.virtualgroupKeeper.SetGVGStatisticsWithSP(s.ctx, &types.GVGStatisticsWithinSP{StorageProviderId: targetID, PrimaryCount: 1})
+	s.virtualgroupKeeper.SetGVGFamilyStatisticsWithinSP(s.ctx, &types.GVGFamilyStatisticsWithinSP{
+		SpId: targetID, GlobalVirtualGroupFamilyIds: []uint32{familyID},
+	})
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, familyID, 0, successID, target, s.ctx.BlockTime().Unix()+1000))
+
+	successor.Status = sptypes.STATUS_GRACEFUL_EXITING
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).Return(successor, true)
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), targetID).Return(target, true).AnyTimes()
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.ZeroInt(), nil).AnyTimes()
+
+	_, err := msgServer.CompleteSwapIn(s.ctx, &types.MsgCompleteSwapIn{
+		StorageProvider: successor.OperatorAddress, GlobalVirtualGroupFamilyId: familyID,
+	})
+	require.ErrorIs(s.T(), err, sptypes.ErrStorageProviderNotInService)
+
+	got, found := s.virtualgroupKeeper.GetGVGFamily(s.ctx, familyID)
+	require.True(s.T(), found)
+	require.Equal(s.T(), targetID, got.PrimarySpId, "the family must stay with the target SP")
 }
 
 func (s *TestSuite) TestStorageProviderForcedExit_RejectsWrongAuthority() {

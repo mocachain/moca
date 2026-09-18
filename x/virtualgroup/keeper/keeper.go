@@ -962,12 +962,16 @@ func (k Keeper) completeSwapInGVG(ctx sdk.Context, successorSPID, targetSecondar
 	}
 	secondarySPIndex := -1
 	for i, sspID := range gvg.GetSecondarySpIds() {
+		// re-checked here because the group can have changed since the swap was reserved
+		if sspID == successorSPID {
+			return types.ErrSwapInFailed.Wrapf("The sp(ID: %d) is already one of the secondary in this GVG(ID:%d)", successorSPID, gvgID)
+		}
 		if sspID == targetSecondarySPID {
 			secondarySPIndex = i
 		}
 	}
 	if secondarySPIndex == -1 {
-		panic("secondary sp found but the index is not correct when swap out as secondary sp")
+		return types.ErrSwapInFailed.Wrapf("The sp(ID: %d) that needs swap out is not one of the secondary sps of gvg(%s).", targetSecondarySPID, gvg.String())
 	}
 	gvg.SecondarySpIds[secondarySPIndex] = successorSPID
 	origin := k.MustGetGVGStatisticsWithinSP(ctx, targetSecondarySPID)

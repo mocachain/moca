@@ -1153,17 +1153,17 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_AlreadyPrimaryErrors() {
 	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
 }
 
-// TestCompleteSwapIn_GVG_IndexNotCorrectPanics simulates the reserved target no longer
-// being a secondary of the gvg by completion time (e.g. swapped out via a separate
-// SwapOutAsSecondarySP in between) -- completeSwapInGVG's index-consistency panic.
-func (s *TestSuite) TestCompleteSwapIn_GVG_IndexNotCorrectPanics() {
+// TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors simulates the reserved target no
+// longer being a secondary of the gvg by completion time (e.g. swapped out via a separate
+// SwapOutAsSecondarySP in between), which must be reported as an error.
+func (s *TestSuite) TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors() {
 	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
 	successor := newSP(2)
 	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{Id: 364, PrimarySpId: 9, SecondarySpIds: []uint32{1}, TotalDeposit: math.ZeroInt()})
 	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, types.NoSpecifiedFamilyID, 364, successor.Id, target, s.ctx.BlockTime().Unix()+100))
 
 	// The reserved target(1) is no longer a secondary by completion time; settlement must
-	// still clear (needs a valid VirtualPaymentAddress) before the index check panics.
+	// still clear (needs a valid VirtualPaymentAddress) before the slot check runs.
 	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
 		Id: 364, PrimarySpId: 9, SecondarySpIds: []uint32{7, 8}, TotalDeposit: math.ZeroInt(),
 		VirtualPaymentAddress: sample.RandAccAddress().String(),
@@ -1171,9 +1171,39 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_IndexNotCorrectPanics() {
 	s.stubZeroSettlement()
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), target.Id).Return(target, true)
 
-	require.Panics(s.T(), func() {
-		_ = s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 364, successor)
+	var err error
+	require.NotPanics(s.T(), func() {
+		err = s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 364, successor)
 	})
+	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
+
+	stored, found := s.virtualgroupKeeper.GetGVG(s.ctx, 364)
+	require.True(s.T(), found)
+	require.Equal(s.T(), []uint32{7, 8}, stored.SecondarySpIds)
+}
+
+// TestCompleteSwapIn_GVG_SuccessorBecameSecondaryErrors covers the successor taking a
+// secondary slot of the same gvg between reserving and completing, which would list it twice.
+func (s *TestSuite) TestCompleteSwapIn_GVG_SuccessorBecameSecondaryErrors() {
+	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
+	successor := newSP(2)
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{Id: 368, PrimarySpId: 9, SecondarySpIds: []uint32{1, 6}, TotalDeposit: math.ZeroInt()})
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, types.NoSpecifiedFamilyID, 368, successor.Id, target, s.ctx.BlockTime().Unix()+100))
+
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id: 368, PrimarySpId: 9, SecondarySpIds: []uint32{1, successor.Id}, TotalDeposit: math.ZeroInt(),
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.setStats(target.Id, 0, 1)
+	s.stubZeroSettlement()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), target.Id).Return(target, true)
+
+	err := s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 368, successor)
+	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
+
+	stored, found := s.virtualgroupKeeper.GetGVG(s.ctx, 368)
+	require.True(s.T(), found)
+	require.Equal(s.T(), []uint32{1, successor.Id}, stored.SecondarySpIds, "the successor must not be listed twice")
 }
 
 func (s *TestSuite) TestCompleteSwapIn_GVG_SettleFailureErrors() {
