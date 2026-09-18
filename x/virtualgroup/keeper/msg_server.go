@@ -538,6 +538,10 @@ func (k msgServer) ReserveSwapIn(goCtx context.Context, msg *types.MsgReserveSwa
 	if successorSP.Id == msg.TargetSpId {
 		return nil, types.ErrSwapInFailed.Wrapf("The SP(ID=%d) can not swap itself", successorSP.Id)
 	}
+	// the successor takes over the slot, so it must be able to serve it, as in MsgSwapOut
+	if !successorSP.IsInService() {
+		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", successorSP.Status.String())
+	}
 	targetSP, found := k.spKeeper.GetStorageProvider(ctx, msg.TargetSpId)
 	if !found {
 		return nil, sptypes.ErrStorageProviderNotFound.Wrapf("Target sp(ID=%d) try to swap not found.", msg.TargetSpId)
@@ -581,6 +585,10 @@ func (k msgServer) CompleteSwapIn(goCtx context.Context, msg *types.MsgCompleteS
 	successorSP, found := k.spKeeper.GetStorageProviderByOperatorAddr(ctx, operatorAddr)
 	if !found {
 		return nil, sptypes.ErrStorageProviderNotFound.Wrapf("The address must be operator address of sp.")
+	}
+	// the status can have changed since the swap was reserved
+	if !successorSP.IsInService() {
+		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", successorSP.Status.String())
 	}
 	err := k.Keeper.CompleteSwapIn(ctx, msg.GlobalVirtualGroupFamilyId, msg.GlobalVirtualGroupId, successorSP)
 	if err != nil {
