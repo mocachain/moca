@@ -11,9 +11,15 @@ import (
 )
 
 func (k Keeper) DeleteObjectFromVirtualGroup(ctx sdk.Context, bucketInfo *types.BucketInfo, objectInfo *types.ObjectInfo) error {
-	internalBucketInfo := k.MustGetInternalBucketInfo(ctx, bucketInfo.Id)
+	internalBucketInfo, found := k.GetInternalBucketInfo(ctx, bucketInfo.Id)
+	if !found {
+		return types.ErrInconsistentState.Wrapf("internal bucket info of bucket (%s) not found", bucketInfo.BucketName)
+	}
 
-	lvg := internalBucketInfo.MustGetLVG(objectInfo.LocalVirtualGroupId)
+	lvg, found := internalBucketInfo.GetLVG(objectInfo.LocalVirtualGroupId)
+	if !found {
+		return types.ErrInconsistentState.Wrapf("local virtual group (%d) not found in bucket (%s)", objectInfo.LocalVirtualGroupId, bucketInfo.BucketName)
+	}
 
 	gvg, found := k.virtualGroupKeeper.GetGVG(ctx, lvg.GlobalVirtualGroupId)
 	if !found {
@@ -27,7 +33,7 @@ func (k Keeper) DeleteObjectFromVirtualGroup(ctx sdk.Context, bucketInfo *types.
 	// delete lvg when total charge size is 0
 	if lvg.TotalChargeSize == 0 {
 		if lvg.StoredSize != 0 {
-			panic("The store size is non-zero when total charge size is zero.")
+			return types.ErrInconsistentState.Wrapf("local virtual group (%d) stores %d bytes with a zero total charge size", lvg.Id, lvg.StoredSize)
 		}
 		internalBucketInfo.DeleteLVG(lvg.Id)
 		if err := ctx.EventManager().EmitTypedEvents(&vgtypes.EventDeleteLocalVirtualGroup{

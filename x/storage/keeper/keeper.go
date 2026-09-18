@@ -406,7 +406,7 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 
 		bz := store.Get(storagetypes.GetObjectByIDKey(u256Seq.DecodeSequence(iter.Value())))
 		if bz == nil {
-			panic("should not happen")
+			return false, deleted, storagetypes.ErrInconsistentState.Wrapf("object of bucket (%s) is missing from the id index", bucketInfo.BucketName)
 		}
 
 		var objectInfo storagetypes.ObjectInfo
@@ -436,7 +436,10 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 			k.DecreaseLockedObjectCount(ctx, bucketInfo.Id)
 
 		} else if objectStatus == storagetypes.OBJECT_STATUS_SEALED {
-			internalBucketInfo := k.MustGetInternalBucketInfo(ctx, bucketInfo.Id)
+			internalBucketInfo, ok := k.GetInternalBucketInfo(ctx, bucketInfo.Id)
+			if !ok {
+				return false, deleted, storagetypes.ErrInconsistentState.Wrapf("internal bucket info of bucket (%s) not found", bucketInfo.BucketName)
+			}
 			if err = k.UnChargeObjectStoreFee(ctx, bucketInfo, internalBucketInfo, &objectInfo); err != nil {
 				ctx.Logger().Error("charge delete object error", "err", err)
 				return false, deleted, err
@@ -445,7 +448,10 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 
 			// if an object is updating, also need to unlock the shadowObject fee
 			if objectInfo.IsUpdating {
-				shadowObjectInfo := k.MustGetShadowObjectInfo(ctx, bucketInfo.BucketName, objectInfo.ObjectName)
+				shadowObjectInfo, ok := k.GetShadowObjectInfo(ctx, bucketInfo.BucketName, objectInfo.ObjectName)
+				if !ok {
+					return false, deleted, storagetypes.ErrInconsistentState.Wrapf("shadow object info of object (%s) not found", objectInfo.ObjectName)
+				}
 				err = k.UnlockShadowObjectFeeAndDeleteShadowObjectInfo(ctx, bucketInfo, shadowObjectInfo, objectInfo.ObjectName)
 				if err != nil {
 					return false, deleted, err
@@ -461,7 +467,10 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 	}
 
 	if !iter.Valid() {
-		internalBucketInfo := k.MustGetInternalBucketInfo(ctx, bucketInfo.Id)
+		internalBucketInfo, ok := k.GetInternalBucketInfo(ctx, bucketInfo.Id)
+		if !ok {
+			return false, deleted, storagetypes.ErrInconsistentState.Wrapf("internal bucket info of bucket (%s) not found", bucketInfo.BucketName)
+		}
 		if err = k.UnChargeBucketReadFee(ctx, bucketInfo, internalBucketInfo); err != nil {
 			ctx.Logger().Error("charge delete bucket error", "err", err)
 			return false, deleted, err
@@ -1249,7 +1258,10 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 		}
 		k.DecreaseLockedObjectCount(ctx, bucketInfo.Id)
 	} else if objectStatus == storagetypes.OBJECT_STATUS_SEALED {
-		internalBucketInfo := k.MustGetInternalBucketInfo(ctx, bucketInfo.Id)
+		internalBucketInfo, ok := k.GetInternalBucketInfo(ctx, bucketInfo.Id)
+		if !ok {
+			return storagetypes.ErrInconsistentState.Wrapf("internal bucket info of bucket (%s) not found", bucketInfo.BucketName)
+		}
 		err := k.UnChargeObjectStoreFee(ctx, bucketInfo, internalBucketInfo, objectInfo)
 		if err != nil {
 			ctx.Logger().Error("charge delete object error", "err", err)
@@ -1259,7 +1271,10 @@ func (k Keeper) ForceDeleteObject(ctx sdk.Context, objectID sdkmath.Uint) error 
 
 		// if an object is updating, also need to unlock the shadowObject fee
 		if objectInfo.IsUpdating {
-			shadowObjectInfo := k.MustGetShadowObjectInfo(ctx, bucketInfo.BucketName, objectInfo.ObjectName)
+			shadowObjectInfo, ok := k.GetShadowObjectInfo(ctx, bucketInfo.BucketName, objectInfo.ObjectName)
+			if !ok {
+				return storagetypes.ErrInconsistentState.Wrapf("shadow object info of object (%s) not found", objectInfo.ObjectName)
+			}
 			err = k.UnlockShadowObjectFeeAndDeleteShadowObjectInfo(ctx, bucketInfo, shadowObjectInfo, objectInfo.ObjectName)
 			if err != nil {
 				return err
@@ -1970,6 +1985,38 @@ func (k Keeper) AppendDiscontinueObjectIds(ctx sdk.Context, timestamp int64, obj
 	store.Set(key, k.cdc.MustMarshal(&storagetypes.Ids{Id: objectIds}))
 }
 
+// deleteDiscontinued runs one queued deletion against an isolated cache of ctx, so a failing
+// item commits nothing. The deletion call graph reaches payment, virtual-group, permission and
+// EVM code whose remaining Must*/panic sites cannot all be turned into errors here, so a panic
+// is converted into an error for that one item as well.
+func (k Keeper) deleteDiscontinued(ctx sdk.Context, deleteFn func(sdk.Context) error) (err error) {
+	cacheCtx, writeCache := ctx.CacheContext()
+	defer func() {
+		if r := recover(); r != nil {
+			err = storagetypes.ErrInconsistentState.Wrapf("%v", r)
+		}
+	}()
+
+	if err = deleteFn(cacheCtx); err != nil {
+		return err
+	}
+	writeCache()
+	return nil
+}
+
+// dropDiscontinued reports a queued deletion that failed. The id is removed from the deletion
+// queue rather than retried every block, so the resource stays discontinued and uncollected.
+func (k Keeper) dropDiscontinued(ctx sdk.Context, resourceType resource.ResourceType, id storagetypes.Uint, err error) {
+	ctx.Logger().Error("discontinued resource could not be deleted, dropping it from the deletion queue",
+		"resource_type", resourceType.String(), "id", id.String(), "height", ctx.BlockHeight(), "err", err)
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		storagetypes.EventTypeDiscontinueDeleteFailed,
+		sdk.NewAttribute(storagetypes.AttributeKeyResourceType, resourceType.String()),
+		sdk.NewAttribute(storagetypes.AttributeKeyResourceID, id.String()),
+		sdk.NewAttribute(storagetypes.AttributeKeyError, err.Error()),
+	))
+}
+
 func (k Keeper) DeleteDiscontinueObjectsUntil(ctx sdk.Context, timestamp int64, maxObjectsToDelete uint64) (deleted uint64, err error) {
 	store := ctx.KVStore(k.storeKey)
 	key := storagetypes.GetDiscontinueObjectIdsKey(timestamp)
@@ -1991,11 +2038,13 @@ func (k Keeper) DeleteDiscontinueObjectsUntil(ctx sdk.Context, timestamp int64, 
 				continue
 			}
 
-			err = k.ForceDeleteObject(ctx, id)
-			if err != nil {
-				ctx.Logger().Error("delete object error", "err", err, "id", id, "height", ctx.BlockHeight())
-				return deleted, err
+			if delErr := k.deleteDiscontinued(ctx, func(cacheCtx sdk.Context) error {
+				return k.ForceDeleteObject(cacheCtx, id)
+			}); delErr != nil {
+				k.dropDiscontinued(ctx, resource.RESOURCE_TYPE_OBJECT, id, delErr)
 			}
+			// a dropped id is removed from the queue like a deleted one, and counts against the
+			// per-block budget so a run of failures cannot grow the work done in one block
 			deleted++
 		}
 		if len(left) > 0 {
@@ -2073,10 +2122,17 @@ func (k Keeper) DeleteDiscontinueBucketsUntil(ctx sdk.Context, timestamp int64, 
 				continue
 			}
 
-			bucketDeleted, objectDeleted, err := k.ForceDeleteBucket(ctx, id, maxToDelete-deleted)
-			if err != nil {
-				ctx.Logger().Error("force delete bucket error", "err", err, "id", id, "height", ctx.BlockHeight())
-				return deleted, err
+			var bucketDeleted bool
+			var objectDeleted uint64
+			if delErr := k.deleteDiscontinued(ctx, func(cacheCtx sdk.Context) error {
+				var forceErr error
+				bucketDeleted, objectDeleted, forceErr = k.ForceDeleteBucket(cacheCtx, id, maxToDelete-deleted)
+				return forceErr
+			}); delErr != nil {
+				k.dropDiscontinued(ctx, resource.RESOURCE_TYPE_BUCKET, id, delErr)
+				// as above: dropped, not re-queued, and charged to the per-block budget
+				deleted++
+				continue
 			}
 			deleted += objectDeleted
 

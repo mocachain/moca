@@ -54,6 +54,7 @@ var (
 	ErrMigrationBucketFailed     = errors.Register(ModuleName, 3202, "migrate bucket failed.")
 	ErrVirtualGroupOperateFailed = errors.Register(ModuleName, 3203, "operate virtual group failed.")
 	ErrInvalidBlsPubKey          = errors.Register(ModuleName, 3204, "invalid bls public key")
+	ErrInconsistentState         = errors.Register(ModuleName, 3205, "storage record is missing or inconsistent")
 
 	ErrInvalidBucketOwner = errors.Register(ModuleName, 3300, "invalid bucket owner")
 )
