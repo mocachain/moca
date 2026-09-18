@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -332,4 +333,45 @@ func (s *KeeperTestSuite) TestExitDeletesBlsKeyIndex() {
 
 	require.Nil(s.T(), ctx.KVStore(s.storeKey).Get(indexKey),
 		"exit must delete the BLS-key index entry")
+}
+
+// TestExitDeletesStoragePriceAndMaintenanceRecords verifies that Keeper.Exit removes
+// the storage price and the maintenance records keyed by the exiting provider.
+func (s *KeeperTestSuite) TestExitDeletesStoragePriceAndMaintenanceRecords() {
+	k := s.spKeeper
+	ctx := s.ctx.WithBlockHeight(100).WithBlockTime(time.Unix(1000, 0))
+
+	operator := sdk.MustAccAddressFromHex(sample.RandAccAddressHex())
+	sp := &types.StorageProvider{
+		Id:              201,
+		OperatorAddress: operator.String(),
+		FundingAddress:  sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		SealAddress:     sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		ApprovalAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		GcAddress:       sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+		BlsKey:          sample.RandBlsPubKey(),
+		Status:          types.STATUS_IN_SERVICE,
+	}
+	k.SetStorageProvider(ctx, sp)
+	k.SetSpStoragePrice(ctx, types.SpStoragePrice{
+		SpId:          sp.Id,
+		UpdateTimeSec: 1,
+		ReadPrice:     math.LegacyNewDec(100),
+		StorePrice:    math.LegacyNewDec(100),
+	})
+	require.NoError(s.T(), k.UpdateToInMaintenance(ctx, sp, 100))
+	k.SetStorageProvider(ctx, sp)
+
+	recordsKey := types.GetStorageProviderMaintenanceRecordsKey(operator)
+	_, found := k.GetSpStoragePrice(ctx, sp.Id)
+	require.True(s.T(), found, "the price must exist before the exit")
+	require.NotNil(s.T(), ctx.KVStore(s.storeKey).Get(recordsKey),
+		"the maintenance records must exist before the exit")
+
+	require.NoError(s.T(), k.Exit(ctx, sp))
+
+	_, found = k.GetSpStoragePrice(ctx, sp.Id)
+	require.False(s.T(), found, "exit must delete the storage price")
+	require.Nil(s.T(), ctx.KVStore(s.storeKey).Get(recordsKey),
+		"exit must delete the maintenance records")
 }

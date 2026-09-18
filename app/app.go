@@ -1477,6 +1477,11 @@ func (app *Moca) setupUpgradeHandlers() {
 		if _, err := upgrades.CleanupFeegrantQueueOrphans(ctx, app.FeeGrantKeeper, app.GetKey(feegrant.StoreKey)); err != nil {
 			return fromVM, err
 		}
+		// Remove the storage-price and maintenance-record entries left behind by
+		// storage providers that exited before Keeper.Exit deleted them.
+		if _, _, err := upgrades.PruneExitedStorageProviderEntries(ctx, app.SpKeeper, app.GetKey(spmoduletypes.StoreKey)); err != nil {
+			return fromVM, err
+		}
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
