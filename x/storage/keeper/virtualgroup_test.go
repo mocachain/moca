@@ -318,6 +318,26 @@ func (s *TestSuite) TestRebindingVirtualGroup_DstNotInMapping() {
 	s.Require().ErrorIs(err, types.ErrVirtualGroupOperateFailed)
 }
 
+// TestRebindingVirtualGroup_DstFamilyMismatch covers a dst GVG that resolves
+// in chain state but belongs to a family other than the bucket's destination
+// family: rebinding to it must be rejected rather than silently accepted, and
+// no GVG size bookkeeping must be touched.
+func (s *TestSuite) TestRebindingVirtualGroup_DstFamilyMismatch() {
+	bucketInfo := &types.BucketInfo{BucketName: "rebind-familymismatch-bucket", Id: sdkmath.NewUint(1), GlobalVirtualGroupFamilyId: 7}
+	internalBucketInfo := &types.InternalBucketInfo{
+		LocalVirtualGroups: []*types.LocalVirtualGroup{{Id: 1, GlobalVirtualGroupId: 5, StoredSize: 300}},
+	}
+	dstGVG := &vgtypes.GlobalVirtualGroup{Id: 6, FamilyId: 99, StoredSize: 1000}
+	gvgMappings := []*types.GVGMapping{{SrcGlobalVirtualGroupId: 5, DstGlobalVirtualGroupId: 6}}
+	s.virtualGroupKeeper.EXPECT().GetGVG(gomock.Any(), uint32(6)).Return(dstGVG, true)
+
+	err := s.storageKeeper.RebindingVirtualGroup(s.ctx, bucketInfo, internalBucketInfo, gvgMappings)
+	s.Require().ErrorIs(err, types.ErrInvalidGlobalVirtualGroup)
+
+	s.Require().Equal(uint64(1000), dstGVG.StoredSize, "dst GVG must not gain the lvg's stored size")
+	s.Require().Equal(uint32(5), internalBucketInfo.LocalVirtualGroups[0].GlobalVirtualGroupId, "lvg must not be rebound")
+}
+
 // TestRebindingVirtualGroup_DstGVGNotFound covers the dst GVG resolving to
 // nothing in chain state even though the mapping names it.
 func (s *TestSuite) TestRebindingVirtualGroup_DstGVGNotFound() {

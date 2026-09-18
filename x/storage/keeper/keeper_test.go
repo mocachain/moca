@@ -3807,7 +3807,7 @@ func (s *TestSuite) completeMigrateBucketRebindFixture() (bucketName string, dst
 	s.virtualGroupKeeper.EXPECT().SettleAndDistributeGVGFamily(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	s.paymentKeeper.EXPECT().ApplyUserFlowsList(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-	dstGVG := &virtualgroupmoduletypes.GlobalVirtualGroup{Id: dstGVGID, PrimarySpId: dstSP.Id, SecondarySpIds: []uint32{secondarySPID}}
+	dstGVG := &virtualgroupmoduletypes.GlobalVirtualGroup{Id: dstGVGID, FamilyId: dstFamID, PrimarySpId: dstSP.Id, SecondarySpIds: []uint32{secondarySPID}}
 	srcGVG := &virtualgroupmoduletypes.GlobalVirtualGroup{Id: srcGVGID, PrimarySpId: srcSP.Id}
 	s.virtualGroupKeeper.EXPECT().GetGVG(gomock.Any(), dstGVGID).Return(dstGVG, true).AnyTimes()
 	s.virtualGroupKeeper.EXPECT().GetGVG(gomock.Any(), srcGVGID).Return(srcGVG, true).AnyTimes()

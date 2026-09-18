@@ -68,6 +68,15 @@ func TestMsgCompleteMigrateBucket_ValidateBasic(t *testing.T) {
 			},
 			err: ErrInvalidGlobalVirtualGroup,
 		}, {
+			name: "src equals dst gvg id",
+			msg: MsgCompleteMigrateBucket{
+				Operator:                   sample.RandAccAddressHex(),
+				BucketName:                 "bucketname",
+				GlobalVirtualGroupFamilyId: 1,
+				GvgMappings:                []*GVGMapping{{5, 5, []byte("xxxxxxxxxxx")}},
+			},
+			err: ErrInvalidGlobalVirtualGroup,
+		}, {
 			name: "missing secondary sp bls signature",
 			msg: MsgCompleteMigrateBucket{
 				Operator:                   sample.RandAccAddressHex(),
