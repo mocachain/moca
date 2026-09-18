@@ -165,8 +165,12 @@ func (k Keeper) VerifyPolicy(ctx sdk.Context, resourceID math.Uint, resourceType
 				groupMember, memberFound := k.permKeeper.GetGroupMember(ctx, item.GroupId, operator)
 				if memberFound && (groupMember.ExpirationTime == nil || groupMember.ExpirationTime.After(ctx.BlockTime())) {
 					if effect == permtypes.EFFECT_ALLOW {
-						allowed = true
-						allowedPolicy = newPolicy
+						// Keep the first allowed group's (possibly quota-decremented) policy;
+						// a later group's allow must not discard it. Still scan on for a deny.
+						if !allowed {
+							allowed = true
+							allowedPolicy = newPolicy
+						}
 					} else if effect == permtypes.EFFECT_DENY {
 						return permtypes.EFFECT_DENY
 					}

@@ -316,6 +316,70 @@ func (s *TestSuite) TestVerifyPolicy_GroupGrant_CreateObjectQuotaConsumed() {
 		"the group grant's quota must be decremented and persisted")
 }
 
+// TestVerifyPolicy_GroupGrant_MultiGroupFirstAllowQuotaPersisted covers an
+// operator who belongs to two groups granting CreateObject on the same
+// bucket: group1 carries a LimitSize quota, group2 is unrestricted. Only the
+// first-iterated allow may be persisted, so group2's unrestricted grant must
+// not discard group1's decrement.
+func (s *TestSuite) TestVerifyPolicy_GroupGrant_MultiGroupFirstAllowQuotaPersisted() {
+	permKeeper := s.realPermissionKeeper()
+	group1ID := sdkmath.NewUint(920)
+	group2ID := sdkmath.NewUint(921)
+	resourceID := sdkmath.NewUint(922)
+	operator := sample.RandAccAddress()
+
+	s.storageKeeper.SetGroupInfo(s.ctx, &types.GroupInfo{Id: group1ID, GroupName: "quota-group-1"})
+	s.storageKeeper.SetGroupInfo(s.ctx, &types.GroupInfo{Id: group2ID, GroupName: "quota-group-2"})
+
+	_, err := permKeeper.PutPolicy(s.ctx, &permtypes.Policy{
+		Principal:    permtypes.NewPrincipalWithGroupID(group1ID),
+		ResourceType: gnfdresource.RESOURCE_TYPE_BUCKET,
+		ResourceId:   resourceID,
+		Statements: []*permtypes.Statement{{
+			Effect:    permtypes.EFFECT_ALLOW,
+			Actions:   []permtypes.ActionType{permtypes.ACTION_CREATE_OBJECT},
+			LimitSize: &common.UInt64Value{Value: 1024 * 1024},
+		}},
+	})
+	s.Require().NoError(err)
+	_, err = permKeeper.PutPolicy(s.ctx, &permtypes.Policy{
+		Principal:    permtypes.NewPrincipalWithGroupID(group2ID),
+		ResourceType: gnfdresource.RESOURCE_TYPE_BUCKET,
+		ResourceId:   resourceID,
+		Statements: []*permtypes.Statement{{
+			Effect:  permtypes.EFFECT_ALLOW,
+			Actions: []permtypes.ActionType{permtypes.ACTION_CREATE_OBJECT},
+		}},
+	})
+	s.Require().NoError(err)
+	s.Require().NoError(permKeeper.AddGroupMember(s.ctx, group1ID, operator, nil))
+	s.Require().NoError(permKeeper.AddGroupMember(s.ctx, group2ID, operator, nil))
+
+	s.permissionKeeper.EXPECT().GetPolicyForAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false)
+	s.permissionKeeper.EXPECT().GetPolicyGroupForResource(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.GetPolicyGroupForResource).AnyTimes()
+	s.permissionKeeper.EXPECT().MustGetPolicyByID(gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.MustGetPolicyByID).AnyTimes()
+	s.permissionKeeper.EXPECT().GetGroupMember(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.GetGroupMember).AnyTimes()
+	s.permissionKeeper.EXPECT().PutPolicy(gomock.Any(), gomock.Any()).
+		DoAndReturn(permKeeper.PutPolicy).AnyTimes()
+
+	wanted := uint64(1000)
+	ctx := s.ctx.WithTxBytes([]byte{0x01}) // VerifyPolicy only self-updates inside a tx
+	var effect permtypes.Effect
+	s.Require().NotPanics(func() {
+		effect = s.storageKeeper.VerifyPolicy(ctx, resourceID, gnfdresource.RESOURCE_TYPE_BUCKET, operator,
+			permtypes.ACTION_CREATE_OBJECT, &permtypes.VerifyOptions{WantedSize: &wanted})
+	})
+	s.Require().Equal(permtypes.EFFECT_ALLOW, effect)
+
+	policy, found := permKeeper.GetPolicyForGroup(s.ctx, resourceID, gnfdresource.RESOURCE_TYPE_BUCKET, group1ID)
+	s.Require().True(found)
+	s.Require().Equal(uint64(1024*1024-1000), policy.Statements[0].LimitSize.GetValue(),
+		"group1's quota decrement must not be discarded by group2's unrestricted grant")
+}
+
 // TestVerifyPolicy_AccountGrant_ConsumeErrorPanics pins that VerifyPolicy does
 // not swallow a failure from the account-grant self-update PutPolicy call.
 func (s *TestSuite) TestVerifyPolicy_AccountGrant_ConsumeErrorPanics() {
