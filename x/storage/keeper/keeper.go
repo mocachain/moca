@@ -659,6 +659,45 @@ func (k Keeper) GetBucketInfoById(ctx sdk.Context, bucketId sdkmath.Uint) (*stor
 	return &bucketInfo, true
 }
 
+// IterateBucketInfos iterates over every bucket in state, invoking cb for
+// each one. Iteration stops early once cb returns true.
+func (k Keeper) IterateBucketInfos(ctx sdk.Context, cb func(bucketInfo storagetypes.BucketInfo) (stop bool)) {
+	store := ctx.KVStore(k.storeKey)
+	iterator := storetypes.KVStorePrefixIterator(store, storagetypes.BucketByIDPrefix)
+	defer iterator.Close()
+
+	for ; iterator.Valid(); iterator.Next() {
+		var bucketInfo storagetypes.BucketInfo
+		k.cdc.MustUnmarshal(iterator.Value(), &bucketInfo)
+		if cb(bucketInfo) {
+			break
+		}
+	}
+}
+
+// IterateBucketObjects invokes cb for every object in the named bucket (same
+// name-to-id walk as ForceDeleteBucket); it stops once cb returns true.
+func (k Keeper) IterateBucketObjects(ctx sdk.Context, bucketName string, cb func(objectInfo storagetypes.ObjectInfo) (stop bool)) {
+	store := ctx.KVStore(k.storeKey)
+	objectPrefixStore := prefix.NewStore(store, storagetypes.GetObjectKeyOnlyBucketPrefix(bucketName))
+	iterator := objectPrefixStore.Iterator(nil, nil)
+	defer iterator.Close()
+
+	u256Seq := sequence.Sequence[sdkmath.Uint]{}
+	for ; iterator.Valid(); iterator.Next() {
+		bz := store.Get(storagetypes.GetObjectByIDKey(u256Seq.DecodeSequence(iterator.Value())))
+		if bz == nil {
+			panic("should not happen")
+		}
+
+		var objectInfo storagetypes.ObjectInfo
+		k.cdc.MustUnmarshal(bz, &objectInfo)
+		if cb(objectInfo) {
+			break
+		}
+	}
+}
+
 func (k Keeper) CreateObject(
 	ctx sdk.Context, operator sdk.AccAddress, bucketName, objectName string, payloadSize uint64,
 	opts storagetypes.CreateObjectOptions,
@@ -801,6 +840,13 @@ func (k Keeper) StoreObjectInfo(ctx sdk.Context, objectInfo *storagetypes.Object
 	obz := k.cdc.MustMarshal(objectInfo)
 	store.Set(objectKey, k.objectSeq.EncodeSequence(objectInfo.Id))
 	store.Set(storagetypes.GetObjectByIDKey(objectInfo.Id), obz)
+}
+
+// StoreShadowObjectInfo stores a shadow (in-progress update) object record.
+// It's designed to be used in tests.
+func (k Keeper) StoreShadowObjectInfo(ctx sdk.Context, bucketName, objectName string, shadowObjectInfo *storagetypes.ShadowObjectInfo) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(storagetypes.GetShadowObjectKey(bucketName, objectName), k.cdc.MustMarshal(shadowObjectInfo))
 }
 
 // DeleteObjectInfo deletes object related keys from KVStore,

@@ -145,6 +145,11 @@ func (k Keeper) UpdateFrozenStreamRecord(ctx sdk.Context, streamRecord *types.St
 }
 
 func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRecord, change *types.StreamRecordChange) error {
+	// The governance account only receives: reject any rate change that would
+	// make it pay out, ahead of every caller.
+	if change.RateChange.IsNegative() && isGovernanceAccount(streamRecord.Account) {
+		return types.ErrGovernanceAccountOutFlow
+	}
 	if streamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN {
 		return k.UpdateFrozenStreamRecord(ctx, streamRecord, change)
 	}
@@ -276,7 +281,19 @@ func (k Keeper) UpdateStreamRecordByAddr(ctx sdk.Context, change *types.StreamRe
 	return streamRecord, nil
 }
 
+// isGovernanceAccount compares by parsed address, since the 0x hex form of
+// an address can differ in letter case.
+func isGovernanceAccount(account string) bool {
+	addr, err := sdk.AccAddressFromHexUnsafe(account)
+	return err == nil && addr.Equals(types.GovernanceAddress)
+}
+
 func (k Keeper) ForceSettle(ctx sdk.Context, streamRecord *types.StreamRecord) error {
+	// The governance account backstops other accounts' settlements; it does
+	// not settle into itself, so this is rejected before any state changes.
+	if isGovernanceAccount(streamRecord.Account) {
+		return types.ErrForceSettleGovernanceAccount
+	}
 	totalBalance := streamRecord.StaticBalance.Add(streamRecord.BufferBalance)
 	change := types.NewDefaultStreamRecordChangeWithAddr(types.GovernanceAddress).WithStaticBalanceChange(totalBalance)
 	_, err := k.UpdateStreamRecordByAddr(ctx, change)

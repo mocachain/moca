@@ -150,6 +150,34 @@ func TestApplyUserFlows_ActiveStreamRecord(t *testing.T) {
 	require.True(t, to2Record.BufferBalance.Int64() == 0)
 }
 
+// A bill naming the governance account as payer must be rejected before
+// either side of the flow is written.
+func TestApplyUserFlows_RejectsGovernanceOutFlow(t *testing.T) {
+	keeper, ctx, depKeepers := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(100, 0))
+	// Covers the same-block negative-balance path too, in case the guard under
+	// test is ever bypassed.
+	depKeepers.AccountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+
+	recipient := sample.RandAccAddress()
+	userFlows := types.UserFlows{
+		From: types.GovernanceAddress,
+		Flows: []types.OutFlow{
+			{ToAddress: recipient.String(), Rate: sdkmath.NewInt(100)},
+		},
+	}
+
+	err := keeper.ApplyUserFlowsList(ctx, []types.UserFlows{userFlows})
+	require.ErrorIs(t, err, types.ErrGovernanceAccountOutFlow)
+
+	_, found := keeper.GetStreamRecord(ctx, types.GovernanceAddress)
+	require.False(t, found, "the rejected flow must not create a governance stream record")
+	require.Empty(t, keeper.GetOutFlows(ctx, types.GovernanceAddress))
+
+	_, found = keeper.GetStreamRecord(ctx, recipient)
+	require.False(t, found, "the recipient must not be credited when the payer side is rejected")
+}
+
 func TestApplyUserFlows_Frozen(t *testing.T) {
 	keeper, ctx, _ := makePaymentKeeper(t)
 
