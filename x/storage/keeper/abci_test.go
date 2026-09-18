@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/cosmos/gogoproto/proto"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	gnfdresource "github.com/mocachain/moca/v2/types/resource"
 	"github.com/mocachain/moca/v2/utils"
@@ -187,25 +186,25 @@ func (s *TestSuite) TestEndBlocker_PanicsOnRunPaymentCheckError() {
 	})
 }
 
-// requireDiscontinueDeleteFailedEvent asserts exactly one EventDiscontinueDeleteFailed was
+// requireDiscontinueDeleteFailedEvent asserts exactly one discontinue_delete_failed event was
 // emitted for resourceID.
 func (s *TestSuite) requireDiscontinueDeleteFailedEvent(resourceType gnfdresource.ResourceType, resourceID sdkmath.Uint) {
 	matched := 0
 	for _, ev := range s.ctx.EventManager().Events() {
-		if ev.Type != proto.MessageName(&types.EventDiscontinueDeleteFailed{}) {
+		if ev.Type != types.EventTypeDiscontinueDeleteFailed {
 			continue
 		}
 		attrs := map[string]string{}
 		for _, attr := range ev.Attributes {
 			attrs[attr.Key] = attr.Value
 		}
-		if attrs["resource_id"] == `"`+resourceID.String()+`"` {
-			s.Require().Equal(`"`+resourceType.String()+`"`, attrs["resource_type"])
-			s.Require().NotEmpty(attrs["error"])
+		if attrs[types.AttributeKeyResourceID] == resourceID.String() {
+			s.Require().Equal(resourceType.String(), attrs[types.AttributeKeyResourceType])
+			s.Require().NotEmpty(attrs[types.AttributeKeyError])
 			matched++
 		}
 	}
-	s.Require().Equal(1, matched, "exactly one EventDiscontinueDeleteFailed must name %s", resourceID)
+	s.Require().Equal(1, matched, "exactly one %s event must name %s", types.EventTypeDiscontinueDeleteFailed, resourceID)
 }
 
 // seedHealthyDiscontinuedObject stores a bucket with a resolvable primary SP plus a
@@ -329,7 +328,7 @@ func (s *TestSuite) TestEndBlocker_OrphanedPrimarySPStillGarbageCollects() {
 	_, found := s.storageKeeper.GetBucketInfoById(s.ctx, bucketID)
 	s.Require().False(found, "an orphaned bucket must still be garbage-collected")
 	for _, ev := range s.ctx.EventManager().Events() {
-		s.Require().NotEqual(proto.MessageName(&types.EventDiscontinueDeleteFailed{}), ev.Type,
+		s.Require().NotEqual(types.EventTypeDiscontinueDeleteFailed, ev.Type,
 			"a missing primary SP is handled by the orphan path, not reported as a deletion failure")
 	}
 }

@@ -2009,11 +2009,12 @@ func (k Keeper) deleteDiscontinued(ctx sdk.Context, deleteFn func(sdk.Context) e
 func (k Keeper) dropDiscontinued(ctx sdk.Context, resourceType resource.ResourceType, id storagetypes.Uint, err error) {
 	ctx.Logger().Error("discontinued resource could not be deleted, dropping it from the deletion queue",
 		"resource_type", resourceType.String(), "id", id.String(), "height", ctx.BlockHeight(), "err", err)
-	_ = ctx.EventManager().EmitTypedEvents(&storagetypes.EventDiscontinueDeleteFailed{
-		ResourceType: resourceType,
-		ResourceId:   id,
-		Error:        err.Error(),
-	})
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		storagetypes.EventTypeDiscontinueDeleteFailed,
+		sdk.NewAttribute(storagetypes.AttributeKeyResourceType, resourceType.String()),
+		sdk.NewAttribute(storagetypes.AttributeKeyResourceID, id.String()),
+		sdk.NewAttribute(storagetypes.AttributeKeyError, err.Error()),
+	))
 }
 
 func (k Keeper) DeleteDiscontinueObjectsUntil(ctx sdk.Context, timestamp int64, maxObjectsToDelete uint64) (deleted uint64, err error) {

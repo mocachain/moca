@@ -583,20 +583,3 @@ message EventToggleSPAsDelegatedAgent {
   // sp_as_delegated_agent_disabled indicates that whether bucket owner disable SP as the upload agent.
   bool sp_as_delegated_agent_disabled = 3;
 }
-
-// EventDiscontinueDeleteFailed is emitted when a discontinued bucket or object could not be
-// deleted by the end-block garbage collector. Nothing is written for the resource and its id is
-// dropped from the deletion queue, so it stays discontinued and uncollected.
-message EventDiscontinueDeleteFailed {
-  // resource_type defines the type of the resource that failed to be deleted
-  moca.resource.ResourceType resource_type = 1;
-  // resource_id is the unique u256 id of the bucket or object that failed to be deleted
-  string resource_id = 2 [
-    (cosmos_proto.scalar) = "cosmos.Uint",
-    (gogoproto.customtype) = "Uint",
-    (gogoproto.nullable) = false,
-    (amino.dont_omitempty) = true
-  ];
-  // error describes why the deletion failed
-  string error = 3;
-}
