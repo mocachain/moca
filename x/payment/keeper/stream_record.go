@@ -145,9 +145,8 @@ func (k Keeper) UpdateFrozenStreamRecord(ctx sdk.Context, streamRecord *types.St
 }
 
 func (k Keeper) UpdateStreamRecord(ctx sdk.Context, streamRecord *types.StreamRecord, change *types.StreamRecordChange) error {
-	// The governance account only receives; it never pays out, so any rate
-	// change that would make it pay out is rejected here, ahead of every
-	// caller (rate updates, flow application, and the frozen-account path).
+	// The governance account only receives: reject any rate change that would
+	// make it pay out, ahead of every caller.
 	if change.RateChange.IsNegative() && isGovernanceAccount(streamRecord.Account) {
 		return types.ErrGovernanceAccountOutFlow
 	}
@@ -282,9 +281,8 @@ func (k Keeper) UpdateStreamRecordByAddr(ctx sdk.Context, change *types.StreamRe
 	return streamRecord, nil
 }
 
-// isGovernanceAccount reports whether account is the governance stream
-// account. The comparison goes through the parsed address, not the string,
-// because the 0x hex form of an address can differ in letter case.
+// isGovernanceAccount compares by parsed address, since the 0x hex form of
+// an address can differ in letter case.
 func isGovernanceAccount(account string) bool {
 	addr, err := sdk.AccAddressFromHexUnsafe(account)
 	return err == nil && addr.Equals(types.GovernanceAddress)

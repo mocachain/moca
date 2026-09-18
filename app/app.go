@@ -1484,6 +1484,8 @@ func (app *Moca) setupUpgradeHandlers() {
 		// over to its own owner. Bucket creation never checked payment-account
 		// ownership before this release, so live state can hold buckets that
 		// predate the new receive-only guard on that account.
+		// Bucket creation never checked payment-account ownership, so move any
+		// bucket still paying through the governance account to its owner.
 		if _, _, err := upgrades.ReassignGovernancePayerBuckets(sdkCtx, app.StorageKeeper); err != nil {
 			return fromVM, err
 		}

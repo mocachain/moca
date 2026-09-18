@@ -1404,9 +1404,8 @@ func TestForceSettle_SelfOutFlowDoesNotReenter(t *testing.T) {
 	require.NotNil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_FROZEN, payer))
 }
 
-// The governance account backstops other accounts' settlements; it is never
-// itself the target of one, so ForceSettle must reject it outright and leave
-// its record exactly as it was.
+// ForceSettle must reject the governance account outright and leave its
+// record untouched.
 func TestForceSettle_RejectsGovernanceAccount(t *testing.T) {
 	keeper, ctx, _ := makePaymentKeeper(t)
 	ctx = ctx.WithBlockTime(time.Unix(100, 0))

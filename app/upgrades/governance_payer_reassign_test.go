@@ -31,10 +31,8 @@ import (
 	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
 
-// setupReassignTest wires a real storage keeper to a real payment keeper on
-// one shared store -- the same pairing app.go uses in production -- with
-// only the storage keeper's own leaf dependencies (SP price, GVG family, SP
-// lookup) mocked.
+// setupReassignTest pairs a real storage keeper with a real payment keeper on one store,
+// mocking only SP price, GVG family and SP lookups.
 func setupReassignTest(t *testing.T) (
 	*storagekeeper.Keeper, *paymentkeeper.Keeper, sdk.Context,
 	*storagetypes.MockVirtualGroupKeeper, *storagetypes.MockSpKeeper,
@@ -66,9 +64,8 @@ func setupReassignTest(t *testing.T) (
 		authtypes.NewModuleAddress(govtypes.ModuleName).String())
 	require.NoError(t, pk.SetParams(ctx, paymenttypes.DefaultParams()))
 
-	// Move block time past what SetParams just wrote: GetVersionedParamsWithTs
-	// reverse-scans for an entry strictly before the queried timestamp, so a
-	// query at the exact write time would find nothing.
+	// GetVersionedParamsWithTs reads entries strictly before the queried time,
+	// so move block time past the SetParams write.
 	ctx = ctx.WithBlockTime(ctx.BlockTime().Add(time.Hour))
 
 	accountKeeper := storagetypes.NewMockAccountKeeper(ctrl)
@@ -90,32 +87,20 @@ func setupReassignTest(t *testing.T) (
 	)
 	require.NoError(t, sk.SetParams(ctx, storagetypes.DefaultParams()))
 
-	// Storage keeps its own versioned params (MinChargeSize, redundancy chunk
-	// counts) on the same reverse-scan-past-the-write-time scheme; the object
-	// lock-fee math the locked-object case exercises reads them, so move past
-	// this SetParams too.
+	// Storage's versioned params use the same strictly-before lookup; move past
+	// this SetParams too so the lock-fee math can read them.
 	ctx = ctx.WithBlockTime(ctx.BlockTime().Add(time.Hour))
 
 	return sk, pk, ctx, virtualGroupKeeper, spKeeper
 }
 
-// TestReassignGovernancePayerBuckets seeds bucket and payment state as it
-// could exist from before this release -- two buckets already naming the
-// payment governance account as payer, one already paying its own owner, and
-// one governance-payer bucket with an unsealed object -- then checks the
-// migration reassigns every governance-payer bucket, leaves an
-// already-correct bucket alone, cancels the unsealed object before moving
-// its bucket's payer, and clears the governance account's out-flow and lock
-// balance.
+// TestReassignGovernancePayerBuckets seeds two governance-payer buckets, one self-paying bucket and one
+// governance-payer bucket with an unsealed object, then checks the reassignment and cleanup.
 func TestReassignGovernancePayerBuckets(t *testing.T) {
 	sk, pk, ctx, virtualGroupKeeper, spKeeper := setupReassignTest(t)
 
-	// ReadPrice * ChargedReadQuota(1) = 50; the 1% validator tax on 50
-	// truncates to zero, so each bucket bills a single recipient flow. A
-	// small, non-zero PrimaryStorePrice lets the locked-object case compute a
-	// non-trivial, easy-to-check lock amount without disturbing bucket1 and
-	// bucket2's bill (they hold no local virtual groups, so the store-fee
-	// side of the bill that PrimaryStorePrice feeds never runs for them).
+	// ReadPrice * quota(1) = 50 with a 1% tax truncating to zero: one recipient flow per bucket;
+	// the small PrimaryStorePrice only feeds the locked-object case's lock amount.
 	spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).
 		Return(sptypes.GlobalSpStorePrice{
 			ReadPrice:           sdkmath.LegacyNewDec(50),
@@ -181,11 +166,8 @@ func TestReassignGovernancePayerBuckets(t *testing.T) {
 	sk.StoreObjectInfo(ctx, unsealedObject)
 	sk.IncreaseLockedObjectCount(ctx, bucket4.Id)
 
-	// Pre-existing state: the governance account already carries the combined
-	// out-flow rate of bucket1 and bucket2, exactly as GetBucketReadStoreBill
-	// computes for each, plus bucket4's locked object fee. Its static balance
-	// is generous, so its own runway stays well clear of the forced-settle
-	// threshold while the buckets are reassigned one at a time.
+	// Pre-existing state: the governance account carries bucket1's and bucket2's out-flow rates plus
+	// bucket4's locked fee, with a static balance far above the forced-settle threshold.
 	govRecord := paymenttypes.NewStreamRecord(paymenttypes.GovernanceAddress, ctx.BlockTime().Unix())
 	govRecord.NetflowRate = rate.MulRaw(2).Neg()
 	govRecord.StaticBalance = sdkmath.NewInt(1_000_000_000_000)

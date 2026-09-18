@@ -675,9 +675,8 @@ func (k Keeper) IterateBucketInfos(ctx sdk.Context, cb func(bucketInfo storagety
 	}
 }
 
-// IterateBucketObjects iterates over every object in the named bucket,
-// invoking cb for each one. Iteration stops early once cb returns true. This
-// resolves the same name-to-id mapping ForceDeleteBucket walks.
+// IterateBucketObjects invokes cb for every object in the named bucket (same
+// name-to-id walk as ForceDeleteBucket); it stops once cb returns true.
 func (k Keeper) IterateBucketObjects(ctx sdk.Context, bucketName string, cb func(objectInfo storagetypes.ObjectInfo) (stop bool)) {
 	store := ctx.KVStore(k.storeKey)
 	objectPrefixStore := prefix.NewStore(store, storagetypes.GetObjectKeyOnlyBucketPrefix(bucketName))

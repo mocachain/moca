@@ -150,9 +150,8 @@ func TestApplyUserFlows_ActiveStreamRecord(t *testing.T) {
 	require.True(t, to2Record.BufferBalance.Int64() == 0)
 }
 
-// The governance account only receives; it never pays out, so a bill that
-// names it as the payer must be rejected before any of the flow's state is
-// written, for either side of the flow.
+// A bill naming the governance account as payer must be rejected before
+// either side of the flow is written.
 func TestApplyUserFlows_RejectsGovernanceOutFlow(t *testing.T) {
 	keeper, ctx, depKeepers := makePaymentKeeper(t)
 	ctx = ctx.WithBlockTime(time.Unix(100, 0))
