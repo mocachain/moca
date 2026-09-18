@@ -860,7 +860,10 @@ func (k Keeper) DeleteSwapInInfo(ctx sdk.Context, gvgFamilyID, gvgID uint32, suc
 	store := ctx.KVStore(k.storeKey)
 
 	swapInInfo := types.SwapInInfo{}
-	deleteSwapInfo := func(key []byte) error {
+	// Tombstone the reservation (force its expiration into the past) rather than deleting
+	// it outright, so setSwapInInfo's same-successor guard still applies: this successor
+	// cannot immediately re-reserve the slot, only a different one can, once expired.
+	cancelSwapInfo := func(key []byte) error {
 		bz := store.Get(key)
 		if bz == nil {
 			return types.ErrSwapInFailed.Wrapf("The swap info not found in blockchain.")
@@ -869,16 +872,17 @@ func (k Keeper) DeleteSwapInInfo(ctx sdk.Context, gvgFamilyID, gvgID uint32, suc
 		if swapInInfo.SuccessorSpId != successorSPID {
 			return sptypes.ErrStorageProviderNotFound.Wrapf("spID(%d) is different from the spID(%d) in swapInInfo", successorSPID, swapInInfo.SuccessorSpId)
 		}
-		store.Delete(key)
+		swapInInfo.ExpirationTime = uint64(ctx.BlockTime().Unix()) //nolint:gosec // block time is never negative
+		store.Set(key, k.cdc.MustMarshal(&swapInInfo))
 		return nil
 	}
 
 	if gvgFamilyID != types.NoSpecifiedFamilyID {
-		if err := deleteSwapInfo(types.GetSwapInFamilyKey(gvgFamilyID)); err != nil {
+		if err := cancelSwapInfo(types.GetSwapInFamilyKey(gvgFamilyID)); err != nil {
 			return err
 		}
 	} else {
-		if err := deleteSwapInfo(types.GetSwapInGVGKey(gvgID)); err != nil {
+		if err := cancelSwapInfo(types.GetSwapInGVGKey(gvgID)); err != nil {
 			return err
 		}
 	}
@@ -908,6 +912,9 @@ func (k Keeper) CompleteSwapIn(ctx sdk.Context, gvgFamilyID uint32, gvgID uint32
 		if successorSP.Id != swapInInfo.SuccessorSpId {
 			return types.ErrSwapInFailed.Wrapf("The SP(ID: %d) has not reserved the swap(swapInfo=%s)", successorSP.Id, swapInInfo.String())
 		}
+		if swapInInfo.ExpirationTime <= uint64(ctx.BlockTime().Unix()) { //nolint:gosec // block time is never negative
+			return types.ErrSwapInExpired.Wrapf("The swap(swapInfo=%s) reservation has expired", swapInInfo.String())
+		}
 		targetPrimarySP, found := k.spKeeper.GetStorageProvider(ctx, swapInInfo.TargetSpId)
 		if !found {
 			return sptypes.ErrStorageProviderNotFound.Wrapf("The storage provider(ID: %d) not found when complete swap in.", swapInInfo.TargetSpId)
@@ -925,6 +932,9 @@ func (k Keeper) CompleteSwapIn(ctx sdk.Context, gvgFamilyID uint32, gvgID uint32
 		k.cdc.MustUnmarshal(bz, &swapInInfo)
 		if successorSP.Id != swapInInfo.SuccessorSpId {
 			return types.ErrSwapInFailed.Wrapf("The sp(ID: %d) has not reserved the swap for secondary SP(ID: %d)", successorSP.Id, swapInInfo.TargetSpId)
+		}
+		if swapInInfo.ExpirationTime <= uint64(ctx.BlockTime().Unix()) { //nolint:gosec // block time is never negative
+			return types.ErrSwapInExpired.Wrapf("The swap(swapInfo=%s) reservation has expired", swapInInfo.String())
 		}
 		targetSecondarySP, found := k.spKeeper.GetStorageProvider(ctx, swapInInfo.TargetSpId)
 		if !found {

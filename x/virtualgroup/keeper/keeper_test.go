@@ -1024,8 +1024,10 @@ func (s *TestSuite) TestDeleteSwapInInfo_Family_Succeeds() {
 
 	require.NoError(s.T(), s.virtualgroupKeeper.DeleteSwapInInfo(s.ctx, 332, 0, 2))
 
-	_, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, 332, 0)
-	require.False(s.T(), found)
+	// Cancel tombstones the record (expires it immediately) instead of removing it.
+	info, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, 332, 0)
+	require.True(s.T(), found)
+	require.LessOrEqual(s.T(), info.ExpirationTime, uint64(s.ctx.BlockTime().Unix())) //nolint:gosec // block time is never negative
 }
 
 func (s *TestSuite) TestDeleteSwapInInfo_GVG_NotFoundErrors() {
@@ -1040,8 +1042,38 @@ func (s *TestSuite) TestDeleteSwapInInfo_GVG_Succeeds() {
 
 	require.NoError(s.T(), s.virtualgroupKeeper.DeleteSwapInInfo(s.ctx, types.NoSpecifiedFamilyID, 341, 2))
 
-	_, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, types.NoSpecifiedFamilyID, 341)
-	require.False(s.T(), found)
+	// Cancel tombstones the record (expires it immediately) instead of removing it.
+	info, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, types.NoSpecifiedFamilyID, 341)
+	require.True(s.T(), found)
+	require.LessOrEqual(s.T(), info.ExpirationTime, uint64(s.ctx.BlockTime().Unix())) //nolint:gosec // block time is never negative
+}
+
+// ---- Cancel then reserve ----
+// The tombstone written by DeleteSwapInInfo must keep setSwapInInfo's same-successor guard
+// engaged: the successor that just canceled cannot immediately re-reserve, only a different
+// successor can.
+
+func (s *TestSuite) TestSwapIn_Family_CancelThenSameSuccessorReserveIsRejected() {
+	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{Id: 323, PrimarySpId: target.Id})
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, 323, 0, 2, target, s.ctx.BlockTime().Unix()+1000))
+	require.NoError(s.T(), s.virtualgroupKeeper.DeleteSwapInInfo(s.ctx, 323, 0, 2))
+
+	err := s.virtualgroupKeeper.SwapIn(s.ctx, 323, 0, 2, target, s.ctx.BlockTime().Unix()+1000)
+	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
+}
+
+func (s *TestSuite) TestSwapIn_Family_CancelThenDifferentSuccessorReserveSucceeds() {
+	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{Id: 324, PrimarySpId: target.Id})
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, 324, 0, 2, target, s.ctx.BlockTime().Unix()+1000))
+	require.NoError(s.T(), s.virtualgroupKeeper.DeleteSwapInInfo(s.ctx, 324, 0, 2))
+
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, 324, 0, 3, target, s.ctx.BlockTime().Unix()+1000))
+
+	info, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, 324, 0)
+	require.True(s.T(), found)
+	require.Equal(s.T(), uint32(3), info.SuccessorSpId)
 }
 
 // ---- CompleteSwapIn / completeSwapInGVG ----
@@ -1245,4 +1277,44 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_Success_BreaksRedundancyDecrementsCou
 	require.True(s.T(), found)
 	require.Equal(s.T(), uint32(0), originStat.SecondaryCount)
 	require.Equal(s.T(), uint32(0), originStat.BreakRedundancyReqmtGvgCount)
+}
+
+// ---- CompleteSwapIn expiry ----
+
+func (s *TestSuite) TestCompleteSwapIn_Family_ExpiredErrors() {
+	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
+	successor := newSP(2)
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{Id: 355, PrimarySpId: target.Id})
+	now := s.ctx.BlockTime()
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, 355, 0, successor.Id, target, now.Unix()+10))
+
+	expiredCtx := s.ctx.WithBlockTime(now.Add(20 * time.Second))
+	err := s.virtualgroupKeeper.CompleteSwapIn(expiredCtx, 355, 0, successor)
+	require.ErrorIs(s.T(), err, types.ErrSwapInExpired)
+}
+
+func (s *TestSuite) TestCompleteSwapIn_GVG_ExpiredErrors() {
+	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
+	successor := newSP(2)
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{Id: 368, PrimarySpId: 9, SecondarySpIds: []uint32{1}, TotalDeposit: math.ZeroInt()})
+	now := s.ctx.BlockTime()
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, types.NoSpecifiedFamilyID, 368, successor.Id, target, now.Unix()+10))
+
+	expiredCtx := s.ctx.WithBlockTime(now.Add(20 * time.Second))
+	err := s.virtualgroupKeeper.CompleteSwapIn(expiredCtx, types.NoSpecifiedFamilyID, 368, successor)
+	require.ErrorIs(s.T(), err, types.ErrSwapInExpired)
+}
+
+// TestCompleteSwapIn_Family_CanceledErrors covers CompleteSwapIn against a tombstoned
+// (canceled) reservation: the successor id still matches, so only the expiry check added
+// alongside the cancel-tombstone stops a canceled reservation from being completed.
+func (s *TestSuite) TestCompleteSwapIn_Family_CanceledErrors() {
+	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
+	successor := newSP(2)
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{Id: 356, PrimarySpId: target.Id})
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, 356, 0, successor.Id, target, s.ctx.BlockTime().Unix()+1000))
+	require.NoError(s.T(), s.virtualgroupKeeper.DeleteSwapInInfo(s.ctx, 356, 0, successor.Id))
+
+	err := s.virtualgroupKeeper.CompleteSwapIn(s.ctx, 356, 0, successor)
+	require.ErrorIs(s.T(), err, types.ErrSwapInExpired)
 }

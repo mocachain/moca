@@ -1318,8 +1318,10 @@ func (s *TestSuite) TestCancelSwapIn_Success() {
 	_, err := msgServer.CancelSwapIn(s.ctx, &types.MsgCancelSwapIn{StorageProvider: sp.OperatorAddress, GlobalVirtualGroupFamilyId: familyID})
 	require.NoError(s.T(), err)
 
-	_, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, familyID, 0)
-	require.False(s.T(), found)
+	// Cancel tombstones the record (expires it immediately) instead of removing it.
+	info, found := s.virtualgroupKeeper.GetSwapInInfo(s.ctx, familyID, 0)
+	require.True(s.T(), found)
+	require.LessOrEqual(s.T(), info.ExpirationTime, uint64(s.ctx.BlockTime().Unix())) //nolint:gosec // block time is never negative
 }
 
 func (s *TestSuite) TestCompleteSwapIn_SPNotFound() {
