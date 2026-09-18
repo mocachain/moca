@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	stdmath "math"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -109,6 +110,73 @@ func TestParams_Validate_FieldErrors(t *testing.T) {
 				return
 			}
 			require.ErrorContains(t, err, tc.errSubstr)
+		})
+	}
+}
+
+// TestValidateReserveTime_UpperBound covers the bound on ReserveTime.
+// x/storage/keeper/payment.go adds this to a stored update timestamp as an
+// int64, so a value past that range wraps negative and skips the
+// early-deletion charge instead of applying it.
+func TestValidateReserveTime_UpperBound(t *testing.T) {
+	tests := []struct {
+		name        string
+		reserveTime uint64
+		wantErr     bool
+	}{
+		{"default", types.DefaultReserveTime, false},
+		{"a year", 365 * 24 * 60 * 60, false},
+		{"largest representable as int64", stdmath.MaxInt64, false},
+		{"one past int64", uint64(stdmath.MaxInt64) + 1, true},
+		{"max uint64", stdmath.MaxUint64, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params := types.DefaultParams()
+			params.VersionedParams.ReserveTime = tc.reserveTime
+
+			err := params.Validate()
+			if tc.wantErr {
+				require.Error(t, err, "a reserve time that cannot be compared as an int64 must be rejected")
+				require.Contains(t, err.Error(), "reserve time too large")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestValidateWithdrawTimeLockDuration_UpperBound covers the bound on
+// WithdrawTimeLockDuration. x/payment/keeper/msg_server_withdraw.go adds this
+// to the block time as an int64, so a value past that range wraps negative
+// and unlocks a delayed withdrawal immediately instead of after the
+// configured delay.
+func TestValidateWithdrawTimeLockDuration_UpperBound(t *testing.T) {
+	tests := []struct {
+		name     string
+		duration uint64
+		wantErr  bool
+	}{
+		{"default", types.DefaultWithdrawTimeLockDuration, false},
+		{"a week", 7 * 24 * 60 * 60, false},
+		{"largest representable as int64", stdmath.MaxInt64, false},
+		{"one past int64", uint64(stdmath.MaxInt64) + 1, true},
+		{"max uint64", stdmath.MaxUint64, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params := types.DefaultParams()
+			params.WithdrawTimeLockDuration = tc.duration
+
+			err := params.Validate()
+			if tc.wantErr {
+				require.Error(t, err, "a withdraw time lock duration that cannot be compared as an int64 must be rejected")
+				require.Contains(t, err.Error(), "withdraw time lock duration too large")
+				return
+			}
+			require.NoError(t, err)
 		})
 	}
 }
