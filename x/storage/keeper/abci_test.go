@@ -159,16 +159,18 @@ func (s *TestSuite) TestEndBlocker_RunsPaymentCheckWhenEnabledAndIntervalMatches
 	s.Require().NoError(err)
 }
 
-func (s *TestSuite) TestEndBlocker_PanicsOnRunPaymentCheckError() {
+func (s *TestSuite) TestEndBlocker_LogsRunPaymentCheckErrorInsteadOfPanicking() {
 	keeper.InitPaymentCheck(*s.storageKeeper, true, 1)
 	// A stream record with a positive lock balance and no bucket to justify it
 	// (there are no buckets in the store) trips RunPaymentCheck's reconciliation
-	// and makes it return a non-nil error; EndBlocker must turn that into a panic.
+	// and makes it return a non-nil error; EndBlocker must log it and carry on,
+	// since this check is an opt-in, node-local diagnostic that must never halt
+	// the node it runs on.
 	// NetflowRate/FrozenNetflowRate must be explicit zero sdkmath.Ints, not the
 	// struct's zero value: RunPaymentCheck's reverse-check loop calls IsNegative/
 	// IsPositive on both fields, and an uninitialized sdkmath.Int wraps a nil
 	// big.Int that panics on any method call -- which would otherwise satisfy
-	// Require().Panics() without ever reaching the panic(err) this test targets.
+	// Require().NotPanics() without ever reaching the code path this test targets.
 	s.paymentKeeper.EXPECT().GetAllStreamRecord(gomock.Any()).Return([]paymenttypes.StreamRecord{
 		{
 			Account: "not-a-real-account", LockBalance: sdkmath.NewInt(1),
@@ -176,8 +178,9 @@ func (s *TestSuite) TestEndBlocker_PanicsOnRunPaymentCheckError() {
 		},
 	}).Times(1)
 
-	s.Require().Panics(func() {
-		_ = keeper.EndBlocker(s.ctx, *s.storageKeeper)
+	s.Require().NotPanics(func() {
+		err := keeper.EndBlocker(s.ctx, *s.storageKeeper)
+		s.Require().NoError(err, "a payment check failure must not fail EndBlocker")
 	})
 }
 

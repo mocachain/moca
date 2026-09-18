@@ -69,7 +69,8 @@ func EndBlocker(ctx sdk.Context, keeper Keeper) error {
 	if keeper.IsPaymentCheckEnabled() && interval > 0 && ctx.BlockHeight()%interval == 0 {
 		err = keeper.RunPaymentCheck(ctx)
 		if err != nil {
-			panic(err)
+			// Opt-in, node-local diagnostic: log and continue rather than halt the node.
+			ctx.Logger().Error("payment check failed", "error", err)
 		}
 	}
 	return nil
