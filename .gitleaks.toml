@@ -16,6 +16,8 @@ paths = [
     '''gitleaks.toml''',
     '''(.*?)(jpg|gif|pdf|png|svg)$''',
     '''(go.mod|go.sum)$''',
+    # public validator consensus/BLS keys in the checked-in genesis templates, not secrets
+    '''asset/configs/(mainnet|testnet)_config/genesis\.json$''',
 ]
 stopwords = [
     '''secp256k1''',

@@ -6,7 +6,7 @@
     "block": {
       "max_txs": "2400",
       "max_bytes": "3145728",
-      "max_gas": "-1"
+      "max_gas": "60000000"
     },
     "evidence": {
       "max_age_num_blocks": "100000",
@@ -874,7 +874,7 @@
         "elasticity_multiplier": 2,
         "enable_height": "0",
         "base_fee": "1000000000",
-        "min_gas_price": "0.000000000000000000",
+        "min_gas_price": "1000000000.000000000000000000",
         "min_gas_multiplier": "0.500000000000000000"
       },
       "block_gas": "0"
