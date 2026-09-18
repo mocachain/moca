@@ -1,12 +1,18 @@
 package keeper_test
 
 import (
+	"encoding/binary"
+
 	sdkmath "cosmossdk.io/math"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/mocachain/moca/v2/testutil/sample"
+	gnfdresource "github.com/mocachain/moca/v2/types/resource"
 	"github.com/mocachain/moca/v2/utils"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
+	sptypes "github.com/mocachain/moca/v2/x/sp/types"
 	"github.com/mocachain/moca/v2/x/storage/keeper"
 	"github.com/mocachain/moca/v2/x/storage/types"
+	virtualgroupmoduletypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 	"go.uber.org/mock/gomock"
 )
 
@@ -181,37 +187,149 @@ func (s *TestSuite) TestEndBlocker_PanicsOnRunPaymentCheckError() {
 	})
 }
 
-func (s *TestSuite) TestEndBlocker_PanicsOnObjectDeletionError() {
-	blockTime := s.ctx.BlockTime().Unix()
-	// An object that exists but whose bucket does not: ForceDeleteObject's bucket
-	// lookup fails and the error must propagate out of DeleteDiscontinueObjectsUntil,
-	// which EndBlocker turns into a panic (mirrors
-	// TestDeleteDiscontinueObjectsUntil_PropagatesForceDeleteError in keeper_test.go).
-	objID := sdkmath.NewUint(9201)
-	s.storageKeeper.StoreObjectInfo(s.ctx, &types.ObjectInfo{
-		Id: objID, BucketName: "enddblocker-missing-bucket", ObjectName: "orphan-object",
-	})
-	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueObjectIdsKey(blockTime), s.cdc.MustMarshal(&types.Ids{Id: []sdkmath.Uint{objID}}))
-
-	s.Require().Panics(func() {
-		_ = keeper.EndBlocker(s.ctx, *s.storageKeeper)
-	})
+// requireDiscontinueDeleteFailedEvent asserts exactly one EventDiscontinueDeleteFailed was
+// emitted for resourceID.
+func (s *TestSuite) requireDiscontinueDeleteFailedEvent(resourceType gnfdresource.ResourceType, resourceID sdkmath.Uint) {
+	matched := 0
+	for _, ev := range s.ctx.EventManager().Events() {
+		if ev.Type != proto.MessageName(&types.EventDiscontinueDeleteFailed{}) {
+			continue
+		}
+		attrs := map[string]string{}
+		for _, attr := range ev.Attributes {
+			attrs[attr.Key] = attr.Value
+		}
+		if attrs["resource_id"] == `"`+resourceID.String()+`"` {
+			s.Require().Equal(`"`+resourceType.String()+`"`, attrs["resource_type"])
+			s.Require().NotEmpty(attrs["error"])
+			matched++
+		}
+	}
+	s.Require().Equal(1, matched, "exactly one EventDiscontinueDeleteFailed must name %s", resourceID)
 }
 
-func (s *TestSuite) TestEndBlocker_PanicsOnBucketDeletionError() {
-	blockTime := s.ctx.BlockTime().Unix()
-	// A bucket whose GVG family has vanished from virtual-group state: ForceDeleteBucket's
-	// primary-SP resolution returns a genuine (non-orphan) error, which propagates out of
-	// DeleteDiscontinueBucketsUntil and EndBlocker turns into a panic.
-	const familyID = uint32(9202)
-	bucketID := sdkmath.NewUint(9203)
-	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
-		Id: bucketID, BucketName: "enddblocker-broken-family-bucket", GlobalVirtualGroupFamilyId: familyID,
+// seedHealthyDiscontinuedObject stores a bucket with a resolvable primary SP plus a
+// discontinued object in it that ForceDeleteObject can collect without error.
+func (s *TestSuite) seedHealthyDiscontinuedObject(bucketID, objectID sdkmath.Uint) {
+	owner := sample.RandAccAddress()
+	bucketInfo := &types.BucketInfo{
+		Owner: owner.String(), BucketName: "endblocker-gc-bucket", Id: bucketID,
+		GlobalVirtualGroupFamilyId: 1, PaymentAddress: owner.String(),
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+	s.mockPrimarySP(bucketInfo, &sptypes.StorageProvider{
+		Id: 1, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: sample.RandAccAddress().String(),
 	})
-	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueBucketIDsKey(blockTime), s.cdc.MustMarshal(&types.Ids{Id: []sdkmath.Uint{bucketID}}))
-	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), familyID).Return(nil, false).AnyTimes()
+	s.storageKeeper.StoreObjectInfo(s.ctx, &types.ObjectInfo{
+		Id: objectID, BucketName: bucketInfo.BucketName, ObjectName: "healthy-object",
+		Owner: owner.String(), ObjectStatus: types.OBJECT_STATUS_DISCONTINUED,
+		// strictly after the versioned-params timestamp: GetVersionedParamsWithTS is exclusive of ts
+		CreateAt: s.ctx.BlockTime().Unix() + 1,
+	})
+	// simulates DiscontinueObject's saveDiscontinueObjectStatus recording CREATED as the pre-discontinue status.
+	statusBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(statusBytes, uint32(types.OBJECT_STATUS_CREATED))
+	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueObjectStatusKey(objectID), statusBytes)
+	s.stubObjectUnlockFee()
+	s.stubGCBookkeepingNoop()
+}
 
-	s.Require().Panics(func() {
-		_ = keeper.EndBlocker(s.ctx, *s.storageKeeper)
+func (s *TestSuite) TestEndBlocker_ObjectDeletionErrorIsContainedToTheItem() {
+	blockTime := s.ctx.BlockTime().Unix()
+	store := s.ctx.KVStore(s.storeKey)
+
+	// An object that exists but whose bucket does not: ForceDeleteObject's bucket lookup fails.
+	badID := sdkmath.NewUint(9201)
+	s.storageKeeper.StoreObjectInfo(s.ctx, &types.ObjectInfo{
+		Id: badID, BucketName: "endblocker-missing-bucket", ObjectName: "orphan-object",
 	})
+	goodID := sdkmath.NewUint(9202)
+	s.seedHealthyDiscontinuedObject(sdkmath.NewUint(9200), goodID)
+
+	// The failing id is queued ahead of the healthy one on purpose.
+	store.Set(types.GetDiscontinueObjectIdsKey(blockTime), s.cdc.MustMarshal(&types.Ids{Id: []sdkmath.Uint{badID, goodID}}))
+
+	s.Require().NotPanics(func() {
+		s.Require().NoError(keeper.EndBlocker(s.ctx, *s.storageKeeper))
+	}, "a single undeletable object must not halt the block")
+
+	s.Require().False(store.Has(types.GetDiscontinueObjectIdsKey(blockTime)),
+		"the failing id must be dropped from the queue instead of being retried every block")
+	_, found := s.storageKeeper.GetObjectInfoById(s.ctx, goodID)
+	s.Require().False(found, "the object queued behind the failing one must still be deleted")
+	_, found = s.storageKeeper.GetObjectInfoById(s.ctx, badID)
+	s.Require().True(found, "the failing item must not leave partial state behind")
+	s.requireDiscontinueDeleteFailedEvent(gnfdresource.RESOURCE_TYPE_OBJECT, badID)
+}
+
+func (s *TestSuite) TestEndBlocker_BucketDeletionErrorIsContainedToTheItem() {
+	blockTime := s.ctx.BlockTime().Unix()
+	store := s.ctx.KVStore(s.storeKey)
+
+	// A bucket whose GVG family has vanished from virtual-group state: ForceDeleteBucket's
+	// primary-SP resolution returns a genuine (non-orphan) error.
+	const badFamilyID = uint32(9210)
+	badID := sdkmath.NewUint(9211)
+	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
+		Id: badID, BucketName: "endblocker-broken-family-bucket", GlobalVirtualGroupFamilyId: badFamilyID,
+	})
+	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), badFamilyID).Return(nil, false).AnyTimes()
+
+	owner := sample.RandAccAddress()
+	goodID := sdkmath.NewUint(9212)
+	goodBucket := &types.BucketInfo{
+		Owner: owner.String(), BucketName: "endblocker-healthy-bucket", Id: goodID,
+		GlobalVirtualGroupFamilyId: 1, PaymentAddress: owner.String(),
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, goodBucket)
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, goodID, &types.InternalBucketInfo{})
+	s.mockPrimarySP(goodBucket, &sptypes.StorageProvider{
+		Id: 1, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: sample.RandAccAddress().String(),
+	})
+	s.stubGCBookkeepingNoop()
+
+	store.Set(types.GetDiscontinueBucketIDsKey(blockTime), s.cdc.MustMarshal(&types.Ids{Id: []sdkmath.Uint{badID, goodID}}))
+
+	s.Require().NotPanics(func() {
+		s.Require().NoError(keeper.EndBlocker(s.ctx, *s.storageKeeper))
+	}, "a single undeletable bucket must not halt the block")
+
+	s.Require().False(store.Has(types.GetDiscontinueBucketIDsKey(blockTime)),
+		"the failing id must be dropped from the queue instead of being retried every block")
+	_, found := s.storageKeeper.GetBucketInfo(s.ctx, goodBucket.BucketName)
+	s.Require().False(found, "the bucket queued behind the failing one must still be deleted")
+	_, found = s.storageKeeper.GetBucketInfoById(s.ctx, badID)
+	s.Require().True(found, "the failing item must not leave partial state behind")
+	s.requireDiscontinueDeleteFailedEvent(gnfdresource.RESOURCE_TYPE_BUCKET, badID)
+}
+
+// TestEndBlocker_OrphanedPrimarySPStillGarbageCollects pins the ErrStorageProviderNotFound
+// special case: a bucket whose primary SP is gone is still collected, not reported as failed.
+func (s *TestSuite) TestEndBlocker_OrphanedPrimarySPStillGarbageCollects() {
+	blockTime := s.ctx.BlockTime().Unix()
+	store := s.ctx.KVStore(s.storeKey)
+
+	const familyID = uint32(9220)
+	bucketID := sdkmath.NewUint(9221)
+	owner := sample.RandAccAddress()
+	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
+		Owner: owner.String(), BucketName: "endblocker-orphan-sp-bucket", Id: bucketID,
+		GlobalVirtualGroupFamilyId: familyID, PaymentAddress: owner.String(),
+	})
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketID, &types.InternalBucketInfo{})
+	s.virtualGroupKeeper.EXPECT().GetGVGFamily(gomock.Any(), familyID).
+		Return(&virtualgroupmoduletypes.GlobalVirtualGroupFamily{Id: familyID, PrimarySpId: 77}, true).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), uint32(77)).Return(nil, false).AnyTimes()
+	s.stubGCBookkeepingNoop()
+
+	store.Set(types.GetDiscontinueBucketIDsKey(blockTime), s.cdc.MustMarshal(&types.Ids{Id: []sdkmath.Uint{bucketID}}))
+
+	s.Require().NoError(keeper.EndBlocker(s.ctx, *s.storageKeeper))
+
+	_, found := s.storageKeeper.GetBucketInfoById(s.ctx, bucketID)
+	s.Require().False(found, "an orphaned bucket must still be garbage-collected")
+	for _, ev := range s.ctx.EventManager().Events() {
+		s.Require().NotEqual(proto.MessageName(&types.EventDiscontinueDeleteFailed{}), ev.Type,
+			"a missing primary SP is handled by the orphan path, not reported as a deletion failure")
+	}
 }
