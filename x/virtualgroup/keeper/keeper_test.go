@@ -1155,8 +1155,7 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_AlreadyPrimaryErrors() {
 
 // TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors simulates the reserved target no
 // longer being a secondary of the gvg by completion time (e.g. swapped out via a separate
-// SwapOutAsSecondarySP in between). That is reachable from an ordinary transaction, so it
-// must be reported as an error rather than panicking out of the message handler.
+// SwapOutAsSecondarySP in between), which must be reported as an error.
 func (s *TestSuite) TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors() {
 	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
 	successor := newSP(2)
@@ -1184,8 +1183,7 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors() {
 }
 
 // TestCompleteSwapIn_GVG_SuccessorBecameSecondaryErrors covers the successor taking a
-// secondary slot of the same gvg between reserving and completing: writing the swap then
-// lists it twice, so it holds two of the group's pieces while the chain counts six SPs.
+// secondary slot of the same gvg between reserving and completing, which would list it twice.
 func (s *TestSuite) TestCompleteSwapIn_GVG_SuccessorBecameSecondaryErrors() {
 	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
 	successor := newSP(2)
