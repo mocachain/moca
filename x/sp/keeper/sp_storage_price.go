@@ -46,6 +46,12 @@ func (k Keeper) GetSpStoragePrice(
 	return val, true
 }
 
+// DeleteSpStoragePrice removes the SpStoragePrice of a storage provider, if any
+func (k Keeper) DeleteSpStoragePrice(ctx sdk.Context, spID uint32) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.SpStoragePriceKeyPrefix)
+	store.Delete(types.SpStoragePriceKey(spID))
+}
+
 // GetAllSpStoragePrice returns all SpStoragePrice
 func (k Keeper) GetAllSpStoragePrice(ctx sdk.Context) (list []types.SpStoragePrice) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.SpStoragePriceKeyPrefix)

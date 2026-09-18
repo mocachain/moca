@@ -180,6 +180,8 @@ func (k Keeper) Exit(ctx sdk.Context, sp *types.StorageProvider) error {
 	store.Delete(types.GetStorageProviderByGcAddrKey(sdk.MustAccAddressFromHex(sp.GcAddress)))
 	store.Delete(types.GetStorageProviderKey(k.spSequence.EncodeSequence(sp.Id)))
 	store.Delete(types.GetStorageProviderByBlsKeyKey(sp.GetBlsKey()))
+	store.Delete(types.GetStorageProviderMaintenanceRecordsKey(sdk.MustAccAddressFromHex(sp.OperatorAddress)))
+	k.DeleteSpStoragePrice(ctx, sp.Id)
 	return nil
 }
 
