@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"strings"
 
+	stdmath "math"
+
 	"cosmossdk.io/math"
 )
 
@@ -126,6 +128,13 @@ func validateReserveTime(v interface{}) error {
 		return fmt.Errorf("reserve time must be positive")
 	}
 
+	// x/storage/keeper/payment.go adds this to a stored update timestamp as
+	// an int64, so a value past that range wraps negative and skips the
+	// early-deletion charge instead of applying it.
+	if reserveTime > stdmath.MaxInt64 {
+		return fmt.Errorf("reserve time too large: %d", reserveTime)
+	}
+
 	return nil
 }
 
@@ -233,9 +242,16 @@ func validateWithdrawTimeLockThreshold(v interface{}) error {
 
 // validateWithdrawTimeLockDuration validates the WithdrawTimeLockDuration param
 func validateWithdrawTimeLockDuration(v interface{}) error {
-	_, ok := v.(uint64)
+	withdrawTimeLockDuration, ok := v.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
+	}
+
+	// x/payment/keeper/msg_server_withdraw.go adds this to the block time as
+	// an int64, so a value past that range wraps negative and unlocks a
+	// delayed withdrawal immediately instead of after the configured delay.
+	if withdrawTimeLockDuration > stdmath.MaxInt64 {
+		return fmt.Errorf("withdraw time lock duration too large: %d", withdrawTimeLockDuration)
 	}
 
 	return nil
