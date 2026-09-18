@@ -1727,14 +1727,34 @@ func (s *TestSuite) TestDiscontinueObject_SwapInSuccessorAllowed() {
 	successorGcAcc := sample.RandAccAddress()
 	successorSP := &sptypes.StorageProvider{Id: 2, GcAddress: successorGcAcc.String(), Status: sptypes.STATUS_IN_SERVICE}
 	s.spKeeper.EXPECT().GetStorageProviderByGcAddr(gomock.Any(), successorGcAcc).Return(successorSP, true)
+	//nolint:gosec // block time is never negative
+	unexpired := uint64(s.ctx.BlockTime().Unix()) + 100
 	s.virtualGroupKeeper.EXPECT().GetSwapInInfo(gomock.Any(), uint32(1), virtualgroupmoduletypes.NoSpecifiedGVGId).
-		Return(&virtualgroupmoduletypes.SwapInInfo{TargetSpId: primarySP.Id, SuccessorSpId: successorSP.Id}, true)
+		Return(&virtualgroupmoduletypes.SwapInInfo{TargetSpId: primarySP.Id, SuccessorSpId: successorSP.Id, ExpirationTime: unexpired}, true)
 
 	objectInfo := &types.ObjectInfo{Id: sdkmath.NewUint(1), BucketName: bucketInfo.BucketName, ObjectName: "obj", ObjectStatus: types.OBJECT_STATUS_SEALED}
 	s.storageKeeper.StoreObjectInfo(s.ctx, objectInfo)
 
 	err := s.storageKeeper.DiscontinueObject(s.ctx, successorGcAcc, bucketInfo.BucketName, []sdkmath.Uint{objectInfo.Id}, "reason")
 	s.Require().NoError(err)
+}
+
+// TestDiscontinueObject_SwapInSuccessorExpiredDenied covers a swap-in reservation that has
+// expired (including a canceled one, which is tombstoned the same way): the successor id
+// still matches the stored record, so only the expiration check keeps it from being treated
+// as an active reservation.
+func (s *TestSuite) TestDiscontinueObject_SwapInSuccessorExpiredDenied() {
+	bucketInfo, primarySP, _ := s.discontinueObjectPrimarySP()
+	successorGcAcc := sample.RandAccAddress()
+	successorSP := &sptypes.StorageProvider{Id: 2, GcAddress: successorGcAcc.String(), Status: sptypes.STATUS_IN_SERVICE}
+	s.spKeeper.EXPECT().GetStorageProviderByGcAddr(gomock.Any(), successorGcAcc).Return(successorSP, true)
+	//nolint:gosec // block time is never negative
+	expired := uint64(s.ctx.BlockTime().Unix())
+	s.virtualGroupKeeper.EXPECT().GetSwapInInfo(gomock.Any(), uint32(1), virtualgroupmoduletypes.NoSpecifiedGVGId).
+		Return(&virtualgroupmoduletypes.SwapInInfo{TargetSpId: primarySP.Id, SuccessorSpId: successorSP.Id, ExpirationTime: expired}, true)
+
+	err := s.storageKeeper.DiscontinueObject(s.ctx, successorGcAcc, bucketInfo.BucketName, nil, "reason")
+	s.Require().ErrorIs(err, types.ErrAccessDenied)
 }
 
 func (s *TestSuite) TestDiscontinueObject_TooManyRequested() {

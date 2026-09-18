@@ -1494,7 +1494,8 @@ func (k Keeper) DiscontinueObject(ctx sdk.Context, operator sdk.AccAddress, buck
 
 	if sp.Id != spInState.Id {
 		swapInInfo, found := k.virtualGroupKeeper.GetSwapInInfo(ctx, bucketInfo.GlobalVirtualGroupFamilyId, virtualgroupmoduletypes.NoSpecifiedGVGId)
-		if !found || swapInInfo.TargetSpId != spInState.Id || swapInInfo.SuccessorSpId != sp.Id {
+		//nolint:gosec // block time is never negative
+		if !found || swapInInfo.TargetSpId != spInState.Id || swapInInfo.SuccessorSpId != sp.Id || swapInInfo.ExpirationTime <= uint64(ctx.BlockTime().Unix()) {
 			return errors.Wrapf(storagetypes.ErrAccessDenied, "the sp is not allowed to do discontinue objects")
 		}
 	}

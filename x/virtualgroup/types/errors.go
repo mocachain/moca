@@ -29,6 +29,7 @@ var (
 	ErrGVGFamilyStatisticsNotExist = errors.Register(ModuleName, 1130, "global virtual group family statistics not exist.")
 	ErrNotPrimarySP                = errors.Register(ModuleName, 1131, "the storage provider is not the primary sp of the global virtual group.")
 	ErrGVGFamilyNotOwned           = errors.Register(ModuleName, 1132, "the global virtual group family is not owned by the storage provider.")
+	ErrSwapInExpired               = errors.Register(ModuleName, 1133, "swap in reservation expired.")
 
 	ErrInvalidDenom = errors.Register(ModuleName, 2000, "Invalid denom.")
 )
