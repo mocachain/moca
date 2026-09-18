@@ -11,6 +11,7 @@ import (
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -22,8 +23,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
-	"github.com/mocachain/moca/v2/precompiles/types"
 	challengetypes "github.com/mocachain/moca/v2/x/challenge/types"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
@@ -54,6 +55,24 @@ const (
 	// AuthzTypeSpDeposit is the authorization type for moca sp deposit grants.
 	AuthzTypeSpDeposit = "spDeposit"
 )
+
+// unsupportedMsgTypeURLs are the message types the precompile does not grant or
+// execute. It mirrors the set the cosmos ante handler keeps out of authz
+// (app/ante/cosmos/authz.go) and adds authz's own wrapping messages.
+var unsupportedMsgTypeURLs = map[string]struct{}{
+	sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}):             {},
+	sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}): {},
+	sdk.MsgTypeURL(&authz.MsgExec{}):                      {},
+	sdk.MsgTypeURL(&authz.MsgGrant{}):                     {},
+}
+
+// checkSupportedMsgTypeURL rejects message types outside the precompile's supported set.
+func checkSupportedMsgTypeURL(msgTypeURL string) error {
+	if _, unsupported := unsupportedMsgTypeURLs[msgTypeURL]; unsupported {
+		return fmt.Errorf("unsupported message type %s", msgTypeURL)
+	}
+	return nil
+}
 
 // Grant implements the MsgServer.Grant method to create a new grant.
 func (p Precompile) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
@@ -119,8 +138,15 @@ func (p Precompile) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, m
 		}
 
 		authorization, err = stakingtypes.NewStakeAuthorization(allowed, denied, authzType, &limit[0])
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("invalid authorization type %s", input.AuthzType)
+	}
+
+	if err := checkSupportedMsgTypeURL(authorization.MsgTypeURL()); err != nil {
+		return nil, err
 	}
 
 	var expiration *time.Time
@@ -186,7 +212,6 @@ func (p Precompile) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, me
 	govv1.RegisterInterfaces(interfaceRegistry)
 	// Note: upgradetypes.RegisterInterfaces is not available in v0.50, interfaces are registered via module manager
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
-	types.RegisterInterfaces(interfaceRegistry)
 
 	challengetypes.RegisterInterfaces(interfaceRegistry)
 	feemarkettypes.RegisterInterfaces(interfaceRegistry)
@@ -207,6 +232,9 @@ func (p Precompile) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, me
 			return nil, err
 		}
 		if err := ethosCodec.UnmarshalInterfaceJSON(rawMessage, &msg); err != nil {
+			return nil, err
+		}
+		if err := checkSupportedMsgTypeURL(sdk.MsgTypeURL(msg)); err != nil {
 			return nil, err
 		}
 
