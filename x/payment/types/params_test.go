@@ -114,10 +114,6 @@ func TestParams_Validate_FieldErrors(t *testing.T) {
 	}
 }
 
-// TestValidateReserveTime_UpperBound covers the bound on ReserveTime.
-// x/storage/keeper/payment.go adds this to a stored update timestamp as an
-// int64, so a value past that range wraps negative and skips the
-// early-deletion charge instead of applying it.
 func TestValidateReserveTime_UpperBound(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -126,8 +122,9 @@ func TestValidateReserveTime_UpperBound(t *testing.T) {
 	}{
 		{"default", types.DefaultReserveTime, false},
 		{"a year", 365 * 24 * 60 * 60, false},
-		{"largest representable as int64", stdmath.MaxInt64, false},
-		{"one past int64", uint64(stdmath.MaxInt64) + 1, true},
+		{"max", types.MaxDurationParamSeconds, false},
+		{"one past max", types.MaxDurationParamSeconds + 1, true},
+		{"max int64", stdmath.MaxInt64, true},
 		{"max uint64", stdmath.MaxUint64, true},
 	}
 
@@ -138,8 +135,7 @@ func TestValidateReserveTime_UpperBound(t *testing.T) {
 
 			err := params.Validate()
 			if tc.wantErr {
-				require.Error(t, err, "a reserve time that cannot be compared as an int64 must be rejected")
-				require.Contains(t, err.Error(), "reserve time too large")
+				require.ErrorContains(t, err, "reserve time too large")
 				return
 			}
 			require.NoError(t, err)
@@ -147,11 +143,6 @@ func TestValidateReserveTime_UpperBound(t *testing.T) {
 	}
 }
 
-// TestValidateWithdrawTimeLockDuration_UpperBound covers the bound on
-// WithdrawTimeLockDuration. x/payment/keeper/msg_server_withdraw.go adds this
-// to the block time as an int64, so a value past that range wraps negative
-// and unlocks a delayed withdrawal immediately instead of after the
-// configured delay.
 func TestValidateWithdrawTimeLockDuration_UpperBound(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -160,8 +151,9 @@ func TestValidateWithdrawTimeLockDuration_UpperBound(t *testing.T) {
 	}{
 		{"default", types.DefaultWithdrawTimeLockDuration, false},
 		{"a week", 7 * 24 * 60 * 60, false},
-		{"largest representable as int64", stdmath.MaxInt64, false},
-		{"one past int64", uint64(stdmath.MaxInt64) + 1, true},
+		{"max", types.MaxDurationParamSeconds, false},
+		{"one past max", types.MaxDurationParamSeconds + 1, true},
+		{"max int64", stdmath.MaxInt64, true},
 		{"max uint64", stdmath.MaxUint64, true},
 	}
 
@@ -172,8 +164,7 @@ func TestValidateWithdrawTimeLockDuration_UpperBound(t *testing.T) {
 
 			err := params.Validate()
 			if tc.wantErr {
-				require.Error(t, err, "a withdraw time lock duration that cannot be compared as an int64 must be rejected")
-				require.Contains(t, err.Error(), "withdraw time lock duration too large")
+				require.ErrorContains(t, err, "withdraw time lock duration too large")
 				return
 			}
 			require.NoError(t, err)

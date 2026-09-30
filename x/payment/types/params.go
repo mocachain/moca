@@ -5,8 +5,6 @@ import (
 	"math/big"
 	"strings"
 
-	stdmath "math"
-
 	"cosmossdk.io/math"
 )
 
@@ -32,6 +30,9 @@ var (
 	DefaultWithdrawTimeLockThreshold        = math.NewIntFromBigInt(big.NewInt(1e18)).MulRaw(100) // 100 amoca
 	DefaultWithdrawTimeLockDuration  uint64 = 24 * 60 * 60                                        // 1 day
 )
+
+// MaxDurationParamSeconds caps ReserveTime and WithdrawTimeLockDuration (100 years).
+const MaxDurationParamSeconds uint64 = 100 * 365 * 24 * 60 * 60
 
 // NewParams creates a new Params instance
 func NewParams(
@@ -128,11 +129,8 @@ func validateReserveTime(v interface{}) error {
 		return fmt.Errorf("reserve time must be positive")
 	}
 
-	// x/storage/keeper/payment.go adds this to a stored update timestamp as
-	// an int64, so a value past that range wraps negative and skips the
-	// early-deletion charge instead of applying it.
-	if reserveTime > stdmath.MaxInt64 {
-		return fmt.Errorf("reserve time too large: %d", reserveTime)
+	if reserveTime > MaxDurationParamSeconds {
+		return fmt.Errorf("reserve time too large: %d, max %d", reserveTime, MaxDurationParamSeconds)
 	}
 
 	return nil
@@ -247,11 +245,8 @@ func validateWithdrawTimeLockDuration(v interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
 
-	// x/payment/keeper/msg_server_withdraw.go adds this to the block time as
-	// an int64, so a value past that range wraps negative and unlocks a
-	// delayed withdrawal immediately instead of after the configured delay.
-	if withdrawTimeLockDuration > stdmath.MaxInt64 {
-		return fmt.Errorf("withdraw time lock duration too large: %d", withdrawTimeLockDuration)
+	if withdrawTimeLockDuration > MaxDurationParamSeconds {
+		return fmt.Errorf("withdraw time lock duration too large: %d, max %d", withdrawTimeLockDuration, MaxDurationParamSeconds)
 	}
 
 	return nil
