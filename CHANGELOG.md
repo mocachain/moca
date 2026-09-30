@@ -118,6 +118,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (payment) [#521](https://github.com/mocachain/moca/pull/521) Reject rate changes that would make the governance stream account pay out flows, and return an explicit error instead of force-settling that account.
 - (e2e) [#519](https://github.com/mocachain/moca/pull/519) Retry `cast send` in the comprehensive upgrade test when the EVM JSON-RPC returns a transient null result, which made the pre-upgrade native transfer flake.
 - (virtualgroup) [#487](https://github.com/mocachain/moca/pull/487) Return the `invalid GVG id` error instead of panicking when the id given to `global-virtual-group`, `global-virtual-group-by-family-id` or `global-virtual-group-family` is non-numeric or non-positive.
 - (cli) [#518](https://github.com/mocachain/moca/pull/518) Scale the decimal fields rebuilt from precompile query results back down by 10^18. The precompiles return `LegacyDec` values as their raw internal integer, but `payment params` and the sp EVM query client re-scaled them as whole numbers, so `mocad q payment params` printed a 1% `validator_tax_rate` as `10000000000000000.000000000000000000` and the sp client reported a `store_price` of `10000` as `10000000000000000000000`. Display only — the keeper reads params directly from the store.
