@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	stdmath "math"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -109,6 +110,64 @@ func TestParams_Validate_FieldErrors(t *testing.T) {
 				return
 			}
 			require.ErrorContains(t, err, tc.errSubstr)
+		})
+	}
+}
+
+func TestValidateReserveTime_UpperBound(t *testing.T) {
+	tests := []struct {
+		name        string
+		reserveTime uint64
+		wantErr     bool
+	}{
+		{"default", types.DefaultReserveTime, false},
+		{"a year", 365 * 24 * 60 * 60, false},
+		{"max", types.MaxDurationParamSeconds, false},
+		{"one past max", types.MaxDurationParamSeconds + 1, true},
+		{"max int64", stdmath.MaxInt64, true},
+		{"max uint64", stdmath.MaxUint64, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params := types.DefaultParams()
+			params.VersionedParams.ReserveTime = tc.reserveTime
+
+			err := params.Validate()
+			if tc.wantErr {
+				require.ErrorContains(t, err, "reserve time too large")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestValidateWithdrawTimeLockDuration_UpperBound(t *testing.T) {
+	tests := []struct {
+		name     string
+		duration uint64
+		wantErr  bool
+	}{
+		{"default", types.DefaultWithdrawTimeLockDuration, false},
+		{"a week", 7 * 24 * 60 * 60, false},
+		{"max", types.MaxDurationParamSeconds, false},
+		{"one past max", types.MaxDurationParamSeconds + 1, true},
+		{"max int64", stdmath.MaxInt64, true},
+		{"max uint64", stdmath.MaxUint64, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params := types.DefaultParams()
+			params.WithdrawTimeLockDuration = tc.duration
+
+			err := params.Validate()
+			if tc.wantErr {
+				require.ErrorContains(t, err, "withdraw time lock duration too large")
+				return
+			}
+			require.NoError(t, err)
 		})
 	}
 }
