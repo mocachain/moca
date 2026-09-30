@@ -31,8 +31,8 @@ var (
 	DefaultWithdrawTimeLockDuration  uint64 = 24 * 60 * 60                                        // 1 day
 )
 
-// MaxDurationParamSeconds caps ReserveTime and WithdrawTimeLockDuration (100 years).
-const MaxDurationParamSeconds uint64 = 100 * 365 * 24 * 60 * 60
+// MaxDurationParamSeconds caps ReserveTime and WithdrawTimeLockDuration (1000 years).
+const MaxDurationParamSeconds uint64 = 1000 * 365 * 24 * 60 * 60
 
 // NewParams creates a new Params instance
 func NewParams(
