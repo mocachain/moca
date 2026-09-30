@@ -1482,6 +1482,11 @@ func (app *Moca) setupUpgradeHandlers() {
 		if _, _, err := upgrades.PruneExitedStorageProviderEntries(ctx, app.SpKeeper, app.GetKey(spmoduletypes.StoreKey)); err != nil {
 			return fromVM, err
 		}
+		// Bucket creation never checked payment-account ownership, so move any
+		// bucket still paying through the governance account to its owner.
+		if _, _, _, err := upgrades.ReassignGovernancePayerBuckets(sdkCtx, app.StorageKeeper); err != nil {
+			return fromVM, err
+		}
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
