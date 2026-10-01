@@ -347,9 +347,7 @@ func (s *TestSuite) TestSwapAsPrimarySP_Success() {
 	require.Contains(s.T(), dstFamilyStat.GlobalVirtualGroupFamilyIds, uint32(7))
 }
 
-// srcStat.PrimaryCount is already 0 (pre-existing inconsistent state): the swap
-// must leave it saturated at 0 rather than wrapping to math.MaxUint32 (MOCA-1281).
-func (s *TestSuite) TestSwapAsPrimarySP_PrimaryCountAlreadyZero_DoesNotUnderflow() {
+func (s *TestSuite) TestSwapAsPrimarySP_PrimaryCountAlreadyZero_Errors() {
 	src, dst := newSP(1), newSP(2)
 	s.setStats(src.Id, 0, 0)
 	s.setFamilyStats(src.Id, 8)
@@ -362,7 +360,7 @@ func (s *TestSuite) TestSwapAsPrimarySP_PrimaryCountAlreadyZero_DoesNotUnderflow
 	})
 
 	err := s.virtualgroupKeeper.SwapAsPrimarySP(s.ctx, src, dst, 8, false)
-	require.NoError(s.T(), err)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
 
 	srcStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, src.Id)
 	require.True(s.T(), found)
@@ -460,9 +458,7 @@ func (s *TestSuite) TestSwapOutAsSecondarySP_Success_PreexistingSuccessorStats()
 	require.Equal(s.T(), uint32(4), successorStat.SecondaryCount)
 }
 
-// origin.SecondaryCount is already 0 (pre-existing inconsistent state): the swap
-// out must leave it saturated at 0 rather than wrapping to math.MaxUint32 (MOCA-1281).
-func (s *TestSuite) TestSwapOutAsSecondarySP_SecondaryCountAlreadyZero_DoesNotUnderflow() {
+func (s *TestSuite) TestSwapOutAsSecondarySP_SecondaryCountAlreadyZero_Errors() {
 	secondarySP, successorSP := newSP(1), newSP(2)
 	s.setStats(secondarySP.Id, 0, 0)
 	s.stubZeroSettlement()
@@ -472,7 +468,7 @@ func (s *TestSuite) TestSwapOutAsSecondarySP_SecondaryCountAlreadyZero_DoesNotUn
 	})
 
 	err := s.virtualgroupKeeper.SwapOutAsSecondarySP(s.ctx, secondarySP, successorSP, 76)
-	require.NoError(s.T(), err)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
 
 	originStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, secondarySP.Id)
 	require.True(s.T(), found)
@@ -914,10 +910,7 @@ func (s *TestSuite) TestDeleteGVG_FamilyNotFoundPanics() {
 	})
 }
 
-// Both the primary SP's and a secondary SP's counts are already 0 (pre-existing
-// inconsistent state): delete must leave them saturated at 0 rather than wrapping
-// to math.MaxUint32, which would permanently block StorageProviderExitable (MOCA-1281).
-func (s *TestSuite) TestDeleteGVG_StatsAlreadyZero_DoesNotUnderflow() {
+func (s *TestSuite) TestDeleteGVG_StatsAlreadyZero_Errors() {
 	primarySP, secondarySP := newSP(1), newSP(2)
 	s.setStats(primarySP.Id, 0, 0)
 	s.setStats(secondarySP.Id, 0, 0)
@@ -932,11 +925,29 @@ func (s *TestSuite) TestDeleteGVG_StatsAlreadyZero_DoesNotUnderflow() {
 	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.ZeroInt(), nil).AnyTimes()
 
 	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, primarySP, 90)
-	require.NoError(s.T(), err)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
 
 	primaryStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, primarySP.Id)
 	require.True(s.T(), found)
 	require.Equal(s.T(), uint32(0), primaryStat.PrimaryCount)
+}
+
+func (s *TestSuite) TestDeleteGVG_SecondaryCountAlreadyZero_Errors() {
+	primarySP, secondarySP := newSP(1), newSP(2)
+	s.setStats(primarySP.Id, 1, 0)
+	s.setStats(secondarySP.Id, 0, 0)
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{
+		Id: 91, PrimarySpId: primarySP.Id, GlobalVirtualGroupIds: []uint32{91}, VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id: 91, FamilyId: 91, PrimarySpId: primarySP.Id, SecondarySpIds: []uint32{secondarySP.Id},
+		TotalDeposit: math.ZeroInt(), VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.paymentKeeper.EXPECT().IsEmptyNetFlow(gomock.Any(), gomock.Any()).Return(true)
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.ZeroInt(), nil).AnyTimes()
+
+	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, primarySP, 91)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
 
 	secondaryStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, secondarySP.Id)
 	require.True(s.T(), found)
@@ -1317,10 +1328,7 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_Success_BreaksRedundancyDecrementsCou
 	require.Equal(s.T(), uint32(0), originStat.BreakRedundancyReqmtGvgCount)
 }
 
-// Both counts are already 0 (pre-existing inconsistent state): completing the
-// swap in must leave them saturated at 0 rather than wrapping to math.MaxUint32
-// (MOCA-1281).
-func (s *TestSuite) TestCompleteSwapIn_GVG_StatsAlreadyZero_DoesNotUnderflow() {
+func (s *TestSuite) TestCompleteSwapIn_GVG_StatsAlreadyZero_Errors() {
 	target := newSP(1) // in-service: reaches the redundancy-break branch of SwapIn's reservation.
 	successor := newSP(2)
 	s.virtualgroupKeeper.SetGVGStatisticsWithSP(s.ctx, &types.GVGStatisticsWithinSP{
@@ -1335,7 +1343,7 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_StatsAlreadyZero_DoesNotUnderflow() {
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), target.Id).Return(target, true)
 
 	err := s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 368, successor)
-	require.NoError(s.T(), err)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
 
 	originStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, target.Id)
 	require.True(s.T(), found)
