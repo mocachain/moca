@@ -1153,17 +1153,13 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_AlreadyPrimaryErrors() {
 	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
 }
 
-// TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors simulates the reserved target no
-// longer being a secondary of the gvg by completion time (e.g. swapped out via a separate
-// SwapOutAsSecondarySP in between), which must be reported as an error.
 func (s *TestSuite) TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors() {
 	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
 	successor := newSP(2)
 	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{Id: 364, PrimarySpId: 9, SecondarySpIds: []uint32{1}, TotalDeposit: math.ZeroInt()})
 	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, types.NoSpecifiedFamilyID, 364, successor.Id, target, s.ctx.BlockTime().Unix()+100))
 
-	// The reserved target(1) is no longer a secondary by completion time; settlement must
-	// still clear (needs a valid VirtualPaymentAddress) before the slot check runs.
+	// target 1 has left the gvg by completion time
 	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
 		Id: 364, PrimarySpId: 9, SecondarySpIds: []uint32{7, 8}, TotalDeposit: math.ZeroInt(),
 		VirtualPaymentAddress: sample.RandAccAddress().String(),
@@ -1182,8 +1178,6 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors() {
 	require.Equal(s.T(), []uint32{7, 8}, stored.SecondarySpIds)
 }
 
-// TestCompleteSwapIn_GVG_SuccessorBecameSecondaryErrors covers the successor taking a
-// secondary slot of the same gvg between reserving and completing, which would list it twice.
 func (s *TestSuite) TestCompleteSwapIn_GVG_SuccessorBecameSecondaryErrors() {
 	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
 	successor := newSP(2)

@@ -1235,9 +1235,6 @@ func (s *TestSuite) TestReserveSwapIn_CannotSwapSelf() {
 	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
 }
 
-// An SP that is itself exiting must not be able to reserve a swap-in: it would take
-// over a family it is in the middle of handing off, and owning one keeps its own exit
-// from ever completing. MsgSwapOut already requires its successor to be in service.
 func (s *TestSuite) TestReserveSwapIn_SuccessorNotInService() {
 	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
 	const familyID = uint32(30)
@@ -1259,7 +1256,6 @@ func (s *TestSuite) TestReserveSwapIn_SuccessorNotInService() {
 	require.False(s.T(), found, "no reservation may be recorded for a successor that is not in service")
 }
 
-// Same for an SP in maintenance, which cannot serve the slot it is reserving.
 func (s *TestSuite) TestReserveSwapIn_SuccessorInMaintenance() {
 	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
 	const familyID = uint32(31)
@@ -1420,8 +1416,6 @@ func (s *TestSuite) TestCompleteSwapIn_Success() {
 	require.False(s.T(), found)
 }
 
-// The successor's status is checked again at completion: an SP that started exiting
-// between reserving and completing must not be handed the family.
 func (s *TestSuite) TestCompleteSwapIn_SuccessorNotInService() {
 	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
 	const (

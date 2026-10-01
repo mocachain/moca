@@ -96,7 +96,7 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 			return nil, sdkerrors.Wrapf(sptypes.ErrStorageProviderNotFound, "secondary sp not found, ID: %d", id)
 		}
 		if !ssp.IsInService() && !ssp.IsInMaintenance() {
-			return nil, sptypes.ErrStorageProviderNotInService.Wrapf("sp in GVG is not in service or in maintenance, status: %s", sp.Status.String())
+			return nil, sptypes.ErrStorageProviderNotInService.Wrapf("sp in GVG is not in service or in maintenance, status: %s", ssp.Status.String())
 		}
 
 		secondarySpIDs = append(secondarySpIDs, ssp.Id)
@@ -323,7 +323,7 @@ func (k msgServer) SwapOut(goCtx context.Context, msg *types.MsgSwapOut) (*types
 	}
 
 	if !successorSP.IsInService() {
-		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", sp.Status.String())
+		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", successorSP.Status.String())
 	}
 	// verify the approval
 	err := gnfdtypes.VerifySignature(sdk.MustAccAddressFromHex(successorSP.ApprovalAddress), crypto.Keccak256(msg.GetApprovalBytes()), msg.SuccessorSpApproval.Sig)
@@ -538,7 +538,6 @@ func (k msgServer) ReserveSwapIn(goCtx context.Context, msg *types.MsgReserveSwa
 	if successorSP.Id == msg.TargetSpId {
 		return nil, types.ErrSwapInFailed.Wrapf("The SP(ID=%d) can not swap itself", successorSP.Id)
 	}
-	// the successor takes over the slot, so it must be able to serve it, as in MsgSwapOut
 	if !successorSP.IsInService() {
 		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", successorSP.Status.String())
 	}
@@ -586,7 +585,6 @@ func (k msgServer) CompleteSwapIn(goCtx context.Context, msg *types.MsgCompleteS
 	if !found {
 		return nil, sptypes.ErrStorageProviderNotFound.Wrapf("The address must be operator address of sp.")
 	}
-	// the status can have changed since the swap was reserved
 	if !successorSP.IsInService() {
 		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", successorSP.Status.String())
 	}
