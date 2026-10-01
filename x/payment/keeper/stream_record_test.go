@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -1401,6 +1402,53 @@ func TestForceSettle_SelfOutFlowDoesNotReenter(t *testing.T) {
 	require.Equal(t, types.STREAM_ACCOUNT_STATUS_FROZEN, payerRecord.Status)
 	require.True(t, payerRecord.NetflowRate.IsZero())
 	require.NotNil(t, keeper.GetOutFlow(ctx, payer, types.OUT_FLOW_STATUS_FROZEN, payer))
+}
+
+// ForceSettle must reject the governance account outright and leave its
+// record untouched.
+func TestForceSettle_RejectsGovernanceAccount(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+	ctx = ctx.WithBlockTime(time.Unix(100, 0))
+
+	governanceRecord := types.NewStreamRecord(types.GovernanceAddress, ctx.BlockTime().Unix())
+	governanceRecord.StaticBalance = sdkmath.NewInt(500)
+	governanceRecord.BufferBalance = sdkmath.NewInt(50)
+	keeper.SetStreamRecord(ctx, governanceRecord)
+
+	before, found := keeper.GetStreamRecord(ctx, types.GovernanceAddress)
+	require.True(t, found)
+
+	err := keeper.ForceSettle(ctx, before)
+	require.ErrorIs(t, err, types.ErrForceSettleGovernanceAccount)
+
+	after, found := keeper.GetStreamRecord(ctx, types.GovernanceAddress)
+	require.True(t, found)
+	require.Equal(t, sdkmath.NewInt(500), after.StaticBalance, "static balance must be untouched")
+	require.Equal(t, sdkmath.NewInt(50), after.BufferBalance, "buffer balance must be untouched")
+	require.Equal(t, types.STREAM_ACCOUNT_STATUS_ACTIVE, after.Status, "status must be untouched")
+	require.Equal(t, sdkmath.NewInt(500), before.StaticBalance, "the passed-in record must be untouched in place")
+	require.Equal(t, sdkmath.NewInt(50), before.BufferBalance, "the passed-in record must be untouched in place")
+}
+
+// The guards compare addresses, not strings: the 0x hex form of the
+// governance address may arrive in either letter case.
+func TestGovernanceAccountGuards_IgnoreAddressCase(t *testing.T) {
+	hex := strings.TrimPrefix(types.GovernanceAddress.String(), "0x")
+	for _, account := range []string{"0x" + strings.ToLower(hex), "0x" + strings.ToUpper(hex)} {
+		keeper, ctx, _ := makePaymentKeeper(t)
+		ctx = ctx.WithBlockTime(time.Unix(100, 0))
+
+		record := types.NewStreamRecord(types.GovernanceAddress, ctx.BlockTime().Unix())
+		record.Account = account
+		record.StaticBalance = sdkmath.NewInt(500)
+
+		err := keeper.ForceSettle(ctx, record)
+		require.ErrorIs(t, err, types.ErrForceSettleGovernanceAccount, account)
+
+		change := types.NewDefaultStreamRecordChangeWithAddr(types.GovernanceAddress).WithRateChange(sdkmath.NewInt(-1))
+		err = keeper.UpdateStreamRecord(ctx, record, change)
+		require.ErrorIs(t, err, types.ErrGovernanceAccountOutFlow, account)
+	}
 }
 
 // Freezing a payer removes its rate from each recipient, which can push a
