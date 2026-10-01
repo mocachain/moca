@@ -1099,7 +1099,7 @@ func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_PartiallyDrainedBucketIsRe
 	s.Require().False(found, "the re-queued bucket must be garbage-collected on the next run")
 }
 
-func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_ForceDeleteErrorSurfaced() {
+func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_DropsFailingID() {
 	bucketID := sdkmath.NewUint(1)
 	s.storageKeeper.StoreBucketInfo(s.ctx, &types.BucketInfo{
 		Owner:                      sample.RandAccAddress().String(),
@@ -1113,8 +1113,11 @@ func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_ForceDeleteErrorSurfaced()
 	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueBucketIDsKey(deleteAt), s.cdc.MustMarshal(&types.Ids{Id: []types.Uint{bucketID}}))
 
 	deleted, err := s.storageKeeper.DeleteDiscontinueBucketsUntil(s.ctx, deleteAt, 10)
-	s.Require().Error(err)
-	s.Require().Equal(uint64(0), deleted)
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(1), deleted)
+	s.Require().False(s.ctx.KVStore(s.storeKey).Has(types.GetDiscontinueBucketIDsKey(deleteAt)))
+	_, found := s.storageKeeper.GetBucketInfoById(s.ctx, bucketID)
+	s.Require().True(found, "nothing may be written for the failing bucket")
 }
 
 func (s *TestSuite) TestGetInternalBucketInfo_NotFound() {
@@ -3990,10 +3993,10 @@ func (s *TestSuite) TestDeleteDiscontinueObjectsUntil_FullyDrainsDeletesKey() {
 	s.Require().False(store.Has(types.GetDiscontinueObjectIdsKey(ts)), "a fully-drained entry must be deleted, not left empty")
 }
 
-func (s *TestSuite) TestDeleteDiscontinueObjectsUntil_PropagatesForceDeleteError() {
+func (s *TestSuite) TestDeleteDiscontinueObjectsUntil_DropsFailingID() {
 	ts := s.ctx.BlockTime().Unix()
-	// An object that exists but whose bucket does not: ForceDeleteObject's
-	// bucket lookup fails, and the error must propagate out immediately.
+	// An object that exists but whose bucket does not: ForceDeleteObject's bucket lookup
+	// fails, and the id is dropped from the queue instead of failing the whole run.
 	objID := sdkmath.NewUint(301)
 	s.storageKeeper.StoreObjectInfo(s.ctx, &types.ObjectInfo{
 		Id: objID, BucketName: "discontinue-missing-bucket", ObjectName: "orphan-object",
@@ -4001,9 +4004,11 @@ func (s *TestSuite) TestDeleteDiscontinueObjectsUntil_PropagatesForceDeleteError
 	s.ctx.KVStore(s.storeKey).Set(types.GetDiscontinueObjectIdsKey(ts), s.cdc.MustMarshal(&types.Ids{Id: []sdkmath.Uint{objID}}))
 
 	deleted, err := s.storageKeeper.DeleteDiscontinueObjectsUntil(s.ctx, ts, 10)
-	s.Require().Error(err)
-	s.Require().ErrorIs(err, types.ErrNoSuchBucket)
-	s.Require().Equal(uint64(0), deleted)
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(1), deleted)
+	s.Require().False(s.ctx.KVStore(s.storeKey).Has(types.GetDiscontinueObjectIdsKey(ts)))
+	_, found := s.storageKeeper.GetObjectInfoById(s.ctx, objID)
+	s.Require().True(found, "nothing may be written for the failing object")
 }
 
 func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_PartialCapRequeuesRemainder() {
