@@ -45,6 +45,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (docker) [#546](https://github.com/mocachain/moca/pull/546) Build the release images on `golang:1.23.6-bookworm`; the bullseye security archive no longer serves the packages the image installs.
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
 ### Bug Fixes
