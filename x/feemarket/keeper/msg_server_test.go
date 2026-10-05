@@ -18,6 +18,14 @@ func (suite *KeeperTestSuite) TestUpdateParams() {
 			expectErr: true,
 		},
 		{
+			name: "fail - elasticity multiplier is 0",
+			request: &types.MsgUpdateParams{
+				Authority: authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+				Params:    types.NewParams(true, 7, 0, 2000000000, 0, types.DefaultMinGasPrice, types.DefaultMinGasMultiplier),
+			},
+			expectErr: true,
+		},
+		{
 			name: "pass - valid Update msg",
 			request: &types.MsgUpdateParams{
 				Authority: authtypes.NewModuleAddress(govtypes.ModuleName).String(),
