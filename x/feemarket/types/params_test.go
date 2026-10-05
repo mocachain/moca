@@ -117,3 +117,5 @@ func (suite *ParamsTestSuite) TestParamsValidateMinGasPrice() {
 		}
 	}
 }
+
+// probe: temporary change to exercise the golangci workflow; not for merge.
