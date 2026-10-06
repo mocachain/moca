@@ -41,6 +41,7 @@ The Moca blockchain has two categories of states that are stored on-chain:
 1. The ledger of accounts and their MOCA balance.
 
 2. The metadata of the object storage system and service providers, along with the metadata of the objects stored on the
+
 storage system, permission and billing information pertaining to the storage system.
 
 Transactions on the Moca blockchain have the ability to modify the aforementioned on-chain states. These states and
@@ -52,44 +53,58 @@ interacting with the platform, enabling users to create and manipulate data in a
 
 ## Documentation
 
-Visit our official [documentation site](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd) for more info.
+Visit our official [documentation site](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd) for more
+info.
 
-More advanced script and command line usage, please refer to the [Tutorial](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-J07cdQjtZoN949x9Truu6z0RsQb).
+More advanced script and command line usage, please refer to the
+[Tutorial](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-J07cdQjtZoN949x9Truu6z0RsQb).
 
 ## Key Modules
 
 - `x/evm`: bridges Ethereum's smart contract capabilities with Cosmos' cross-chain functionality and governance systems.
 - `x/challenge`: generate random data challenge events or accept user's data challenge requests.
 - `x/payment`: handle the billing and payment of the storage module. User fees are paid through "Stream" on Moca,
+
 with a constant rate of payment from users to Storage Providers (SP) with charges applied every second of usage.
+
 - `x/sp`: manage the various storage providers within the network.
-- `x/storage`: users can manage their storage data through this module, like create/delete bucket, create/delete storage object.
-- `x/permission`: user can manage its resource permission through this module, like put/delete policy for storage object.
+- `x/storage`: users can manage their storage data through this module, like create/delete bucket, create/delete storage
+  object.
+- `x/permission`: user can manage its resource permission through this module, like put/delete policy for storage
+  object.
 
 And the following modules are in cosmos-sdk:
 
 - `x/crosschain`: manage the cross chain packages, like store/query/update the cross chain package, channels, sequences.
 - `x/gashub`: provide a governable and predictable fee charge mechanism.
 - `x/oracle`: provide a secure runtime for cross chain packages.
-- `x/staking`:  based on the Proof-of-Stake logic. The elected validators are responsible for the security of the moca blockchain.
+- `x/staking`:  based on the Proof-of-Stake logic. The elected validators are responsible for the security of the moca
+  blockchain.
+
 They get involved in the governance and staking of the blockchain.
 
-Refer to the [docs](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd) to dive deep into these modules.
+Refer to the [docs](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd) to dive deep into these
+modules.
 
 ## Running node
 
 - [Interacting with the Node](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd)
-- [Run Local Network](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-W4nedCNrBocF2PxExwyupmZ9s56)
+- [Run Local
+  Network](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-W4nedCNrBocF2PxExwyupmZ9s56)
 - [Run Node](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-MxWcdZ1ZioMhCixEjuYuDhl1sXb)
-- [Become Validator](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-Ff26dlv6ooXRG5x8bhPufs0TsRh)
+- [Become
+  Validator](https://digitalpulse.larksuite.com/docx/Y1padLPYWop4wvxjgtbu4hEZsXd#share-Ff26dlv6ooXRG5x8bhPufs0TsRh)
 
 ## Related Projects
 
-- [moca-Contract](https://github.com/mocachain/moca-contracts): the cross chain contract for Moca that deployed on ethereum-compatible network.
-- [moca-Storage-Provider](https://github.com/mocachain/moca-storage-provider): the storage service infrastructures provided by either organizations or individuals.
+- [moca-Contract](https://github.com/mocachain/moca-contracts): the cross chain contract for Moca that deployed on
+  ethereum-compatible network.
+- [moca-Storage-Provider](https://github.com/mocachain/moca-storage-provider): the storage service infrastructures
+  provided by either organizations or individuals.
 - [moca-relayer](https://github.com/mocachain/moca-relayer): the service that relay cross chain package to both chains.
 - [moca-cmd](https://github.com/mocachain/moca-cmd): the most powerful command line to interact with Moca system.
-- [Awesome Cosmos](https://github.com/cosmos/awesome-cosmos): Collection of Cosmos related resources which also fits Moca.
+- [Awesome Cosmos](https://github.com/cosmos/awesome-cosmos): Collection of Cosmos related resources which also fits
+  Moca.
 
 ## Contribution
 
@@ -126,5 +141,6 @@ This project is fork from:
 
 + [greenfield](https://github.com/bnb-chain/greenfield)
 + [evmos v12](https://github.com/evmos/evmos/tree/release/v12.x.x)
-  
-Significant changes have been made to adapt the project for specific use cases, but much of the core functionality comes from the original project.
+
+Significant changes have been made to adapt the project for specific use cases, but much of the core functionality comes
+from the original project.

@@ -82,4 +82,3 @@ kill $(cat /tmp/monitor.pid)
 
 完整的分析和修复文档请参考：
 See the goroutine leak analysis document.
-

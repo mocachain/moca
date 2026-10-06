@@ -2,7 +2,8 @@
 
 ## **Overview**
 
-This project uses <a href="https://goreleaser.com/">GoReleaser</a> with [GitHub Actions](https://github.com/features/actions)
+This project uses <a href="https://goreleaser.com/">GoReleaser</a> with [GitHub
+Actions](https://github.com/features/actions)
 for automated releases.
 
 Include disk space optimizations to handle large CGO builds across multiple architectures.
@@ -15,7 +16,8 @@ There are two ways to create a release:
 
 Must be in the format `v<MAJOR>.<MINOR>.<PATCH>`.
 
-See [Version Tagging Convention](#version-tagging-convention) for more information on how to tag a release and the different
+See [Version Tagging Convention](#version-tagging-convention) for more information on how to tag a release and the
+different
 types of releases such as pre-releases and release candidates.
 
 ```bash
@@ -86,7 +88,8 @@ Each archive includes:
 - `ghcr.io/mocachain/mocad:latest-amd64`
 - `ghcr.io/mocachain/mocad:latest-arm64`
 
-> **Note**: Docker image paths use lowercase repository owner (`mocachain` not `MocaChain`) per Docker registry requirements.
+> **Note**: Docker image paths use lowercase repository owner (`mocachain` not `MocaChain`) per Docker registry
+requirements.
 
 ## **Using Released Artifacts**
 
@@ -157,10 +160,10 @@ docker run -d \
 
 - **Format**: `v{MAJOR}.{MINOR}.{PATCH}[-{PRERELEASE}]`
 - **Examples**:
-  - `v1.0.0` - **Production release** (tagged automatically as `latest`)
-  - `v1.0.1-alpha` - Alpha pre-release (NOT tagged automatically as `latest`)
-  - `v1.0.2-beta.1` - Beta pre-release (NOT tagged automatically as `latest`)
-  - `v2.0.0-rc.1` - Release candidate (NOT tagged automatically as `latest`)
+    - `v1.0.0` - **Production release** (tagged automatically as `latest`)
+    - `v1.0.1-alpha` - Alpha pre-release (NOT tagged automatically as `latest`)
+    - `v1.0.2-beta.1` - Beta pre-release (NOT tagged automatically as `latest`)
+    - `v2.0.0-rc.1` - Release candidate (NOT tagged automatically as `latest`)
 
 **Important**: Only stable releases (without suffix) receive the `latest` Docker tag automatically.
 Pre-releases are marked as such in GitHub and do not update the `latest` tag automatically.
