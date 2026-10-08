@@ -162,12 +162,16 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 
 	// update stat
 	stat := k.MustGetGVGStatisticsWithinSP(ctx, gvgFamily.PrimarySpId)
-	stat.PrimaryCount--
+	if err := decrementCount(&stat.PrimaryCount, stat.StorageProviderId, "primary_count"); err != nil {
+		return err
+	}
 	k.SetGVGStatisticsWithSP(ctx, stat)
 
 	for _, secondarySPID := range gvg.SecondarySpIds {
 		gvgStatisticsWithinSP := k.MustGetGVGStatisticsWithinSP(ctx, secondarySPID)
-		gvgStatisticsWithinSP.SecondaryCount--
+		if err := decrementCount(&gvgStatisticsWithinSP.SecondaryCount, gvgStatisticsWithinSP.StorageProviderId, "secondary_count"); err != nil {
+			return err
+		}
 		k.SetGVGStatisticsWithSP(ctx, gvgStatisticsWithinSP)
 	}
 
@@ -346,7 +350,9 @@ func (k Keeper) SwapAsPrimarySP(ctx sdk.Context, primarySP, successorSP *sptypes
 
 		gvg.PrimarySpId = successorSP.Id
 		gvgs = append(gvgs, gvg)
-		srcStat.PrimaryCount--
+		if err := decrementCount(&srcStat.PrimaryCount, srcStat.StorageProviderId, "primary_count"); err != nil {
+			return err
+		}
 		dstStat.PrimaryCount++
 	}
 
@@ -423,7 +429,9 @@ func (k Keeper) SwapOutAsSecondarySP(ctx sdk.Context, secondarySP, successorSP *
 	if !found {
 		successor = &types.GVGStatisticsWithinSP{StorageProviderId: successorSP.Id}
 	}
-	origin.SecondaryCount--
+	if err := decrementCount(&origin.SecondaryCount, origin.StorageProviderId, "secondary_count"); err != nil {
+		return err
+	}
 	successor.SecondaryCount++
 	k.SetGVGStatisticsWithSP(ctx, origin)
 	k.SetGVGStatisticsWithSP(ctx, successor)
@@ -489,6 +497,14 @@ func (k Keeper) BatchSetGVGStatisticsWithinSP(ctx sdk.Context, gvgsStatisticsWit
 	for _, g := range gvgsStatisticsWithinSP {
 		k.SetGVGStatisticsWithSP(ctx, g)
 	}
+}
+
+func decrementCount(v *uint32, spID uint32, counter string) error {
+	if *v == 0 {
+		return types.ErrGVGStatisticsUnderflow.Wrapf("%s of sp %d", counter, spID)
+	}
+	*v--
+	return nil
 }
 
 func (k Keeper) StorageProviderExitable(ctx sdk.Context, spID uint32) error {
@@ -979,9 +995,13 @@ func (k Keeper) completeSwapInGVG(ctx sdk.Context, successorSPID, targetSecondar
 		successor = &types.GVGStatisticsWithinSP{StorageProviderId: successorSPID}
 	}
 	if targetSecondarySPID == gvg.PrimarySpId {
-		origin.BreakRedundancyReqmtGvgCount--
+		if err := decrementCount(&origin.BreakRedundancyReqmtGvgCount, origin.StorageProviderId, "break_redundancy_reqmt_gvg_count"); err != nil {
+			return err
+		}
 	}
-	origin.SecondaryCount--
+	if err := decrementCount(&origin.SecondaryCount, origin.StorageProviderId, "secondary_count"); err != nil {
+		return err
+	}
 	successor.SecondaryCount++
 	k.SetGVGStatisticsWithSP(ctx, origin)
 	k.SetGVGStatisticsWithSP(ctx, successor)
