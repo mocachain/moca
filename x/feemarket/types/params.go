@@ -104,6 +104,10 @@ func (p Params) Validate() error {
 		return fmt.Errorf("base fee change denominator cannot be 0")
 	}
 
+	if p.ElasticityMultiplier == 0 {
+		return fmt.Errorf("elasticity multiplier cannot be 0")
+	}
+
 	if p.BaseFee.IsNegative() {
 		return fmt.Errorf("initial base fee cannot be negative: %s", p.BaseFee)
 	}
@@ -163,9 +167,12 @@ func validateBaseFeeChangeDenominator(i interface{}) error {
 }
 
 func validateElasticityMultiplier(i interface{}) error {
-	_, ok := i.(uint32)
+	value, ok := i.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	if value == 0 {
+		return fmt.Errorf("elasticity multiplier cannot be 0")
 	}
 	return nil
 }

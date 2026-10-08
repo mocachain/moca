@@ -53,6 +53,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (x/evm) [#536](https://github.com/mocachain/moca/pull/536) Backport to `release/v1.4.x`: restrict the authz precompile's `grant` and `exec` to the message types it supports: a generic grant for an unsupported type is refused, and `exec` no longer decodes EVM or nested authz messages. This matches the message set the cosmos-transaction path already allows through authz, so a transaction relying on the wider set is now rejected (MOCA-500)
 
 ### Bug Fixes
+- (feemarket) [#545](https://github.com/mocachain/moca/pull/545) Reject a zero `ElasticityMultiplier` in fee market params and validate params in `UpdateParams` (MOCA-1563).
 - (config) [#453](https://github.com/mocachain/moca/pull/453) Register a strict address verifier so every account address resolves to exactly 20 bytes, matching moca's EVM address model (MOCA-1436)
 - (x/storage) [#452](https://github.com/mocachain/moca/pull/452) Backport to `release/v1.4.x`: in `CopyObject`, verify the operator's create permission on the destination bucket, reject a destination object name that already exists, and set the copied object's owner to the destination bucket owner — matching `CreateObject` (MOCA-1421)
 - (payment) [#433](https://github.com/mocachain/moca/pull/433) Backport to `release/1.4.x`: close the auto-resume frozen-flow iterator per account instead of deferring it, so the iterators do not accumulate until `AutoResume` returns (MOCA-415).

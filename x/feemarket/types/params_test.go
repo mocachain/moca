@@ -38,6 +38,11 @@ func (suite *ParamsTestSuite) TestParamsValidate() {
 			true,
 		},
 		{
+			"invalid: elasticity multiplier is 0",
+			NewParams(true, 7, 0, 2000000000, int64(544435345345435345), sdkmath.LegacyNewDecWithPrec(20, 4), DefaultMinGasMultiplier),
+			true,
+		},
+		{
 			"invalid: min gas price negative",
 			NewParams(true, 7, 3, 2000000000, int64(544435345345435345), sdkmath.LegacyNewDecFromInt(sdkmath.NewInt(-1)), DefaultMinGasMultiplier),
 			true,
@@ -77,6 +82,8 @@ func (suite *ParamsTestSuite) TestParamsValidatePriv() {
 	suite.Require().Error(validateBaseFeeChangeDenominator(uint32(0)))
 	suite.Require().NoError(validateBaseFeeChangeDenominator(uint32(7)))
 	suite.Require().Error(validateElasticityMultiplier(""))
+	suite.Require().Error(validateElasticityMultiplier(uint32(0)))
+	suite.Require().NoError(validateElasticityMultiplier(uint32(2)))
 	suite.Require().NoError(validateElasticityMultiplier(uint32(2)))
 	suite.Require().Error(validateBaseFee(""))
 	suite.Require().Error(validateBaseFee(int64(2000000000)))
