@@ -57,4 +57,5 @@ var (
 	ErrInconsistentState         = errors.Register(ModuleName, 3205, "storage record is missing or inconsistent")
 
 	ErrInvalidBucketOwner = errors.Register(ModuleName, 3300, "invalid bucket owner")
+	ErrInvalidPaymentAddress        = errors.Register(ModuleName, 3301, "invalid payment address")
 )
