@@ -347,6 +347,26 @@ func (s *TestSuite) TestSwapAsPrimarySP_Success() {
 	require.Contains(s.T(), dstFamilyStat.GlobalVirtualGroupFamilyIds, uint32(7))
 }
 
+func (s *TestSuite) TestSwapAsPrimarySP_PrimaryCountAlreadyZero_Errors() {
+	src, dst := newSP(1), newSP(2)
+	s.setStats(src.Id, 0, 0)
+	s.setFamilyStats(src.Id, 8)
+	s.stubZeroSettlement()
+
+	gvg := &types.GlobalVirtualGroup{Id: 62, FamilyId: 8, PrimarySpId: src.Id, TotalDeposit: math.ZeroInt(), VirtualPaymentAddress: sample.RandAccAddress().String()}
+	s.virtualgroupKeeper.SetGVG(s.ctx, gvg)
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{
+		Id: 8, PrimarySpId: src.Id, GlobalVirtualGroupIds: []uint32{62}, VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+
+	err := s.virtualgroupKeeper.SwapAsPrimarySP(s.ctx, src, dst, 8, false)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
+
+	srcStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, src.Id)
+	require.True(s.T(), found)
+	require.Equal(s.T(), uint32(0), srcStat.PrimaryCount)
+}
+
 // ---- SwapOutAsSecondarySP ----
 
 func (s *TestSuite) TestSwapOutAsSecondarySP_GVGNotFound() {
@@ -436,6 +456,23 @@ func (s *TestSuite) TestSwapOutAsSecondarySP_Success_PreexistingSuccessorStats()
 	successorStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, successorSP.Id)
 	require.True(s.T(), found)
 	require.Equal(s.T(), uint32(4), successorStat.SecondaryCount)
+}
+
+func (s *TestSuite) TestSwapOutAsSecondarySP_SecondaryCountAlreadyZero_Errors() {
+	secondarySP, successorSP := newSP(1), newSP(2)
+	s.setStats(secondarySP.Id, 0, 0)
+	s.stubZeroSettlement()
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id: 76, PrimarySpId: 9, SecondarySpIds: []uint32{secondarySP.Id}, TotalDeposit: math.ZeroInt(),
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+
+	err := s.virtualgroupKeeper.SwapOutAsSecondarySP(s.ctx, secondarySP, successorSP, 76)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
+
+	originStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, secondarySP.Id)
+	require.True(s.T(), found)
+	require.Equal(s.T(), uint32(0), originStat.SecondaryCount)
 }
 
 // ---- GetOrCreateGVGStatisticsWithinSP / MustGetGVGStatisticsWithinSP ----
@@ -873,6 +910,50 @@ func (s *TestSuite) TestDeleteGVG_FamilyNotFoundPanics() {
 	})
 }
 
+func (s *TestSuite) TestDeleteGVG_StatsAlreadyZero_Errors() {
+	primarySP, secondarySP := newSP(1), newSP(2)
+	s.setStats(primarySP.Id, 0, 0)
+	s.setStats(secondarySP.Id, 0, 0)
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{
+		Id: 90, PrimarySpId: primarySP.Id, GlobalVirtualGroupIds: []uint32{90}, VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id: 90, FamilyId: 90, PrimarySpId: primarySP.Id, SecondarySpIds: []uint32{secondarySP.Id},
+		TotalDeposit: math.ZeroInt(), VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.paymentKeeper.EXPECT().IsEmptyNetFlow(gomock.Any(), gomock.Any()).Return(true)
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.ZeroInt(), nil).AnyTimes()
+
+	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, primarySP, 90)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
+
+	primaryStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, primarySP.Id)
+	require.True(s.T(), found)
+	require.Equal(s.T(), uint32(0), primaryStat.PrimaryCount)
+}
+
+func (s *TestSuite) TestDeleteGVG_SecondaryCountAlreadyZero_Errors() {
+	primarySP, secondarySP := newSP(1), newSP(2)
+	s.setStats(primarySP.Id, 1, 0)
+	s.setStats(secondarySP.Id, 0, 0)
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{
+		Id: 91, PrimarySpId: primarySP.Id, GlobalVirtualGroupIds: []uint32{91}, VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id: 91, FamilyId: 91, PrimarySpId: primarySP.Id, SecondarySpIds: []uint32{secondarySP.Id},
+		TotalDeposit: math.ZeroInt(), VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.paymentKeeper.EXPECT().IsEmptyNetFlow(gomock.Any(), gomock.Any()).Return(true)
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.ZeroInt(), nil).AnyTimes()
+
+	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, primarySP, 91)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
+
+	secondaryStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, secondarySP.Id)
+	require.True(s.T(), found)
+	require.Equal(s.T(), uint32(0), secondaryStat.SecondaryCount)
+}
+
 // ---- SwapIn ----
 
 func (s *TestSuite) TestSwapIn_Family_TargetNotExitingErrors() {
@@ -1153,17 +1234,13 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_AlreadyPrimaryErrors() {
 	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
 }
 
-// TestCompleteSwapIn_GVG_IndexNotCorrectPanics simulates the reserved target no longer
-// being a secondary of the gvg by completion time (e.g. swapped out via a separate
-// SwapOutAsSecondarySP in between) -- completeSwapInGVG's index-consistency panic.
-func (s *TestSuite) TestCompleteSwapIn_GVG_IndexNotCorrectPanics() {
+func (s *TestSuite) TestCompleteSwapIn_GVG_TargetNoLongerASecondaryErrors() {
 	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
 	successor := newSP(2)
 	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{Id: 364, PrimarySpId: 9, SecondarySpIds: []uint32{1}, TotalDeposit: math.ZeroInt()})
 	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, types.NoSpecifiedFamilyID, 364, successor.Id, target, s.ctx.BlockTime().Unix()+100))
 
-	// The reserved target(1) is no longer a secondary by completion time; settlement must
-	// still clear (needs a valid VirtualPaymentAddress) before the index check panics.
+	// target 1 has left the gvg by completion time
 	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
 		Id: 364, PrimarySpId: 9, SecondarySpIds: []uint32{7, 8}, TotalDeposit: math.ZeroInt(),
 		VirtualPaymentAddress: sample.RandAccAddress().String(),
@@ -1171,9 +1248,37 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_IndexNotCorrectPanics() {
 	s.stubZeroSettlement()
 	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), target.Id).Return(target, true)
 
-	require.Panics(s.T(), func() {
-		_ = s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 364, successor)
+	var err error
+	require.NotPanics(s.T(), func() {
+		err = s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 364, successor)
 	})
+	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
+
+	stored, found := s.virtualgroupKeeper.GetGVG(s.ctx, 364)
+	require.True(s.T(), found)
+	require.Equal(s.T(), []uint32{7, 8}, stored.SecondarySpIds)
+}
+
+func (s *TestSuite) TestCompleteSwapIn_GVG_SuccessorBecameSecondaryErrors() {
+	target := newExitingSP(sptypes.STATUS_GRACEFUL_EXITING)
+	successor := newSP(2)
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{Id: 368, PrimarySpId: 9, SecondarySpIds: []uint32{1, 6}, TotalDeposit: math.ZeroInt()})
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, types.NoSpecifiedFamilyID, 368, successor.Id, target, s.ctx.BlockTime().Unix()+100))
+
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id: 368, PrimarySpId: 9, SecondarySpIds: []uint32{1, successor.Id}, TotalDeposit: math.ZeroInt(),
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.setStats(target.Id, 0, 1)
+	s.stubZeroSettlement()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), target.Id).Return(target, true)
+
+	err := s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 368, successor)
+	require.ErrorIs(s.T(), err, types.ErrSwapInFailed)
+
+	stored, found := s.virtualgroupKeeper.GetGVG(s.ctx, 368)
+	require.True(s.T(), found)
+	require.Equal(s.T(), []uint32{1, successor.Id}, stored.SecondarySpIds, "the successor must not be listed twice")
 }
 
 func (s *TestSuite) TestCompleteSwapIn_GVG_SettleFailureErrors() {
@@ -1240,6 +1345,29 @@ func (s *TestSuite) TestCompleteSwapIn_GVG_Success_BreaksRedundancyDecrementsCou
 
 	err := s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 367, successor)
 	require.NoError(s.T(), err)
+
+	originStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, target.Id)
+	require.True(s.T(), found)
+	require.Equal(s.T(), uint32(0), originStat.SecondaryCount)
+	require.Equal(s.T(), uint32(0), originStat.BreakRedundancyReqmtGvgCount)
+}
+
+func (s *TestSuite) TestCompleteSwapIn_GVG_StatsAlreadyZero_Errors() {
+	target := newSP(1) // in-service: reaches the redundancy-break branch of SwapIn's reservation.
+	successor := newSP(2)
+	s.virtualgroupKeeper.SetGVGStatisticsWithSP(s.ctx, &types.GVGStatisticsWithinSP{
+		StorageProviderId: target.Id, SecondaryCount: 0, BreakRedundancyReqmtGvgCount: 0,
+	})
+	s.stubZeroSettlement()
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id: 368, PrimarySpId: target.Id, SecondarySpIds: []uint32{target.Id}, TotalDeposit: math.ZeroInt(),
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	require.NoError(s.T(), s.virtualgroupKeeper.SwapIn(s.ctx, types.NoSpecifiedFamilyID, 368, successor.Id, target, s.ctx.BlockTime().Unix()+100))
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), target.Id).Return(target, true)
+
+	err := s.virtualgroupKeeper.CompleteSwapIn(s.ctx, types.NoSpecifiedFamilyID, 368, successor)
+	require.ErrorIs(s.T(), err, types.ErrGVGStatisticsUnderflow)
 
 	originStat, found := s.virtualgroupKeeper.GetGVGStatisticsWithinSP(s.ctx, target.Id)
 	require.True(s.T(), found)
