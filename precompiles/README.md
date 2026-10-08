@@ -96,10 +96,9 @@ The caller maps to each module's acting identity:
 Addresses supplied as method arguments remain targets or counterparties, such
 as recipients, validators, bucket owners, group owners, and grantees.
 
-**EIP-7702.** An EOA that has delegated its code still passes the check when it
-signs the transaction itself, because the delegated code runs as the EOA. The
-precompile then acts as that EOA, and may be reached from nested frames and more
-than once in a transaction. When a relayer or bundler signs on the account's
+**EIP-7702.** An EOA with an EIP-7702 delegation still passes the check when it
+signs the transaction itself, because its delegated code runs as the EOA and the
+precompile acts as that EOA. When a relayer or bundler signs on the account's
 behalf, the relayer is the origin and the call is rejected.
 
 Changing this rule changes which transactions succeed, so it can only ship
@@ -111,9 +110,10 @@ Regression / characterization coverage layered on top of the migration:
 
 - `bank` / `staking` / `payment`: **total-supply-invariant** guards, plus bank dispatch
   success and native revert on failure.
-- all precompiles (`caller_test.go`): every transaction method rejects a contract
-  caller, view methods stay callable from contracts, and an EIP-7702 delegated EOA
-  acts only as itself.
+- All precompiles (`caller_test.go`): every transaction method rejects a contract
+  caller and each `IsTransaction` matches its ABI; a view method stays callable
+  from a contract; an EIP-7702 delegated EOA passes only when it signs the
+  transaction itself.
 - `storage`: `createGroup` dispatch success, contract-caller rejection, failure-does-not-mutate.
 - `storageprovider`: `updateSPPrice` decode + EVM-apply dispatch.
 

@@ -111,9 +111,8 @@ func (s *CreateGroupTestSuite) TestCreateGroup_EVMDispatchSuccess() {
 	s.Require().Equal(sdk.AccAddress(s.address.Bytes()).String(), group.Owner, "group owner == caller")
 }
 
-// TestCreateGroup_RejectsContractForwarding pins the EOA-only check: a call whose
-// immediate caller differs from the transaction origin (a contract forwarding)
-// is rejected before any state change.
+// TestCreateGroup_RejectsContractForwarding pins that a contract forwarding
+// createGroup gets ErrInvalidCaller before any state change.
 func (s *CreateGroupTestSuite) TestCreateGroup_RejectsContractForwarding() {
 	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
 	const groupName = "regression-group-fwd"

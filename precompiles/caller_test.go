@@ -116,9 +116,8 @@ func (s *CallerTestSuite) SetupTest() {
 	s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, evmParams))
 }
 
-// TestTransactionMethodsRejectContractCaller calls every state-changing method
-// of every precompile from a contract and expects ErrInvalidCaller. Each
-// precompile's IsTransaction must agree with its ABI's state mutability.
+// TestTransactionMethodsRejectContractCaller expects ErrInvalidCaller from every
+// transaction method called by a contract, and IsTransaction to match the ABI.
 func (s *CallerTestSuite) TestTransactionMethodsRejectContractCaller() {
 	addrs := make([]string, 0, len(precompiles))
 	for _, pc := range precompiles {
@@ -155,8 +154,8 @@ func (s *CallerTestSuite) TestTransactionMethodsRejectContractCaller() {
 	s.Require().Positive(checked)
 }
 
-// TestQueryMethodsAllowContractCaller pins that view methods stay callable
-// from contracts.
+// TestQueryMethodsAllowContractCaller pins that a view method (bank.balance)
+// stays callable from a contract.
 func (s *CallerTestSuite) TestQueryMethodsAllowContractCaller() {
 	method := bank.MustMethod(bank.BalanceMethodName)
 	args, err := method.Inputs.Pack(s.address, utils.BaseDenom)
@@ -172,9 +171,8 @@ func (s *CallerTestSuite) TestQueryMethodsAllowContractCaller() {
 	s.Require().Equal(big.NewInt(1_000_000_000_000), coin.Amount)
 }
 
-// TestDelegatedEOASigningItself pins that an EIP-7702 delegated EOA that signs
-// the transaction itself can call a transaction method from its delegated code,
-// and that the precompile acts as that EOA without changing total supply.
+// TestDelegatedEOASigningItself pins that a self-signed EIP-7702 delegated EOA
+// can send from its delegated code as itself, without changing total supply.
 func (s *CallerTestSuite) TestDelegatedEOASigningItself() {
 	eoa := common.HexToAddress("0x3333333333333333333333333333333333333333")
 	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(eoa.Bytes()), 1_000_000))
