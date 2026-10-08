@@ -130,6 +130,7 @@ func (s *SupplyTestSuite) TestDeposit_ContractCallerSupplyInvariant() {
 	_ = stateDB.GetBalance(caller)
 
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.WithInterpreter(vm.NewEVMInterpreter(evm))
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	c := payment.NewPrecompile(paymentkeeper.NewMsgServerImpl(s.app.PaymentKeeper), s.app.PaymentKeeper, s.app.BankKeeper)

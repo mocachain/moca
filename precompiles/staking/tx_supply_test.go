@@ -156,6 +156,7 @@ func (s *SupplyTestSuite) TestDelegate_ContractCallerSupplyInvariant() {
 	_ = stateDB.GetBalance(caller)
 
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.WithInterpreter(vm.NewEVMInterpreter(evm))
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	c := staking.NewPrecompile(stakingkeeper.NewMsgServerImpl(s.app.StakingKeeper), stakingkeeper.Querier{Keeper: s.app.StakingKeeper}, s.app.BankKeeper)

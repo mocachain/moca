@@ -104,6 +104,9 @@ Regression / characterization coverage layered on top of the migration:
   success and native revert on failure.
 - `storage`: `createGroup` dispatch success, contract forwarding, failure-does-not-mutate.
 - `storageprovider`: `updateSPPrice` decode + EVM-apply dispatch.
+- All precompiles (`readonly_test.go`): every transaction method honors the
+  interpreter's read-only state and each `IsTransaction` matches its ABI; a view
+  method stays callable.
 
 Follow-ups: total-supply-invariant guards for the remaining coin-moving precompiles
 (distribution / gov / storageprovider / virtualgroup), and an end-to-end variant

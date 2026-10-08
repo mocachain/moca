@@ -97,6 +97,7 @@ func (s *PrecompileTestSuite) TestBankSend_AllowsContractForwarding() {
 	contract.Input = s.mustPackBankSendInput(receiver, big.NewInt(40))
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.WithInterpreter(vm.NewEVMInterpreter(evm))
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	c := bank.NewPrecompile(bankkeeper.NewMsgServerImpl(s.app.BankKeeper, s.app.PaymentKeeper), s.app.BankKeeper)
@@ -195,6 +196,7 @@ func (s *PrecompileTestSuite) TestBankSend_ContractCallerSupplyInvariant() {
 	_ = stateDB.GetBalance(caller)
 
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.WithInterpreter(vm.NewEVMInterpreter(evm))
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	c := bank.NewPrecompile(bankkeeper.NewMsgServerImpl(s.app.BankKeeper, s.app.PaymentKeeper), s.app.BankKeeper)
@@ -228,6 +230,7 @@ func (s *PrecompileTestSuite) TestBankSend_ContractCallerIsolation() {
 	_ = stateDB.GetBalance(contractA)
 
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.WithInterpreter(vm.NewEVMInterpreter(evm))
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	c := bank.NewPrecompile(bankkeeper.NewMsgServerImpl(s.app.BankKeeper, s.app.PaymentKeeper), s.app.BankKeeper)
