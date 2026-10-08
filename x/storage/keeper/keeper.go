@@ -363,14 +363,20 @@ func (k Keeper) MustGetPrimarySPForBucket(ctx sdk.Context, bucketInfo *storagety
 
 // ForceDeleteBucket will delete bucket without permission check, it is used for discontinue request from sps.
 // The cap parameter will limit the max objects can be deleted in the call.
-// It will also return 1) whether the bucket is deleted, 2) the objects deleted, and 3) error if there is
-func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap uint64) (bool, uint64, error) {
+// It will also return 1) whether the bucket is deleted, 2) the objects deleted, and 3) error if there is.
+// The objects deleted are reported alongside an error, and a panic raised while deleting is returned as
+// an error too, so a caller that discards the failed call's writes can still charge the work it did.
+func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap uint64) (bucketDeleted bool, deleted uint64, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = storagetypes.ErrInconsistentState.Wrapf("%v", r)
+		}
+	}()
+
 	bucketInfo, found := k.GetBucketInfoById(ctx, bucketID)
 	if !found { // the bucket is already deleted
 		return true, 0, nil
 	}
-
-	bucketDeleted := false
 
 	// Resolve the primary SP for the deletion-event operator. If it is specifically gone
 	// (ErrStorageProviderNotFound), the bucket is orphaned -- exits are gated on residual
@@ -397,8 +403,6 @@ func (k Keeper) ForceDeleteBucket(ctx sdk.Context, bucketID sdkmath.Uint, cap ui
 	defer iter.Close()
 	u256Seq := sequence.Sequence[sdkmath.Uint]{}
 
-	deleted := uint64(0) // deleted object count
-	var err error
 	for ; iter.Valid(); iter.Next() {
 		if deleted >= cap {
 			return false, deleted, nil // break is also fine here
@@ -2176,8 +2180,9 @@ func (k Keeper) DeleteDiscontinueBucketsUntil(ctx sdk.Context, timestamp int64, 
 				return forceErr
 			}); delErr != nil {
 				k.dropDiscontinued(ctx, resource.RESOURCE_TYPE_BUCKET, id, delErr)
-				// as above: dropped, not re-queued, and charged to the per-block budget
-				deleted++
+				// as above: dropped, not re-queued, and charged to the per-block budget together with the
+				// objects walked before the failure, which were real work although their writes were discarded
+				deleted += objectDeleted + 1
 				continue
 			}
 			deleted += objectDeleted

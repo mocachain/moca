@@ -1,9 +1,12 @@
 package keeper_test
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -1118,6 +1121,163 @@ func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_DropsFailingID() {
 	s.Require().False(s.ctx.KVStore(s.storeKey).Has(types.GetDiscontinueBucketIDsKey(deleteAt)))
 	_, found := s.storageKeeper.GetBucketInfoById(s.ctx, bucketID)
 	s.Require().True(found, "nothing may be written for the failing bucket")
+}
+
+// objectNamesInWalkOrder returns count object names in the order ForceDeleteBucket walks them:
+// by hashed object key, not by name.
+func objectNamesInWalkOrder(bucketName string, count uint64) []string {
+	names := make([]string, 0, count)
+	for i := uint64(0); i < count; i++ {
+		names = append(names, fmt.Sprintf("obj-%d", i))
+	}
+	slices.SortFunc(names, func(a, b string) int {
+		return bytes.Compare(types.GetObjectKey(bucketName, a), types.GetObjectKey(bucketName, b))
+	})
+	return names
+}
+
+// seedBucketWithObjects stores a collectable bucket with healthy CREATED objects, ids firstObjectID
+// onwards in walk order; with brokenLast a DISCONTINUED object without a saved status is walked last,
+// so ForceDeleteBucket fails only after the healthy ones.
+func (s *TestSuite) seedBucketWithObjects(bucketName string, bucketID sdkmath.Uint, firstObjectID, healthy uint64, brokenLast bool) {
+	owner := sample.RandAccAddress()
+	bucketInfo := &types.BucketInfo{
+		Owner: owner.String(), BucketName: bucketName, Id: bucketID,
+		PaymentAddress: owner.String(), GlobalVirtualGroupFamilyId: 1,
+	}
+	s.storageKeeper.StoreBucketInfo(s.ctx, bucketInfo)
+	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketID, &types.InternalBucketInfo{})
+	s.mockPrimarySP(bucketInfo, &sptypes.StorageProvider{
+		Id: 1, Status: sptypes.STATUS_IN_SERVICE, OperatorAddress: sample.RandAccAddress().String(),
+	})
+	total := healthy
+	if brokenLast {
+		total++
+	}
+	for i, name := range objectNamesInWalkOrder(bucketName, total) {
+		objectInfo := &types.ObjectInfo{
+			Id: sdkmath.NewUint(firstObjectID + uint64(i)), BucketName: bucketName, ObjectName: name, Owner: owner.String(),
+		}
+		if uint64(i) < healthy {
+			objectInfo.ObjectStatus = types.OBJECT_STATUS_CREATED
+			objectInfo.PayloadSize = 1
+			objectInfo.CreateAt = s.ctx.BlockTime().Unix() + 1 // after the versioned params seeded at block time
+		} else {
+			objectInfo.ObjectStatus = types.OBJECT_STATUS_DISCONTINUED // its saved status is deliberately absent
+		}
+		s.storageKeeper.StoreObjectInfo(s.ctx, objectInfo)
+	}
+}
+
+// countObjectDeletions is stubGCBookkeepingNoop plus a count of the object deletions that reach
+// doDeleteObject's policy bookkeeping: the work a failed bucket did before its writes were discarded.
+func (s *TestSuite) countObjectDeletions() *uint64 {
+	var objectDeletions uint64
+	s.permissionKeeper.EXPECT().ExistAccountPolicyForResource(gomock.Any(), gnfdresource.RESOURCE_TYPE_OBJECT, gomock.Any()).
+		DoAndReturn(func(sdk.Context, gnfdresource.ResourceType, sdkmath.Uint) bool {
+			objectDeletions++
+			return false
+		}).AnyTimes()
+	s.permissionKeeper.EXPECT().ExistAccountPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	s.permissionKeeper.EXPECT().ExistGroupPolicyForResource(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	return &objectDeletions
+}
+
+// panicWhenDeletingObject makes deleting objectID panic in doDeleteObject's policy bookkeeping, like
+// the Must* sites the call graph still reaches; register it before the catch-all stubs, which gomock
+// would otherwise match first.
+func (s *TestSuite) panicWhenDeletingObject(objectID sdkmath.Uint) {
+	s.permissionKeeper.EXPECT().ExistAccountPolicyForResource(gomock.Any(), gnfdresource.RESOURCE_TYPE_OBJECT,
+		gomock.Cond(func(id sdkmath.Uint) bool { return id.Equal(objectID) })).
+		DoAndReturn(func(sdk.Context, gnfdresource.ResourceType, sdkmath.Uint) bool {
+			panic("injected panic while deleting object " + objectID.String())
+		}).AnyTimes()
+}
+
+// requireBucketUntouched asserts the bucket and its count objects from firstObjectID are all still stored.
+func (s *TestSuite) requireBucketUntouched(bucketID sdkmath.Uint, firstObjectID, count uint64) {
+	_, found := s.storageKeeper.GetBucketInfoById(s.ctx, bucketID)
+	s.Require().True(found, "nothing may be written for the failing bucket")
+	for i := uint64(0); i < count; i++ {
+		_, found = s.storageKeeper.GetObjectInfoById(s.ctx, sdkmath.NewUint(firstObjectID+i))
+		s.Require().True(found, "every object of the bucket must still be stored")
+	}
+}
+
+// TestDeleteDiscontinueBucketsUntil_FailedBucketChargesWalkedObjects pins that the objects a failed
+// bucket walked before failing count against maxToDelete with it, although their writes were discarded.
+func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_FailedBucketChargesWalkedObjects() {
+	ts := s.ctx.BlockTime().Unix()
+	store := s.ctx.KVStore(s.storeKey)
+	first, second := sdkmath.NewUint(1), sdkmath.NewUint(2)
+	s.seedBucketWithObjects("budget-bucket-a", first, 11, 2, true)
+	s.seedBucketWithObjects("budget-bucket-b", second, 21, 2, true)
+	s.stubObjectUnlockFee()
+	objectDeletions := s.countObjectDeletions()
+	store.Set(types.GetDiscontinueBucketIDsKey(ts), s.cdc.MustMarshal(&types.Ids{Id: []sdkmath.Uint{first, second}}))
+
+	deleted, err := s.storageKeeper.DeleteDiscontinueBucketsUntil(s.ctx, ts, 3)
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(3), deleted, "the two walked objects and the failed item must all be charged")
+	s.Require().Equal(uint64(2), *objectDeletions, "a budget of 3 leaves no room to walk the second bucket's objects in the same run")
+	s.requireDiscontinueDeleteFailedEvent(gnfdresource.RESOURCE_TYPE_BUCKET, first)
+	s.requireBucketUntouched(first, 11, 3)
+
+	var remaining types.Ids
+	s.cdc.MustUnmarshal(store.Get(types.GetDiscontinueBucketIDsKey(ts)), &remaining)
+	s.Require().Equal([]sdkmath.Uint{second}, remaining.Id, "the second bucket must wait for the next run")
+	s.requireBucketUntouched(second, 21, 3)
+}
+
+// TestDeleteDiscontinueBucketsUntil_PanickedBucketChargesWalkedObjects is the same accounting when
+// the failure is a panic recovered inside ForceDeleteBucket.
+func (s *TestSuite) TestDeleteDiscontinueBucketsUntil_PanickedBucketChargesWalkedObjects() {
+	ts := s.ctx.BlockTime().Unix()
+	store := s.ctx.KVStore(s.storeKey)
+	first, second := sdkmath.NewUint(1), sdkmath.NewUint(2)
+	s.seedBucketWithObjects("panic-bucket-a", first, 11, 3, false)
+	s.seedBucketWithObjects("panic-bucket-b", second, 21, 3, false)
+	s.stubObjectUnlockFee()
+	s.panicWhenDeletingObject(sdkmath.NewUint(13)) // the first bucket's third object in walk order
+	objectDeletions := s.countObjectDeletions()
+	store.Set(types.GetDiscontinueBucketIDsKey(ts), s.cdc.MustMarshal(&types.Ids{Id: []sdkmath.Uint{first, second}}))
+
+	var deleted uint64
+	var err error
+	s.Require().NotPanics(func() {
+		deleted, err = s.storageKeeper.DeleteDiscontinueBucketsUntil(s.ctx, ts, 3)
+	})
+	s.Require().NoError(err)
+	s.Require().Equal(uint64(3), deleted, "the two walked objects and the panicking one must all be charged")
+	s.Require().Equal(uint64(2), *objectDeletions, "a budget of 3 leaves no room to walk the second bucket's objects in the same run")
+	s.requireDiscontinueDeleteFailedEvent(gnfdresource.RESOURCE_TYPE_BUCKET, first)
+	s.requireBucketUntouched(first, 11, 3)
+
+	var remaining types.Ids
+	s.cdc.MustUnmarshal(store.Get(types.GetDiscontinueBucketIDsKey(ts)), &remaining)
+	s.Require().Equal([]sdkmath.Uint{second}, remaining.Id, "the second bucket must wait for the next run")
+	s.requireBucketUntouched(second, 21, 3)
+}
+
+// TestForceDeleteBucket_PanicIsReturnedWithWalkedObjects pins that a panic raised while deleting an
+// object is returned as an error together with the objects walked before it.
+func (s *TestSuite) TestForceDeleteBucket_PanicIsReturnedWithWalkedObjects() {
+	bucketID := sdkmath.NewUint(1)
+	s.seedBucketWithObjects("force-delete-panic-bucket", bucketID, 10, 3, false)
+	s.stubObjectUnlockFee()
+	s.panicWhenDeletingObject(sdkmath.NewUint(12))
+	s.stubGCBookkeepingNoop()
+
+	var bucketDeleted bool
+	var count uint64
+	var err error
+	s.Require().NotPanics(func() {
+		bucketDeleted, count, err = s.storageKeeper.ForceDeleteBucket(s.ctx, bucketID, 10)
+	})
+	s.Require().ErrorIs(err, types.ErrInconsistentState)
+	s.Require().ErrorContains(err, "injected panic")
+	s.Require().False(bucketDeleted)
+	s.Require().Equal(uint64(2), count, "the objects walked before the panic must be reported")
 }
 
 func (s *TestSuite) TestGetInternalBucketInfo_NotFound() {
