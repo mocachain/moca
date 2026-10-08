@@ -11,6 +11,7 @@ import (
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	sdkvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -64,6 +65,24 @@ const (
 	AuthzTypeRedelegate = "redelegate"
 	AuthzTypeSpDeposit  = "spDeposit"
 )
+
+// unsupportedMsgTypeURLs are the message types the precompile does not grant or
+// execute. It mirrors the set the cosmos ante handler keeps out of authz
+// (app/ante/cosmos/authz.go) and adds authz's own wrapping messages.
+var unsupportedMsgTypeURLs = map[string]struct{}{
+	sdk.MsgTypeURL(&types.MsgEthereumTx{}):                {},
+	sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}): {},
+	sdk.MsgTypeURL(&authz.MsgExec{}):                      {},
+	sdk.MsgTypeURL(&authz.MsgGrant{}):                     {},
+}
+
+// checkSupportedMsgTypeURL rejects message types outside the precompile's supported set.
+func checkSupportedMsgTypeURL(msgTypeURL string) error {
+	if _, unsupported := unsupportedMsgTypeURLs[msgTypeURL]; unsupported {
+		return fmt.Errorf("unsupported message type %s", msgTypeURL)
+	}
+	return nil
+}
 
 // CalcPerMsgBytes calculates the total byte length of all messages
 func CalcPerMsgBytes(msgs []string) int {
@@ -144,8 +163,15 @@ func (c *Contract) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, re
 		}
 
 		authorization, err = stakingtypes.NewStakeAuthorization(allowed, denied, authzType, &limit[0])
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("invalid authorization type %s", args.AuthzType)
+	}
+
+	if err := checkSupportedMsgTypeURL(authorization.MsgTypeURL()); err != nil {
+		return nil, err
 	}
 
 	var expiration *time.Time
@@ -253,7 +279,6 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 	// Note: upgradetypes.RegisterInterfaces is not available in v0.50, interfaces are registered via module manager
 	proposal.RegisterInterfaces(interfaceRegistry)
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
-	types.RegisterInterfaces(interfaceRegistry)
 
 	bridgetypes.RegisterInterfaces(interfaceRegistry)
 	challengetypes.RegisterInterfaces(interfaceRegistry)
@@ -278,6 +303,9 @@ func (c *Contract) Exec(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, rea
 		}
 		err := ethosCodec.UnmarshalInterfaceJSON(rawMessage, &msg)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkSupportedMsgTypeURL(sdk.MsgTypeURL(msg)); err != nil {
 			return nil, err
 		}
 
