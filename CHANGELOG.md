@@ -167,6 +167,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - (x/challenge) [#286](https://github.com/mocachain/moca/pull/286) Retire a challenge from the active set once it is attested, making attestation idempotent so duplicate submissions (e.g. redundant relayers or resubmissions by the in-turn submitter) are rejected instead of re-running heartbeat rewards and re-emitting attestation events.
 - (ci) [#65](https://github.com/mocachain/moca/pull/65) Resolve goreleaser CI failures for arm64 docker builds
 - (audit) [#63](https://github.com/mocachain/moca/pull/63) Apply audit fixes
+- (precompiles) [#552](https://github.com/mocachain/moca/pull/552) Mirror bucket, object and group NFT burns as ERC721 `Transfer(owner, 0x0, id)` logs on `deleteBucket`, `deleteObject` and `deleteGroup`, and mirror the object-NFT mint on `sealObjectV2` as `sealObject` already does, so indexers stop showing deleted NFTs at their owner. (#541)
 
 ## [v1.1.2] - 2026-01-19
 
