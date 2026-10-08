@@ -488,8 +488,9 @@ func (p Precompile) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 		return nil, err
 	}
 
-	// A created object is canceled rather than deleted and was never minted, so only a sealed one burns.
-	if found && objectInfo.ObjectStatus == storagetypes.OBJECT_STATUS_SEALED {
+	// Only a non-empty sealed object was minted: a created one is canceled instead of deleted and an
+	// empty one is sealed at creation without a mint, matching the keeper's own burn condition.
+	if found && objectInfo.ObjectStatus == storagetypes.OBJECT_STATUS_SEALED && objectInfo.PayloadSize > 0 {
 		if err := p.EmitObjectBurnEvent(evm, objectInfo.Owner, objectInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}

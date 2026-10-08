@@ -636,12 +636,12 @@ func (s *DeleteGCBookkeepingTestSuite) createBucketWithPolicy(bucketName string,
 // the status that reaches DeleteObject proper; a created object is routed to
 // CancelCreateObject instead, which is a different path.
 func (s *DeleteGCBookkeepingTestSuite) createObjectWithPolicy(bucketName, objectName string, objectID sdkmath.Uint) {
-	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 0)
 }
 
-// createObjectWithStatus writes an empty object with the given status into an
-// existing bucket, with a policy on it.
-func (s *DeleteGCBookkeepingTestSuite) createObjectWithStatus(bucketName, objectName string, objectID sdkmath.Uint, status storagetypes.ObjectStatus) {
+// createObjectWithStatus writes an object with the given status and payload size
+// into an existing bucket, with a policy on it.
+func (s *DeleteGCBookkeepingTestSuite) createObjectWithStatus(bucketName, objectName string, objectID sdkmath.Uint, status storagetypes.ObjectStatus, payloadSize uint64) {
 	owner := sdk.AccAddress(s.address.Bytes())
 	s.app.StorageKeeper.SetObjectInfo(s.ctx, &storagetypes.ObjectInfo{
 		Owner:               owner.String(),
@@ -649,7 +649,7 @@ func (s *DeleteGCBookkeepingTestSuite) createObjectWithStatus(bucketName, object
 		BucketName:          bucketName,
 		ObjectName:          objectName,
 		Id:                  objectID,
-		PayloadSize:         0,
+		PayloadSize:         payloadSize,
 		Visibility:          storagetypes.VISIBILITY_TYPE_PRIVATE,
 		ObjectStatus:        status,
 		SourceType:          storagetypes.SOURCE_TYPE_ORIGIN,
@@ -858,7 +858,7 @@ func (s *NFTMirrorLogTestSuite) TestDeleteObject_SealedObject_MirrorsBurn() {
 	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(401), []*storagetypes.LocalVirtualGroup{
 		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
 	})
-	s.createObjectWithPolicy(bucketName, objectName, objectID)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
 
 	logs := s.callPrecompileLogs(s.packed(storage.DeleteObjectMethodName, bucketName, objectName))
 
@@ -874,7 +874,7 @@ func (s *NFTMirrorLogTestSuite) TestDeleteObject_CreatedObject_NoBurn() {
 	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(411), []*storagetypes.LocalVirtualGroup{
 		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
 	})
-	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(412), storagetypes.OBJECT_STATUS_CREATED)
+	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(412), storagetypes.OBJECT_STATUS_CREATED, 1024)
 	// The cancel path resolves the bucket's primary SP, which the delete fixtures never need.
 	s.app.SpKeeper.SetStorageProvider(s.ctx, &sptypes.StorageProvider{
 		Id: testGVGFamilyID, OperatorAddress: sample.RandAccAddress().String(), Status: sptypes.STATUS_IN_SERVICE,
@@ -884,6 +884,24 @@ func (s *NFTMirrorLogTestSuite) TestDeleteObject_CreatedObject_NoBurn() {
 
 	_, found := s.app.StorageKeeper.GetObjectInfo(s.ctx, bucketName, objectName)
 	s.Require().False(found, "created object should be canceled")
+	s.Require().Empty(transferLogs(logs, contracts.ObjectERC721TokenAddress))
+}
+
+// TestDeleteObject_EmptyObject_NoBurn: an empty object is sealed at creation and
+// never minted, so deleting it must not mirror a burn either.
+func (s *NFTMirrorLogTestSuite) TestDeleteObject_EmptyObject_NoBurn() {
+	const bucketName = "nft-empty-obj-bucket"
+	const objectName = "nft-empty-object"
+	s.setupVirtualGroups()
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(421), []*storagetypes.LocalVirtualGroup{
+		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
+	})
+	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(422), storagetypes.OBJECT_STATUS_SEALED, 0)
+
+	logs := s.callPrecompileLogs(s.packed(storage.DeleteObjectMethodName, bucketName, objectName))
+
+	_, found := s.app.StorageKeeper.GetObjectInfo(s.ctx, bucketName, objectName)
+	s.Require().False(found, "empty object should be deleted")
 	s.Require().Empty(transferLogs(logs, contracts.ObjectERC721TokenAddress))
 }
 
@@ -937,7 +955,7 @@ func (s *NFTMirrorLogTestSuite) TestSealObject_MirrorsMint() {
 	const objectName = "nft-mint-object"
 	objectID := sdkmath.NewUint(502)
 	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(501), nil)
-	s.createObjectWithPolicy(bucketName, objectName, objectID)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
 	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
 
 	logs := s.callSealHandler(storage.SealObjectMethodName, bucketName, objectName, testGVGID, blsSig)
@@ -950,7 +968,7 @@ func (s *NFTMirrorLogTestSuite) TestSealObjectV2_MirrorsMint() {
 	const objectName = "nft-mint-v2-object"
 	objectID := sdkmath.NewUint(512)
 	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(511), nil)
-	s.createObjectWithPolicy(bucketName, objectName, objectID)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
 	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
 
 	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
