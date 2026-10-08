@@ -91,6 +91,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### State Machine Breaking
 
+- (virtualgroup) [#529](https://github.com/mocachain/moca/pull/529) Fail the transaction when one of `x/virtualgroup`'s per-SP GVG statistics counters (primary count, secondary count, break-redundancy-requirement count) would be decremented below zero, instead of wrapping it (MOCA-1281)
 - (storage) [#528](https://github.com/mocachain/moca/pull/528) Check that each destination global virtual group named in a bucket migration mapping belongs to the migration's destination family, and reject a mapping whose source and destination ids are equal. Neither was checked before, so a mapping naming a GVG from a different family, or repeating the source id as the destination, was accepted. Both are validation changes, so a mapping an unpatched binary accepts is rejected by a patched one (MOCA-1432)
 - (sp) [#523](https://github.com/mocachain/moca/pull/523) Delete an exited storage provider's storage-price and maintenance-record entries in `Keeper.Exit`, and prune the entries already left behind by earlier exits in a one-time step of the `v2.0.0` upgrade handler. No operator action beyond the upgrade itself (MOCA-973)
 - (storage) [#522](https://github.com/mocachain/moca/pull/522) Store bucket flow-rate-limit status entries under `BucketRateLimitStatusPrefix` and migrate existing entries from the shared rate-limit prefix (x/storage consensus version 2).
