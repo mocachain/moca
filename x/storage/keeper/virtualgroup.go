@@ -77,6 +77,10 @@ func (k Keeper) RebindingVirtualGroup(ctx sdk.Context, bucketInfo *types.BucketI
 		if !found {
 			return types.ErrVirtualGroupOperateFailed.Wrapf("dst global virtual group not found in blockchain state. ID: %d", dstGVGID)
 		}
+		if dstGVG.FamilyId != bucketInfo.GlobalVirtualGroupFamilyId {
+			return types.ErrInvalidGlobalVirtualGroup.Wrapf(
+				"dst global virtual group family mismatch, familyID: %d, bucket family ID: %d", dstGVG.FamilyId, bucketInfo.GlobalVirtualGroupFamilyId)
+		}
 
 		srcGVG, found := k.virtualGroupKeeper.GetGVG(ctx, lvg.GlobalVirtualGroupId)
 		if !found {
