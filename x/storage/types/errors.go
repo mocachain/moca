@@ -56,4 +56,5 @@ var (
 	ErrInvalidBlsPubKey          = errors.Register(ModuleName, 3204, "invalid bls public key")
 
 	ErrInvalidBucketOwner = errors.Register(ModuleName, 3300, "invalid bucket owner")
+	ErrInvalidPaymentAddress        = errors.Register(ModuleName, 3301, "invalid payment address")
 )

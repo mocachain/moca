@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"errors"
+	"time"
 
 	sdkmath "cosmossdk.io/math"
 	"go.uber.org/mock/gomock"
@@ -254,4 +255,31 @@ func (s *TestSuite) TestWithdraw_DelayedRedemption_UnlockInstantBoundary() {
 	unlockedMsg := types.NewMsgWithdraw(unlockedCreator.String(), "", sdkmath.NewInt(500))
 	_, err = s.msgServer.Withdraw(s.ctx, unlockedMsg)
 	s.Require().NoError(err, "now == end+1 must be unlocked")
+}
+
+func (s *TestSuite) TestWithdraw_DelayedRedemption_LockedAtMaxDuration() {
+	s.bankKeeper.EXPECT().SendCoinsFromModuleToAccount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+	s.accountKeeper.EXPECT().HasAccount(gomock.Any(), gomock.Any()).
+		Return(true).AnyTimes()
+	ctx := s.ctx.WithBlockTime(time.Unix(1_790_000_000, 0))
+
+	params := s.paymentKeeper.GetParams(ctx)
+	params.WithdrawTimeLockDuration = types.MaxDurationParamSeconds
+	s.Require().NoError(s.paymentKeeper.SetParams(ctx, params))
+
+	creator := sample.RandAccAddress()
+	_, err := s.msgServer.CreatePaymentAccount(ctx, types.NewMsgCreatePaymentAccount(creator.String()))
+	s.Require().NoError(err)
+	paymentAddr := s.paymentKeeper.DerivePaymentAccountAddress(creator, 0)
+	amount := *params.WithdrawTimeLockThreshold
+	record := types.NewStreamRecord(paymentAddr, ctx.BlockTime().Unix())
+	record.StaticBalance = amount
+	s.paymentKeeper.SetStreamRecord(ctx, record)
+
+	_, err = s.msgServer.Withdraw(ctx, types.NewMsgWithdraw(creator.String(), paymentAddr.String(), amount))
+	s.Require().NoError(err)
+
+	_, err = s.msgServer.Withdraw(ctx, types.NewMsgWithdraw(creator.String(), "", amount))
+	s.Require().ErrorIs(err, types.ErrNotReachTimeLockDuration)
 }
