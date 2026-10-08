@@ -955,7 +955,7 @@ func (s *NFTMirrorLogTestSuite) TestSealObject_MirrorsMint() {
 	const objectName = "nft-mint-object"
 	objectID := sdkmath.NewUint(502)
 	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(501), nil)
-	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_CREATED, 1024)
 	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
 
 	logs := s.callSealHandler(storage.SealObjectMethodName, bucketName, objectName, testGVGID, blsSig)
@@ -968,10 +968,78 @@ func (s *NFTMirrorLogTestSuite) TestSealObjectV2_MirrorsMint() {
 	const objectName = "nft-mint-v2-object"
 	objectID := sdkmath.NewUint(512)
 	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(511), nil)
-	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_CREATED, 1024)
 	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
 
 	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
 
 	s.requireTransferLog(logs, contracts.ObjectERC721TokenAddress, common.Address{}, s.address, objectID)
+}
+
+func (s *NFTMirrorLogTestSuite) TestSealObjectV2_UpdateOfMintedObject_NoMint() {
+	const bucketName = "nft-remint-bucket"
+	const objectName = "nft-remint-object"
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(521), nil)
+	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(522), storagetypes.OBJECT_STATUS_SEALED, 1024)
+	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
+
+	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
+
+	s.Require().Empty(transferLogs(logs, contracts.ObjectERC721TokenAddress))
+}
+
+func (s *NFTMirrorLogTestSuite) TestSealObjectV2_UpdateOfDiscontinuedObject_NoMint() {
+	const bucketName = "nft-disc-remint-bucket"
+	const objectName = "nft-disc-remint-object"
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(551), nil)
+	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(552), storagetypes.OBJECT_STATUS_DISCONTINUED, 1024)
+	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
+
+	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
+
+	s.Require().Empty(transferLogs(logs, contracts.ObjectERC721TokenAddress))
+}
+
+func (s *NFTMirrorLogTestSuite) TestSealObjectV2_UpdateOfEmptyObject_MirrorsMint() {
+	const bucketName = "nft-empty-mint-bucket"
+	const objectName = "nft-empty-mint-object"
+	objectID := sdkmath.NewUint(532)
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(531), nil)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 0)
+	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
+
+	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
+
+	s.requireTransferLog(logs, contracts.ObjectERC721TokenAddress, common.Address{}, s.address, objectID)
+}
+
+func (s *NFTMirrorLogTestSuite) TestUpdateObjectContent_ToEmpty_MirrorsBurn() {
+	const bucketName = "nft-update-empty-bucket"
+	const objectName = "nft-update-empty-object"
+	objectID := sdkmath.NewUint(542)
+	s.setupVirtualGroups()
+	s.Require().NoError(s.app.VirtualgroupKeeper.SetParams(s.ctx, vgtypes.DefaultParams()))
+	s.app.VirtualgroupKeeper.SetGVG(s.ctx, &vgtypes.GlobalVirtualGroup{
+		Id: testGVGID, FamilyId: testGVGFamilyID, PrimarySpId: 1, StoredSize: 1024, TotalDeposit: sdkmath.NewInt(1_000_000_000_000),
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(541), []*storagetypes.LocalVirtualGroup{
+		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
+	})
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
+	s.app.SpKeeper.SetStorageProvider(s.ctx, &sptypes.StorageProvider{
+		Id: testGVGFamilyID, OperatorAddress: sample.RandAccAddress().String(), Status: sptypes.STATUS_IN_SERVICE,
+	})
+
+	checksums := make([]string, 7)
+	for i := range checksums {
+		checksums[i] = base64.StdEncoding.EncodeToString(make([]byte, 32))
+	}
+
+	logs := s.callPrecompileLogs(s.packed(storage.UpdateObjectContentMethodName, bucketName, objectName, uint64(0), "text/plain", checksums))
+
+	objectInfo, found := s.app.StorageKeeper.GetObjectInfo(s.ctx, bucketName, objectName)
+	s.Require().True(found)
+	s.Require().Zero(objectInfo.PayloadSize)
+	s.requireTransferLog(logs, contracts.ObjectERC721TokenAddress, s.address, common.Address{}, objectID)
 }
