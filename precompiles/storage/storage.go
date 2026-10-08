@@ -101,6 +101,9 @@ func (p Precompile) Execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	if err != nil {
 		return nil, err
 	}
+	if p.IsTransaction(method) && evm.Origin != contract.Caller() {
+		return nil, types.ErrInvalidCaller
+	}
 
 	var bz []byte
 	switch method.Name {
