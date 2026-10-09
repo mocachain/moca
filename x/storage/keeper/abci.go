@@ -33,7 +33,9 @@ func EndBlocker(ctx sdk.Context, keeper Keeper) error {
 	// set ForceUpdateStreamRecordKey to true in context to force update frozen stream record
 	ctx = ctx.WithValue(paymenttypes.ForceUpdateStreamRecordKey, true)
 
-	// delete objects
+	// delete objects. Per-item deletion failures are contained inside
+	// DeleteDiscontinueObjectsUntil/DeleteDiscontinueBucketsUntil, so the guards below are left
+	// only for a store-level failure, which no longer depends on what is queued.
 	deleted, err := keeper.DeleteDiscontinueObjectsUntil(ctx, blockTime, deletionMax)
 	if err != nil {
 		ctx.Logger().Error("should not happen, fail to delete objects, err " + err.Error())
