@@ -34,6 +34,7 @@ import (
 	"github.com/mocachain/moca/v2/contracts"
 	"github.com/mocachain/moca/v2/internal/sequence"
 	"github.com/mocachain/moca/v2/precompiles/storage"
+	"github.com/mocachain/moca/v2/precompiles/types"
 	"github.com/mocachain/moca/v2/testutil"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
@@ -113,9 +114,9 @@ func (s *CreateGroupTestSuite) TestCreateGroup_EVMDispatchSuccess() {
 	s.Require().Equal(sdk.AccAddress(s.address.Bytes()).String(), group.Owner, "group owner == caller")
 }
 
-// TestCreateGroup_AllowsContractForwarding asserts that the immediate contract
-// caller, rather than the transaction origin, owns a forwarded native action.
-func (s *CreateGroupTestSuite) TestCreateGroup_AllowsContractForwarding() {
+// TestCreateGroup_RejectsContractForwarding pins that a contract forwarding
+// createGroup gets ErrInvalidCaller before any state change.
+func (s *CreateGroupTestSuite) TestCreateGroup_RejectsContractForwarding() {
 	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
 	const groupName = "regression-group-fwd"
 	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(caller.Bytes()), 1))
@@ -128,15 +129,11 @@ func (s *CreateGroupTestSuite) TestCreateGroup_AllowsContractForwarding() {
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	p := storage.NewPrecompile(storagekeeper.NewMsgServerImpl(s.app.StorageKeeper), s.app.StorageKeeper, s.app.BankKeeper)
-	method := storage.MustMethod(storage.CreateGroupMethodName)
-	args, err := method.Inputs.Unpack(contract.Input[4:])
-	s.Require().NoError(err)
-	_, err = p.CreateGroup(s.ctx, evm, contract, &method, args)
-	s.Require().NoError(err)
+	_, err := p.Execute(s.ctx, evm, contract, false)
+	s.Require().ErrorIs(err, types.ErrInvalidCaller)
 
-	group, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(caller.Bytes()), groupName)
-	s.Require().True(found)
-	s.Require().Equal(sdk.AccAddress(caller.Bytes()).String(), group.Owner)
+	_, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(caller.Bytes()), groupName)
+	s.Require().False(found)
 }
 
 // TestCreateGroup_FailureDoesNotMutateState pre-creates a group, then dispatches
@@ -257,8 +254,7 @@ func (s *PutPolicyPrecompileTestSuite) SetupTest() {
 }
 
 // TestPutPolicy_RunsValidateRuntime drives the precompile's PutPolicy Go method
-// directly (bypassing full EVM gas/dispatch machinery, same style as
-// TestCreateGroup_AllowsContractForwarding in tx_evm_apply_test.go) with a
+// directly (bypassing full EVM gas/dispatch machinery) with a
 // Statement that clears ValidateBasic but not ValidateRuntime, and asserts it is
 // rejected post-fix. A bucket-level statement naming a group-only action is such
 // a case: ValidateBasic never consults BucketAllowedActionsAfterPampas.

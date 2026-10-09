@@ -71,14 +71,16 @@ unchanged: `TestBankSend_TotalSupplyInvariant`, `TestDelegate_TotalSupplyInvaria
 value**. Moca is not on the ERC-20 / WERC20 path; sending native `value` to a
 precompile while the handler also moves Cosmos funds is a double-write hazard.
 
-## Caller semantics (direct caller)
+## Caller semantics (EOA-only)
 
-Transaction methods use the immediate EVM caller as the Cosmos message actor.
-Smart contracts may call transaction precompiles, while module message servers
-continue to enforce authorization. Transaction origin is not an authorization
-input.
+Transaction methods revert with `ErrInvalidCaller` unless their immediate caller
+is the transaction signer (`evm.Origin == contract.Caller()`), so smart contracts
+cannot invoke them. Each precompile's `Execute` applies the check to every method
+its `IsTransaction` reports; view methods stay callable from contracts.
+`DELEGATECALL`, `CALLCODE` and `STATICCALL` into a precompile run read-only, so
+transaction methods are reachable only through `CALL`.
 
-The direct caller maps to each module's acting identity:
+The caller maps to each module's acting identity:
 
 - `authz`: granter or executor
 - `bank`: sender
@@ -92,9 +94,15 @@ The direct caller maps to each module's acting identity:
 - `virtualgroup`: storage provider
 
 Addresses supplied as method arguments remain targets or counterparties, such
-as recipients, validators, bucket owners, group owners, and grantees. This is a
-**consensus behavior change** and must ship through a coordinated versioned
-chain upgrade; the binary transition is the activation boundary.
+as recipients, validators, bucket owners, group owners, and grantees.
+
+**EIP-7702.** An EOA with an EIP-7702 delegation still passes the check when it
+signs the transaction itself, because its delegated code runs as the EOA and the
+precompile acts as that EOA. When a relayer or bundler signs on the account's
+behalf, the relayer is the origin and the call is rejected.
+
+Changing this rule changes which transactions succeed, so it can only ship
+through a coordinated chain upgrade.
 
 ## Tests
 
@@ -102,7 +110,11 @@ Regression / characterization coverage layered on top of the migration:
 
 - `bank` / `staking` / `payment`: **total-supply-invariant** guards, plus bank dispatch
   success and native revert on failure.
-- `storage`: `createGroup` dispatch success, contract forwarding, failure-does-not-mutate.
+- All precompiles (`caller_test.go`): every transaction method rejects a contract
+  caller and each `IsTransaction` matches its ABI; a view method stays callable
+  from a contract; an EIP-7702 delegated EOA passes only when it signs the
+  transaction itself.
+- `storage`: `createGroup` dispatch success, contract-caller rejection, failure-does-not-mutate.
 - `storageprovider`: `updateSPPrice` decode + EVM-apply dispatch.
 
 Follow-ups: total-supply-invariant guards for the remaining coin-moving precompiles
