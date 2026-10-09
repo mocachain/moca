@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"os"
@@ -1035,7 +1036,7 @@ func (app *Moca) BlockedAccountAddrs() map[string]bool {
 		mocatypes.StorageAddress,
 		mocatypes.SpAddress,
 	}
-	for _, addr := range vm.PrecompiledAddressesBerlin {
+	for _, addr := range vm.PrecompiledAddressesPrague {
 		blockedPrecompilesHex = append(blockedPrecompilesHex, addr.Hex())
 	}
 
@@ -1213,7 +1214,10 @@ func GetMaccPerms() map[string][]string {
 // longer reconstructed per-tx); each precompile pulls the live SDK context from
 // the EVM StateDB at Run time instead of binding it at construction.
 func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContract {
-	return map[common.Address]vm.PrecompiledContract{
+	// cosmos/evm treats the standard Ethereum precompiles as always active and
+	// looks them up in this map, so moca's are added on top of that set.
+	precompiles := maps.Clone(vm.PrecompiledContractsPrague)
+	maps.Copy(precompiles, map[common.Address]vm.PrecompiledContract{
 		precompilesbank.GetAddress(): precompilesbank.NewPrecompile(
 			bankkeeper.NewMsgServerImpl(app.BankKeeper, app.PaymentKeeper),
 			app.BankKeeper,
@@ -1250,7 +1254,8 @@ func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContra
 			app.SpKeeper,
 			app.BankKeeper,
 		),
-	}
+	})
+	return precompiles
 }
 
 // MocaActiveStaticPrecompiles returns the sorted hex addresses of moca's

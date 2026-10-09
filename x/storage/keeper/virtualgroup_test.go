@@ -245,10 +245,10 @@ func (s *TestSuite) TestDeleteObjectFromVirtualGroup_GVGNotFound() {
 	s.Require().ErrorIs(err, vgtypes.ErrGVGNotExist)
 }
 
-// TestDeleteObjectFromVirtualGroup_PanicsOnInconsistentInvariant covers the
-// defensive panic guarding against a corrupt LVG record (a fully-charged-off
-// LVG that still claims stored bytes).
-func (s *TestSuite) TestDeleteObjectFromVirtualGroup_PanicsOnInconsistentInvariant() {
+// TestDeleteObjectFromVirtualGroup_ErrorsOnInconsistentInvariant covers the
+// defensive guard against a corrupt LVG record (a fully-charged-off LVG that
+// still claims stored bytes).
+func (s *TestSuite) TestDeleteObjectFromVirtualGroup_ErrorsOnInconsistentInvariant() {
 	bucketInfo := &types.BucketInfo{BucketName: "delete-from-vg-panic-bucket", Id: sdkmath.NewUint(1)}
 	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketInfo.Id, &types.InternalBucketInfo{
 		LocalVirtualGroups: []*types.LocalVirtualGroup{{Id: 1, GlobalVirtualGroupId: 9, StoredSize: 50, TotalChargeSize: 0}},
@@ -257,9 +257,8 @@ func (s *TestSuite) TestDeleteObjectFromVirtualGroup_PanicsOnInconsistentInvaria
 	gvg := &vgtypes.GlobalVirtualGroup{Id: 9, StoredSize: 1000}
 	s.virtualGroupKeeper.EXPECT().GetGVG(gomock.Any(), uint32(9)).Return(gvg, true)
 
-	s.Require().Panics(func() {
-		_ = s.storageKeeper.DeleteObjectFromVirtualGroup(s.ctx, bucketInfo, objectInfo)
-	})
+	err := s.storageKeeper.DeleteObjectFromVirtualGroup(s.ctx, bucketInfo, objectInfo)
+	s.Require().ErrorIs(err, types.ErrInconsistentState)
 }
 
 // TestDeleteObjectFromVirtualGroup_SetGVGError covers the SetGVGAndEmitUpdateEvent

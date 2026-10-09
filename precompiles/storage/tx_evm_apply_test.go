@@ -6,6 +6,8 @@ package storage_test
 // dispatch/EOA-only/failure behaviors can be pinned cheaply and deterministically.
 
 import (
+	"context"
+	"encoding/base64"
 	"math/big"
 	"testing"
 	"time"
@@ -22,6 +24,7 @@ import (
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
 
@@ -31,6 +34,7 @@ import (
 	"github.com/mocachain/moca/v2/contracts"
 	"github.com/mocachain/moca/v2/internal/sequence"
 	"github.com/mocachain/moca/v2/precompiles/storage"
+	"github.com/mocachain/moca/v2/precompiles/types"
 	"github.com/mocachain/moca/v2/testutil"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	utiltx "github.com/mocachain/moca/v2/testutil/tx"
@@ -110,9 +114,9 @@ func (s *CreateGroupTestSuite) TestCreateGroup_EVMDispatchSuccess() {
 	s.Require().Equal(sdk.AccAddress(s.address.Bytes()).String(), group.Owner, "group owner == caller")
 }
 
-// TestCreateGroup_AllowsContractForwarding asserts that the immediate contract
-// caller, rather than the transaction origin, owns a forwarded native action.
-func (s *CreateGroupTestSuite) TestCreateGroup_AllowsContractForwarding() {
+// TestCreateGroup_RejectsContractForwarding pins that a contract forwarding
+// createGroup gets ErrInvalidCaller before any state change.
+func (s *CreateGroupTestSuite) TestCreateGroup_RejectsContractForwarding() {
 	caller := common.HexToAddress("0x3333333333333333333333333333333333333333")
 	const groupName = "regression-group-fwd"
 	s.Require().NoError(testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, sdk.AccAddress(caller.Bytes()), 1))
@@ -122,18 +126,15 @@ func (s *CreateGroupTestSuite) TestCreateGroup_AllowsContractForwarding() {
 
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.WithInterpreter(vm.NewEVMInterpreter(evm))
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	p := storage.NewPrecompile(storagekeeper.NewMsgServerImpl(s.app.StorageKeeper), s.app.StorageKeeper, s.app.BankKeeper)
-	method := storage.MustMethod(storage.CreateGroupMethodName)
-	args, err := method.Inputs.Unpack(contract.Input[4:])
-	s.Require().NoError(err)
-	_, err = p.CreateGroup(s.ctx, evm, contract, &method, args)
-	s.Require().NoError(err)
+	_, err := p.Execute(s.ctx, evm, contract, false)
+	s.Require().ErrorIs(err, types.ErrInvalidCaller)
 
-	group, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(caller.Bytes()), groupName)
-	s.Require().True(found)
-	s.Require().Equal(sdk.AccAddress(caller.Bytes()).String(), group.Owner)
+	_, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(caller.Bytes()), groupName)
+	s.Require().False(found)
 }
 
 // TestCreateGroup_FailureDoesNotMutateState pre-creates a group, then dispatches
@@ -254,8 +255,7 @@ func (s *PutPolicyPrecompileTestSuite) SetupTest() {
 }
 
 // TestPutPolicy_RunsValidateRuntime drives the precompile's PutPolicy Go method
-// directly (bypassing full EVM gas/dispatch machinery, same style as
-// TestCreateGroup_AllowsContractForwarding in tx_evm_apply_test.go) with a
+// directly (bypassing full EVM gas/dispatch machinery) with a
 // Statement that clears ValidateBasic but not ValidateRuntime, and asserts it is
 // rejected post-fix. A bucket-level statement naming a group-only action is such
 // a case: ValidateBasic never consults BucketAllowedActionsAfterPampas.
@@ -633,6 +633,12 @@ func (s *DeleteGCBookkeepingTestSuite) createBucketWithPolicy(bucketName string,
 // the status that reaches DeleteObject proper; a created object is routed to
 // CancelCreateObject instead, which is a different path.
 func (s *DeleteGCBookkeepingTestSuite) createObjectWithPolicy(bucketName, objectName string, objectID sdkmath.Uint) {
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 0)
+}
+
+// createObjectWithStatus writes an object with the given status and payload size
+// into an existing bucket, with a policy on it.
+func (s *DeleteGCBookkeepingTestSuite) createObjectWithStatus(bucketName, objectName string, objectID sdkmath.Uint, status storagetypes.ObjectStatus, payloadSize uint64) {
 	owner := sdk.AccAddress(s.address.Bytes())
 	s.app.StorageKeeper.SetObjectInfo(s.ctx, &storagetypes.ObjectInfo{
 		Owner:               owner.String(),
@@ -640,9 +646,9 @@ func (s *DeleteGCBookkeepingTestSuite) createObjectWithPolicy(bucketName, object
 		BucketName:          bucketName,
 		ObjectName:          objectName,
 		Id:                  objectID,
-		PayloadSize:         0,
+		PayloadSize:         payloadSize,
 		Visibility:          storagetypes.VISIBILITY_TYPE_PRIVATE,
-		ObjectStatus:        storagetypes.OBJECT_STATUS_SEALED,
+		ObjectStatus:        status,
 		SourceType:          storagetypes.SOURCE_TYPE_ORIGIN,
 		LocalVirtualGroupId: testLVGID,
 		CreateAt:            s.resourceTime(),
@@ -784,4 +790,253 @@ func TestStorageStoreIsSnapshottedForPrecompiles(t *testing.T) {
 	snap.Write()
 	require.NotNil(t, cms.GetKVStore(storeKey).Get(storagetypes.CurrentBlockDeleteStalePoliciesKey),
 		"a committed precompile frame must keep it for EndBlocker to drain")
+}
+
+// NFTMirrorLogTestSuite pins the ERC721 Transfer logs the precompile mirrors onto
+// the bucket, object and group token contracts: a mint on create or seal and a
+// burn on delete, so an indexer that follows the logs sees the NFT leave its
+// owner (#541). It reuses the delete fixtures of DeleteGCBookkeepingTestSuite.
+type NFTMirrorLogTestSuite struct {
+	DeleteGCBookkeepingTestSuite
+}
+
+func TestNFTMirrorLogTestSuite(t *testing.T) {
+	suite.Run(t, new(NFTMirrorLogTestSuite))
+}
+
+// callPrecompileLogs is callPrecompile for the tests that assert on the logs the
+// call appends to the state DB.
+func (s *NFTMirrorLogTestSuite) callPrecompileLogs(input []byte) []*ethtypes.Log {
+	precompileAddr := storage.GetAddress()
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
+	s.Require().NoError(err)
+	s.Require().False(res.Failed(), "precompile call failed: %s", res.VmError)
+	return stateDB.Logs()
+}
+
+// transferLogs returns the ERC721 Transfer logs emitted on the given token contract.
+func transferLogs(logs []*ethtypes.Log, token common.Address) []*ethtypes.Log {
+	transferID := storage.MustEvent(storage.TransferEventName).ID
+	var out []*ethtypes.Log
+	for _, entry := range logs {
+		if entry.Address == token && len(entry.Topics) == 4 && entry.Topics[0] == transferID {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+// requireTransferLog asserts that exactly one Transfer(from, to, tokenID) was
+// mirrored on the given token contract.
+func (s *NFTMirrorLogTestSuite) requireTransferLog(logs []*ethtypes.Log, token, from, to common.Address, tokenID sdkmath.Uint) {
+	transfers := transferLogs(logs, token)
+	s.Require().Len(transfers, 1, "expected one Transfer log on %s", token.Hex())
+	s.Require().Equal(common.BytesToHash(from.Bytes()), transfers[0].Topics[1], "from")
+	s.Require().Equal(common.BytesToHash(to.Bytes()), transfers[0].Topics[2], "to")
+	s.Require().Equal(common.BytesToHash(tokenID.BigInt().Bytes()), transfers[0].Topics[3], "token id")
+}
+
+func (s *NFTMirrorLogTestSuite) TestDeleteBucket_MirrorsBurn() {
+	const bucketName = "nft-burn-bucket"
+	bucketID := sdkmath.NewUint(301)
+	s.createBucketWithPolicy(bucketName, bucketID, nil)
+
+	logs := s.callPrecompileLogs(s.packed(storage.DeleteBucketMethodName, bucketName))
+
+	s.requireTransferLog(logs, contracts.BucketERC721TokenAddress, s.address, common.Address{}, bucketID)
+}
+
+func (s *NFTMirrorLogTestSuite) TestDeleteObject_SealedObject_MirrorsBurn() {
+	const bucketName = "nft-burn-obj-bucket"
+	const objectName = "nft-burn-object"
+	objectID := sdkmath.NewUint(402)
+	s.setupVirtualGroups()
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(401), []*storagetypes.LocalVirtualGroup{
+		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
+	})
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
+
+	logs := s.callPrecompileLogs(s.packed(storage.DeleteObjectMethodName, bucketName, objectName))
+
+	s.requireTransferLog(logs, contracts.ObjectERC721TokenAddress, s.address, common.Address{}, objectID)
+}
+
+// TestDeleteObject_CreatedObject_NoBurn: deleting a created object cancels it, and
+// no mint was ever mirrored for it, so no burn may be mirrored either.
+func (s *NFTMirrorLogTestSuite) TestDeleteObject_CreatedObject_NoBurn() {
+	const bucketName = "nft-cancel-obj-bucket"
+	const objectName = "nft-cancel-object"
+	s.setupVirtualGroups()
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(411), []*storagetypes.LocalVirtualGroup{
+		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
+	})
+	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(412), storagetypes.OBJECT_STATUS_CREATED, 1024)
+	// The cancel path resolves the bucket's primary SP, which the delete fixtures never need.
+	s.app.SpKeeper.SetStorageProvider(s.ctx, &sptypes.StorageProvider{
+		Id: testGVGFamilyID, OperatorAddress: sample.RandAccAddress().String(), Status: sptypes.STATUS_IN_SERVICE,
+	})
+
+	logs := s.callPrecompileLogs(s.packed(storage.DeleteObjectMethodName, bucketName, objectName))
+
+	_, found := s.app.StorageKeeper.GetObjectInfo(s.ctx, bucketName, objectName)
+	s.Require().False(found, "created object should be canceled")
+	s.Require().Empty(transferLogs(logs, contracts.ObjectERC721TokenAddress))
+}
+
+// TestDeleteObject_EmptyObject_NoBurn: an empty object is sealed at creation and
+// never minted, so deleting it must not mirror a burn either.
+func (s *NFTMirrorLogTestSuite) TestDeleteObject_EmptyObject_NoBurn() {
+	const bucketName = "nft-empty-obj-bucket"
+	const objectName = "nft-empty-object"
+	s.setupVirtualGroups()
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(421), []*storagetypes.LocalVirtualGroup{
+		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
+	})
+	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(422), storagetypes.OBJECT_STATUS_SEALED, 0)
+
+	logs := s.callPrecompileLogs(s.packed(storage.DeleteObjectMethodName, bucketName, objectName))
+
+	_, found := s.app.StorageKeeper.GetObjectInfo(s.ctx, bucketName, objectName)
+	s.Require().False(found, "empty object should be deleted")
+	s.Require().Empty(transferLogs(logs, contracts.ObjectERC721TokenAddress))
+}
+
+func (s *NFTMirrorLogTestSuite) TestDeleteGroup_MirrorsBurn() {
+	const groupName = "nft-burn-group"
+	s.callPrecompile(s.packed(storage.CreateGroupMethodName, groupName, ""))
+	group, found := s.app.StorageKeeper.GetGroupInfo(s.ctx, sdk.AccAddress(s.address.Bytes()), groupName)
+	s.Require().True(found)
+
+	logs := s.callPrecompileLogs(s.packed(storage.DeleteGroupMethodName, groupName))
+
+	s.requireTransferLog(logs, contracts.GroupERC721TokenAddress, s.address, common.Address{}, group.Id)
+}
+
+// sealOnlyMsgServer accepts a seal without touching state, so a handler's
+// post-seal log mirroring can run against an object the fixture already sealed.
+type sealOnlyMsgServer struct {
+	storagetypes.UnimplementedMsgServer
+}
+
+func (sealOnlyMsgServer) SealObject(context.Context, *storagetypes.MsgSealObject) (*storagetypes.MsgSealObjectResponse, error) {
+	return &storagetypes.MsgSealObjectResponse{}, nil
+}
+
+func (sealOnlyMsgServer) SealObjectV2(context.Context, *storagetypes.MsgSealObjectV2) (*storagetypes.MsgSealObjectV2Response, error) {
+	return &storagetypes.MsgSealObjectV2Response{}, nil
+}
+
+// callSealHandler runs a seal method directly against a precompile whose msg
+// server accepts the seal, and returns the logs the handler appended.
+func (s *NFTMirrorLogTestSuite) callSealHandler(methodName string, args ...interface{}) []*ethtypes.Log {
+	p := storage.NewPrecompile(&sealOnlyMsgServer{}, s.app.StorageKeeper, s.app.BankKeeper)
+	method := storage.MustMethod(methodName)
+	unpacked, err := method.Inputs.Unpack(s.packed(methodName, args...)[4:])
+	s.Require().NoError(err)
+
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	contract := vm.NewContract(s.address, storage.GetAddress(), uint256.NewInt(0), 60_000, nil)
+	if methodName == storage.SealObjectMethodName {
+		_, err = p.SealObject(s.ctx, evm, contract, &method, unpacked)
+	} else {
+		_, err = p.SealObjectV2(s.ctx, evm, contract, &method, unpacked)
+	}
+	s.Require().NoError(err)
+	return stateDB.Logs()
+}
+
+func (s *NFTMirrorLogTestSuite) TestSealObject_MirrorsMint() {
+	const bucketName = "nft-mint-bucket"
+	const objectName = "nft-mint-object"
+	objectID := sdkmath.NewUint(502)
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(501), nil)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_CREATED, 1024)
+	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
+
+	logs := s.callSealHandler(storage.SealObjectMethodName, bucketName, objectName, testGVGID, blsSig)
+
+	s.requireTransferLog(logs, contracts.ObjectERC721TokenAddress, common.Address{}, s.address, objectID)
+}
+
+func (s *NFTMirrorLogTestSuite) TestSealObjectV2_MirrorsMint() {
+	const bucketName = "nft-mint-v2-bucket"
+	const objectName = "nft-mint-v2-object"
+	objectID := sdkmath.NewUint(512)
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(511), nil)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_CREATED, 1024)
+	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
+
+	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
+
+	s.requireTransferLog(logs, contracts.ObjectERC721TokenAddress, common.Address{}, s.address, objectID)
+}
+
+func (s *NFTMirrorLogTestSuite) TestSealObjectV2_UpdateOfMintedObject_NoMint() {
+	const bucketName = "nft-remint-bucket"
+	const objectName = "nft-remint-object"
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(521), nil)
+	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(522), storagetypes.OBJECT_STATUS_SEALED, 1024)
+	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
+
+	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
+
+	s.Require().Empty(transferLogs(logs, contracts.ObjectERC721TokenAddress))
+}
+
+func (s *NFTMirrorLogTestSuite) TestSealObjectV2_UpdateOfDiscontinuedObject_NoMint() {
+	const bucketName = "nft-disc-remint-bucket"
+	const objectName = "nft-disc-remint-object"
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(551), nil)
+	s.createObjectWithStatus(bucketName, objectName, sdkmath.NewUint(552), storagetypes.OBJECT_STATUS_DISCONTINUED, 1024)
+	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
+
+	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
+
+	s.Require().Empty(transferLogs(logs, contracts.ObjectERC721TokenAddress))
+}
+
+func (s *NFTMirrorLogTestSuite) TestSealObjectV2_UpdateOfEmptyObject_MirrorsMint() {
+	const bucketName = "nft-empty-mint-bucket"
+	const objectName = "nft-empty-mint-object"
+	objectID := sdkmath.NewUint(532)
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(531), nil)
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 0)
+	blsSig := base64.StdEncoding.EncodeToString(make([]byte, sdk.BLSSignatureLength))
+
+	logs := s.callSealHandler(storage.SealObjectV2MethodName, bucketName, objectName, testGVGID, blsSig, []string{})
+
+	s.requireTransferLog(logs, contracts.ObjectERC721TokenAddress, common.Address{}, s.address, objectID)
+}
+
+func (s *NFTMirrorLogTestSuite) TestUpdateObjectContent_ToEmpty_MirrorsBurn() {
+	const bucketName = "nft-update-empty-bucket"
+	const objectName = "nft-update-empty-object"
+	objectID := sdkmath.NewUint(542)
+	s.setupVirtualGroups()
+	s.Require().NoError(s.app.VirtualgroupKeeper.SetParams(s.ctx, vgtypes.DefaultParams()))
+	s.app.VirtualgroupKeeper.SetGVG(s.ctx, &vgtypes.GlobalVirtualGroup{
+		Id: testGVGID, FamilyId: testGVGFamilyID, PrimarySpId: 1, StoredSize: 1024, TotalDeposit: sdkmath.NewInt(1_000_000_000_000),
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(541), []*storagetypes.LocalVirtualGroup{
+		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
+	})
+	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
+	s.app.SpKeeper.SetStorageProvider(s.ctx, &sptypes.StorageProvider{
+		Id: testGVGFamilyID, OperatorAddress: sample.RandAccAddress().String(), Status: sptypes.STATUS_IN_SERVICE,
+	})
+
+	checksums := make([]string, 7)
+	for i := range checksums {
+		checksums[i] = base64.StdEncoding.EncodeToString(make([]byte, 32))
+	}
+
+	logs := s.callPrecompileLogs(s.packed(storage.UpdateObjectContentMethodName, bucketName, objectName, uint64(0), "text/plain", checksums))
+
+	objectInfo, found := s.app.StorageKeeper.GetObjectInfo(s.ctx, bucketName, objectName)
+	s.Require().True(found)
+	s.Require().Zero(objectInfo.PayloadSize)
+	s.requireTransferLog(logs, contracts.ObjectERC721TokenAddress, s.address, common.Address{}, objectID)
 }
