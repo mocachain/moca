@@ -20,7 +20,6 @@ CI:
   - changed-files:
       - any-glob-to-any-file:
           - ".github/**/*"
-          - ".mergify.yml"
           - ".golangci.yml"
           - "buf.yaml"
 CLI:
