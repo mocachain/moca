@@ -62,6 +62,9 @@ func (msg *MsgCompleteMigrateBucket) ValidateBasic() error {
 		if gvgMapping.SrcGlobalVirtualGroupId == 0 || gvgMapping.DstGlobalVirtualGroupId == 0 {
 			return ErrInvalidGlobalVirtualGroup.Wrapf("the src gvg id cannot be 0")
 		}
+		if gvgMapping.SrcGlobalVirtualGroupId == gvgMapping.DstGlobalVirtualGroupId {
+			return ErrInvalidGlobalVirtualGroup.Wrapf("src and dst gvg id must not be equal")
+		}
 		if gvgMapping.SecondarySpBlsSignature == nil {
 			return gnfderrors.ErrInvalidBlsSignature.Wrapf("empty signature in gvgMapping")
 		}

@@ -35,6 +35,7 @@ func (s *PrecompileTestSuite) TestBankSend_OutOfGasSurfacesAsOutOfGas() {
 
 	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
 	evm := &vm.EVM{Context: vm.BlockContext{BlockNumber: big.NewInt(1)}, StateDB: stateDB}
+	evm.WithInterpreter(vm.NewEVMInterpreter(evm))
 	evm.SetTxContext(vm.TxContext{Origin: s.address})
 
 	c := bank.NewPrecompile(bankkeeper.NewMsgServerImpl(s.app.BankKeeper, s.app.PaymentKeeper), s.app.BankKeeper)

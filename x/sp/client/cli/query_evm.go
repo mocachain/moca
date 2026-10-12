@@ -167,8 +167,8 @@ func toPbPrice(p *spp.SpStoragePrice) *types.SpStoragePrice {
 	return &types.SpStoragePrice{
 		SpId:          p.SpId,
 		UpdateTimeSec: p.UpdateTimeSec.Int64(),
-		ReadPrice:     math.LegacyNewDecFromInt(math.NewIntFromBigInt(p.ReadPrice)),
+		ReadPrice:     math.LegacyNewDecFromBigIntWithPrec(p.ReadPrice, math.LegacyPrecision),
 		FreeReadQuota: p.FreeReadQuota,
-		StorePrice:    math.LegacyNewDecFromInt(math.NewIntFromBigInt(p.StorePrice)),
+		StorePrice:    math.LegacyNewDecFromBigIntWithPrec(p.StorePrice, math.LegacyPrecision),
 	}
 }

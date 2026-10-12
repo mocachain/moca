@@ -208,3 +208,24 @@ func (s *TestSuite) TestEndBlocker_WithoutUpdateInterval() {
 	s.Require().Equal(globalPriceAfter.PrimaryStorePrice, spPrice.StorePrice)
 	s.Require().Equal(globalPriceAfter.ReadPrice, spPrice.ReadPrice)
 }
+
+// TestEndBlocker_LogsErrorWhenPriceUpdateFails covers the branch where
+// UpdateGlobalSpStorePrice fails (an in-service SP with no stored price) and
+// EndBlocker only logs the error instead of propagating it or writing state.
+func (s *TestSuite) TestEndBlocker_LogsErrorWhenPriceUpdateFails() {
+	s.ctx = s.ctx.WithBlockTime(time.Now())
+	sp := &types.StorageProvider{
+		Id:              1,
+		Status:          types.STATUS_IN_SERVICE,
+		OperatorAddress: sample.RandAccAddress().String(),
+	}
+	s.spKeeper.SetStorageProvider(s.ctx, sp)
+	// Deliberately no SetSpStoragePrice call: UpdateGlobalSpStorePrice fails
+	// to find a price for sp 1, which is the branch under test.
+
+	err := spmodule.EndBlocker(s.ctx, *s.spKeeper)
+	s.Require().NoError(err, "EndBlocker must not propagate the price-update error")
+
+	_, priceErr := s.spKeeper.GetGlobalSpStorePriceByTime(s.ctx, s.ctx.BlockTime().Unix()+1)
+	s.Require().Error(priceErr, "no global price should have been written on the failed update")
+}

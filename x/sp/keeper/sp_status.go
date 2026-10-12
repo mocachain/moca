@@ -82,7 +82,7 @@ func (k Keeper) ForceUpdateMaintenanceRecords(ctx sdk.Context) {
 			size := len(stats.Records)
 			// force update any maintenance record that not been updated back to in_service after requested duration.
 			changed := false
-			if sp.Status != types.STATUS_IN_SERVICE {
+			if sp.Status == types.STATUS_IN_MAINTENANCE {
 				for i := size - 1; i >= 0; i-- {
 					if stats.Records[i].GetActualDuration() == 0 && stats.Records[i].RequestAt+stats.Records[i].GetRequestDuration() < curTime {
 						stats.Records[i].ActualDuration = stats.Records[i].RequestDuration

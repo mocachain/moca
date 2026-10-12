@@ -190,9 +190,9 @@ test_evm_erc20() {
     supply=$(_rpc_evm_call "$addr" "totalSupply()(uint256)")
     assert_eq "$supply" "0" "ERC20 initial totalSupply"
 
-    alice_key=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key' 2>/dev/null) || true
+    alice_key=$(cast_new_privkey) || true
     alice_addr=$(cast wallet address "$alice_key" 2>/dev/null) || true
-    bob_key=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key' 2>/dev/null) || true
+    bob_key=$(cast_new_privkey) || true
     bob_addr=$(cast wallet address "$bob_key" 2>/dev/null) || true
     assert_not_empty "$alice_key" "alice key"
     assert_not_empty "$alice_addr" "alice address"

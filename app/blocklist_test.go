@@ -5,6 +5,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/stretchr/testify/require"
 
 	mocatypes "github.com/mocachain/moca/v2/types"
@@ -38,5 +39,10 @@ func TestBlockedAccountAddrs_PrecompilesAreBlockedByBankKeeper(t *testing.T) {
 		addr := sdk.AccAddress(common.HexToAddress(p.hex).Bytes())
 		require.True(t, mocaApp.BankKeeper.BlockedAddr(addr),
 			"the %s precompile (%s) must be blocked from receiving funds", p.name, p.hex)
+	}
+
+	for _, addr := range vm.PrecompiledAddressesPrague {
+		require.True(t, mocaApp.BankKeeper.BlockedAddr(sdk.AccAddress(addr.Bytes())),
+			"the standard precompile %s must be blocked from receiving funds", addr)
 	}
 }

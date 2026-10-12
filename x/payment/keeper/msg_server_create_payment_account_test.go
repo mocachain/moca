@@ -33,3 +33,12 @@ func (s *TestSuite) TestCreatePaymentAccount() {
 	_, err = s.msgServer.CreatePaymentAccount(s.ctx, msg)
 	s.Require().Error(err)
 }
+
+func (s *TestSuite) TestCreatePaymentAccount_RejectsGovernanceCreator() {
+	msg := &types.MsgCreatePaymentAccount{Creator: types.GovernanceAddress.String()}
+	_, err := s.msgServer.CreatePaymentAccount(s.ctx, msg)
+	s.Require().ErrorIs(err, types.ErrGovernancePaymentAccount)
+
+	count, _ := s.paymentKeeper.GetPaymentAccountCount(s.ctx, types.GovernanceAddress)
+	s.Require().Equal(uint64(0), count.Count, "no payment account may be created for the governance account")
+}

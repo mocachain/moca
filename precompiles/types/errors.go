@@ -80,8 +80,8 @@ var (
 	// ErrInvalidGasLimit returns an error if gas limit value is invalid
 	ErrInvalidGasLimit = errorsmod.Register(ModuleName, codeErrInvalidGasLimit, "invalid gas limit")
 
-	// ErrInvalidCaller is retained for error-code compatibility. Transaction
-	// precompiles no longer return it because smart-contract callers are allowed.
+	// ErrInvalidCaller returns an error if a transaction method's immediate caller is not
+	// the transaction signer, such as a contract; a self-signed EIP-7702 EOA still passes.
 	ErrInvalidCaller = errorsmod.Register(ModuleName, codeErrInvalidCaller, "only be called directly to the precompile forbid from a smart contract")
 
 	// ErrReadOnly returns an error if the precompile contract method is readonly

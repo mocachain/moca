@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 
@@ -82,4 +83,27 @@ func TestMsgSetBucketFlowRateLimit_ValidateBasic(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestNewMsgSetBucketFlowRateLimit(t *testing.T) {
+	operator := sample.RandAccAddress()
+	bucketOwner := sample.RandAccAddress()
+	paymentAccount := sample.RandAccAddress()
+	rateLimit := sdkmath.NewInt(500)
+	msg := NewMsgSetBucketFlowRateLimit(operator, bucketOwner, paymentAccount, testBucketName, rateLimit)
+
+	require.Equal(t, operator.String(), msg.Operator)
+	require.Equal(t, bucketOwner.String(), msg.BucketOwner)
+	require.Equal(t, paymentAccount.String(), msg.PaymentAddress)
+	require.Equal(t, testBucketName, msg.BucketName)
+	require.Equal(t, rateLimit, msg.FlowRateLimit)
+
+	require.Equal(t, RouterKey, msg.Route())
+	require.Equal(t, TypeMsgSetBucketFlowRateLimit, msg.Type())
+	require.Equal(t, []sdk.AccAddress{operator}, msg.GetSigners())
+	requireSignBytes(t, msg)
+
+	bad := *msg
+	bad.Operator = "invalid_address"
+	require.Panics(t, func() { bad.GetSigners() })
 }

@@ -1,6 +1,7 @@
 package challenge_test
 
 import (
+	"errors"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -244,4 +245,269 @@ func (s *TestSuite) TestEndBlocker_SuccessRandomChallenge() {
 	boundSpID, bound := s.challengeKeeper.GetChallengeSpID(s.ctx, afterChallengeID)
 	s.Require().True(bound, "the auto-raised challenge must record the sp it names")
 	s.Require().Equal(sp.Id, boundSpID)
+}
+
+func (s *TestSuite) TestEndBlocker_SkipsUnsealedOrMissingObject() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID)
+}
+
+func (s *TestSuite) TestEndBlocker_SkipsEmptyPayload() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+
+	emptyObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "empty-payload-bucket",
+		ObjectName:   "empty-payload-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  0,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(emptyObject, true).AnyTimes()
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID)
+}
+
+func (s *TestSuite) TestEndBlocker_SkipsMissingBucket() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "missing-bucket",
+		ObjectName:   "missing-bucket-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(existObject, true).AnyTimes()
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID)
+}
+
+func (s *TestSuite) TestEndBlocker_SkipsMissingGVG() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "missing-gvg-bucket",
+		ObjectName:   "missing-gvg-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(existObject, true).AnyTimes()
+
+	existBucket := &storagetypes.BucketInfo{BucketName: existObject.BucketName, Id: math.NewUint(1)}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(existBucket, true).AnyTimes()
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID)
+}
+
+// TestEndBlocker_SuccessRandomChallenge_PrimarySp covers the primary-sp
+// branch (spOperatorID = gvg.PrimarySpId), which the existing success test
+// never reaches. An empty SecondarySpIds forces sps==1, so
+// RandomRedundancyIndex's mod-1 is always 0 regardless of the seed,
+// deterministically resolving to the primary sp every time.
+func (s *TestSuite) TestEndBlocker_SuccessRandomChallenge_PrimarySp() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+	s.storageKeeper.EXPECT().MaxSegmentSize(gomock.Any(), gomock.Any()).Return(uint64(10000), nil).AnyTimes()
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "primary-sp-bucket",
+		ObjectName:   "primary-sp-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(existObject, true).AnyTimes()
+
+	existBucket := &storagetypes.BucketInfo{BucketName: existObject.BucketName, Id: math.NewUint(1)}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(existBucket, true).AnyTimes()
+
+	gvg := &virtualgrouptypes.GlobalVirtualGroup{PrimarySpId: 100, SecondarySpIds: []uint32{}}
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Any(), gomock.Any()).Return(gvg, true).AnyTimes()
+
+	sp := &sptypes.StorageProvider{Id: gvg.PrimarySpId, Status: sptypes.STATUS_IN_SERVICE}
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Eq(gvg.PrimarySpId)).Return(sp, true).AnyTimes()
+	s.spKeeper.EXPECT().SetDepositLockUntil(gomock.Any(), gomock.Eq(sp.Id), gomock.Any()).Times(1)
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID-1)
+
+	boundSpID, bound := s.challengeKeeper.GetChallengeSpID(s.ctx, afterChallengeID)
+	s.Require().True(bound, "the auto-raised challenge must record the sp it names")
+	s.Require().Equal(sp.Id, boundSpID)
+}
+
+func (s *TestSuite) TestEndBlocker_SkipsMissingStorageProvider() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "no-sp-bucket",
+		ObjectName:   "no-sp-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(existObject, true).AnyTimes()
+
+	existBucket := &storagetypes.BucketInfo{BucketName: existObject.BucketName, Id: math.NewUint(1)}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(existBucket, true).AnyTimes()
+
+	gvg := &virtualgrouptypes.GlobalVirtualGroup{PrimarySpId: 100, SecondarySpIds: []uint32{1}}
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Any(), gomock.Any()).Return(gvg, true).AnyTimes()
+
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID)
+}
+
+func (s *TestSuite) TestEndBlocker_SkipsInvalidStorageProviderStatus() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "jailed-sp-bucket",
+		ObjectName:   "jailed-sp-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(existObject, true).AnyTimes()
+
+	existBucket := &storagetypes.BucketInfo{BucketName: existObject.BucketName, Id: math.NewUint(1)}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(existBucket, true).AnyTimes()
+
+	gvg := &virtualgrouptypes.GlobalVirtualGroup{PrimarySpId: 100, SecondarySpIds: []uint32{1}}
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Any(), gomock.Any()).Return(gvg, true).AnyTimes()
+
+	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_JAILED}
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(sp, true).AnyTimes()
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID)
+}
+
+// TestEndBlocker_DedupSkipsRepeatedPair covers the objectMap dedup branch by
+// requiring 2 challenges per block while only ever offering one deterministic
+// (sp, object) pair: the empty SecondarySpIds trick from
+// TestEndBlocker_SuccessRandomChallenge_PrimarySp pins spOperatorID to the
+// same value on every iteration, so the map key this loop dedups on never
+// changes. The 1st iteration creates a challenge; every later one must skip.
+func (s *TestSuite) TestEndBlocker_DedupSkipsRepeatedPair() {
+	params := s.challengeKeeper.GetParams(s.ctx)
+	params.ChallengeCountPerBlock = 2
+	s.Require().NoError(s.challengeKeeper.SetParams(s.ctx, params))
+
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+	s.storageKeeper.EXPECT().MaxSegmentSize(gomock.Any(), gomock.Any()).Return(uint64(10000), nil).AnyTimes()
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "dedup-bucket",
+		ObjectName:   "dedup-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(existObject, true).AnyTimes()
+
+	existBucket := &storagetypes.BucketInfo{BucketName: existObject.BucketName, Id: math.NewUint(1)}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(existBucket, true).AnyTimes()
+
+	gvg := &virtualgrouptypes.GlobalVirtualGroup{PrimarySpId: 100, SecondarySpIds: []uint32{}}
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Any(), gomock.Any()).Return(gvg, true).AnyTimes()
+
+	sp := &sptypes.StorageProvider{Id: gvg.PrimarySpId, Status: sptypes.STATUS_IN_SERVICE}
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(sp, true).AnyTimes()
+	s.spKeeper.EXPECT().SetDepositLockUntil(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID-1, "exactly one challenge should be created despite needing 2")
+}
+
+func (s *TestSuite) TestEndBlocker_SkipsExistingSlash() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "slashed-bucket",
+		ObjectName:   "slashed-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(existObject, true).AnyTimes()
+
+	existBucket := &storagetypes.BucketInfo{BucketName: existObject.BucketName, Id: math.NewUint(1)}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(existBucket, true).AnyTimes()
+
+	gvg := &virtualgrouptypes.GlobalVirtualGroup{PrimarySpId: 100, SecondarySpIds: []uint32{1}}
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Any(), gomock.Any()).Return(gvg, true).AnyTimes()
+
+	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE}
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(sp, true).AnyTimes()
+
+	// Real store, not a mock: seed the exact (sp, object) pair EndBlocker
+	// will look up (GetStorageProvider/GetObjectInfoById above always return
+	// this same sp/object regardless of the queried id), so ExistsSlash short
+	// -circuits every iteration.
+	s.challengeKeeper.SaveSlash(s.ctx, types.Slash{
+		SpId:     sp.Id,
+		ObjectId: existObject.Id,
+		Height:   uint64(s.ctx.BlockHeight()), //nolint:gosec // block height is non-negative
+	})
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID)
+}
+
+func (s *TestSuite) TestEndBlocker_SkipsOnSegmentSizeError() {
+	s.storageKeeper.EXPECT().GetObjectInfoCount(gomock.Any()).Return(math.NewUint(100))
+	s.storageKeeper.EXPECT().MaxSegmentSize(gomock.Any(), gomock.Any()).
+		Return(uint64(0), errors.New("boom")).AnyTimes()
+
+	existObject := &storagetypes.ObjectInfo{
+		Id:           math.NewUint(1),
+		BucketName:   "segment-error-bucket",
+		ObjectName:   "segment-error-object",
+		ObjectStatus: storagetypes.OBJECT_STATUS_SEALED,
+		PayloadSize:  500,
+	}
+	s.storageKeeper.EXPECT().GetObjectInfoById(gomock.Any(), gomock.Any()).Return(existObject, true).AnyTimes()
+
+	existBucket := &storagetypes.BucketInfo{BucketName: existObject.BucketName, Id: math.NewUint(1)}
+	s.storageKeeper.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(existBucket, true).AnyTimes()
+
+	gvg := &virtualgrouptypes.GlobalVirtualGroup{PrimarySpId: 100, SecondarySpIds: []uint32{1}}
+	s.storageKeeper.EXPECT().GetObjectGVG(gomock.Any(), gomock.Any(), gomock.Any()).Return(gvg, true).AnyTimes()
+
+	sp := &sptypes.StorageProvider{Id: 1, Status: sptypes.STATUS_IN_SERVICE}
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).Return(sp, true).AnyTimes()
+
+	preChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().NoError(challenge.EndBlocker(s.ctx, *s.challengeKeeper))
+	afterChallengeID := s.challengeKeeper.GetChallengeId(s.ctx)
+	s.Require().True(preChallengeID == afterChallengeID)
 }

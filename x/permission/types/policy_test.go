@@ -743,3 +743,229 @@ func TestStatementValidateRuntime_EmptyResourcesSlice(t *testing.T) {
 		})
 	}
 }
+
+func TestNewMemberStatement(t *testing.T) {
+	s := types.NewMemberStatement()
+	require.Equal(t, types.EFFECT_ALLOW, s.Effect)
+	require.Nil(t, s.Resources)
+	require.Nil(t, s.Actions)
+}
+
+func TestStatement_ValidateBasic(t *testing.T) {
+	bucket := storage.GenRandomBucketName()
+	object := "report.pdf"
+
+	tests := []struct {
+		name    string
+		s       *types.Statement
+		resType resource.ResourceType
+		wantErr bool
+	}{
+		{
+			name:    "effect unspecified",
+			s:       &types.Statement{Effect: types.EFFECT_UNSPECIFIED},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+			wantErr: true,
+		},
+		{
+			name:    "resource type unspecified",
+			s:       &types.Statement{Effect: types.EFFECT_ALLOW},
+			resType: resource.RESOURCE_TYPE_UNSPECIFIED,
+			wantErr: true,
+		},
+		{
+			name: "bucket action requiring resources without resources",
+			s: &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_GET_OBJECT},
+			},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+			wantErr: true,
+		},
+		{
+			name: "bucket action not requiring resources without resources",
+			s: &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_UPDATE_BUCKET_INFO},
+			},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+		},
+		{
+			name: "bucket resource fails grn parse",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_UPDATE_BUCKET_INFO},
+				Resources: []string{"not a grn"},
+			},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+			wantErr: true,
+		},
+		{
+			name: "bucket resource valid grn",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_UPDATE_BUCKET_INFO},
+				Resources: []string{types2.NewObjectGRN(bucket, object).String()},
+			},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+		},
+		{
+			name: "object action disallowed",
+			s: &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_DELETE_GROUP},
+			},
+			resType: resource.RESOURCE_TYPE_OBJECT,
+			wantErr: true,
+		},
+		{
+			name: "object action allowed but limit size set",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_GET_OBJECT},
+				LimitSize: &common.UInt64Value{Value: 10},
+			},
+			resType: resource.RESOURCE_TYPE_OBJECT,
+			wantErr: true,
+		},
+		{
+			name: "object action allowed",
+			s: &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_GET_OBJECT},
+			},
+			resType: resource.RESOURCE_TYPE_OBJECT,
+		},
+		{
+			name: "group action disallowed",
+			s: &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_GET_OBJECT},
+			},
+			resType: resource.RESOURCE_TYPE_GROUP,
+			wantErr: true,
+		},
+		{
+			name: "group action allowed but limit size set",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_UPDATE_GROUP_INFO},
+				LimitSize: &common.UInt64Value{Value: 10},
+			},
+			resType: resource.RESOURCE_TYPE_GROUP,
+			wantErr: true,
+		},
+		{
+			name: "group action allowed",
+			s: &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_UPDATE_GROUP_INFO},
+			},
+			resType: resource.RESOURCE_TYPE_GROUP,
+		},
+		{
+			name:    "unknown resource type",
+			s:       &types.Statement{Effect: types.EFFECT_ALLOW},
+			resType: resource.ResourceType(99),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.s.ValidateBasic(tt.resType)
+			if tt.wantErr {
+				require.ErrorIs(t, err, types.ErrInvalidStatement)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestStatement_ValidateRuntime(t *testing.T) {
+	bucket := storage.GenRandomBucketName()
+
+	tests := []struct {
+		name    string
+		s       *types.Statement
+		resType resource.ResourceType
+		wantErr bool
+	}{
+		{
+			name: "bucket unparsable resource pattern",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_GET_OBJECT},
+				Resources: []string{"grn:o::" + bucket + "/obj\xff\xfe"},
+			},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+			wantErr: true,
+		},
+		{
+			name: "object resources not allowed",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_GET_OBJECT},
+				Resources: []string{"grn:o::bucket/obj"},
+			},
+			resType: resource.RESOURCE_TYPE_OBJECT,
+			wantErr: true,
+		},
+		{
+			name: "group resources not allowed",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_UPDATE_GROUP_INFO},
+				Resources: []string{"grn:o::bucket/obj"},
+			},
+			resType: resource.RESOURCE_TYPE_GROUP,
+			wantErr: true,
+		},
+		{
+			name:    "unknown resource type",
+			s:       &types.Statement{Effect: types.EFFECT_ALLOW},
+			resType: resource.ResourceType(99),
+			wantErr: true,
+		},
+		{
+			name: "bucket action not allowed after pampas",
+			s: &types.Statement{
+				Effect:  types.EFFECT_ALLOW,
+				Actions: []types.ActionType{types.ACTION_UPDATE_GROUP_INFO},
+			},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+			wantErr: true,
+		},
+		{
+			name: "bucket limit size without create object",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_GET_OBJECT},
+				LimitSize: &common.UInt64Value{Value: 10},
+			},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+			wantErr: true,
+		},
+		{
+			name: "bucket limit size with create object",
+			s: &types.Statement{
+				Effect:    types.EFFECT_ALLOW,
+				Actions:   []types.ActionType{types.ACTION_CREATE_OBJECT},
+				LimitSize: &common.UInt64Value{Value: 10},
+			},
+			resType: resource.RESOURCE_TYPE_BUCKET,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.s.ValidateRuntime(sdk.Context{}, tt.resType)
+			if tt.wantErr {
+				require.ErrorIs(t, err, types.ErrInvalidStatement)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}

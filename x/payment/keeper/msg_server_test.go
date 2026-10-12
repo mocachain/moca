@@ -110,3 +110,21 @@ func (s *TestSuite) TestUpdateParams() {
 	// verify storage
 	s.Require().Equal(params, s.paymentKeeper.GetParams(s.ctx))
 }
+
+// TestUpdateParams_SetParamsError covers the branch where the authority check
+// passes but the new params themselves fail validation, so SetParams returns an
+// error before anything is persisted.
+func (s *TestSuite) TestUpdateParams_SetParamsError() {
+	before := s.paymentKeeper.GetParams(s.ctx)
+
+	invalid := types.DefaultParams()
+	invalid.ForcedSettleTime = invalid.VersionedParams.ReserveTime // ReserveTime must be > ForcedSettleTime
+
+	msg := &types.MsgUpdateParams{
+		Authority: s.paymentKeeper.GetAuthority(),
+		Params:    invalid,
+	}
+	_, err := s.msgServer.UpdateParams(s.ctx, msg)
+	s.Require().Error(err)
+	s.Require().Equal(before, s.paymentKeeper.GetParams(s.ctx))
+}

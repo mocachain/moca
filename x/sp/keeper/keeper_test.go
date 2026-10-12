@@ -76,3 +76,11 @@ func (s *KeeperTestSuite) SetupTest() {
 func TestKeeperTestSuite(t *testing.T) {
 	suite.Run(t, new(KeeperTestSuite))
 }
+
+func (s *KeeperTestSuite) TestGetAuthority() {
+	s.Require().Equal(authtypes.NewModuleAddress(govtypes.ModuleName).String(), s.spKeeper.GetAuthority())
+}
+
+func (s *KeeperTestSuite) TestLogger() {
+	s.Require().NotNil(s.spKeeper.Logger(s.ctx))
+}
