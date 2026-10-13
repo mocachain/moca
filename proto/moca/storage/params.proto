@@ -10,6 +10,35 @@ option go_package = "github.com/mocachain/moca/v2/x/storage/types";
 message Params {
   option (amino.name) = "moca/x/storage/Params";
   option (gogoproto.goproto_stringer) = false;
+  // 3-8 and 18-65 held the cross-chain mirror relayer fees.
+  reserved 3 to 8, 18 to 65;
+  reserved "bsc_mirror_bucket_relayer_fee", "bsc_mirror_bucket_ack_relayer_fee";
+  reserved "bsc_mirror_object_relayer_fee", "bsc_mirror_object_ack_relayer_fee";
+  reserved "bsc_mirror_group_relayer_fee", "bsc_mirror_group_ack_relayer_fee";
+  reserved "op_mirror_bucket_relayer_fee", "op_mirror_bucket_ack_relayer_fee";
+  reserved "op_mirror_object_relayer_fee", "op_mirror_object_ack_relayer_fee";
+  reserved "op_mirror_group_relayer_fee", "op_mirror_group_ack_relayer_fee";
+  reserved "polygon_mirror_bucket_relayer_fee", "polygon_mirror_bucket_ack_relayer_fee";
+  reserved "polygon_mirror_object_relayer_fee", "polygon_mirror_object_ack_relayer_fee";
+  reserved "polygon_mirror_group_relayer_fee", "polygon_mirror_group_ack_relayer_fee";
+  reserved "scroll_mirror_bucket_relayer_fee", "scroll_mirror_bucket_ack_relayer_fee";
+  reserved "scroll_mirror_object_relayer_fee", "scroll_mirror_object_ack_relayer_fee";
+  reserved "scroll_mirror_group_relayer_fee", "scroll_mirror_group_ack_relayer_fee";
+  reserved "linea_mirror_bucket_relayer_fee", "linea_mirror_bucket_ack_relayer_fee";
+  reserved "linea_mirror_object_relayer_fee", "linea_mirror_object_ack_relayer_fee";
+  reserved "linea_mirror_group_relayer_fee", "linea_mirror_group_ack_relayer_fee";
+  reserved "mantle_mirror_bucket_relayer_fee", "mantle_mirror_bucket_ack_relayer_fee";
+  reserved "mantle_mirror_object_relayer_fee", "mantle_mirror_object_ack_relayer_fee";
+  reserved "mantle_mirror_group_relayer_fee", "mantle_mirror_group_ack_relayer_fee";
+  reserved "arbitrum_mirror_bucket_relayer_fee", "arbitrum_mirror_bucket_ack_relayer_fee";
+  reserved "arbitrum_mirror_object_relayer_fee", "arbitrum_mirror_object_ack_relayer_fee";
+  reserved "arbitrum_mirror_group_relayer_fee", "arbitrum_mirror_group_ack_relayer_fee";
+  reserved "optimism_mirror_bucket_relayer_fee", "optimism_mirror_bucket_ack_relayer_fee";
+  reserved "optimism_mirror_object_relayer_fee", "optimism_mirror_object_ack_relayer_fee";
+  reserved "optimism_mirror_group_relayer_fee", "optimism_mirror_group_ack_relayer_fee";
+  reserved "base_mirror_bucket_relayer_fee", "base_mirror_bucket_ack_relayer_fee";
+  reserved "base_mirror_object_relayer_fee", "base_mirror_object_ack_relayer_fee";
+  reserved "base_mirror_group_relayer_fee", "base_mirror_group_ack_relayer_fee";
   VersionedParams versioned_params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
 
   // max_payload_size is the maximum size of the payload, default: 2G
