@@ -18,6 +18,7 @@ export EVM_RPC
 EVM_CHAIN_ID=$(printf '%s' "${CHAIN_ID}" | sed -E 's/.*_([0-9]+)-.*/\1/')
 VAL0_PRIVKEY="0x${VALIDATOR0_PRIKEY}"
 CONTRACTS_DIR="$(cd "$(dirname "$0")/../contracts" && pwd)"
+PRECOMPILE_VECTORS="$(cd "$(dirname "$0")" && pwd)/testdata/standard_precompiles.txt"
 RPC_NODE="tcp://localhost:26657"
 CT_RPC="${COMETBFT_RPC_URL:-http://localhost:26657}"
 NUM_EXPECT="${NUM_VALIDATORS:-4}"
@@ -143,6 +144,61 @@ test_evm_block_production() {
         return 1
     fi
     return 0
+}
+
+# ── Standard Ethereum precompiles 0x01-0x11 ──────────────────────────────────
+# cosmos/evm resolves every callee through the app's static precompile map, and
+# moca fills that map by hand (app.go mocaStaticPrecompiles). A wiring slip there
+# takes ecrecover, sha256, modexp, KZG and BLS away from every contract on the
+# chain while transfers and ERC20 calls stay green. The in-process unit test
+# covers the map; this drives the live node: eth_call each standard address with
+# go-ethereum's own known-answer vectors and require the exact return data,
+# including the fork-gated Cancun (0x0a) and Prague (0x0b-0x11) entries. Every
+# vector runs so one failure report names all broken addresses.
+test_evm_standard_precompiles() {
+    local addr src input expected actual err full_addr i attempt missing fail=0
+    local seen=() errf
+    if [ ! -f "$PRECOMPILE_VECTORS" ]; then
+        log_error "missing precompile vectors: ${PRECOMPILE_VECTORS}"
+        return 1
+    fi
+    errf=$(mktemp)
+    while read -r addr src input expected; do
+        case "$addr" in '' | '#'*) continue ;; esac
+        [ "$input" = "-" ] && input=""
+        full_addr=$(printf '0x%040x' "$((addr))")
+        # eth_call runs under the node's 5s deadline (json-rpc evm-timeout). The
+        # first KZG call on a cold node also loads the trusted setup, which can
+        # outlast that deadline on a loaded host while the node finishes it in
+        # the background, so a deadline error is retried; any answer is final.
+        for attempt in 1 2 3; do
+            actual=$(cast call "$full_addr" --data "0x${input}" --rpc-url "$EVM_RPC" 2>"$errf" | tr 'A-F' 'a-f') || actual=""
+            err=$(head -c 300 "$errf")
+            if [ -n "$actual" ] || ! printf '%s' "$err" | grep -qiE 'deadline|timeout|timed out'; then
+                break
+            fi
+            [ "$attempt" -lt 3 ] && log_warn "  ${addr} ${src}: attempt ${attempt} hit the node's deadline, retrying" && sleep 5
+        done
+        if [ "$actual" = "0x${expected}" ]; then
+            log_info "  ${addr} ${src}: ok"
+        else
+            log_error "  ${addr} ${src}: expected 0x${expected:0:32}..., got '${actual:0:160}' ${err:+(${err})}"
+            fail=1
+        fi
+        seen[addr]=1
+    done < "$PRECOMPILE_VECTORS"
+    rm -f "$errf"
+
+    # A truncated vectors file must not pass silently: 0x01..0x11 all need a row.
+    missing=""
+    for ((i = 1; i <= 17; i++)); do
+        [ -n "${seen[$i]:-}" ] || missing="${missing} $(printf '0x%02x' "$i")"
+    done
+    if [ -n "$missing" ]; then
+        log_error "no vector for standard precompile(s):${missing}"
+        return 1
+    fi
+    return "$fail"
 }
 
 test_evm_erc20() {
@@ -601,6 +657,7 @@ fw_run_test "CometBFT /status" test_cometbft_status
 fw_run_test "CometBFT /health" test_cometbft_health
 fw_run_test "EVM eth_blockNumber JSON-RPC 2.0" test_evm_jsonrpc
 fw_run_test "EVM block timestamp freshness + monotonic height" test_evm_block_production
+fw_run_test "EVM standard precompiles 0x01-0x11 known-answer calls" test_evm_standard_precompiles
 fw_run_test "EVM TestERC20 deploy + transfer" test_evm_erc20
 fw_run_test "EVM log subscription + getFilterChanges rehydration" test_evm_log_subscription
 fw_run_test "EVM eth_subscribe(logs) WebSocket transport" test_evm_ws_log_subscription
