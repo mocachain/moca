@@ -14,6 +14,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -218,6 +219,8 @@ func (s *KeeperTestSuite) createTestSP(opAddr sdk.AccAddress) *sptypes.StoragePr
 			Denom:  types.Denom,
 			Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 		},
+		ReadPrice:  math.LegacyNewDec(100),
+		StorePrice: math.LegacyNewDec(10000),
 	}
 	_, err = s.msgServer.CreateStorageProvider(s.ctx, &msg)
 	s.Require().NoError(err)
@@ -376,6 +379,8 @@ func (s *KeeperTestSuite) TestEditStorageProvider_OldIndexCleanup() {
 			Denom:  types.Denom,
 			Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 		},
+		ReadPrice:  math.LegacyNewDec(100),
+		StorePrice: math.LegacyNewDec(10000),
 	})
 	s.Require().NoError(err)
 }
@@ -437,6 +442,8 @@ func (s *KeeperTestSuite) newValidCreateMsg() *sptypes.MsgCreateStorageProvider 
 			Denom:  types.Denom,
 			Amount: types.NewIntFromInt64WithDecimal(10000, types.DecimalMOCA),
 		},
+		ReadPrice:  math.LegacyNewDec(100),
+		StorePrice: math.LegacyNewDec(10000),
 	}
 }
 
@@ -1066,4 +1073,94 @@ func (s *KeeperTestSuite) TestMsgUpdateSpStatus_ToInService_Success() {
 	got, found := s.spKeeper.GetStorageProvider(s.ctx, sp.Id)
 	s.Require().True(found)
 	s.Require().Equal(sptypes.STATUS_IN_SERVICE, got.Status)
+}
+
+// CreateStorageProvider rejects a nil price or one above the max_sp_price param, and stores
+// no storage provider when it does.
+func (s *KeeperTestSuite) TestCreateStorageProvider_MaxSpPrice() {
+	maxPrice := s.spKeeper.GetParams(s.ctx).MaxSpPrice
+	above := maxPrice.Add(math.LegacySmallestDec())
+	s.bankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	tests := []struct {
+		name                  string
+		readPrice, storePrice math.LegacyDec
+		wantErr               error
+	}{
+		{"read price above the max", above, math.LegacyZeroDec(), sptypes.ErrStorageProviderPriceExceedsMax},
+		{"store price above the max", math.LegacyZeroDec(), above, sptypes.ErrStorageProviderPriceExceedsMax},
+		{"nil read price", math.LegacyDec{}, math.LegacyZeroDec(), sdkerrors.ErrInvalidRequest},
+		{"nil store price", math.LegacyZeroDec(), math.LegacyDec{}, sdkerrors.ErrInvalidRequest},
+		{"prices at the max", maxPrice, maxPrice, nil},
+	}
+	for _, tc := range tests {
+		s.Suite.T().Run(tc.name, func(t *testing.T) {
+			msg := s.newValidCreateMsg()
+			msg.ReadPrice, msg.StorePrice = tc.readPrice, tc.storePrice
+			_, err := s.msgServer.CreateStorageProvider(s.ctx, msg)
+
+			_, found := s.spKeeper.GetStorageProviderByOperatorAddr(s.ctx, sdk.MustAccAddressFromHex(msg.SpAddress))
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				require.False(t, found)
+				return
+			}
+			require.NoError(t, err)
+			require.True(t, found)
+		})
+	}
+}
+
+// UpdateSpStoragePrice rejects a price above the max_sp_price param and keeps the stored price.
+func (s *KeeperTestSuite) TestMsgUpdateSpStoragePrice_MaxSpPrice() {
+	sp := s.putSP(1, sptypes.STATUS_IN_SERVICE, sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress())
+	ctx := s.ctx.WithBlockTime(time.Unix(1693242061, 0)) // 2023-08-28 UTC, outside the disallowed days
+	maxPrice := s.spKeeper.GetParams(ctx).MaxSpPrice
+	above := maxPrice.Add(math.LegacySmallestDec())
+
+	_, err := s.msgServer.UpdateSpStoragePrice(ctx, &sptypes.MsgUpdateSpStoragePrice{SpAddress: sp.OperatorAddress, ReadPrice: maxPrice, StorePrice: maxPrice})
+	s.Require().NoError(err)
+
+	for _, req := range []*sptypes.MsgUpdateSpStoragePrice{
+		{SpAddress: sp.OperatorAddress, ReadPrice: above, StorePrice: math.LegacyZeroDec()},
+		{SpAddress: sp.OperatorAddress, ReadPrice: math.LegacyZeroDec(), StorePrice: above},
+	} {
+		_, err = s.msgServer.UpdateSpStoragePrice(ctx, req)
+		s.Require().ErrorIs(err, sptypes.ErrStorageProviderPriceExceedsMax)
+	}
+	_, err = s.msgServer.UpdateSpStoragePrice(ctx, &sptypes.MsgUpdateSpStoragePrice{SpAddress: sp.OperatorAddress, ReadPrice: maxPrice, StorePrice: math.LegacyDec{}})
+	s.Require().ErrorIs(err, sdkerrors.ErrInvalidRequest)
+
+	price, found := s.spKeeper.GetSpStoragePrice(ctx, sp.Id)
+	s.Require().True(found)
+	s.Require().True(maxPrice.Equal(price.ReadPrice))
+	s.Require().True(maxPrice.Equal(price.StorePrice))
+}
+
+// A governance change to max_sp_price applies from the next price update on, and leaves the
+// prices already stored as they are.
+func (s *KeeperTestSuite) TestMaxSpPrice_GovernanceUpdate() {
+	sp := s.putSP(1, sptypes.STATUS_IN_SERVICE, sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress(), sample.RandAccAddress())
+	ctx := s.ctx.WithBlockTime(time.Unix(1693242061, 0))
+	defaultMax := s.spKeeper.GetParams(ctx).MaxSpPrice
+	_, err := s.msgServer.UpdateSpStoragePrice(ctx, &sptypes.MsgUpdateSpStoragePrice{SpAddress: sp.OperatorAddress, ReadPrice: defaultMax, StorePrice: defaultMax})
+	s.Require().NoError(err)
+
+	setMax := func(v math.LegacyDec) {
+		params := s.spKeeper.GetParams(ctx)
+		params.MaxSpPrice = v
+		_, err := s.msgServer.UpdateParams(ctx, &sptypes.MsgUpdateParams{Authority: s.spKeeper.GetAuthority(), Params: params})
+		s.Require().NoError(err)
+	}
+
+	lowerMax := math.LegacyNewDec(1000)
+	setMax(lowerMax)
+	_, err = s.msgServer.UpdateSpStoragePrice(ctx, &sptypes.MsgUpdateSpStoragePrice{SpAddress: sp.OperatorAddress, ReadPrice: lowerMax, StorePrice: lowerMax.Add(math.LegacySmallestDec())})
+	s.Require().ErrorIs(err, sptypes.ErrStorageProviderPriceExceedsMax)
+	price, _ := s.spKeeper.GetSpStoragePrice(ctx, sp.Id)
+	s.Require().True(defaultMax.Equal(price.StorePrice), "a lower max does not rewrite a stored price")
+
+	setMax(sptypes.MaxSpPriceCeiling)
+	_, err = s.msgServer.UpdateSpStoragePrice(ctx, &sptypes.MsgUpdateSpStoragePrice{SpAddress: sp.OperatorAddress, ReadPrice: defaultMax, StorePrice: sptypes.MaxSpPriceCeiling})
+	s.Require().NoError(err)
 }

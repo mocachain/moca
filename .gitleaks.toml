@@ -24,6 +24,8 @@ stopwords = [
     '''mcpub1addwnpepqgcxazmq6wgt2j4rdfumsfwla0zfk8e5sws3p3zg5dkm9007hmfysxas0u2''',
     # example pubkey in `debug pubkey` help text (client/debug/debug.go), not a secret
     '''AurroA7jvfPd1AadmmOvWM2rJSwipXfRf8yD6pLbA2DJ''',
+    # example BLS pubkey in `create-storage-provider` help text (x/sp/client/cli/tx.go), not a secret
+    '''af8c586885a490a1775bcbef95e6162de1904777f3fb91e3bfd0ffd690fe0d477d0984f11852c64dc77d4583c99f34cb''',
 ]
 
 [[rules]]
