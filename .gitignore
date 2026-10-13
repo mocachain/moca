@@ -118,9 +118,6 @@ deployment/dockerup/send_tokens.sh
 deployment/testnet/keys.json
 
 CLAUDE.md
-e2e/local/ERC20/out/
-e2e/local/ERC20/cache/
-e2e/local/ERC20/lib/
 e2e/kind/contracts/out/
 e2e/kind/contracts/cache/
 .env

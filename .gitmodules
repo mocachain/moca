@@ -1,3 +1,0 @@
-[submodule "e2e/local/ERC20/lib/openzeppelin-contracts"]
-	path = e2e/local/ERC20/lib/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
