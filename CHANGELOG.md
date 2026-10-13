@@ -92,6 +92,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### State Machine Breaking
 
+- (storage) [#565](https://github.com/mocachain/moca/pull/565) Remove the 54 cross-chain mirror relayer-fee params (`<chain>_mirror_{bucket,object,group}[_ack]_relayer_fee` for bsc, op, polygon, scroll, linea, mantle, arbitrum, optimism and base) from x/storage `Params`; nothing has read them since the cross-chain module was removed. The `v2.0.0` upgrade already re-sets the storage params, which rewrites the stored record without them, so no migration is added. Nodes with and without this change store a different storage params record and use different gas to read it, so it has to land in a coordinated upgrade
 - (precompiles) [#554](https://github.com/mocachain/moca/pull/554) Pass the interpreter's read-only state, as well as the call's own `readOnly` flag, to `cmn.SetupABI` in every precompile that has transaction methods. Nodes with and without this change can accept a different set of transactions, so it has to land in a coordinated upgrade.
 - (evm) [#555](https://github.com/mocachain/moca/pull/555) Register the standard Ethereum precompiles (`0x01`-`0x11`) alongside moca's own, so contracts and `eth_call` can call them. The bank blocklist now covers all of them instead of only `0x01`-`0x09`, so funds sent to `0x0a`-`0x11` are rejected as they already are for the others
 - (deps) [#535](https://github.com/mocachain/moca/pull/535) Advance `moca-cosmos-sdk` to `e8e7664c5e`: validator operator addresses are stored canonically, the `x/gov` tally and the address and authority checks of the fork's SDK modules compare decoded addresses, and the cosmos-sdk v0.53.8 patch set is included. (MOCA-1362, MOCA-814, MOCA-1263)
@@ -121,6 +122,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### API Breaking
 
+- (storage) [#565](https://github.com/mocachain/moca/pull/565) x/storage params JSON (genesis, `MsgUpdateParams`, gRPC and REST responses) no longer has the mirror relayer-fee keys, and JSON that still has them is rejected. The storage precompile's `params()` and `queryParamsByTimestamp()` return a `Params` tuple without the bsc, op and polygon fee members; the selectors are unchanged
 - (sdk) [#472](https://github.com/mocachain/moca/pull/472) Drop the `WithWebSocketClient` option from `sdk/client`, which routed every chain RPC over `moca-cometbft`'s fork-only `rpc/client/http/v2` websocket client; the default HTTP client is unchanged. No consumer used it: moca-go-sdk drops the matching `UseWebSocketConn` option in mocachain/moca-go-sdk#32 and the cometbft package is removed in mocachain/moca-cometbft#36
 
 ### Client Breaking

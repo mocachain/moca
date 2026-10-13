@@ -174,18 +174,6 @@ struct Params {
     VersionedParams versionedParams;
     // maxPayloadSize is the maximum size of the payload, default: 2G
     uint64 maxPayloadSize;
-    // relayer fee for the mirror bucket tx to bsc
-    string bscMirrorBucketRelayerFee;
-    // relayer fee for the ACK or FAIL_ACK package of the mirror bucket tx to bsc
-    string bscMirrorBucketAckRelayerFee;
-    // relayer fee for the mirror object tx to bsc
-    string bscMirrorObjectRelayerFee;
-    // Relayer fee for the ACK or FAIL_ACK package of the mirror object tx to bsc
-    string bscMirrorObjectAckRelayerFee;
-    // relayer fee for the mirror object tx to bsc
-    string bscMirrorGroupRelayerFee;
-    // Relayer fee for the ACK or FAIL_ACK package of the mirror object tx to bsc
-    string bscMirrorGroupAckRelayerFee;
     // The maximum number of buckets that can be created per account
     uint32 maxBucketsPerAccount;
     // The window to count the discontinued objects or buckets
@@ -204,24 +192,7 @@ struct Params {
     uint64 minQuotaUpdateInterval;
     // the max number of local virtual group per bucket
     uint32 maxLocalVirtualGroupNumPerBucket;
-    // relayer fee for the mirror bucket tx to op chain
-    string opMirrorBucketRelayerFee;
-    // relayer fee for the ACK or FAIL_ACK package of the mirror bucket tx to op chain
-    string opMirrorBucketAckRelayerFee;
-    // relayer fee for the mirror object tx to op chain
-    string opMirrorObjectRelayerFee;
-    // Relayer fee for the ACK or FAIL_ACK package of the mirror object tx to op chain
-    string opMirrorObjectAckRelayerFee;
-    // relayer fee for the mirror object tx to op chain
-    string opMirrorGroupRelayerFee;
-    // Relayer fee for the ACK or FAIL_ACK package of the mirror object tx to op chain
-    string opMirrorGroupAckRelayerFee;
-    // relayer fee for the mirror bucket tx to polygon chain
-    string polygonMirrorBucketRelayerFee;
-    // relayer fee for the ACK or FAIL_ACK package of the mirror bucket tx to polygon chain
-    string polygonMirrorBucketAckRelayerFee;
 }
-// Add the rest of the fields similarly
 
 // VersionedParams defines the parameters for the storage module with multi version, each version store with different timestamp.
 struct VersionedParams {

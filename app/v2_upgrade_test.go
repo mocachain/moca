@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	precompilesstorage "github.com/mocachain/moca/v2/precompiles/storage"
@@ -289,4 +290,37 @@ func TestMigrateToV2_PreservesFiniteDiscontinueCaps(t *testing.T) {
 	got := mocaApp.StorageKeeper.GetParams(ctx)
 	require.Equal(t, customObjectMax, got.DiscontinueObjectMax, "finite object cap must be preserved")
 	require.Equal(t, customBucketMax, got.DiscontinueBucketMax, "finite bucket cap must be preserved")
+}
+
+// TestMigrateToV2_DropsMirrorRelayerFees: live chains store the storage params with the
+// 54 mirror relayer fees (fields 3-8 and 18-65), which Params no longer has; the v2
+// upgrade rewrites the record without them and keeps the other params.
+func TestMigrateToV2_DropsMirrorRelayerFees(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+
+	params := storagemoduletypes.DefaultParams()
+	params.MaxBucketsPerAccount = 77
+	legacy := mocaApp.AppCodec().MustMarshal(&params)
+	for num := protowire.Number(3); num <= 65; num++ {
+		if num > 8 && num < 18 {
+			continue
+		}
+		legacy = protowire.AppendTag(legacy, num, protowire.BytesType)
+		legacy = protowire.AppendString(legacy, "130000000000000")
+	}
+	store := ctx.KVStore(mocaApp.GetKey(storagemoduletypes.StoreKey))
+	store.Set(storagemoduletypes.ParamsKey, legacy)
+
+	require.NoError(t, mocaApp.migrateToV2(ctx))
+
+	for b := store.Get(storagemoduletypes.ParamsKey); len(b) > 0; {
+		num, typ, n := protowire.ConsumeTag(b)
+		require.GreaterOrEqual(t, n, 0)
+		require.False(t, (num >= 3 && num <= 8) || (num >= 18 && num <= 65), "field %d is still stored", num)
+		m := protowire.ConsumeFieldValue(num, typ, b[n:])
+		require.GreaterOrEqual(t, m, 0)
+		b = b[n+m:]
+	}
+	require.Equal(t, params, mocaApp.StorageKeeper.GetParams(ctx))
 }
