@@ -143,6 +143,23 @@ func TestAppModule_RegisterServices(t *testing.T) {
 	require.NotNil(t, queryRouter.Route("/moca.sp.Query/Params"), "Query/Params should be routed after RegisterServices")
 }
 
+// TestAppModule_RegisterServices_MigrationConflictPanics checks RegisterServices panics
+// rather than dropping its v1->v2 migration when that slot is already taken.
+func TestAppModule_RegisterServices_MigrationConflictPanics(t *testing.T) {
+	k, _, cdc, accountKeeper, bankKeeper := makeModuleKeeper(t)
+	am := sp.NewAppModule(cdc, *k, accountKeeper, bankKeeper)
+
+	encCfg := moduletestutil.MakeTestEncodingConfig(mint.AppModuleBasic{}, sp.AppModuleBasic{})
+	msgRouter := baseapp.NewMsgServiceRouter()
+	queryRouter := baseapp.NewGRPCQueryRouter()
+	msgRouter.SetInterfaceRegistry(encCfg.InterfaceRegistry)
+	queryRouter.SetInterfaceRegistry(encCfg.InterfaceRegistry)
+	cfg := module.NewConfigurator(cdc, msgRouter, queryRouter)
+	require.NoError(t, cfg.RegisterMigration(types.ModuleName, 1, func(sdk.Context) error { return nil }))
+
+	require.Panics(t, func() { am.RegisterServices(cfg) })
+}
+
 func TestAppModule_RegisterInvariants(t *testing.T) {
 	k, _, cdc, accountKeeper, bankKeeper := makeModuleKeeper(t)
 	am := sp.NewAppModule(cdc, *k, accountKeeper, bankKeeper)
@@ -154,7 +171,7 @@ func TestAppModule_ConsensusVersion(t *testing.T) {
 	k, _, cdc, accountKeeper, bankKeeper := makeModuleKeeper(t)
 	am := sp.NewAppModule(cdc, *k, accountKeeper, bankKeeper)
 
-	require.Equal(t, uint64(1), am.ConsensusVersion())
+	require.Equal(t, uint64(2), am.ConsensusVersion())
 }
 
 func TestAppModule_MarkerMethods(t *testing.T) {

@@ -115,7 +115,7 @@ Regression / characterization coverage layered on top of the migration:
   from a contract; an EIP-7702 delegated EOA passes only when it signs the
   transaction itself.
 - `storage`: `createGroup` dispatch success, contract-caller rejection, failure-does-not-mutate.
-- `storageprovider`: `updateSPPrice` decode + EVM-apply dispatch.
+- `storageprovider`: `updateSPPrice` decode + EVM-apply dispatch, and rejection of a price above the `max_sp_price` param.
 - All precompiles (`readonly_test.go`): every transaction method honors the
   interpreter's read-only state and each `IsTransaction` matches its ABI; a view
   method stays callable.

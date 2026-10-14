@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/cometbft/cometbft/votepool"
@@ -107,6 +108,10 @@ func (k msgServer) CreateStorageProvider(goCtx context.Context, msg *types.MsgCr
 	depositDenom := k.DepositDenomForSP(ctx)
 	if depositDenom != msg.Deposit.GetDenom() {
 		return nil, errors.Wrapf(types.ErrInvalidDenom, "invalid coin denomination: got %s, expected %s", msg.Deposit.Denom, depositDenom)
+	}
+
+	if err := checkSpPrice(msg.ReadPrice, msg.StorePrice, k.MaxSpPrice(ctx)); err != nil {
+		return nil, err
 	}
 
 	// check the deposit authorization from the fund address to gov module account
@@ -378,6 +383,10 @@ func (k msgServer) UpdateSpStoragePrice(goCtx context.Context, msg *types.MsgUpd
 		}
 	}
 
+	if err := checkSpPrice(msg.ReadPrice, msg.StorePrice, params.MaxSpPrice); err != nil {
+		return nil, err
+	}
+
 	current := ctx.BlockTime().Unix()
 	spStorePrice := types.SpStoragePrice{
 		UpdateTimeSec: current,
@@ -389,6 +398,17 @@ func (k msgServer) UpdateSpStoragePrice(goCtx context.Context, msg *types.MsgUpd
 	k.SetSpStoragePrice(ctx, spStorePrice)
 
 	return &types.MsgUpdateSpStoragePriceResponse{}, nil
+}
+
+// checkSpPrice rejects a nil read or store price, or one above maxPrice (the max_sp_price param).
+func checkSpPrice(readPrice, storePrice, maxPrice math.LegacyDec) error {
+	if readPrice.IsNil() || storePrice.IsNil() {
+		return errors.Wrap(sdkerrors.ErrInvalidRequest, "price cannot be nil")
+	}
+	if readPrice.GT(maxPrice) || storePrice.GT(maxPrice) {
+		return errors.Wrapf(types.ErrStorageProviderPriceExceedsMax, "read price %s, store price %s, max %s", readPrice, storePrice, maxPrice)
+	}
+	return nil
 }
 
 func IsLastDaysOfTheMonth(now time.Time, days int) bool {

@@ -68,6 +68,11 @@ func TestParams_Validate(t *testing.T) {
 		{"zero historical blocks for maintenance records", func(p *types.Params) { p.NumOfHistoricalBlocksForMaintenanceRecords = 0 }, "HistoricalBlocksForMaintenanceRecords cannot be zero"},
 		{"zero maintenance duration quota", func(p *types.Params) { p.MaintenanceDurationQuota = 0 }, "MaintenanceDurationQuota cannot be zero"},
 		{"zero lockup blocks for maintenance", func(p *types.Params) { p.NumOfLockupBlocksForMaintenance = 0 }, "LockUpBlocksForMaintenance cannot be zero"},
+		{"nil max sp price", func(p *types.Params) { p.MaxSpPrice = math.LegacyDec{} }, "max sp price cannot be nil"},
+		{"zero max sp price", func(p *types.Params) { p.MaxSpPrice = math.LegacyZeroDec() }, "max sp price must be positive"},
+		{"negative max sp price", func(p *types.Params) { p.MaxSpPrice = math.LegacyNewDec(-1) }, "max sp price must be positive"},
+		{"max sp price at the ceiling", func(p *types.Params) { p.MaxSpPrice = types.MaxSpPriceCeiling }, ""},
+		{"max sp price above the ceiling", func(p *types.Params) { p.MaxSpPrice = types.MaxSpPriceCeiling.Add(math.LegacySmallestDec()) }, "max sp price must be positive and at most"},
 	}
 
 	for _, tc := range tests {
@@ -89,4 +94,12 @@ func TestParams_Validate(t *testing.T) {
 func TestParams_String(t *testing.T) {
 	out := types.DefaultParams().String()
 	require.Contains(t, out, types.DefaultDepositDenom)
+}
+
+// TestMaxSpPriceValues pins the max_sp_price default and ceiling: the v1->v2
+// migration writes the default into the state of every existing chain.
+func TestMaxSpPriceValues(t *testing.T) {
+	require.Equal(t, "1000000000000000000.000000000000000000", types.DefaultMaxSpPrice.String())
+	require.Equal(t, "1000000000000000000000000.000000000000000000", types.MaxSpPriceCeiling.String())
+	require.True(t, types.DefaultMaxSpPrice.Equal(types.DefaultParams().MaxSpPrice))
 }
