@@ -1,10 +1,12 @@
 package app
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"math"
 	"testing"
 
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -16,6 +18,7 @@ import (
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	precompilesstorage "github.com/mocachain/moca/v2/precompiles/storage"
 	mocatypes "github.com/mocachain/moca/v2/types"
+	spmoduletypes "github.com/mocachain/moca/v2/x/sp/types"
 	storagemoduletypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
@@ -290,6 +293,33 @@ func TestMigrateToV2_PreservesFiniteDiscontinueCaps(t *testing.T) {
 	got := mocaApp.StorageKeeper.GetParams(ctx)
 	require.Equal(t, customObjectMax, got.DiscontinueObjectMax, "finite object cap must be preserved")
 	require.Equal(t, customBucketMax, got.DiscontinueBucketMax, "finite bucket cap must be preserved")
+}
+
+// TestV2UpgradeHandler_SetsMaxSpPrice applies the v2.0.0 upgrade to x/sp params stored at
+// consensus version 1, as live chains store them, and checks it sets max_sp_price.
+func TestV2UpgradeHandler_SetsMaxSpPrice(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false).WithBlockHeight(100)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
+
+	// x/sp params as a version-1 chain stores them (mainnet's record), without max_sp_price.
+	v1, err := hex.DecodeString("0a05616d6f6361121731303030303030303030303030303030303030303030301a123132303030303030303030303030303030302080de3428e0a80130e0a8013801")
+	require.NoError(t, err)
+	ctx.KVStore(mocaApp.GetKey(spmoduletypes.StoreKey)).Set(spmoduletypes.ParamsKey, v1)
+	require.True(t, mocaApp.SpKeeper.GetParams(ctx).MaxSpPrice.IsNil())
+
+	fromVM := mocaApp.mm.GetVersionMap()
+	fromVM[spmoduletypes.ModuleName] = 1
+	fromVM[storagemoduletypes.ModuleName] = 1
+	require.NoError(t, mocaApp.UpgradeKeeper.SetModuleVersionMap(ctx, fromVM))
+	require.NoError(t, mocaApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v2.0.0", Height: ctx.BlockHeight()}))
+
+	toVM, err := mocaApp.UpgradeKeeper.GetModuleVersionMap(ctx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), toVM[spmoduletypes.ModuleName])
+	params := mocaApp.SpKeeper.GetParams(ctx)
+	require.True(t, spmoduletypes.DefaultMaxSpPrice.Equal(params.MaxSpPrice))
+	require.NoError(t, params.Validate())
 }
 
 // TestMigrateToV2_DropsMirrorRelayerFees: live chains store the storage params with the

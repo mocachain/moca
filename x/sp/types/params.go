@@ -34,6 +34,10 @@ var (
 	DefaultMinDeposit = math.NewIntFromBigInt(new(big.Int).Mul(big.NewInt(10000), big.NewInt(1e18)))
 	// DefaultSecondarySpStorePriceRatio is 12%
 	DefaultSecondarySpStorePriceRatio = math.LegacyNewDecFromIntWithPrec(math.NewInt(12), 2)
+	// DefaultMaxSpPrice is 10^18 amoca (1 MOCA) per charge byte
+	DefaultMaxSpPrice = math.LegacyNewDecFromInt(math.NewIntWithDecimal(1, 18))
+	// MaxSpPriceCeiling is the highest value max_sp_price can be set to: 10^24 amoca per charge byte
+	MaxSpPriceCeiling = math.LegacyNewDecFromInt(math.NewIntWithDecimal(1, 24))
 )
 
 var (
@@ -50,7 +54,7 @@ var (
 // NewParams creates a new Params instance
 func NewParams(depositDenom string, minDeposit math.Int, secondarySpStorePriceRatio math.LegacyDec,
 	historicalBlocksForMaintenanceRecords, maintenanceDurationQuota, lockUpBlocksForMaintenance int64,
-	updateGlobalPriceInterval uint64, updatePriceDisallowedDays uint32,
+	updateGlobalPriceInterval uint64, updatePriceDisallowedDays uint32, maxSpPrice math.LegacyDec,
 ) Params {
 	return Params{
 		DepositDenom:               depositDenom,
@@ -61,6 +65,7 @@ func NewParams(depositDenom string, minDeposit math.Int, secondarySpStorePriceRa
 		NumOfLockupBlocksForMaintenance:            lockUpBlocksForMaintenance,
 		UpdateGlobalPriceInterval:                  updateGlobalPriceInterval,
 		UpdatePriceDisallowedDays:                  updatePriceDisallowedDays,
+		MaxSpPrice:                                 maxSpPrice,
 	}
 }
 
@@ -68,7 +73,7 @@ func NewParams(depositDenom string, minDeposit math.Int, secondarySpStorePriceRa
 func DefaultParams() Params {
 	return NewParams(DefaultDepositDenom, DefaultMinDeposit, DefaultSecondarySpStorePriceRatio,
 		DefaultNumOfHistoricalBlocksForMaintenanceRecords, DefaultMaintenanceDurationQuota, DefaultNumOfLockUpBlocksForMaintenance,
-		DefaultUpdateGlobalPriceInterval, DefaultUpdatePriceDisallowedDays)
+		DefaultUpdateGlobalPriceInterval, DefaultUpdatePriceDisallowedDays, DefaultMaxSpPrice)
 }
 
 // Validate validates the set of params
@@ -97,6 +102,9 @@ func (p Params) Validate() error {
 		return err
 	}
 	if err := validateUpdatePriceDisallowedDays(p.UpdatePriceDisallowedDays); err != nil {
+		return err
+	}
+	if err := validateMaxSpPrice(p.MaxSpPrice); err != nil {
 		return err
 	}
 
@@ -205,6 +213,20 @@ func validateUpdatePriceDisallowedDays(i interface{}) error {
 	_, ok := i.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	return nil
+}
+
+func validateMaxSpPrice(i interface{}) error {
+	v, ok := i.(math.LegacyDec)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	if v.IsNil() {
+		return errors.New("max sp price cannot be nil")
+	}
+	if !v.IsPositive() || v.GT(MaxSpPriceCeiling) {
+		return fmt.Errorf("max sp price must be positive and at most %s: %s", MaxSpPriceCeiling, v)
 	}
 	return nil
 }

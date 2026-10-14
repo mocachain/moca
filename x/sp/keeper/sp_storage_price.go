@@ -127,7 +127,9 @@ func (k Keeper) calculateMedian(prices []math.LegacyDec) math.LegacyDec {
 	sort.Slice(prices, func(i, j int) bool { return prices[i].LT(prices[j]) })
 	var median math.LegacyDec
 	if l%2 == 0 {
-		median = prices[l/2-1].Add(prices[l/2]).QuoInt64(2)
+		// lo + (hi-lo)/2 equals (lo+hi)/2 for sorted, non-negative prices
+		lo, hi := prices[l/2-1], prices[l/2]
+		median = lo.Add(hi.Sub(lo).QuoInt64(2))
 	} else {
 		median = prices[l/2]
 	}

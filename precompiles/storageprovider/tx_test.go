@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -76,6 +78,9 @@ func (s *PrecompileTestSuite) SetupTest() {
 	// fund the account
 	err = testutil.FundAccountWithBaseDenom(s.ctx, s.app.BankKeeper, accAddr, 1_000_000_000_000)
 	s.Require().NoError(err)
+
+	// EthSetup leaves sp params zero-valued, so install defaults for the max_sp_price check.
+	s.Require().NoError(s.app.SpKeeper.SetParams(s.ctx, sptypes.DefaultParams()))
 }
 
 // TestUpdateSPPrice exercises the production updateSPPrice precompile decode +
@@ -208,4 +213,64 @@ func (s *PrecompileTestSuite) TestUpdateSPPrice_EVMApply() {
 	s.Require().Equal(math.LegacyNewDecFromBigIntWithPrec(newReadPrice, math.LegacyPrecision).String(), spPrice.ReadPrice.String(), "read price updated via EVM dispatch")
 	s.Require().Equal(math.LegacyNewDecFromBigIntWithPrec(newStorePrice, math.LegacyPrecision).String(), spPrice.StorePrice.String(), "store price updated via EVM dispatch")
 	s.Require().Equal(freeReadQuota, spPrice.FreeReadQuota, "free read quota updated via EVM dispatch")
+}
+
+// TestUpdateSPPrice_EVMApplyAboveMax sends updateSPPrice through the EVM keeper
+// with a store price one step above the max_sp_price param and checks the call
+// reverts without storing a price, then that a price equal to it goes through.
+func (s *PrecompileTestSuite) TestUpdateSPPrice_EVMApplyAboveMax() {
+	spAddr := sdk.AccAddress(s.address.Bytes()).String()
+	sp := sptypes.StorageProvider{
+		OperatorAddress: spAddr,
+		FundingAddress:  spAddr,
+		SealAddress:     spAddr,
+		ApprovalAddress: spAddr,
+		GcAddress:       spAddr,
+		Status:          sptypes.STATUS_IN_SERVICE,
+		TotalDeposit:    math.NewInt(1000),
+	}
+	s.app.SpKeeper.SetStorageProvider(s.ctx, &sp)
+	s.app.SpKeeper.SetStorageProviderByOperatorAddr(s.ctx, &sp)
+
+	evmParams := s.app.EvmKeeper.GetParams(s.ctx)
+	evmParams.EvmDenom = utils.BaseDenom
+	evmParams.ActiveStaticPrecompiles = app.MocaActiveStaticPrecompiles()
+	s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, evmParams))
+
+	// Lower max_sp_price well below its default, so only a check against the param rejects the call.
+	params := s.app.SpKeeper.GetParams(s.ctx)
+	params.MaxSpPrice = math.LegacyNewDec(10)
+	s.Require().NoError(s.app.SpKeeper.SetParams(s.ctx, params))
+
+	// The precompile takes prices as LegacyDec's raw 18-decimal integer.
+	storePrice := new(big.Int).Add(params.MaxSpPrice.BigInt(), big.NewInt(1))
+	method := storageprovider.GetAbiMethod(storageprovider.UpdateSPPriceMethodName)
+	packedArgs, err := method.Inputs.Pack(big.NewInt(1), uint64(0), storePrice)
+	s.Require().NoError(err)
+	input := append(append([]byte{}, method.ID...), packedArgs...)
+
+	precompileAddr := storageprovider.GetAddress()
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
+	s.Require().True(err != nil || res.Failed(), "updateSPPrice above max_sp_price should revert")
+	s.Require().NotNil(res)
+	reason, err := abi.UnpackRevert(res.Ret)
+	s.Require().NoError(err)
+	s.Require().Contains(reason, sptypes.ErrStorageProviderPriceExceedsMax.Error())
+
+	// The reverted call leaves the infinite gas meter fully consumed, so reset it before reading state.
+	s.ctx = s.ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	_, found := s.app.SpKeeper.GetSpStoragePrice(s.ctx, sp.Id)
+	s.Require().False(found, "no price should be stored")
+
+	packedArgs, err = method.Inputs.Pack(big.NewInt(1), uint64(0), params.MaxSpPrice.BigInt())
+	s.Require().NoError(err)
+	input = append(append([]byte{}, method.ID...), packedArgs...)
+	stateDB = statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	res, err = s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
+	s.Require().NoError(err)
+	s.Require().False(res.Failed(), "evm call reverted: %s", res.VmError)
+	spPrice, found := s.app.SpKeeper.GetSpStoragePrice(s.ctx, sp.Id)
+	s.Require().True(found, "storage provider price should exist")
+	s.Require().True(params.MaxSpPrice.Equal(spPrice.StorePrice), "store price equal to max_sp_price is stored")
 }
