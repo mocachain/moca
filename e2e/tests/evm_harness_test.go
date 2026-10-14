@@ -102,6 +102,13 @@ func dialChain(t *testing.T) (*ethclient.Client, *grpc.ClientConn) {
 // precompile address, waits for it to be mined, and asserts success.
 func sendPrecompileTx(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, key *ecdsa.PrivateKey, to common.Address, calldata []byte) {
 	t.Helper()
+	sendPrecompileTxReceipt(ctx, t, client, chainID, key, to, calldata)
+}
+
+// sendPrecompileTxReceipt is sendPrecompileTx for callers that also need the
+// mined receipt, e.g. to account for the gas the tx itself charged.
+func sendPrecompileTxReceipt(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, key *ecdsa.PrivateKey, to common.Address, calldata []byte) *types.Receipt {
+	t.Helper()
 	from := crypto.PubkeyToAddress(key.PublicKey)
 
 	nonce, err := client.PendingNonceAt(ctx, from)
@@ -152,6 +159,87 @@ func sendPrecompileTx(ctx context.Context, t *testing.T, client *ethclient.Clien
 			From: from, To: &to, Data: calldata,
 		}, receipt.BlockNumber)
 		t.Fatalf("tx %s reverted; revert reason: %v", signedTx.Hash(), callErr)
+	}
+	return receipt
+}
+
+// revertGasLimit is the fixed gas limit for a tx that is expected to revert:
+// estimation itself fails for such a call, so there is nothing to size it by.
+const revertGasLimit = 2_000_000
+
+// sendPrecompileTxExpectRevert sends calldata as a real signed tx, requires it
+// to be mined as a failure, and returns the revert reason the node reports
+// when the same call is re-simulated at that block -- the EVM-tx counterpart
+// of the retired suite's SendTxBlockWithExpectErrorString.
+func sendPrecompileTxExpectRevert(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, key *ecdsa.PrivateKey, to common.Address, calldata []byte) string {
+	t.Helper()
+	from := crypto.PubkeyToAddress(key.PublicKey)
+
+	nonce, err := client.PendingNonceAt(ctx, from)
+	require.NoError(t, err)
+	tipCap, err := client.SuggestGasTipCap(ctx)
+	require.NoError(t, err)
+	header, err := client.HeaderByNumber(ctx, nil)
+	require.NoError(t, err)
+	feeCap := new(big.Int).Add(tipCap, new(big.Int).Mul(header.BaseFee, big.NewInt(2)))
+
+	tx := types.NewTx(&types.DynamicFeeTx{
+		ChainID:   chainID,
+		Nonce:     nonce,
+		GasTipCap: tipCap,
+		GasFeeCap: feeCap,
+		Gas:       revertGasLimit,
+		To:        &to,
+		Data:      calldata,
+	})
+	signedTx, err := types.SignTx(tx, types.LatestSignerForChainID(chainID), key)
+	require.NoError(t, err)
+	require.NoError(t, client.SendTransaction(ctx, signedTx))
+
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	receipt, err := bind.WaitMined(waitCtx, client, signedTx)
+	require.NoError(t, err)
+	require.Equal(t, types.ReceiptStatusFailed, receipt.Status, "tx %s was expected to revert but succeeded", signedTx.Hash())
+
+	_, callErr := client.CallContract(ctx, ethereum.CallMsg{From: from, To: &to, Data: calldata}, receipt.BlockNumber)
+	require.Error(t, callErr, "re-simulating reverted tx %s should surface its revert reason", signedTx.Hash())
+	return callErr.Error()
+}
+
+// txGasCost returns the fee a mined tx charged its sender: gas used times the
+// effective gas price the node reports in the receipt.
+func txGasCost(t *testing.T, receipt *types.Receipt) *big.Int {
+	t.Helper()
+	require.NotNil(t, receipt.EffectiveGasPrice, "receipt for %s carries no effectiveGasPrice", receipt.TxHash)
+	return new(big.Int).Mul(new(big.Int).SetUint64(receipt.GasUsed), receipt.EffectiveGasPrice)
+}
+
+// nativeBalance returns addr's native-token balance at the latest block.
+func nativeBalance(ctx context.Context, t *testing.T, client *ethclient.Client, addr common.Address) *big.Int {
+	t.Helper()
+	balance, err := client.BalanceAt(ctx, addr, nil)
+	require.NoError(t, err)
+	return balance
+}
+
+// latestBlockTime returns the latest block's timestamp, the clock x/permission
+// expiry and x/payment time locks are judged against.
+func latestBlockTime(ctx context.Context, t *testing.T, client *ethclient.Client) int64 {
+	t.Helper()
+	header, err := client.HeaderByNumber(ctx, nil)
+	require.NoError(t, err)
+	return int64(header.Time) //nolint:gosec // block timestamps are far below MaxInt64
+}
+
+// waitForBlockTime polls once per second until the latest block's timestamp
+// is strictly after the given unix time.
+func waitForBlockTime(ctx context.Context, t *testing.T, client *ethclient.Client, after int64) {
+	t.Helper()
+	deadline := time.Now().Add(time.Duration(after-time.Now().Unix()+30) * time.Second)
+	for latestBlockTime(ctx, t, client) <= after {
+		require.False(t, time.Now().After(deadline), "block time did not pass %d within the wait budget", after)
+		time.Sleep(time.Second)
 	}
 }
 
