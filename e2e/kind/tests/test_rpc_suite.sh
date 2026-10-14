@@ -146,7 +146,7 @@ test_evm_block_production() {
 }
 
 test_evm_erc20() {
-    local artifact bytecode enc full deploy_out addr sym supply alice_key alice_addr bob_key bob_addr b_alice
+    local artifact bytecode enc full deploy_out addr sym supply alice_key alice_addr bob_key bob_addr b_alice b_bob
     (cd "$CONTRACTS_DIR" && forge build --quiet) || {
         log_error "forge build TestERC20 failed"
         return 1
@@ -213,6 +213,9 @@ test_evm_erc20() {
     mint_hash=$(echo "$mint_out" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -n "$mint_hash" ] && fw_wait_evm_tx "$mint_hash" 10 "$EVM_RPC"
 
+    supply=$(_rpc_evm_call "$addr" "totalSupply()(uint256)" | awk '{print $1}')
+    assert_eq "$supply" "1000000000000000000000" "ERC20 totalSupply after mint"
+
     local xfer_out xfer_hash
     xfer_out=$(cast send "$addr" "transfer(address,uint256)" "$bob_addr" "100000000000000000000" \
         --private-key "$alice_key" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) \
@@ -220,9 +223,12 @@ test_evm_erc20() {
     xfer_hash=$(echo "$xfer_out" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -n "$xfer_hash" ] && fw_wait_evm_tx "$xfer_hash" 10 "$EVM_RPC"
 
+    # Exact balances on both sides: a mined transfer with receipt status 0x1 can still
+    # have moved the wrong amount, and only the receiver's balance proves it arrived.
     b_alice=$(cast call "$addr" "balanceOf(address)(uint256)" "$alice_addr" --rpc-url "$EVM_RPC" 2>/dev/null | awk '{print $1}' || echo "")
-    assert_not_empty "$b_alice" "Alice balanceOf after transfer"
-    assert_gt "$b_alice" "0" "Alice ERC20 balance after transfer"
+    assert_eq "$b_alice" "900000000000000000000" "Alice ERC20 balance after transfer"
+    b_bob=$(cast call "$addr" "balanceOf(address)(uint256)" "$bob_addr" --rpc-url "$EVM_RPC" 2>/dev/null | awk '{print $1}' || echo "")
+    assert_eq "$b_bob" "100000000000000000000" "Bob ERC20 balance after transfer"
     return 0
 }
 
