@@ -220,6 +220,7 @@ make e2e-fw-test TEST=rpc_suite
 | `eth_blockNumber` JSON-RPC 2.0 | `RPC/rpc.sh` jsonrpc |
 | EVM block timestamp + monotonic height | `RPC/rpc.sh` blocks |
 | Forge `TestERC20` deploy + transfer | `RPC/rpc.sh` erc20 |
+| Standard Ethereum precompiles 0x01-0x11, known-answer `eth_call`s | n/a (moca-only: guards the hand-built precompile map in `app.go`) |
 | Validator operator `bank` balances | `check-validators.sh` balances |
 | Staking validators count + moniker | `check-validators.sh` validators |
 

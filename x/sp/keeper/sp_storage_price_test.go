@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"math/big"
 	"reflect"
 	"testing"
 	"time"
@@ -175,4 +176,48 @@ func (s *KeeperTestSuite) TestUpdateGlobalSpStorePriceMedian() {
 	got2, err := k.GetGlobalSpStorePriceByTime(ctx2, ctx2.BlockTime().Unix()+1)
 	require.NoError(s.T(), err)
 	require.True(s.T(), math.LegacyNewDec(25).Equal(got2.PrimaryStorePrice))
+}
+
+// TestUpdateGlobalSpStorePriceMedianExtremes checks the two-price median at the
+// smallest LegacyDec step and at the largest LegacyDec value.
+func (s *KeeperTestSuite) TestUpdateGlobalSpStorePriceMedianExtremes() {
+	k := s.spKeeper
+	ctx := s.ctx.WithBlockTime(time.Unix(5000, 0))
+	for _, id := range []uint32{300, 301} {
+		k.SetStorageProvider(ctx, &types.StorageProvider{
+			Id:              id,
+			OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String(),
+			Status:          types.STATUS_IN_SERVICE,
+		})
+	}
+
+	// 2^256 - 10^-18, the largest value a LegacyDec can hold.
+	limit := new(big.Int).Sub(new(big.Int).Mul(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1e18)), big.NewInt(1))
+	maxDec := math.LegacyNewDecFromBigIntWithPrec(limit, math.LegacyPrecision)
+	ulp := math.LegacySmallestDec()
+
+	tests := []struct {
+		name   string
+		lo, hi math.LegacyDec
+		want   math.LegacyDec
+	}{
+		{"half step truncates", ulp, ulp.MulInt64(4), ulp.MulInt64(2)},
+		{"largest value and one below it", maxDec.Sub(ulp), maxDec, maxDec.Sub(ulp)},
+		{"both at the largest value", maxDec, maxDec, maxDec},
+	}
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			ctx = ctx.WithBlockTime(ctx.BlockTime().Add(time.Second))
+			k.SetSpStoragePrice(ctx, types.SpStoragePrice{SpId: 300, ReadPrice: tc.lo, StorePrice: tc.lo})
+			k.SetSpStoragePrice(ctx, types.SpStoragePrice{SpId: 301, ReadPrice: tc.hi, StorePrice: tc.hi})
+
+			s.Require().NoError(k.UpdateGlobalSpStorePrice(ctx))
+
+			got, err := k.GetGlobalSpStorePriceByTime(ctx, ctx.BlockTime().Unix()+1)
+			s.Require().NoError(err)
+			s.Require().True(tc.want.Equal(got.PrimaryStorePrice), "primary store price %s", got.PrimaryStorePrice)
+			s.Require().True(tc.want.Equal(got.ReadPrice), "read price %s", got.ReadPrice)
+			s.Require().True(types.DefaultSecondarySpStorePriceRatio.Mul(tc.want).Equal(got.SecondaryStorePrice))
+		})
+	}
 }

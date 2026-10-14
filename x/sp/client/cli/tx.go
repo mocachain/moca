@@ -728,6 +728,7 @@ func CmdUpdateStorageProviderStoragePrice() *cobra.Command {
 The unit of price is a decimal, which indicates wei amoca per byte per second. 
 E.g. the price is 0.02183945725, means approximately $0.018 / GB / Month. 
 (0.02183945725 * (30 * 86400) * (1024 * 1024 * 1024) * 300 / 10 ** 18 ≈ 0.018, assume the amoca price is 300 USD)
+Each price can be at most the max_sp_price param (10^18, i.e. 1 moca per byte per second, by default).
 
 The free-read-quota unit is bytes, for 1GB free quota, it is 1073741824.
 

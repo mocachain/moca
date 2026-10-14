@@ -1,20 +1,24 @@
 package app
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"math"
 	"testing"
 
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	precompilesstorage "github.com/mocachain/moca/v2/precompiles/storage"
 	mocatypes "github.com/mocachain/moca/v2/types"
+	spmoduletypes "github.com/mocachain/moca/v2/x/sp/types"
 	storagemoduletypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
@@ -289,4 +293,64 @@ func TestMigrateToV2_PreservesFiniteDiscontinueCaps(t *testing.T) {
 	got := mocaApp.StorageKeeper.GetParams(ctx)
 	require.Equal(t, customObjectMax, got.DiscontinueObjectMax, "finite object cap must be preserved")
 	require.Equal(t, customBucketMax, got.DiscontinueBucketMax, "finite bucket cap must be preserved")
+}
+
+// TestV2UpgradeHandler_SetsMaxSpPrice applies the v2.0.0 upgrade to x/sp params stored at
+// consensus version 1, as live chains store them, and checks it sets max_sp_price.
+func TestV2UpgradeHandler_SetsMaxSpPrice(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false).WithBlockHeight(100)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
+
+	// x/sp params as a version-1 chain stores them (mainnet's record), without max_sp_price.
+	v1, err := hex.DecodeString("0a05616d6f6361121731303030303030303030303030303030303030303030301a123132303030303030303030303030303030302080de3428e0a80130e0a8013801")
+	require.NoError(t, err)
+	ctx.KVStore(mocaApp.GetKey(spmoduletypes.StoreKey)).Set(spmoduletypes.ParamsKey, v1)
+	require.True(t, mocaApp.SpKeeper.GetParams(ctx).MaxSpPrice.IsNil())
+
+	fromVM := mocaApp.mm.GetVersionMap()
+	fromVM[spmoduletypes.ModuleName] = 1
+	fromVM[storagemoduletypes.ModuleName] = 1
+	require.NoError(t, mocaApp.UpgradeKeeper.SetModuleVersionMap(ctx, fromVM))
+	require.NoError(t, mocaApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v2.0.0", Height: ctx.BlockHeight()}))
+
+	toVM, err := mocaApp.UpgradeKeeper.GetModuleVersionMap(ctx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), toVM[spmoduletypes.ModuleName])
+	params := mocaApp.SpKeeper.GetParams(ctx)
+	require.True(t, spmoduletypes.DefaultMaxSpPrice.Equal(params.MaxSpPrice))
+	require.NoError(t, params.Validate())
+}
+
+// TestMigrateToV2_DropsMirrorRelayerFees: live chains store the storage params with the
+// 54 mirror relayer fees (fields 3-8 and 18-65), which Params no longer has; the v2
+// upgrade rewrites the record without them and keeps the other params.
+func TestMigrateToV2_DropsMirrorRelayerFees(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+
+	params := storagemoduletypes.DefaultParams()
+	params.MaxBucketsPerAccount = 77
+	legacy := mocaApp.AppCodec().MustMarshal(&params)
+	for num := protowire.Number(3); num <= 65; num++ {
+		if num > 8 && num < 18 {
+			continue
+		}
+		legacy = protowire.AppendTag(legacy, num, protowire.BytesType)
+		legacy = protowire.AppendString(legacy, "130000000000000")
+	}
+	store := ctx.KVStore(mocaApp.GetKey(storagemoduletypes.StoreKey))
+	store.Set(storagemoduletypes.ParamsKey, legacy)
+
+	require.NoError(t, mocaApp.migrateToV2(ctx))
+
+	for b := store.Get(storagemoduletypes.ParamsKey); len(b) > 0; {
+		num, typ, n := protowire.ConsumeTag(b)
+		require.GreaterOrEqual(t, n, 0)
+		require.False(t, (num >= 3 && num <= 8) || (num >= 18 && num <= 65), "field %d is still stored", num)
+		m := protowire.ConsumeFieldValue(num, typ, b[n:])
+		require.GreaterOrEqual(t, m, 0)
+		b = b[n+m:]
+	}
+	require.Equal(t, params, mocaApp.StorageKeeper.GetParams(ctx))
 }

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -132,30 +131,6 @@ func TestValidateMaxBucketsPerAccount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateMaxBucketsPerAccount(tt.val)
-			if tt.err != "" {
-				require.ErrorContains(t, err, tt.err)
-				return
-			}
-			require.NoError(t, err)
-		})
-	}
-}
-
-func TestValidateRelayerFee(t *testing.T) {
-	tests := []struct {
-		name string
-		val  interface{}
-		err  string
-	}{
-		{"valid", "1300000000000000", ""},
-		{"zero is valid", "0", ""},
-		{"invalid type", 1300000000000000, wantInvalidParamType},
-		{"not a number", "not-a-number", "invalid transfer out relayer fee"},
-		{"negative", "-1", "invalid transfer out relayer fee"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateRelayerFee(tt.val)
 			if tt.err != "" {
 				require.ErrorContains(t, err, tt.err)
 				return
@@ -379,38 +354,6 @@ func TestParams_Validate(t *testing.T) {
 	}
 }
 
-// TestParams_Validate_RelayerFeeFields flips each of the 9 chains x 6
-// mirror-relayer-fee fields to an invalid value in turn, proving each has
-// its own live dispatch in Validate rather than 53 of them shadowing the
-// first. It only ever sets exported string fields on a local Params value
-// via reflection -- no unsafe tricks needed.
-func TestParams_Validate_RelayerFeeFields(t *testing.T) {
-	chains := []string{"Bsc", "Op", "Polygon", "Scroll", "Linea", "Mantle", "Arbitrum", "Optimism", "Base"}
-	kinds := []string{
-		"MirrorBucketRelayerFee", "MirrorBucketAckRelayerFee",
-		"MirrorObjectRelayerFee", "MirrorObjectAckRelayerFee",
-		"MirrorGroupRelayerFee", "MirrorGroupAckRelayerFee",
-	}
-
-	tested := 0
-	for _, chain := range chains {
-		for _, kind := range kinds {
-			field := chain + kind
-			t.Run(field, func(t *testing.T) {
-				p := DefaultParams()
-				fv := reflect.ValueOf(&p).Elem().FieldByName(field)
-				require.True(t, fv.IsValid(), "Params must have a %s field", field)
-
-				fv.SetString("not-a-number")
-				err := p.Validate()
-				require.ErrorContains(t, err, "invalid transfer out relayer fee")
-			})
-			tested++
-		}
-	}
-	require.Equal(t, 54, tested, "must cover exactly the 9 chains x 6 relayer-fee fields")
-}
-
 func TestDefaultParams(t *testing.T) {
 	p := DefaultParams()
 	require.NoError(t, p.Validate())
@@ -420,8 +363,6 @@ func TestDefaultParams(t *testing.T) {
 	require.Equal(t, DefaultMinChargeSize, p.VersionedParams.MinChargeSize)
 	require.Equal(t, DefaultMaxPayloadSize, p.MaxPayloadSize)
 	require.Equal(t, DefaultMaxBucketsPerAccount, p.MaxBucketsPerAccount)
-	require.Equal(t, DefaultBscMirrorBucketRelayerFee, p.BscMirrorBucketRelayerFee)
-	require.Equal(t, DefaultBaseMirrorGroupAckRelayerFee, p.BaseMirrorGroupAckRelayerFee)
 	require.Equal(t, DefaultDiscontinueCountingWindow, p.DiscontinueCountingWindow)
 	require.Equal(t, DefaultMaxLocalVirtualGroupNumPerBucket, p.MaxLocalVirtualGroupNumPerBucket)
 }
