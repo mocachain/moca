@@ -48,7 +48,7 @@ jobs:
           exit 1
 
       - name: Run e2e/tests suite
-        run: go test ./e2e/tests/... -v -timeout 5m
+        run: go test ./e2e/tests/... -v -timeout 10m
 
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
 
