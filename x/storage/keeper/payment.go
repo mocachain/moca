@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"math/bits"
 
 	"cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
@@ -267,15 +268,28 @@ func (k Keeper) ChargeObjectStoreFee(ctx sdk.Context, primarySpID uint32, bucket
 	}
 
 	return k.ChargeViaBucketChange(ctx, bucketInfo, internalBucketInfo, func(_ *storagetypes.BucketInfo, ibi *storagetypes.InternalBucketInfo) error {
-		ibi.TotalChargeSize += chargeSize
+		if ibi.TotalChargeSize, err = addChargeSize(ibi.TotalChargeSize, chargeSize); err != nil {
+			return err
+		}
 		for _, lvg := range ibi.LocalVirtualGroups {
 			if lvg.Id == objectInfo.LocalVirtualGroupId {
-				lvg.TotalChargeSize += chargeSize
+				if lvg.TotalChargeSize, err = addChargeSize(lvg.TotalChargeSize, chargeSize); err != nil {
+					return err
+				}
 				break
 			}
 		}
 		return nil
 	})
+}
+
+// addChargeSize adds size to a running charge-size total, refusing to wrap.
+func addChargeSize(total, size uint64) (uint64, error) {
+	sum, carry := bits.Add64(total, size, 0)
+	if carry != 0 {
+		return 0, fmt.Errorf("total charge size out of range: %d + %d", total, size)
+	}
+	return sum, nil
 }
 
 func (k Keeper) UnChargeObjectStoreFee(ctx sdk.Context, bucketInfo *storagetypes.BucketInfo,
@@ -417,8 +431,12 @@ func (k Keeper) ChargeViaObjectChange(ctx sdk.Context, bucketInfo *storagetypes.
 	preOutFlows := k.calculateLVGStoreBill(ctx, price, versionedParams, gvgFamily, gvg, lvg)
 	var newOutFlows []types.OutFlow
 	if !delete { // seal object
-		internalBucketInfo.TotalChargeSize += chargeSize
-		lvg.TotalChargeSize += chargeSize
+		if internalBucketInfo.TotalChargeSize, err = addChargeSize(internalBucketInfo.TotalChargeSize, chargeSize); err != nil {
+			return nil, err
+		}
+		if lvg.TotalChargeSize, err = addChargeSize(lvg.TotalChargeSize, chargeSize); err != nil {
+			return nil, err
+		}
 		newOutFlows = k.calculateLVGStoreBill(ctx, price, versionedParams, gvgFamily, gvg, lvg)
 	} else { // delete object
 		internalBucketInfo.TotalChargeSize -= chargeSize
