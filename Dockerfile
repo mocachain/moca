@@ -1,4 +1,4 @@
-FROM golang:1.26.5-bookworm AS builder
+FROM golang:1.26.6-bookworm AS builder
 
 ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     make build
 
 
-FROM golang:1.26.5-bookworm
+FROM golang:1.26.6-bookworm
 RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates jq && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /workspace/build/mocad /usr/local/bin/mocad
@@ -32,7 +32,10 @@ WORKDIR /root
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go install cosmossdk.io/tools/cosmovisor/cmd/cosmovisor@v1.7.1
+    # tracks cosmos-sdk release/v0.55.x: the v1.7.1 tag pins bytedance/sonic
+    # v1.12.8, which linknames a private encoding/json symbol that no longer
+    # exists in the Go this image builds with, so the link step fails.
+    go install cosmossdk.io/tools/cosmovisor/cmd/cosmovisor@v1.7.2-0.20260804105140-2086680ff8b0
 
 # Environment variables for Cosmovisor
 ENV DAEMON_NAME=mocad

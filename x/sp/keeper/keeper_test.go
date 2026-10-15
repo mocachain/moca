@@ -24,6 +24,7 @@ type KeeperTestSuite struct {
 
 	cdc      codec.Codec
 	spKeeper *keeper.Keeper
+	storeKey storetypes.StoreKey
 
 	bankKeeper    *types.MockBankKeeper
 	accountKeeper *types.MockAccountKeeper
@@ -39,6 +40,7 @@ func (s *KeeperTestSuite) SetupTest() {
 	key := storetypes.NewKVStoreKey(types.StoreKey)
 	testCtx := testutil.DefaultContextWithDB(s.T(), key, storetypes.NewTransientStoreKey("transient_test"))
 	s.ctx = testCtx.Ctx
+	s.storeKey = key
 
 	ctrl := gomock.NewController(s.T())
 
@@ -73,4 +75,12 @@ func (s *KeeperTestSuite) SetupTest() {
 
 func TestKeeperTestSuite(t *testing.T) {
 	suite.Run(t, new(KeeperTestSuite))
+}
+
+func (s *KeeperTestSuite) TestGetAuthority() {
+	s.Require().Equal(authtypes.NewModuleAddress(govtypes.ModuleName).String(), s.spKeeper.GetAuthority())
+}
+
+func (s *KeeperTestSuite) TestLogger() {
+	s.Require().NotNil(s.spKeeper.Logger(s.ctx))
 }

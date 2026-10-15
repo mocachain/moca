@@ -33,13 +33,6 @@ func WithGrpcConnectionAndDialOption(grpcAddr string, opts ...grpc.DialOption) M
 	})
 }
 
-// WithWebSocketClient returns a MocaClientOption which specify that connection is a websocket connection
-func WithWebSocketClient() MocaClientOption {
-	return MocaClientOptionFunc(func(client *MocaClient) {
-		client.useWebSocket = true
-	})
-}
-
 // grpcConn is used to establish a connection with a given address and dial options.
 func grpcConn(addr string, opts ...grpc.DialOption) *grpc.ClientConn {
 	conn, err := grpc.Dial(

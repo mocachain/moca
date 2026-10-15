@@ -6,6 +6,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
@@ -334,4 +335,155 @@ func TestDelayedWithdrawalQuery(t *testing.T) {
 	require.True(t, response.DelayedWithdrawal.From == from.String())
 	require.True(t, response.DelayedWithdrawal.Amount.Equal(delayedWithdrawal.Amount))
 	require.True(t, response.DelayedWithdrawal.UnlockTimestamp == delayedWithdrawal.UnlockTimestamp)
+}
+
+const badHexAddress = "not-a-valid-address"
+
+func TestParamsQuery_NilRequest(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+	_, err := keeper.Params(ctx, nil)
+	require.Error(t, err)
+}
+
+func TestParamsByTimestampQuery_NilRequestAndDefaultTimestamp(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.ParamsByTimestamp(ctx, nil)
+	require.Error(t, err)
+
+	// Timestamp: 0 defaults to ctx.BlockTime()+1, which must resolve to the
+	// version already stored by makePaymentKeeper's initial SetParams.
+	response, err := keeper.ParamsByTimestamp(ctx, &types.QueryParamsByTimestampRequest{Timestamp: 0})
+	require.NoError(t, err)
+	require.Equal(t, types.DefaultParams().VersionedParams, response.Params.VersionedParams)
+}
+
+func TestAutoSettleRecordQuery_NilRequestAndOffsetRejected(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.AutoSettleRecords(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.AutoSettleRecords(ctx, &types.QueryAutoSettleRecordsRequest{
+		Pagination: &query.PageRequest{Offset: 1},
+	})
+	require.Error(t, err)
+}
+
+func TestDynamicBalanceQuery_NilRequestAndBadAddress(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.DynamicBalance(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.DynamicBalance(ctx, &types.QueryDynamicBalanceRequest{Account: badHexAddress})
+	require.Error(t, err)
+}
+
+func TestPaymentAccountAllQuery_NilRequestAndOffsetRejected(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.PaymentAccounts(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.PaymentAccounts(ctx, &types.QueryPaymentAccountsRequest{
+		Pagination: &query.PageRequest{Offset: 1},
+	})
+	require.Error(t, err)
+}
+
+func TestPaymentAccountQuery_NilRequestBadAddressAndNotFound(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.PaymentAccount(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.PaymentAccount(ctx, &types.QueryPaymentAccountRequest{Addr: badHexAddress})
+	require.Error(t, err)
+
+	_, err = keeper.PaymentAccount(ctx, &types.QueryPaymentAccountRequest{Addr: sample.RandAccAddress().String()})
+	require.Error(t, err)
+}
+
+func TestPaymentAccountCountAllQuery_NilRequestAndOffsetRejected(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.PaymentAccountCounts(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.PaymentAccountCounts(ctx, &types.QueryPaymentAccountCountsRequest{
+		Pagination: &query.PageRequest{Offset: 1},
+	})
+	require.Error(t, err)
+}
+
+func TestPaymentAccountCountQuery_NilRequestBadOwnerAndNotFound(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.PaymentAccountCount(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.PaymentAccountCount(ctx, &types.QueryPaymentAccountCountRequest{Owner: badHexAddress})
+	require.Error(t, err)
+
+	_, err = keeper.PaymentAccountCount(ctx, &types.QueryPaymentAccountCountRequest{Owner: sample.RandAccAddress().String()})
+	require.Error(t, err)
+}
+
+func TestPaymentAccountsByOwnerQuery_NilRequestBadOwnerAndNotFound(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.PaymentAccountsByOwner(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.PaymentAccountsByOwner(ctx, &types.QueryPaymentAccountsByOwnerRequest{Owner: badHexAddress})
+	require.Error(t, err)
+
+	_, err = keeper.PaymentAccountsByOwner(ctx, &types.QueryPaymentAccountsByOwnerRequest{Owner: sample.RandAccAddress().String()})
+	require.Error(t, err)
+}
+
+func TestStreamRecordAllQuery_NilRequestAndOffsetRejected(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.StreamRecords(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.StreamRecords(ctx, &types.QueryStreamRecordsRequest{
+		Pagination: &query.PageRequest{Offset: 1},
+	})
+	require.Error(t, err)
+}
+
+func TestStreamRecordQuery_NilRequestBadAddressAndNotFound(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.StreamRecord(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.StreamRecord(ctx, &types.QueryGetStreamRecordRequest{Account: badHexAddress})
+	require.Error(t, err)
+
+	_, err = keeper.StreamRecord(ctx, &types.QueryGetStreamRecordRequest{Account: sample.RandAccAddress().String()})
+	require.Error(t, err)
+}
+
+func TestOutFlowQuery_NilRequestAndBadAddress(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.OutFlows(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.OutFlows(ctx, &types.QueryOutFlowsRequest{Account: badHexAddress})
+	require.Error(t, err)
+}
+
+func TestDelayedWithdrawalQuery_NilRequestAndBadAddress(t *testing.T) {
+	keeper, ctx, _ := makePaymentKeeper(t)
+
+	_, err := keeper.DelayedWithdrawal(ctx, nil)
+	require.Error(t, err)
+
+	_, err = keeper.DelayedWithdrawal(ctx, &types.QueryDelayedWithdrawalRequest{Account: badHexAddress})
+	require.Error(t, err)
 }

@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	stdmath "math"
 	"strings"
 
 	"cosmossdk.io/math"
@@ -161,6 +162,12 @@ func validateSPConcurrentExitNum(i interface{}) error {
 	if v != nil && !v.IsNil() {
 		if !v.IsPositive() {
 			return fmt.Errorf("number of sp concurrent exit must be positive: %s", v)
+		}
+		// The value is read back as a uint32 (SpConcurrentExitNum), and the count it
+		// is compared against is a uint32 too, so anything past that range wraps --
+		// at a multiple of 2^32 it wraps to zero and refuses every exit.
+		if v.GT(math.NewIntFromUint64(stdmath.MaxUint32)) {
+			return fmt.Errorf("number of sp concurrent exit too large: %s", v)
 		}
 	}
 	return nil

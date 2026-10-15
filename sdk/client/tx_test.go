@@ -195,7 +195,7 @@ func TestSendTokenWithOverrideAccount(t *testing.T) {
 func TestSendTXViaWebsocketClient(t *testing.T) {
 	km, err := keys.NewPrivateKeyManager(test.TestPrivateKey)
 	assert.NoError(t, err)
-	gnfdCli, err := NewMocaClient(test.TestRPCAddr, test.TestEVMAddr, test.TestChainID, WithKeyManager(km), WithWebSocketClient())
+	gnfdCli, err := NewMocaClient(test.TestRPCAddr, test.TestEVMAddr, test.TestChainID, WithKeyManager(km))
 	assert.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -33,6 +33,14 @@ jobs:
           LINTER_RULES_PATH: /
           YAML_CONFIG_FILE: .yamllint
           VALIDATE_ALL_CODEBASE: false
+          # kubeval's built-in schema host (kubernetesjsonschema.dev) now serves a
+          # certificate for netlify.app, so every fetch fails TLS verification and
+          # any manifest change fails the lint. Point at the maintained mirror
+          # instead. --ignore-missing-schemas keeps kind-config.yaml passing: it is
+          # a Kind cluster config, not a Kubernetes resource, so no schema exists.
+          KUBERNETES_KUBEVAL_OPTIONS: >-
+            --ignore-missing-schemas
+            --schema-location https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master
           MARKDOWN_CONFIG_FILE: .markdownlint.yml
           PROTOBUF_CONFIG_FILE: .protolint.yml
           VALIDATE_NATURAL_LANGUAGE: false

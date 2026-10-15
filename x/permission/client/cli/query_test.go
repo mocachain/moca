@@ -3,6 +3,7 @@ package cli_test
 import (
 	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/cosmos/gogoproto/proto"
@@ -18,6 +19,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 
 	testCases := []struct {
 		name         string
+		clientCtx    client.Context
 		args         []string
 		expectErr    bool
 		expectErrMsg string
@@ -25,6 +27,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 	}{
 		{
 			"query params",
+			s.clientCtx,
 			append(
 				[]string{
 					"params",
@@ -33,6 +36,12 @@ func (s *CLITestSuite) TestQueryCmd() {
 			),
 			false, "", &types.QueryParamsResponse{},
 		},
+		{
+			"query params RPC failure",
+			client.Context{},
+			[]string{"params"},
+			true, "no RPC client is defined in offline mode", nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -40,7 +49,7 @@ func (s *CLITestSuite) TestQueryCmd() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetQueryCmd()
-			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
+			out, err := clitestutil.ExecTestCLICmd(tc.clientCtx, cmd, tc.args)
 
 			if tc.expectErr {
 				s.Require().Error(err)

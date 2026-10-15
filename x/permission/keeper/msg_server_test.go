@@ -11,6 +11,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
+	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
@@ -24,6 +25,7 @@ type TestSuite struct {
 
 	cdc              codec.Codec
 	permissionKeeper *keeper.Keeper
+	storeKey         storetypes.StoreKey
 
 	accountKeeper *types.MockAccountKeeper
 
@@ -50,6 +52,7 @@ func (s *TestSuite) SetupTest() {
 	)
 
 	s.cdc = encCfg.Codec
+	s.storeKey = key
 	s.accountKeeper = accountKeeper
 
 	err := s.permissionKeeper.SetParams(s.ctx, types.DefaultParams())
@@ -64,4 +67,43 @@ func (s *TestSuite) SetupTest() {
 
 func TestTestSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
+}
+
+func (s *TestSuite) TestUpdateParams() {
+	s.Run("success", func() {
+		newParams := types.NewParams(20, 20, 200)
+		resp, err := s.msgServer.UpdateParams(s.ctx, &types.MsgUpdateParams{
+			Authority: s.permissionKeeper.GetAuthority(),
+			Params:    newParams,
+		})
+		s.Require().NoError(err)
+		s.Require().Equal(&types.MsgUpdateParamsResponse{}, resp)
+		s.Require().Equal(newParams, s.permissionKeeper.GetParams(s.ctx))
+
+		// restore the defaults set up by SetupTest so this subtest can't affect others.
+		s.Require().NoError(s.permissionKeeper.SetParams(s.ctx, types.DefaultParams()))
+	})
+
+	s.Run("wrong authority", func() {
+		resp, err := s.msgServer.UpdateParams(s.ctx, &types.MsgUpdateParams{
+			Authority: sample.RandAccAddressHex(),
+			Params:    types.DefaultParams(),
+		})
+		s.Require().Nil(resp)
+		s.Require().ErrorIs(err, govtypes.ErrInvalidSigner)
+	})
+
+	s.Run("invalid params", func() {
+		before := s.permissionKeeper.GetParams(s.ctx)
+
+		invalid := types.DefaultParams()
+		invalid.MaximumGroupNum = 0
+		resp, err := s.msgServer.UpdateParams(s.ctx, &types.MsgUpdateParams{
+			Authority: s.permissionKeeper.GetAuthority(),
+			Params:    invalid,
+		})
+		s.Require().Nil(resp)
+		s.Require().Error(err)
+		s.Require().Equal(before, s.permissionKeeper.GetParams(s.ctx), "a rejected UpdateParams must not persist anything")
+	})
 }

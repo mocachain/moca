@@ -79,7 +79,7 @@ const (
 	ToggleSPAsDelegatedAgentEventName = "ToggleSPAsDelegatedAgent"
 	// CancelUpdateObjectContentEventName is the event emitted on a cancelUpdateObjectContent transaction.
 	CancelUpdateObjectContentEventName = "CancelUpdateObjectContent"
-	// TransferEventName is the ERC721 Transfer event mirrored on bucket/object/group NFT mints.
+	// TransferEventName is the ERC721 Transfer event mirrored on bucket/object/group NFT mints and burns.
 	TransferEventName = "Transfer"
 )
 
@@ -334,30 +334,48 @@ func (p Precompile) EmitCancelUpdateObjectContentEvent(evm *vm.EVM, caller commo
 // EmitBucketTransferEvent mirrors the bucket-NFT mint as an ERC721 Transfer log on the
 // bucket token contract: from the zero address to the owner, with the token id.
 func (p Precompile) EmitBucketTransferEvent(evm *vm.EVM, owner string, tokenID *big.Int) error {
-	return p.emitNFTTransferEvent(evm, contracts.BucketERC721TokenAddress, owner, tokenID)
+	return p.emitNFTTransferEvent(evm, contracts.BucketERC721TokenAddress, gtypes.EmptyEvmAddress, owner, tokenID)
+}
+
+// EmitBucketBurnEvent mirrors the bucket-NFT burn as an ERC721 Transfer log on the
+// bucket token contract: from the owner to the zero address, with the token id.
+func (p Precompile) EmitBucketBurnEvent(evm *vm.EVM, owner string, tokenID *big.Int) error {
+	return p.emitNFTTransferEvent(evm, contracts.BucketERC721TokenAddress, owner, gtypes.EmptyEvmAddress, tokenID)
 }
 
 // EmitObjectTransferEvent mirrors the object-NFT mint as an ERC721 Transfer log on the
 // object token contract: from the zero address to the owner, with the token id.
 func (p Precompile) EmitObjectTransferEvent(evm *vm.EVM, owner string, tokenID *big.Int) error {
-	return p.emitNFTTransferEvent(evm, contracts.ObjectERC721TokenAddress, owner, tokenID)
+	return p.emitNFTTransferEvent(evm, contracts.ObjectERC721TokenAddress, gtypes.EmptyEvmAddress, owner, tokenID)
+}
+
+// EmitObjectBurnEvent mirrors the object-NFT burn as an ERC721 Transfer log on the
+// object token contract: from the owner to the zero address, with the token id.
+func (p Precompile) EmitObjectBurnEvent(evm *vm.EVM, owner string, tokenID *big.Int) error {
+	return p.emitNFTTransferEvent(evm, contracts.ObjectERC721TokenAddress, owner, gtypes.EmptyEvmAddress, tokenID)
 }
 
 // EmitGroupTransferEvent mirrors the group-NFT mint as an ERC721 Transfer log on the
 // group token contract: from the zero address to the owner, with the token id.
 func (p Precompile) EmitGroupTransferEvent(evm *vm.EVM, owner string, tokenID *big.Int) error {
-	return p.emitNFTTransferEvent(evm, contracts.GroupERC721TokenAddress, owner, tokenID)
+	return p.emitNFTTransferEvent(evm, contracts.GroupERC721TokenAddress, gtypes.EmptyEvmAddress, owner, tokenID)
+}
+
+// EmitGroupBurnEvent mirrors the group-NFT burn as an ERC721 Transfer log on the
+// group token contract: from the owner to the zero address, with the token id.
+func (p Precompile) EmitGroupBurnEvent(evm *vm.EVM, owner string, tokenID *big.Int) error {
+	return p.emitNFTTransferEvent(evm, contracts.GroupERC721TokenAddress, owner, gtypes.EmptyEvmAddress, tokenID)
 }
 
 // emitNFTTransferEvent emits the ERC721 Transfer event (from, to, tokenId all indexed)
-// on the given NFT token contract address via AddOtherLog. The mint is always from the
-// empty EVM address; the token id is packed as its big-endian bytes, matching the
-// original inline emission.
-func (p Precompile) emitNFTTransferEvent(evm *vm.EVM, tokenContract common.Address, owner string, tokenID *big.Int) error {
+// on the given NFT token contract address via AddOtherLog. A mint is from the empty
+// EVM address and a burn is to it; the token id is packed as its big-endian bytes,
+// matching the original inline emission.
+func (p Precompile) emitNFTTransferEvent(evm *vm.EVM, tokenContract common.Address, from, to string, tokenID *big.Int) error {
 	return p.AddOtherLog(evm, MustEvent(TransferEventName), tokenContract,
 		[]common.Hash{
-			common.BytesToHash(common.HexToAddress(gtypes.EmptyEvmAddress).Bytes()),
-			common.BytesToHash(common.HexToAddress(owner).Bytes()),
+			common.BytesToHash(common.HexToAddress(from).Bytes()),
+			common.BytesToHash(common.HexToAddress(to).Bytes()),
 			common.BytesToHash(tokenID.Bytes()),
 		})
 }

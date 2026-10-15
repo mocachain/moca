@@ -54,7 +54,6 @@ func (s *TestSuite) SetupTest() {
 	s.virtualgroupKeeper = keeper.NewKeeper(
 		encCfg.Codec,
 		key,
-		key,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		spKeeper,
 		accountKeeper,
@@ -67,6 +66,9 @@ func (s *TestSuite) SetupTest() {
 	s.accountKeeper = accountKeeper
 	s.spKeeper = spKeeper
 	s.paymentKeeper = paymentKeeper
+
+	// no pending challenge locks the deposit unless a test says otherwise
+	spKeeper.EXPECT().GetDepositLockUntil(gomock.Any(), gomock.Any()).Return(uint64(0)).AnyTimes()
 
 	err := s.virtualgroupKeeper.SetParams(s.ctx, types.DefaultParams())
 	s.Require().NoError(err)
@@ -155,6 +157,91 @@ func (s *TestSuite) TestStorageProviderExitable() {
 		GlobalVirtualGroupFamilyIds: []uint32{},
 	})
 	require.NoError(s.T(), s.virtualgroupKeeper.StorageProviderExitable(s.ctx, spID))
+}
+
+const (
+	deleteGVGID       = uint32(100)
+	deleteGVGFamilyID = uint32(1)
+	primarySPID       = uint32(1)
+	otherSPID         = uint32(2)
+)
+
+// seedEmptyGVG stores an empty GVG (StoredSize == 0) that still holds a deposit,
+// owned by primarySPID, together with the family that references it and the
+// owning SP's GVG statistics. Returns the deposit amount.
+func (s *TestSuite) seedEmptyGVG() math.Int {
+	deposit := math.NewInt(1_000_000)
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+		Id:                    deleteGVGID,
+		FamilyId:              deleteGVGFamilyID,
+		PrimarySpId:           primarySPID,
+		StoredSize:            0,
+		TotalDeposit:          deposit,
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+		SecondarySpIds:        []uint32{},
+	})
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, &types.GlobalVirtualGroupFamily{
+		Id:                    deleteGVGFamilyID,
+		PrimarySpId:           primarySPID,
+		GlobalVirtualGroupIds: []uint32{deleteGVGID},
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+	})
+	s.virtualgroupKeeper.SetGVGStatisticsWithSP(s.ctx, &types.GVGStatisticsWithinSP{
+		StorageProviderId: primarySPID,
+		PrimaryCount:      1,
+	})
+	return deposit
+}
+
+// A storage provider that is not the GVG's primary SP cannot delete it, and no
+// deposit refund is made (the strict mock controller fails on any bank call).
+func (s *TestSuite) TestDeleteGVG_RejectsNonPrimarySP() {
+	s.seedEmptyGVG()
+
+	otherSP := &sptypes.StorageProvider{
+		Id:             otherSPID,
+		FundingAddress: sample.RandAccAddress().String(),
+	}
+
+	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, otherSP, deleteGVGID)
+	require.ErrorIs(s.T(), err, types.ErrNotPrimarySP)
+
+	// The GVG is left intact.
+	_, found := s.virtualgroupKeeper.GetGVG(s.ctx, deleteGVGID)
+	require.True(s.T(), found)
+}
+
+// The GVG's own primary SP can delete it; the deposit is refunded to that SP's
+// funding address and the GVG is removed.
+func (s *TestSuite) TestDeleteGVG_PrimarySPSucceeds() {
+	deposit := s.seedEmptyGVG()
+
+	primarySP := &sptypes.StorageProvider{
+		Id:             primarySPID,
+		FundingAddress: sample.RandAccAddress().String(),
+	}
+
+	s.paymentKeeper.EXPECT().IsEmptyNetFlow(gomock.Any(), gomock.Any()).
+		Return(true).AnyTimes()
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).
+		Return(math.ZeroInt(), nil).AnyTimes()
+
+	var gotRecipient sdk.AccAddress
+	s.bankKeeper.EXPECT().
+		SendCoinsFromModuleToAccount(gomock.Any(), types.ModuleName, gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, _ string, recipient sdk.AccAddress, coins sdk.Coins) error {
+			gotRecipient = recipient
+			require.Equal(s.T(), deposit, coins.AmountOf(s.virtualgroupKeeper.DepositDenomForGVG(s.ctx)))
+			return nil
+		}).Times(1)
+
+	err := s.virtualgroupKeeper.DeleteGVG(s.ctx, primarySP, deleteGVGID)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), sdk.MustAccAddressFromHex(primarySP.FundingAddress).Bytes(), gotRecipient.Bytes())
+
+	_, found := s.virtualgroupKeeper.GetGVG(s.ctx, deleteGVGID)
+	require.False(s.T(), found)
 }
 
 // TestSettleAndDistributeGVG_DistributesEqualShares: each secondary gets an equal
@@ -278,4 +365,106 @@ func (s *TestSuite) TestSettleAndDistributeGVG_Guards() {
 	}
 	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.NewInt(100), nil)
 	require.Error(s.T(), s.virtualgroupKeeper.SettleAndDistributeGVG(s.ctx, noSecondaries))
+}
+
+// A request naming both a settleable and an unknown GVG must consume the same
+// gas every time; settling a varying number of groups before the error would
+// give nodes different GasUsed for the same message.
+func (s *TestSuite) TestSettle_GasIsIndependentOfGVGIDOrder() {
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+
+	existingGVGID := uint32(1)
+	missingGVGID := uint32(999999)
+	secondarySpID := uint32(10)
+
+	gvg := &types.GlobalVirtualGroup{
+		Id:                    existingGVGID,
+		SecondarySpIds:        []uint32{secondarySpID},
+		VirtualPaymentAddress: sample.RandAccAddress().String(),
+		TotalDeposit:          math.ZeroInt(),
+	}
+	s.virtualgroupKeeper.SetGVG(s.ctx, gvg)
+
+	sp := &sptypes.StorageProvider{Id: secondarySpID, FundingAddress: sample.RandAccAddress().String()}
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), secondarySpID).Return(sp, true).AnyTimes()
+	s.paymentKeeper.EXPECT().QueryDynamicBalance(gomock.Any(), gomock.Any()).Return(math.NewInt(100), nil).AnyTimes()
+	s.paymentKeeper.EXPECT().Withdraw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	req := &types.MsgSettle{
+		StorageProvider:       sample.RandAccAddress().String(),
+		GlobalVirtualGroupIds: []uint32{existingGVGID, missingGVGID},
+	}
+
+	baseCtx := s.ctx
+	gasReadings := make(map[uint64]int)
+	const iterations = 200
+
+	for i := 0; i < iterations; i++ {
+		callCtx := baseCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+		_, err := msgServer.Settle(callCtx, req)
+		require.ErrorIs(s.T(), err, types.ErrGVGNotExist)
+		gasReadings[callCtx.GasMeter().GasConsumed()]++
+	}
+
+	require.Lenf(s.T(), gasReadings, 1,
+		"the same MsgSettle must consume the same gas on every node; saw %d different totals over %d calls: %v",
+		len(gasReadings), iterations, gasReadings)
+}
+
+// A family may hold at most MaxGlobalVirtualGroupNumPerFamily groups. The limit was
+// compared against the family's size before the new group was appended, so a family
+// already holding the maximum accepted one more and ended up one over it.
+func (s *TestSuite) TestCreateGlobalVirtualGroup_FamilyAtLimitIsRejected() {
+	ctrl := gomock.NewController(s.T())
+	storageKeeper := types.NewMockStorageKeeper(ctrl)
+	s.virtualgroupKeeper.SetStorageKeeper(storageKeeper)
+
+	secondarySpIDs := []uint32{2, 3, 4, 5, 6, 7}
+	storageKeeper.EXPECT().GetExpectSecondarySPNumForECObject(gomock.Any(), gomock.Any()).
+		Return(uint32(len(secondarySpIDs))).AnyTimes() //nolint:gosec // fixed-size test fixture
+
+	spOperator := sample.RandAccAddress()
+	primarySP := &sptypes.StorageProvider{
+		Id:              1,
+		Status:          sptypes.STATUS_IN_SERVICE,
+		OperatorAddress: spOperator.String(),
+		FundingAddress:  sample.RandAccAddress().String(),
+	}
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).
+		Return(primarySP, true).AnyTimes()
+	s.spKeeper.EXPECT().GetStorageProvider(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, id uint32) (*sptypes.StorageProvider, bool) {
+			return &sptypes.StorageProvider{Id: id, Status: sptypes.STATUS_IN_SERVICE}, true
+		}).AnyTimes()
+	s.bankKeeper.EXPECT().
+		SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	// Fill a family right up to the limit.
+	maxPerFamily := s.virtualgroupKeeper.MaxGlobalVirtualGroupNumPerFamily(s.ctx)
+	family := &types.GlobalVirtualGroupFamily{Id: 1, PrimarySpId: primarySP.Id}
+	for i := uint32(0); i < maxPerFamily; i++ {
+		// Differ in the first secondary so the duplicate-group check does not fire.
+		existing := append([]uint32{100 + i}, secondarySpIDs[1:]...)
+		s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{
+			Id: 1000 + i, FamilyId: family.Id, PrimarySpId: primarySP.Id, SecondarySpIds: existing,
+		})
+		family.GlobalVirtualGroupIds = append(family.GlobalVirtualGroupIds, 1000+i)
+	}
+	s.virtualgroupKeeper.SetGVGFamily(s.ctx, family)
+	require.Len(s.T(), family.GlobalVirtualGroupIds, int(maxPerFamily))
+
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+	_, err := msgServer.CreateGlobalVirtualGroup(s.ctx, &types.MsgCreateGlobalVirtualGroup{
+		StorageProvider: spOperator.String(),
+		FamilyId:        family.Id,
+		SecondarySpIds:  secondarySpIDs,
+		Deposit:         sdk.NewCoin(s.virtualgroupKeeper.DepositDenomForGVG(s.ctx), math.NewInt(1)),
+	})
+	require.ErrorIs(s.T(), err, types.ErrLimitationExceed)
+
+	stored, found := s.virtualgroupKeeper.GetGVGFamily(s.ctx, family.Id)
+	require.True(s.T(), found)
+	require.Len(s.T(), stored.GlobalVirtualGroupIds, int(maxPerFamily),
+		"the family must not grow past the configured maximum")
 }

@@ -39,4 +39,12 @@ message Params {
   uint64 update_global_price_interval = 7 [(gogoproto.moretags) = "yaml:\"update_global_price_interval\""];
   // the days counting backwards from end of a month in which a sp cannot update its price
   uint32 update_price_disallowed_days = 8 [(gogoproto.moretags) = "yaml:\"update_price_disallowed_days\""];
+  // max_sp_price is the largest read or store price, in amoca per charge byte, a storage provider can set
+  string max_sp_price = 9 [
+    (cosmos_proto.scalar) = "cosmos.Dec",
+    (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true,
+    (gogoproto.moretags) = "yaml:\"max_sp_price\""
+  ];
 }

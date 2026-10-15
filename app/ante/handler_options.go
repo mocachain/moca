@@ -87,6 +87,10 @@ func newEVMAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandler 
 	evmParams := options.EvmKeeper.GetParams(ctx)
 	feemarketParams := options.FeeMarketKeeper.GetParams(ctx)
 	decorators := []sdk.AnteDecorator{
+		// ahead of the mono decorator: cosmos/evm dropped the AllowUnprotectedTxs
+		// parameter that used to carry this, and its signature verification cannot
+		// reject a transaction that has no chain id to compare against.
+		NewEthReplayProtectionDecorator(),
 		cosmosevmevm.NewEVMMonoDecorator(
 			options.AccountKeeper,
 			options.FeeMarketKeeper,

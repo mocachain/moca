@@ -107,9 +107,18 @@ make e2e-kind-suite SUITE=smoke  # Just run tests (if chain is already deployed)
 
 Tests a binary upgrade from an old version to the current build using the app.toml `[hardforks]` config.
 
+The entry is written to every validator's `app.toml` at init, so the old binary
+schedules an x/upgrade plan and halts them all at the same block before the
+binaries are swapped. `app.toml` is only read at startup, so `HARDFORK_HEIGHT`
+is fixed up front (default `50`) rather than derived from a running height, and
+must stay above the height the pre-upgrade setup reaches.
+
 ```bash
 # Upgrade from a specific release (pulls/builds old version, deploys, upgrades, validates)
 OLD_VERSION=v12.0.1 make e2e-kind-upgrade-hardfork
+
+# Move the scheduled halt if setup needs more room
+HARDFORK_HEIGHT=80 OLD_VERSION=v1.3.0 make e2e-fw-test TEST=upgrade_hardfork
 ```
 
 ### Upgrade Tests (governance mode)
@@ -211,6 +220,7 @@ make e2e-fw-test TEST=rpc_suite
 | `eth_blockNumber` JSON-RPC 2.0 | `RPC/rpc.sh` jsonrpc |
 | EVM block timestamp + monotonic height | `RPC/rpc.sh` blocks |
 | Forge `TestERC20` deploy + transfer | `RPC/rpc.sh` erc20 |
+| Standard Ethereum precompiles 0x01-0x11, known-answer `eth_call`s | n/a (moca-only: guards the hand-built precompile map in `app.go`) |
 | Validator operator `bank` balances | `check-validators.sh` balances |
 | Staking validators count + moniker | `check-validators.sh` validators |
 

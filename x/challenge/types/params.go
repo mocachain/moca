@@ -75,7 +75,7 @@ var (
 )
 
 var (
-	KeySpSlashCountingWindow     = []byte("SpSlashMaxAmount")
+	KeySpSlashCountingWindow     = []byte("SpSlashCountingWindow")
 	DefaultSpSlashCountingWindow = uint64(43200) // about one day
 )
 

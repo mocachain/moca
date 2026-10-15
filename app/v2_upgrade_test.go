@@ -1,19 +1,25 @@
 package app
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"math"
 	"testing"
 
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
-	mocatypes "github.com/mocachain/moca/v2/types"
 	precompilesstorage "github.com/mocachain/moca/v2/precompiles/storage"
+	mocatypes "github.com/mocachain/moca/v2/types"
+	spmoduletypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagemoduletypes "github.com/mocachain/moca/v2/x/storage/types"
 )
 
 // TestMigrateToV2_ContractSurvivesInPlace proves the v1.3.0 -> v2 in-place
@@ -30,6 +36,7 @@ func TestMigrateToV2_ContractSurvivesInPlace(t *testing.T) {
 	// EVM params/coin info itself, which is exactly what we're exercising.
 	mocaApp := EthSetup(false, nil)
 	ctx := mocaApp.NewContext(false)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
 
 	// Minimal runtime bytecode: returns the 32-byte word 0x2a (42).
 	//   PUSH1 0x2a; PUSH1 0x00; MSTORE; PUSH1 0x20; PUSH1 0x00; RETURN
@@ -87,6 +94,7 @@ func TestMigrateToV2_ContractSurvivesInPlace(t *testing.T) {
 func TestMigrateToV2_MultipleContractsAndExecution(t *testing.T) {
 	mocaApp := EthSetup(false, nil)
 	ctx := mocaApp.NewContext(false)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
 
 	// Contract A: SLOAD slot 0, then RETURN it (32 bytes). It reads storage at
 	// execution time, so it only returns the right value if BOTH code and
@@ -191,6 +199,7 @@ func TestMigrateToV2_MultipleContractsAndExecution(t *testing.T) {
 func TestMigrateToV2_ZeroCodeHashSkipped(t *testing.T) {
 	mocaApp := EthSetup(false, nil)
 	ctx := mocaApp.NewContext(false)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
 
 	addr := common.HexToAddress("0x00000000000000000000000000000000000000ee")
 	accI := mocaApp.AccountKeeper.NewAccountWithAddress(ctx, sdk.AccAddress(addr.Bytes()))
@@ -236,4 +245,112 @@ func firstValidatorConsAddr(t *testing.T, app *Moca, ctx sdk.Context) sdk.ConsAd
 	consBz, err := vals[0].GetConsAddr()
 	require.NoError(t, err)
 	return sdk.ConsAddress(consBz)
+}
+
+// initStorageParamsForUpgrade seeds storage params — the EVM harness omits storage
+// from genesis, and migrateToV2's cap step re-validates the full params.
+func initStorageParamsForUpgrade(t *testing.T, app *Moca, ctx sdk.Context) {
+	t.Helper()
+	require.NoError(t, app.StorageKeeper.SetParams(ctx, storagemoduletypes.DefaultParams()))
+}
+
+// TestMigrateToV2_CapsDiscontinueQueue asserts the v2 upgrade replaces the
+// uncapped MaxUint64 discontinue quotas with the finite defaults (MOCA-743).
+func TestMigrateToV2_CapsDiscontinueQueue(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+
+	// Pre-upgrade: valid params, but the queue still uncapped at MaxUint64.
+	params := storagemoduletypes.DefaultParams()
+	params.DiscontinueObjectMax = math.MaxUint64
+	params.DiscontinueBucketMax = math.MaxUint64
+	require.NoError(t, mocaApp.StorageKeeper.SetParams(ctx, params))
+
+	require.NoError(t, mocaApp.migrateToV2(ctx))
+
+	got := mocaApp.StorageKeeper.GetParams(ctx)
+	require.Equal(t, storagemoduletypes.DefaultDiscontinueObjectMax, got.DiscontinueObjectMax)
+	require.Equal(t, storagemoduletypes.DefaultDiscontinueBucketMax, got.DiscontinueBucketMax)
+	require.Less(t, got.DiscontinueObjectMax, uint64(math.MaxUint64), "object discontinue cap must be finite")
+	require.Less(t, got.DiscontinueBucketMax, uint64(math.MaxUint64), "bucket discontinue cap must be finite")
+}
+
+// TestMigrateToV2_PreservesFiniteDiscontinueCaps: a governance-set finite cap
+// survives the upgrade — only the MaxUint64 sentinel is replaced.
+func TestMigrateToV2_PreservesFiniteDiscontinueCaps(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+
+	// A governance-customized chain: finite, non-default caps already in place.
+	const customObjectMax, customBucketMax = uint64(42), uint64(7)
+	params := storagemoduletypes.DefaultParams()
+	params.DiscontinueObjectMax = customObjectMax
+	params.DiscontinueBucketMax = customBucketMax
+	require.NoError(t, mocaApp.StorageKeeper.SetParams(ctx, params))
+
+	require.NoError(t, mocaApp.migrateToV2(ctx))
+
+	got := mocaApp.StorageKeeper.GetParams(ctx)
+	require.Equal(t, customObjectMax, got.DiscontinueObjectMax, "finite object cap must be preserved")
+	require.Equal(t, customBucketMax, got.DiscontinueBucketMax, "finite bucket cap must be preserved")
+}
+
+// TestV2UpgradeHandler_SetsMaxSpPrice applies the v2.0.0 upgrade to x/sp params stored at
+// consensus version 1, as live chains store them, and checks it sets max_sp_price.
+func TestV2UpgradeHandler_SetsMaxSpPrice(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false).WithBlockHeight(100)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
+
+	// x/sp params as a version-1 chain stores them (mainnet's record), without max_sp_price.
+	v1, err := hex.DecodeString("0a05616d6f6361121731303030303030303030303030303030303030303030301a123132303030303030303030303030303030302080de3428e0a80130e0a8013801")
+	require.NoError(t, err)
+	ctx.KVStore(mocaApp.GetKey(spmoduletypes.StoreKey)).Set(spmoduletypes.ParamsKey, v1)
+	require.True(t, mocaApp.SpKeeper.GetParams(ctx).MaxSpPrice.IsNil())
+
+	fromVM := mocaApp.mm.GetVersionMap()
+	fromVM[spmoduletypes.ModuleName] = 1
+	fromVM[storagemoduletypes.ModuleName] = 1
+	require.NoError(t, mocaApp.UpgradeKeeper.SetModuleVersionMap(ctx, fromVM))
+	require.NoError(t, mocaApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v2.0.0", Height: ctx.BlockHeight()}))
+
+	toVM, err := mocaApp.UpgradeKeeper.GetModuleVersionMap(ctx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), toVM[spmoduletypes.ModuleName])
+	params := mocaApp.SpKeeper.GetParams(ctx)
+	require.True(t, spmoduletypes.DefaultMaxSpPrice.Equal(params.MaxSpPrice))
+	require.NoError(t, params.Validate())
+}
+
+// TestMigrateToV2_DropsMirrorRelayerFees: live chains store the storage params with the
+// 54 mirror relayer fees (fields 3-8 and 18-65), which Params no longer has; the v2
+// upgrade rewrites the record without them and keeps the other params.
+func TestMigrateToV2_DropsMirrorRelayerFees(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+
+	params := storagemoduletypes.DefaultParams()
+	params.MaxBucketsPerAccount = 77
+	legacy := mocaApp.AppCodec().MustMarshal(&params)
+	for num := protowire.Number(3); num <= 65; num++ {
+		if num > 8 && num < 18 {
+			continue
+		}
+		legacy = protowire.AppendTag(legacy, num, protowire.BytesType)
+		legacy = protowire.AppendString(legacy, "130000000000000")
+	}
+	store := ctx.KVStore(mocaApp.GetKey(storagemoduletypes.StoreKey))
+	store.Set(storagemoduletypes.ParamsKey, legacy)
+
+	require.NoError(t, mocaApp.migrateToV2(ctx))
+
+	for b := store.Get(storagemoduletypes.ParamsKey); len(b) > 0; {
+		num, typ, n := protowire.ConsumeTag(b)
+		require.GreaterOrEqual(t, n, 0)
+		require.False(t, (num >= 3 && num <= 8) || (num >= 18 && num <= 65), "field %d is still stored", num)
+		m := protowire.ConsumeFieldValue(num, typ, b[n:])
+		require.GreaterOrEqual(t, m, 0)
+		b = b[n+m:]
+	}
+	require.Equal(t, params, mocaApp.StorageKeeper.GetParams(ctx))
 }

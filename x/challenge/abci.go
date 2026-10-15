@@ -121,6 +121,8 @@ func EndBlocker(ctx sdk.Context, keeper k.Keeper) error {
 			Id:            challengeID,
 			ExpiredHeight: expiredHeight,
 		})
+		keeper.SaveChallengeSpID(ctx, challengeID, sp.Id)
+		keeper.SpKeeper.SetDepositLockUntil(ctx, sp.Id, expiredHeight)
 		events = append(events, &types.EventStartChallenge{
 			ChallengeId:       challengeID,
 			ObjectId:          objectInfo.Id,

@@ -17,6 +17,7 @@ type SpKeeper interface {
 	Exit(ctx sdk.Context, sp *sptypes.StorageProvider) error
 	DepositDenomForSP(ctx sdk.Context) (res string)
 	GetAllStorageProviders(ctx sdk.Context) (sps []sptypes.StorageProvider)
+	GetDepositLockUntil(ctx sdk.Context, spID uint32) uint64
 }
 
 // AccountKeeper defines the expected account keeper used for simulations (noalias)

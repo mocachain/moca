@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"encoding/hex"
+	"errors"
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
@@ -103,4 +104,59 @@ func TestInturnAttestationSubmitterQuery(t *testing.T) {
 	response, err := keeper.InturnAttestationSubmitter(ctx, &types.QueryInturnAttestationSubmitterRequest{})
 	require.NoError(t, err)
 	require.Equal(t, hex.EncodeToString(blsKey), response.BlsPubKey)
+}
+
+func TestParamsQuery_NilRequest(t *testing.T) {
+	k, ctx := makeKeeper(t)
+	_, err := k.Params(ctx, nil)
+	require.Error(t, err)
+}
+
+func TestAttestedChallengeQuery_NilRequest(t *testing.T) {
+	k, ctx := makeKeeper(t)
+	_, err := k.AttestedChallenge(ctx, nil)
+	require.Error(t, err)
+}
+
+func TestLatestAttestedChallengesQuery_NilRequest(t *testing.T) {
+	k, ctx := makeKeeper(t)
+	_, err := k.LatestAttestedChallenges(ctx, nil)
+	require.Error(t, err)
+}
+
+func TestInturnAttestationSubmitterQuery_NilRequest(t *testing.T) {
+	k, ctx := makeKeeper(t)
+	_, err := k.InturnAttestationSubmitter(ctx, nil)
+	require.Error(t, err)
+}
+
+// TestInturnAttestationSubmitterQuery_HistoricalInfoError proves the query surfaces a failure to
+// read historical validator info instead of masking it. This exercises the same
+// getInturnSubmitter error path Attest() also depends on, but the query reaches it directly
+// (with no earlier GetHistoricalInfo call to short-circuit first).
+func TestInturnAttestationSubmitterQuery_HistoricalInfoError(t *testing.T) {
+	encCfg := moduletestutil.MakeTestEncodingConfig(mint.AppModuleBasic{})
+	key := storetypes.NewKVStoreKey(types.StoreKey)
+	ctx := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_test")).Ctx
+
+	ctrl := gomock.NewController(t)
+	stakingKeeper := types.NewMockStakingKeeper(ctrl)
+	stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).
+		Return(stakingtypes.HistoricalInfo{}, errors.New("boom")).AnyTimes()
+
+	k := keeper.NewKeeper(
+		encCfg.Codec,
+		key,
+		key,
+		&types.MockBankKeeper{},
+		&types.MockStorageKeeper{},
+		&types.MockSpKeeper{},
+		stakingKeeper,
+		&types.MockPaymentKeeper{},
+		authtypes.NewModuleAddress(types.ModuleName).String(),
+	)
+	require.NoError(t, k.SetParams(ctx, types.DefaultParams()))
+
+	_, err := k.InturnAttestationSubmitter(ctx, &types.QueryInturnAttestationSubmitterRequest{})
+	require.Error(t, err)
 }

@@ -2,6 +2,7 @@ package types
 
 import (
 	"regexp"
+	"strings"
 	"time"
 
 	"cosmossdk.io/math"
@@ -126,19 +127,34 @@ func NewMemberStatement() *Statement {
 	}
 }
 
+// resourceMatcher compiles a resource pattern into an anchored matcher. Patterns are
+// wildcards, not regexps: '*' matches any run of characters, '?' matches one, the rest is
+// literal. Escaping first keeps a name containing a metacharacter from being read as an
+// expression; anchoring keeps a pattern off longer names it merely prefixes.
+func resourceMatcher(res string) (*regexp.Regexp, error) {
+	expr := regexp.QuoteMeta(res)
+	expr = strings.ReplaceAll(expr, `\*`, ".*")
+	expr = strings.ReplaceAll(expr, `\?`, ".")
+	// (?s) so the wildcards also span the newlines an object name is allowed to contain.
+	return regexp.Compile(`^(?s:` + expr + `)$`)
+}
+
 func (s *Statement) Eval(action ActionType, opts *VerifyOptions) (Effect, *Statement) {
-	// If 'resource' is not nil, it implies that the user intends to access a sub-resource, which would
-	// be specified in 's.Resources'. Therefore, if the sub-resource in the statement is nil, we will ignore this statement.
-	if opts != nil && opts.Resource != "" && s.Resources == nil {
+	// A statement naming no Resources is bucket-scoped. An Allow stays bucket-only, so no
+	// existing grant is widened; a Deny also applies to sub-resources, otherwise an owner's
+	// bucket-wide deny is silently voided by a competing resource-scoped Allow.
+	if opts != nil && opts.Resource != "" && len(s.Resources) == 0 && s.Effect != EFFECT_DENY {
 		return EFFECT_UNSPECIFIED, nil
 	}
 	// If 'resource' is not nil, and 's.Resource' is also not nil, it indicates that we should verify whether
 	// the resource that the user intends to access matches any items in 's.Resource'
-	if opts != nil && opts.Resource != "" && s.Resources != nil {
+	if opts != nil && opts.Resource != "" && len(s.Resources) > 0 {
 		isMatch := false
 		for _, res := range s.Resources {
-			reg := regexp.MustCompile(res)
-			if reg == nil {
+			// An uncompilable pattern does not match, rather than panicking: a statement
+			// already in state must not be able to fail a handler or a query.
+			reg, err := resourceMatcher(res)
+			if err != nil {
 				continue
 			}
 			matchRes := reg.MatchString(opts.Resource)
@@ -182,6 +198,13 @@ func (s *Statement) ValidateBasic(resType resource.ResourceType) error {
 	case resource.RESOURCE_TYPE_UNSPECIFIED:
 		return ErrInvalidStatement.Wrap("Please specify the ResourceType explicitly. Not allowed set RESOURCE_TYPE_UNSPECIFIED")
 	case resource.RESOURCE_TYPE_BUCKET:
+		if len(s.Resources) == 0 {
+			for _, a := range s.Actions {
+				if bucketActionRequiresResources(a) {
+					return ErrInvalidStatement.Wrapf("%s requires Resources when used on a bucket.", a.String())
+				}
+			}
+		}
 		for _, r := range s.Resources {
 			var grn gnfd.GRN
 			err := grn.ParseFromString(r, true)
@@ -213,21 +236,36 @@ func (s *Statement) ValidateBasic(resType resource.ResourceType) error {
 	return nil
 }
 
+func bucketActionRequiresResources(action ActionType) bool {
+	switch action {
+	case ACTION_DELETE_OBJECT,
+		ACTION_COPY_OBJECT,
+		ACTION_GET_OBJECT,
+		ACTION_EXECUTE_OBJECT,
+		ACTION_UPDATE_OBJECT_INFO,
+		ACTION_UPDATE_OBJECT_CONTENT:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Statement) ValidateRuntime(_ sdk.Context, resType resource.ResourceType) error {
 	switch resType {
 	case resource.RESOURCE_TYPE_BUCKET:
 		for _, r := range s.Resources {
-			_, err := regexp.Compile(r)
+			_, err := resourceMatcher(r)
 			if err != nil {
-				return ErrInvalidStatement.Wrapf("The Resources regexp compile failed, err: %s", err)
+				return ErrInvalidStatement.Wrapf("The Resources pattern is not usable, err: %s", err)
 			}
 		}
 	case resource.RESOURCE_TYPE_OBJECT:
-		if s.Resources != nil {
+		// len, not nil: ABI-decoded statements arrive with an empty non-nil slice.
+		if len(s.Resources) > 0 {
 			return ErrInvalidStatement.Wrap("The Resources option can only be used at the bucket level. ")
 		}
 	case resource.RESOURCE_TYPE_GROUP:
-		if s.Resources != nil {
+		if len(s.Resources) > 0 {
 			return ErrInvalidStatement.Wrap("The Resources option can only be used at the bucket level. ")
 		}
 	default:

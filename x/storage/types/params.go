@@ -2,8 +2,6 @@ package types
 
 import (
 	"fmt"
-	"math"
-	"math/big"
 
 	"gopkg.in/yaml.v2"
 )
@@ -17,173 +15,42 @@ const (
 	DefaultMaxBucketsPerAccount      uint32 = 100
 	DefaultMinChargeSize             uint64 = 1 * 1024 * 1024 // 1M
 	DefaultDiscontinueCountingWindow uint64 = 10000
-	DefaultDiscontinueObjectMax      uint64 = math.MaxUint64
-	DefaultDiscontinueBucketMax      uint64 = math.MaxUint64
-	DefaultDiscontinueConfirmPeriod  int64  = 604800 // 7 days (in second)
-	DefaultDiscontinueDeletionMax    uint64 = 100
-	DefaultStalePolicyCleanupMax     uint64 = 200
-	DefaultMinUpdateQuotaInterval    uint64 = 2592000 // 30 days (in second)
+	// Finite, not MaxUint64: an unbounded queue fills faster than the ~100/block
+	// drain removes, so it never clears and bloats state (slower blocks). 100k / 10k
+	// per SP per counting window stay well under the window drain (100 x 10000 = 1M).
+	DefaultDiscontinueObjectMax     uint64 = 100000
+	DefaultDiscontinueBucketMax     uint64 = 10000
+	DefaultDiscontinueConfirmPeriod int64  = 604800 // 7 days (in second)
+	DefaultDiscontinueDeletionMax   uint64 = 100
+	DefaultStalePolicyCleanupMax    uint64 = 200
+	DefaultMinUpdateQuotaInterval   uint64 = 2592000 // 30 days (in second)
 
 	// TODO
-	DefaultMaxLocalVirtualGroupNumPerBucket  uint32 = 10
-	DefaultBscMirrorBucketRelayerFee                = "1300000000000000" // 0.0013
-	DefaultBscMirrorBucketAckRelayerFee             = "250000000000000"  // 0.00025
-	DefaultBscMirrorObjectRelayerFee                = "1300000000000000" // 0.0013
-	DefaultBscMirrorObjectAckRelayerFee             = "250000000000000"  // 0.00025
-	DefaultBscMirrorGroupRelayerFee                 = "1300000000000000" // 0.0013
-	DefaultBscMirrorGroupAckRelayerFee              = "250000000000000"  // 0.00025
-	DefaultOpMirrorBucketRelayerFee                 = "130000000000000"  // 0.00013
-	DefaultOpMirrorBucketAckRelayerFee              = "25000000000000"   // 0.000025
-	DefaultOpMirrorObjectRelayerFee                 = "130000000000000"  // 0.00013
-	DefaultOpMirrorObjectAckRelayerFee              = "25000000000000"   // 0.000025
-	DefaultOpMirrorGroupRelayerFee                  = "130000000000000"  // 0.00013
-	DefaultOpMirrorGroupAckRelayerFee               = "25000000000000"   // 0.000025
-	DefaultPolygonMirrorBucketRelayerFee            = "130000000000000"  // 0.00013
-	DefaultPolygonMirrorBucketAckRelayerFee         = "25000000000000"   // 0.000025
-	DefaultPolygonMirrorObjectRelayerFee            = "130000000000000"  // 0.00013
-	DefaultPolygonMirrorObjectAckRelayerFee         = "25000000000000"   // 0.000025
-	DefaultPolygonMirrorGroupRelayerFee             = "130000000000000"  // 0.00013
-	DefaultPolygonMirrorGroupAckRelayerFee          = "25000000000000"   // 0.000025
-	DefaultScrollMirrorBucketRelayerFee             = "130000000000000"  // 0.00013
-	DefaultScrollMirrorBucketAckRelayerFee          = "25000000000000"   // 0.000025
-	DefaultScrollMirrorObjectRelayerFee             = "130000000000000"  // 0.00013
-	DefaultScrollMirrorObjectAckRelayerFee          = "25000000000000"   // 0.000025
-	DefaultScrollMirrorGroupRelayerFee              = "130000000000000"  // 0.00013
-	DefaultScrollMirrorGroupAckRelayerFee           = "25000000000000"   // 0.000025
-	DefaultLineaMirrorBucketRelayerFee              = "130000000000000"  // 0.00013
-	DefaultLineaMirrorBucketAckRelayerFee           = "25000000000000"   // 0.000025
-	DefaultLineaMirrorObjectRelayerFee              = "130000000000000"  // 0.00013
-	DefaultLineaMirrorObjectAckRelayerFee           = "25000000000000"   // 0.000025
-	DefaultLineaMirrorGroupRelayerFee               = "130000000000000"  // 0.00013
-	DefaultLineaMirrorGroupAckRelayerFee            = "25000000000000"   // 0.000025
-	DefaultMantleMirrorBucketRelayerFee             = "130000000000000"  // 0.00013
-	DefaultMantleMirrorBucketAckRelayerFee          = "25000000000000"   // 0.000025
-	DefaultMantleMirrorObjectRelayerFee             = "130000000000000"  // 0.00013
-	DefaultMantleMirrorObjectAckRelayerFee          = "25000000000000"   // 0.000025
-	DefaultMantleMirrorGroupRelayerFee              = "130000000000000"  // 0.00013
-	DefaultMantleMirrorGroupAckRelayerFee           = "25000000000000"   // 0.000025
-	DefaultArbitrumMirrorBucketRelayerFee           = "130000000000000"  // 0.00013
-	DefaultArbitrumMirrorBucketAckRelayerFee        = "25000000000000"   // 0.000025
-	DefaultArbitrumMirrorObjectRelayerFee           = "130000000000000"  // 0.00013
-	DefaultArbitrumMirrorObjectAckRelayerFee        = "25000000000000"   // 0.000025
-	DefaultArbitrumMirrorGroupRelayerFee            = "130000000000000"  // 0.00013
-	DefaultArbitrumMirrorGroupAckRelayerFee         = "25000000000000"   // 0.000025
-	DefaultOptimismMirrorBucketRelayerFee           = "130000000000000"  // 0.00013
-	DefaultOptimismMirrorBucketAckRelayerFee        = "25000000000000"   // 0.000025
-	DefaultOptimismMirrorObjectRelayerFee           = "130000000000000"  // 0.00013
-	DefaultOptimismMirrorObjectAckRelayerFee        = "25000000000000"   // 0.000025
-	DefaultOptimismMirrorGroupRelayerFee            = "130000000000000"  // 0.00013
-	DefaultOptimismMirrorGroupAckRelayerFee         = "25000000000000"   // 0.000025
-	DefaultBaseMirrorBucketRelayerFee               = "130000000000000"  // 0.00013
-	DefaultBaseMirrorBucketAckRelayerFee            = "25000000000000"   // 0.000025
-	DefaultBaseMirrorObjectRelayerFee               = "130000000000000"  // 0.00013
-	DefaultBaseMirrorObjectAckRelayerFee            = "25000000000000"   // 0.000025
-	DefaultBaseMirrorGroupRelayerFee                = "130000000000000"  // 0.00013
-	DefaultBaseMirrorGroupAckRelayerFee             = "25000000000000"   // 0.000025
+	DefaultMaxLocalVirtualGroupNumPerBucket uint32 = 10
 )
 
 var (
-	KeyMaxSegmentSize                    = []byte("MaxSegmentSize")
-	KeyRedundantDataChunkNum             = []byte("RedundantDataChunkNum")
-	KeyRedundantParityChunkNum           = []byte("RedundantParityChunkNum")
-	KeyMaxPayloadSize                    = []byte("MaxPayloadSize")
-	KeyMinChargeSize                     = []byte("MinChargeSize")
-	KeyMaxBucketsPerAccount              = []byte("MaxBucketsPerAccount")
-	KeyDiscontinueCountingWindow         = []byte("DiscontinueCountingWindow")
-	KeyDiscontinueObjectMax              = []byte("DiscontinueObjectMax")
-	KeyDiscontinueBucketMax              = []byte("DiscontinueBucketMax")
-	KeyDiscontinueConfirmPeriod          = []byte("DiscontinueConfirmPeriod")
-	KeyDiscontinueDeletionMax            = []byte("DiscontinueDeletionMax")
-	KeyStalePolicyCleanupMax             = []byte("StalePolicyCleanupMax")
-	KeyMinUpdateQuotaInterval            = []byte("MinUpdateQuotaInterval")
-	KeyBscMirrorBucketRelayerFee         = []byte("BscMirrorBucketRelayerFee")
-	KeyBscMirrorBucketAckRelayerFee      = []byte("BscMirrorBucketAckRelayerFee")
-	KeyBscMirrorObjectRelayerFee         = []byte("BscMirrorObjectRelayerFee")
-	KeyBscMirrorObjectAckRelayerFee      = []byte("BscMirrorObjectAckRelayerFee")
-	KeyBscMirrorGroupRelayerFee          = []byte("BscMirrorGroupRelayerFee")
-	KeyBscMirrorGroupAckRelayerFee       = []byte("BscMirrorGroupAckRelayerFee")
-	KeyOpMirrorBucketRelayerFee          = []byte("OpMirrorBucketRelayerFee")
-	KeyOpMirrorBucketAckRelayerFee       = []byte("OpMirrorBucketAckRelayerFee")
-	KeyOpMirrorObjectRelayerFee          = []byte("OpMirrorObjectRelayerFee")
-	KeyOpMirrorObjectAckRelayerFee       = []byte("OpMirrorObjectAckRelayerFee")
-	KeyOpMirrorGroupRelayerFee           = []byte("OpMirrorGroupRelayerFee")
-	KeyOpMirrorGroupAckRelayerFee        = []byte("OpMirrorGroupAckRelayerFee")
-	KeyPolygonMirrorBucketRelayerFee     = []byte("PolygonMirrorBucketRelayerFee")
-	KeyPolygonMirrorBucketAckRelayerFee  = []byte("PolygonMirrorBucketAckRelayerFee")
-	KeyPolygonMirrorObjectRelayerFee     = []byte("PolygonMirrorObjectRelayerFee")
-	KeyPolygonMirrorObjectAckRelayerFee  = []byte("PolygonMirrorObjectAckRelayerFee")
-	KeyPolygonMirrorGroupRelayerFee      = []byte("PolygonMirrorGroupRelayerFee")
-	KeyPolygonMirrorGroupAckRelayerFee   = []byte("PolygonMirrorGroupAckRelayerFee")
-	KeyScrollMirrorBucketRelayerFee      = []byte("ScrollMirrorBucketRelayerFee")
-	KeyScrollMirrorBucketAckRelayerFee   = []byte("ScrollMirrorBucketAckRelayerFee")
-	KeyScrollMirrorObjectRelayerFee      = []byte("ScrollMirrorObjectRelayerFee")
-	KeyScrollMirrorObjectAckRelayerFee   = []byte("ScrollMirrorObjectAckRelayerFee")
-	KeyScrollMirrorGroupRelayerFee       = []byte("ScrollMirrorGroupRelayerFee")
-	KeyScrollMirrorGroupAckRelayerFee    = []byte("ScrollMirrorGroupAckRelayerFee")
-	KeyLineaMirrorBucketRelayerFee       = []byte("LineaMirrorBucketRelayerFee")
-	KeyLineaMirrorBucketAckRelayerFee    = []byte("LineaMirrorBucketAckRelayerFee")
-	KeyLineaMirrorObjectRelayerFee       = []byte("LineaMirrorObjectRelayerFee")
-	KeyLineaMirrorObjectAckRelayerFee    = []byte("LineaMirrorObjectAckRelayerFee")
-	KeyLineaMirrorGroupRelayerFee        = []byte("LineaMirrorGroupRelayerFee")
-	KeyLineaMirrorGroupAckRelayerFee     = []byte("LineaMirrorGroupAckRelayerFee")
-	KeyMantleMirrorBucketRelayerFee      = []byte("MantleMirrorBucketRelayerFee")
-	KeyMantleMirrorBucketAckRelayerFee   = []byte("MantleMirrorBucketAckRelayerFee")
-	KeyMantleMirrorObjectRelayerFee      = []byte("MantleMirrorObjectRelayerFee")
-	KeyMantleMirrorObjectAckRelayerFee   = []byte("MantleMirrorObjectAckRelayerFee")
-	KeyMantleMirrorGroupRelayerFee       = []byte("MantleMirrorGroupRelayerFee")
-	KeyMantleMirrorGroupAckRelayerFee    = []byte("MantleMirrorGroupAckRelayerFee")
-	KeyArbitrumMirrorBucketRelayerFee    = []byte("ArbitrumMirrorBucketRelayerFee")
-	KeyArbitrumMirrorBucketAckRelayerFee = []byte("ArbitrumMirrorBucketAckRelayerFee")
-	KeyArbitrumMirrorObjectRelayerFee    = []byte("ArbitrumMirrorObjectRelayerFee")
-	KeyArbitrumMirrorObjectAckRelayerFee = []byte("ArbitrumMirrorObjectAckRelayerFee")
-	KeyArbitrumMirrorGroupRelayerFee     = []byte("ArbitrumMirrorGroupRelayerFee")
-	KeyArbitrumMirrorGroupAckRelayerFee  = []byte("ArbitrumMirrorGroupAckRelayerFee")
-	KeyOptimismMirrorBucketRelayerFee    = []byte("OptimismMirrorBucketRelayerFee")
-	KeyOptimismMirrorBucketAckRelayerFee = []byte("OptimismMirrorBucketAckRelayerFee")
-	KeyOptimismMirrorObjectRelayerFee    = []byte("OptimismMirrorObjectRelayerFee")
-	KeyOptimismMirrorObjectAckRelayerFee = []byte("OptimismMirrorObjectAckRelayerFee")
-	KeyOptimismMirrorGroupRelayerFee     = []byte("OptimismMirrorGroupRelayerFee")
-	KeyOptimismMirrorGroupAckRelayerFee  = []byte("OptimismMirrorGroupAckRelayerFee")
-	KeyBaseMirrorBucketRelayerFee        = []byte("BaseMirrorBucketRelayerFee")
-	KeyBaseMirrorBucketAckRelayerFee     = []byte("BaseMirrorBucketAckRelayerFee")
-	KeyBaseMirrorObjectRelayerFee        = []byte("BaseMirrorObjectRelayerFee")
-	KeyBaseMirrorObjectAckRelayerFee     = []byte("BaseMirrorObjectAckRelayerFee")
-	KeyBaseMirrorGroupRelayerFee         = []byte("BaseMirrorGroupRelayerFee")
-	KeyBaseMirrorGroupAckRelayerFee      = []byte("BaseMirrorGroupAckRelayerFee")
-	KeyMaxLocalVirtualGroupNumPerBucket  = []byte("MaxLocalVirtualGroupNumPerBucket")
+	KeyMaxSegmentSize                   = []byte("MaxSegmentSize")
+	KeyRedundantDataChunkNum            = []byte("RedundantDataChunkNum")
+	KeyRedundantParityChunkNum          = []byte("RedundantParityChunkNum")
+	KeyMaxPayloadSize                   = []byte("MaxPayloadSize")
+	KeyMinChargeSize                    = []byte("MinChargeSize")
+	KeyMaxBucketsPerAccount             = []byte("MaxBucketsPerAccount")
+	KeyDiscontinueCountingWindow        = []byte("DiscontinueCountingWindow")
+	KeyDiscontinueObjectMax             = []byte("DiscontinueObjectMax")
+	KeyDiscontinueBucketMax             = []byte("DiscontinueBucketMax")
+	KeyDiscontinueConfirmPeriod         = []byte("DiscontinueConfirmPeriod")
+	KeyDiscontinueDeletionMax           = []byte("DiscontinueDeletionMax")
+	KeyStalePolicyCleanupMax            = []byte("StalePolicyCleanupMax")
+	KeyMinUpdateQuotaInterval           = []byte("MinUpdateQuotaInterval")
+	KeyMaxLocalVirtualGroupNumPerBucket = []byte("MaxLocalVirtualGroupNumPerBucket")
 )
 
 // NewParams creates a new Params instance
 func NewParams(
 	maxSegmentSize uint64, redundantDataChunkNum uint32,
 	redundantParityChunkNum uint32, maxPayloadSize uint64, maxBucketsPerAccount uint32,
-	minChargeSize uint64, bscMirrorBucketRelayerFee, bscMirrorBucketAckRelayerFee string,
-	bscMirrorObjectRelayerFee, bscMirrorObjectAckRelayerFee string,
-	bscMirrorGroupRelayerFee, bscMirrorGroupAckRelayerFee string,
-	opMirrorBucketRelayerFee, opMirrorBucketAckRelayerFee string,
-	opMirrorObjectRelayerFee, opMirrorObjectAckRelayerFee string,
-	opMirrorGroupRelayerFee, opMirrorGroupAckRelayerFee string,
-	polygonMirrorBucketRelayerFee, polygonMirrorBucketAckRelayerFee string,
-	polygonMirrorObjectRelayerFee, polygonMirrorObjectAckRelayerFee string,
-	polygonMirrorGroupRelayerFee, polygonMirrorGroupAckRelayerFee string,
-	scrollMirrorBucketRelayerFee, scrollMirrorBucketAckRelayerFee string,
-	scrollMirrorObjectRelayerFee, scrollMirrorObjectAckRelayerFee string,
-	scrollMirrorGroupRelayerFee, scrollMirrorGroupAckRelayerFee string,
-	lineaMirrorBucketRelayerFee, lineaMirrorBucketAckRelayerFee string,
-	lineaMirrorObjectRelayerFee, lineaMirrorObjectAckRelayerFee string,
-	lineaMirrorGroupRelayerFee, lineaMirrorGroupAckRelayerFee string,
-	mantleMirrorBucketRelayerFee, mantleMirrorBucketAckRelayerFee string,
-	mantleMirrorObjectRelayerFee, mantleMirrorObjectAckRelayerFee string,
-	mantleMirrorGroupRelayerFee, mantleMirrorGroupAckRelayerFee string,
-	arbitrumMirrorBucketRelayerFee, arbitrumMirrorBucketAckRelayerFee string,
-	arbitrumMirrorObjectRelayerFee, arbitrumMirrorObjectAckRelayerFee string,
-	arbitrumMirrorGroupRelayerFee, arbitrumMirrorGroupAckRelayerFee string,
-	optimismMirrorBucketRelayerFee, optimismMirrorBucketAckRelayerFee string,
-	optimismMirrorObjectRelayerFee, optimismMirrorObjectAckRelayerFee string,
-	optimismMirrorGroupRelayerFee, optimismMirrorGroupAckRelayerFee string,
-	baseMirrorBucketRelayerFee, baseMirrorBucketAckRelayerFee string,
-	baseMirrorObjectRelayerFee, baseMirrorObjectAckRelayerFee string,
-	baseMirrorGroupRelayerFee, baseMirrorGroupAckRelayerFee string,
+	minChargeSize uint64,
 	discontinueCountingWindow, discontinueObjectMax, discontinueBucketMax uint64,
 	discontinueConfirmPeriod int64,
 	discontinueDeletionMax uint64,
@@ -198,70 +65,16 @@ func NewParams(
 			RedundantParityChunkNum: redundantParityChunkNum,
 			MinChargeSize:           minChargeSize,
 		},
-		MaxPayloadSize:                    maxPayloadSize,
-		MaxBucketsPerAccount:              maxBucketsPerAccount,
-		BscMirrorBucketRelayerFee:         bscMirrorBucketRelayerFee,
-		BscMirrorBucketAckRelayerFee:      bscMirrorBucketAckRelayerFee,
-		BscMirrorObjectRelayerFee:         bscMirrorObjectRelayerFee,
-		BscMirrorObjectAckRelayerFee:      bscMirrorObjectAckRelayerFee,
-		BscMirrorGroupRelayerFee:          bscMirrorGroupRelayerFee,
-		BscMirrorGroupAckRelayerFee:       bscMirrorGroupAckRelayerFee,
-		OpMirrorBucketRelayerFee:          opMirrorBucketRelayerFee,
-		OpMirrorBucketAckRelayerFee:       opMirrorBucketAckRelayerFee,
-		OpMirrorObjectRelayerFee:          opMirrorObjectRelayerFee,
-		OpMirrorObjectAckRelayerFee:       opMirrorObjectAckRelayerFee,
-		OpMirrorGroupRelayerFee:           opMirrorGroupRelayerFee,
-		OpMirrorGroupAckRelayerFee:        opMirrorGroupAckRelayerFee,
-		PolygonMirrorBucketRelayerFee:     polygonMirrorBucketRelayerFee,
-		PolygonMirrorBucketAckRelayerFee:  polygonMirrorBucketAckRelayerFee,
-		PolygonMirrorObjectRelayerFee:     polygonMirrorObjectRelayerFee,
-		PolygonMirrorObjectAckRelayerFee:  polygonMirrorObjectAckRelayerFee,
-		PolygonMirrorGroupRelayerFee:      polygonMirrorGroupRelayerFee,
-		PolygonMirrorGroupAckRelayerFee:   polygonMirrorGroupAckRelayerFee,
-		ScrollMirrorBucketRelayerFee:      scrollMirrorBucketRelayerFee,
-		ScrollMirrorBucketAckRelayerFee:   scrollMirrorBucketAckRelayerFee,
-		ScrollMirrorObjectRelayerFee:      scrollMirrorObjectRelayerFee,
-		ScrollMirrorObjectAckRelayerFee:   scrollMirrorObjectAckRelayerFee,
-		ScrollMirrorGroupRelayerFee:       scrollMirrorGroupRelayerFee,
-		ScrollMirrorGroupAckRelayerFee:    scrollMirrorGroupAckRelayerFee,
-		LineaMirrorBucketRelayerFee:       lineaMirrorBucketRelayerFee,
-		LineaMirrorBucketAckRelayerFee:    lineaMirrorBucketAckRelayerFee,
-		LineaMirrorObjectRelayerFee:       lineaMirrorObjectRelayerFee,
-		LineaMirrorObjectAckRelayerFee:    lineaMirrorObjectAckRelayerFee,
-		LineaMirrorGroupRelayerFee:        lineaMirrorGroupRelayerFee,
-		LineaMirrorGroupAckRelayerFee:     lineaMirrorGroupAckRelayerFee,
-		MantleMirrorBucketRelayerFee:      mantleMirrorBucketRelayerFee,
-		MantleMirrorBucketAckRelayerFee:   mantleMirrorBucketAckRelayerFee,
-		MantleMirrorObjectRelayerFee:      mantleMirrorObjectRelayerFee,
-		MantleMirrorObjectAckRelayerFee:   mantleMirrorObjectAckRelayerFee,
-		MantleMirrorGroupRelayerFee:       mantleMirrorGroupRelayerFee,
-		MantleMirrorGroupAckRelayerFee:    mantleMirrorGroupAckRelayerFee,
-		ArbitrumMirrorBucketRelayerFee:    arbitrumMirrorBucketRelayerFee,
-		ArbitrumMirrorBucketAckRelayerFee: arbitrumMirrorBucketAckRelayerFee,
-		ArbitrumMirrorObjectRelayerFee:    arbitrumMirrorObjectRelayerFee,
-		ArbitrumMirrorObjectAckRelayerFee: arbitrumMirrorObjectAckRelayerFee,
-		ArbitrumMirrorGroupRelayerFee:     arbitrumMirrorGroupRelayerFee,
-		ArbitrumMirrorGroupAckRelayerFee:  arbitrumMirrorGroupAckRelayerFee,
-		OptimismMirrorBucketRelayerFee:    optimismMirrorBucketRelayerFee,
-		OptimismMirrorBucketAckRelayerFee: optimismMirrorBucketAckRelayerFee,
-		OptimismMirrorObjectRelayerFee:    optimismMirrorObjectRelayerFee,
-		OptimismMirrorObjectAckRelayerFee: optimismMirrorObjectAckRelayerFee,
-		OptimismMirrorGroupRelayerFee:     optimismMirrorGroupRelayerFee,
-		OptimismMirrorGroupAckRelayerFee:  optimismMirrorGroupAckRelayerFee,
-		BaseMirrorBucketRelayerFee:        baseMirrorBucketRelayerFee,
-		BaseMirrorBucketAckRelayerFee:     baseMirrorBucketAckRelayerFee,
-		BaseMirrorObjectRelayerFee:        baseMirrorObjectRelayerFee,
-		BaseMirrorObjectAckRelayerFee:     baseMirrorObjectAckRelayerFee,
-		BaseMirrorGroupRelayerFee:         baseMirrorGroupRelayerFee,
-		BaseMirrorGroupAckRelayerFee:      baseMirrorGroupAckRelayerFee,
-		DiscontinueCountingWindow:         discontinueCountingWindow,
-		DiscontinueObjectMax:              discontinueObjectMax,
-		DiscontinueBucketMax:              discontinueBucketMax,
-		DiscontinueConfirmPeriod:          discontinueConfirmPeriod,
-		DiscontinueDeletionMax:            discontinueDeletionMax,
-		StalePolicyCleanupMax:             stalePoliesCleanupMax,
-		MinQuotaUpdateInterval:            minUpdateQuotaInterval,
-		MaxLocalVirtualGroupNumPerBucket:  maxLocalVirtualGroupNumPerBucket,
+		MaxPayloadSize:                   maxPayloadSize,
+		MaxBucketsPerAccount:             maxBucketsPerAccount,
+		DiscontinueCountingWindow:        discontinueCountingWindow,
+		DiscontinueObjectMax:             discontinueObjectMax,
+		DiscontinueBucketMax:             discontinueBucketMax,
+		DiscontinueConfirmPeriod:         discontinueConfirmPeriod,
+		DiscontinueDeletionMax:           discontinueDeletionMax,
+		StalePolicyCleanupMax:            stalePoliesCleanupMax,
+		MinQuotaUpdateInterval:           minUpdateQuotaInterval,
+		MaxLocalVirtualGroupNumPerBucket: maxLocalVirtualGroupNumPerBucket,
 	}
 }
 
@@ -270,33 +83,7 @@ func DefaultParams() Params {
 	return NewParams(
 		DefaultMaxSegmentSize, DefaultRedundantDataChunkNum,
 		DefaultRedundantParityChunkNum, DefaultMaxPayloadSize, DefaultMaxBucketsPerAccount,
-		DefaultMinChargeSize, DefaultBscMirrorBucketRelayerFee, DefaultBscMirrorBucketAckRelayerFee,
-		DefaultBscMirrorObjectRelayerFee, DefaultBscMirrorObjectAckRelayerFee,
-		DefaultBscMirrorGroupRelayerFee, DefaultBscMirrorGroupAckRelayerFee,
-		DefaultOpMirrorBucketRelayerFee, DefaultOpMirrorBucketAckRelayerFee,
-		DefaultOpMirrorObjectRelayerFee, DefaultOpMirrorObjectAckRelayerFee,
-		DefaultOpMirrorGroupRelayerFee, DefaultOpMirrorGroupAckRelayerFee,
-		DefaultPolygonMirrorBucketRelayerFee, DefaultPolygonMirrorBucketAckRelayerFee,
-		DefaultPolygonMirrorObjectRelayerFee, DefaultPolygonMirrorObjectAckRelayerFee,
-		DefaultPolygonMirrorGroupRelayerFee, DefaultPolygonMirrorGroupAckRelayerFee,
-		DefaultScrollMirrorBucketRelayerFee, DefaultScrollMirrorBucketAckRelayerFee,
-		DefaultScrollMirrorObjectRelayerFee, DefaultScrollMirrorObjectAckRelayerFee,
-		DefaultScrollMirrorGroupRelayerFee, DefaultScrollMirrorGroupAckRelayerFee,
-		DefaultLineaMirrorBucketRelayerFee, DefaultLineaMirrorBucketAckRelayerFee,
-		DefaultLineaMirrorObjectRelayerFee, DefaultLineaMirrorObjectAckRelayerFee,
-		DefaultLineaMirrorGroupRelayerFee, DefaultLineaMirrorGroupAckRelayerFee,
-		DefaultMantleMirrorBucketRelayerFee, DefaultMantleMirrorBucketAckRelayerFee,
-		DefaultMantleMirrorObjectRelayerFee, DefaultMantleMirrorObjectAckRelayerFee,
-		DefaultMantleMirrorGroupRelayerFee, DefaultMantleMirrorGroupAckRelayerFee,
-		DefaultArbitrumMirrorBucketRelayerFee, DefaultArbitrumMirrorBucketAckRelayerFee,
-		DefaultArbitrumMirrorObjectRelayerFee, DefaultArbitrumMirrorObjectAckRelayerFee,
-		DefaultArbitrumMirrorGroupRelayerFee, DefaultArbitrumMirrorGroupAckRelayerFee,
-		DefaultOptimismMirrorBucketRelayerFee, DefaultOptimismMirrorBucketAckRelayerFee,
-		DefaultOptimismMirrorObjectRelayerFee, DefaultOptimismMirrorObjectAckRelayerFee,
-		DefaultOptimismMirrorGroupRelayerFee, DefaultOptimismMirrorGroupAckRelayerFee,
-		DefaultBaseMirrorBucketRelayerFee, DefaultBaseMirrorBucketAckRelayerFee,
-		DefaultBaseMirrorObjectRelayerFee, DefaultBaseMirrorObjectAckRelayerFee,
-		DefaultBaseMirrorGroupRelayerFee, DefaultBaseMirrorGroupAckRelayerFee,
+		DefaultMinChargeSize,
 		DefaultDiscontinueCountingWindow, DefaultDiscontinueObjectMax, DefaultDiscontinueBucketMax,
 		DefaultDiscontinueConfirmPeriod, DefaultDiscontinueDeletionMax, DefaultStalePolicyCleanupMax,
 		DefaultMinUpdateQuotaInterval, DefaultMaxLocalVirtualGroupNumPerBucket,
@@ -321,168 +108,6 @@ func (p Params) Validate() error {
 		return err
 	}
 	if err := validateMaxBucketsPerAccount(p.MaxBucketsPerAccount); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BscMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BscMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BscMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BscMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BscMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BscMirrorGroupAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OpMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OpMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OpMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OpMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OpMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OpMirrorGroupAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.PolygonMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.PolygonMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.PolygonMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.PolygonMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.PolygonMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.PolygonMirrorGroupAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ScrollMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ScrollMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ScrollMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ScrollMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ScrollMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ScrollMirrorGroupAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.LineaMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.LineaMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.LineaMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.LineaMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.LineaMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.LineaMirrorGroupAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.MantleMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.MantleMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.MantleMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.MantleMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.MantleMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.MantleMirrorGroupAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ArbitrumMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ArbitrumMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ArbitrumMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ArbitrumMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ArbitrumMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.ArbitrumMirrorGroupAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OptimismMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OptimismMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OptimismMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OptimismMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OptimismMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.OptimismMirrorGroupAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BaseMirrorBucketRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BaseMirrorBucketAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BaseMirrorObjectRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BaseMirrorObjectAckRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BaseMirrorGroupRelayerFee); err != nil {
-		return err
-	}
-	if err := validateRelayerFee(p.BaseMirrorGroupAckRelayerFee); err != nil {
 		return err
 	}
 	if err := validateDiscontinueCountingWindow(p.DiscontinueCountingWindow); err != nil {
@@ -625,26 +250,6 @@ func validateRedundantParityChunkNum(i interface{}) error {
 
 	if v == 0 {
 		return fmt.Errorf("redundant parity size chunk num must be positive: %d", v)
-	}
-
-	return nil
-}
-
-func validateRelayerFee(i interface{}) error {
-	v, ok := i.(string)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", i)
-	}
-
-	relayerFee := big.NewInt(0)
-	relayerFee, valid := relayerFee.SetString(v, 10)
-
-	if !valid {
-		return fmt.Errorf("invalid transfer out relayer fee, %s", v)
-	}
-
-	if relayerFee.Cmp(big.NewInt(0)) < 0 {
-		return fmt.Errorf("invalid transfer out relayer fee, %s", v)
 	}
 
 	return nil

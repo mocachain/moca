@@ -75,6 +75,7 @@ func (k Keeper) ApplyUserFlowsList(ctx sdk.Context, userFlowsList []types.UserFl
 }
 
 func (k Keeper) applyActiveUserFlows(ctx sdk.Context, userFlows types.UserFlows, from sdk.AccAddress, streamRecord *types.StreamRecord) error {
+	wasActive := streamRecord.Status == types.STREAM_ACCOUNT_STATUS_ACTIVE
 	rateChanges := make([]types.StreamRecordChange, 0, len(userFlows.Flows))
 	totalRate := sdkmath.ZeroInt()
 	for _, flowChange := range userFlows.Flows {
@@ -110,6 +111,18 @@ func (k Keeper) applyActiveUserFlows(ctx sdk.Context, userFlows types.UserFlows,
 	err = k.ApplyStreamRecordChanges(ctx, rateChanges)
 	if err != nil {
 		return fmt.Errorf("apply stream record changes failed: %w", err)
+	}
+
+	// UpdateStreamRecord above can force-settle the account into FROZEN. Its
+	// out-flows have to follow, or the record is persisted frozen while every
+	// recipient keeps drawing against it. This runs after the merge so the
+	// flows written just above are included, and after the credits so the two
+	// net out — the same end state UpdateStreamRecordByAddr reaches.
+	if wasActive && streamRecord.Status == types.STREAM_ACCOUNT_STATUS_FROZEN {
+		if err = k.freezeAllActiveOutFlows(ctx, streamRecord); err != nil {
+			return fmt.Errorf("freeze active out-flows failed: %w", err)
+		}
+		k.SetStreamRecord(ctx, streamRecord)
 	}
 	return nil
 }

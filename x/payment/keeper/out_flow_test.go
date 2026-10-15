@@ -97,3 +97,8 @@ func TestGetOutFlows(t *testing.T) {
 	require.Equal(t, 1, len(keeper.GetOutFlows(ctx, addr1)))
 	require.Equal(t, 1, len(keeper.GetOutFlows(ctx, addr2)))
 }
+
+// Note: SetOutFlow's Marshal-error panic branch is not exercised here.
+// sdkmath.Int.Marshal only fails on a nil Int, and every caller in this
+// package always supplies a concrete rate, so the branch is dead code, not a
+// gap in fixture coverage.

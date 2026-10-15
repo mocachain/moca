@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"cosmossdk.io/errors"
+	"github.com/cometbft/cometbft/votepool"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -104,4 +105,18 @@ func (msg *MsgAttest) GetBlsSignBytes(chainID string) [32]byte {
 	bs = append(bs, challengerBz...)
 	hash := crypto.Keccak256Hash(bs)
 	return hash
+}
+
+// GetVotePoolSignBytes returns the payload a challenge vote is signed over in
+// the vote pool, which prefixes the event type before hashing.
+//
+// This MUST stay byte-identical to votepool.Vote.SignBytes for the event type
+// below, since one signature is verified in both places: the vote pool checks
+// it on gossip, and the aggregate of those same signatures is checked here.
+func (msg *MsgAttest) GetVotePoolSignBytes(chainID string) []byte {
+	eventHash := msg.GetBlsSignBytes(chainID)
+	bs := make([]byte, 0, 1+len(eventHash))
+	bs = append(bs, byte(votepool.DataAvailabilityChallengeEvent))
+	bs = append(bs, eventHash[:]...)
+	return crypto.Keccak256(bs)
 }

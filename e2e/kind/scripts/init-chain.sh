@@ -382,6 +382,34 @@ generate_genesis() {
     sed -i "s/pruning = \"default\"/pruning = \"nothing\"/g" "$app"
     sed -i "s/eth,net,web3/eth,txpool,personal,net,debug,web3/g" "$app"
 
+    # Hardfork upgrade schedule. app.toml is read only at startup, so this has to
+    # be written before the chain starts — it cannot be derived from a running
+    # height later. Every validator gets the same entry, which is the point: the
+    # old binary schedules an x/upgrade plan at exactly this height and halts
+    # there, so all validators cross the upgrade boundary at the same block.
+    # Without it there is no halt, validators are stopped at whatever height they
+    # happen to be at, and the ones a block behind re-execute that block under
+    # the new binary — producing a different app hash and a split network.
+    if [ -n "${HARDFORK_HEIGHT:-}" ] && [ -n "${HARDFORK_NAME:-}" ]; then
+      # A missing table means this binary predates [hardforks] support, so no
+      # entry would ever be read. Appending one would look like it worked and
+      # then fail minutes later as an unexplained missing halt.
+      if ! grep -q "^\[hardforks\]" "$app"; then
+        log "ERROR: ${app} has no [hardforks] section; OLD_VERSION predates the feature"
+        exit 1
+      fi
+      # Match on the same pattern grep used: anchoring only one of the two lets a
+      # trailing space on the header pass the check and insert nothing.
+      sed -i "/^\[hardforks\]/a \"${HARDFORK_HEIGHT}\" = { name = \"${HARDFORK_NAME}\" }" "$app"
+      # Nothing downstream can tell a missing entry from a chain that simply
+      # never halted, so confirm the write here where the cause is still local.
+      if ! grep -q "^\"${HARDFORK_HEIGHT}\" = " "$app"; then
+        log "ERROR: failed to write hardfork entry to ${app}"
+        exit 1
+      fi
+      log "Scheduled hardfork ${HARDFORK_NAME} at height ${HARDFORK_HEIGHT} for validator${i}"
+    fi
+
     # ---- client.toml — point at standard RPC port ----
     sed -i "s#node = \"tcp://localhost:26657\"#node = \"tcp://localhost:26657\"#g" "$client"
   done

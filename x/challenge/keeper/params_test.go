@@ -21,3 +21,13 @@ func TestGetParams(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, params, k.GetParams(ctx))
 }
+
+func TestGetParams_EmptyBeforeAnySet(t *testing.T) {
+	k, ctx := makeKeeper(t)
+	require.Equal(t, types.Params{}, k.GetParams(ctx))
+}
+
+func TestSetParams_InvalidRejected(t *testing.T) {
+	k, ctx := makeKeeper(t)
+	require.Error(t, k.SetParams(ctx, types.Params{}))
+}

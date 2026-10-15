@@ -18,6 +18,11 @@ func BeginBlocker(ctx sdk.Context, keeper Keeper) error {
 }
 
 func EndBlocker(ctx sdk.Context, keeper Keeper) error {
+	// the current block's delete bookkeeping lives in the regular KV store, so it has to be dropped
+	// on every path out of this function -- including the early returns below, which previously
+	// relied on the transient store being discarded at the end of the block.
+	defer keeper.ClearCurrentBlockDeleteInfo(ctx)
+
 	deletionMax := keeper.DiscontinueDeletionMax(ctx)
 	if deletionMax == 0 {
 		return nil
@@ -28,7 +33,9 @@ func EndBlocker(ctx sdk.Context, keeper Keeper) error {
 	// set ForceUpdateStreamRecordKey to true in context to force update frozen stream record
 	ctx = ctx.WithValue(paymenttypes.ForceUpdateStreamRecordKey, true)
 
-	// delete objects
+	// delete objects. Per-item deletion failures are contained inside
+	// DeleteDiscontinueObjectsUntil/DeleteDiscontinueBucketsUntil, so the guards below are left
+	// only for a store-level failure, which no longer depends on what is queued.
 	deleted, err := keeper.DeleteDiscontinueObjectsUntil(ctx, blockTime, deletionMax)
 	if err != nil {
 		ctx.Logger().Error("should not happen, fail to delete objects, err " + err.Error())

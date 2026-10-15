@@ -7,6 +7,8 @@ import (
 
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
 	"github.com/mocachain/moca/v2/utils"
 )
@@ -61,8 +63,10 @@ func (app *Moca) ScheduleForkUpgrade(ctx sdk.Context) {
 }
 
 // scheduleConfiguredHardfork checks if theres a hardfork configured for the
-// current block height and schedules it. Returns true if a hardfork was found
-// and handled (either scheduled or already present).
+// current block height and schedules it. Returns true if this height is claimed
+// by configuration — scheduled, already present, or deliberately left alone —
+// which tells the caller not to also consult the code-driven fork list. Only a
+// height with no entry returns false.
 func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 	heightKey := strconv.FormatInt(ctx.BlockHeight(), 10)
 	entry, ok := app.appConfig.Hardforks[heightKey]
@@ -71,18 +75,40 @@ func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 		return false
 	}
 
-	// 2. Check for existing upgrade plan
+	// 2. Check for an existing upgrade plan. A configured hardfork is the path for
+	// an emergency that cannot wait on a proposal, so it takes precedence over an
+	// upgrade that is only pending: ScheduleUpgrade below replaces the stored plan
+	// and clears the old plan's IBC state. This used to panic on any mismatch,
+	// which stopped the node in BeginBlock with nothing to recover to.
 	existing, err := app.UpgradeKeeper.GetUpgradePlan(ctx)
 	switch {
 	case err == nil && existing.Name == entry.Name && existing.Height == ctx.BlockHeight():
 		return true // This has already been scheduled..., exit early.
+	case err == nil && existing.Height >= ctx.BlockHeight():
+		// Still to be applied — this runs ahead of the upgrade module, so a plan
+		// at this very height has not been acted on yet. Cancel it outright rather
+		// than letting ScheduleUpgrade overwrite it: a silently replaced plan
+		// leaves everything tracking upgrade state waiting for an upgrade that
+		// will never arrive, and if scheduling then failed the plan would still be
+		// sitting there to fire at its own height.
+		if err := app.cancelUpgradePlan(ctx); err != nil {
+			ctx.Logger().Error("failed to cancel the pending upgrade plan",
+				"pending", existing.Name, "pendingHeight", existing.Height, "error", err)
+			return true
+		}
+		ctx.Logger().Warn("canceled a pending upgrade plan for the configured hardfork",
+			"canceled", existing.Name, "canceledHeight", existing.Height,
+			"configured", entry.Name, "height", ctx.BlockHeight())
 	case err == nil:
-		panic(fmt.Errorf(
-			"hardfork config wants to schedule upgrade %q at height %d but existing upgrade plan is %q at height %d",
-			entry.Name, ctx.BlockHeight(), existing.Name, existing.Height,
-		)) // this should never happen, panic.
+		// Below this height the upgrade module has already had its chance at it.
+		ctx.Logger().Warn("replacing a stale upgrade plan with the configured hardfork",
+			"stale", existing.Name, "staleHeight", existing.Height,
+			"configured", entry.Name, "height", ctx.BlockHeight())
 	case !errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
-		panic(fmt.Errorf("failed to read existing upgrade plan: %w", err))
+		// Nothing about the stored plan can be trusted, so do not overwrite it.
+		ctx.Logger().Error("skipping configured hardfork: cannot read the existing upgrade plan",
+			"configured", entry.Name, "height", ctx.BlockHeight(), "error", err)
+		return true
 	}
 
 	// 3. Schedule the upgrade
@@ -92,9 +118,41 @@ func (app *Moca) scheduleConfiguredHardfork(ctx sdk.Context) bool {
 		Info:   entry.Info, // optional, empty string if not set
 	}
 	if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, upgradePlan); err != nil {
-		panic(fmt.Errorf("failed to schedule upgrade %s at height %d: %w",
-			upgradePlan.Name, ctx.BlockHeight(), err))
+		ctx.Logger().Error("failed to schedule configured hardfork",
+			"configured", entry.Name, "height", ctx.BlockHeight(), "error", err)
+		return true
 	}
 
+	// This write is part of the app hash, so record it in the node's own log.
+	ctx.Logger().Info("scheduled hardfork from node configuration",
+		"name", upgradePlan.Name, "height", upgradePlan.Height)
+
 	return true
+}
+
+// cancelUpgradePlan cancels the stored upgrade plan by executing the upgrade
+// module's own MsgCancelUpgrade through the message router, the same way
+// governance executes the messages in a passed proposal. Routing it rather than
+// reaching into the keeper keeps the module's authority check and leaves one
+// path for canceling a plan, whether the request came from a proposal or from
+// this node's own configuration.
+func (app *Moca) cancelUpgradePlan(ctx sdk.Context) error {
+	msg := &upgradetypes.MsgCancelUpgrade{
+		Authority: authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	}
+	handler := app.MsgServiceRouter().Handler(msg)
+	if handler == nil {
+		return fmt.Errorf("no handler registered for %T", msg)
+	}
+	if _, err := handler(ctx, msg); err != nil {
+		return err
+	}
+	// baseapp emits this around every message it runs; the handler on its own does
+	// not, and neither does the upgrade module. Without it the cancellation leaves
+	// no trace for anything watching the chain rather than the node's log.
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		sdk.EventTypeMessage,
+		sdk.NewAttribute(sdk.AttributeKeyAction, sdk.MsgTypeURL(msg)),
+	))
+	return nil
 }

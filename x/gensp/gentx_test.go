@@ -2,6 +2,7 @@ package gensp_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -10,6 +11,8 @@ import (
 	"cosmossdk.io/core/genesis"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -131,9 +134,10 @@ func (suite *GenTxTestSuite) TestSetGenTxsInAppGenesisState() {
 	)
 
 	testCases := []struct {
-		msg      string
-		malleate func()
-		expPass  bool
+		msg               string
+		malleate          func()
+		useFailingEncoder bool
+		expPass           bool
 	}{
 		{
 			"one genesis transaction",
@@ -143,6 +147,7 @@ func (suite *GenTxTestSuite) TestSetGenTxsInAppGenesisState() {
 				tx := txBuilder.GetTx()
 				genTxs = []sdk.Tx{tx}
 			},
+			false,
 			true,
 		},
 		{
@@ -153,7 +158,19 @@ func (suite *GenTxTestSuite) TestSetGenTxsInAppGenesisState() {
 				tx := txBuilder.GetTx()
 				genTxs = []sdk.Tx{tx}
 			},
+			false,
 			true,
+		},
+		{
+			"tx json encoder failure",
+			func() {
+				err := txBuilder.SetMsgs(suite.msg1)
+				suite.Require().NoError(err)
+				tx := txBuilder.GetTx()
+				genTxs = []sdk.Tx{tx}
+			},
+			true,
+			false,
 		},
 	}
 
@@ -162,6 +179,9 @@ func (suite *GenTxTestSuite) TestSetGenTxsInAppGenesisState() {
 			suite.SetupTest()
 			cdc := suite.encodingConfig.Codec
 			txJSONEncoder := suite.encodingConfig.TxConfig.TxJSONEncoder()
+			if tc.useFailingEncoder {
+				txJSONEncoder = func(sdk.Tx) ([]byte, error) { return nil, errors.New("boom") }
+			}
 
 			tc.malleate()
 			appGenesisState, err := gensp.SetGenTxsInAppGenesisState(cdc, txJSONEncoder, make(map[string]json.RawMessage), genTxs)
@@ -246,7 +266,9 @@ func (suite *GenTxTestSuite) TestValidateAccountInGenesis() {
 			appGenesisState[stakingtypes.ModuleName] = stakingGenesis
 
 			tc.malleate()
-			err = genutil.ValidateAccountInGenesis(
+			// Re-pointed from upstream genutil.ValidateAccountInGenesis: this
+			// table was exercising the wrong package's function.
+			err = gensp.ValidateAccountInGenesis(
 				appGenesisState, banktypes.GenesisBalancesIterator{},
 				addr1, coins, cdc,
 			)
@@ -260,6 +282,41 @@ func (suite *GenTxTestSuite) TestValidateAccountInGenesis() {
 	}
 }
 
+// genSignedSendTxJSON builds and JSON-encodes a signed MsgSend tx: a genTx
+// payload that DeliverGenTxs/InitGenesis can decode, encode, and "deliver"
+// (via a mockTxHandler that never checks signatures) without error.
+func (suite *GenTxTestSuite) genSignedSendTxJSON() json.RawMessage {
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
+	msg := banktypes.NewMsgSend(addr1, addr2, sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 1)})
+	tx, err := simtestutil.GenSignedMockTx(
+		r,
+		suite.encodingConfig.TxConfig,
+		[]sdk.Msg{msg},
+		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 10)},
+		simtestutil.DefaultGenTxGas,
+		suite.ctx.ChainID(),
+		[]uint64{7},
+		[]uint64{0},
+		priv1,
+	)
+	suite.Require().NoError(err)
+
+	genTx, err := suite.encodingConfig.TxConfig.TxJSONEncoder()(tx)
+	suite.Require().NoError(err)
+	return genTx
+}
+
+// failEncodeCfg wraps a real TxConfig but forces TxEncoder to fail after a
+// successful JSON decode, exercising DeliverGenTxs' encode-error branch
+// without needing a broken decoder.
+type failEncodeCfg struct {
+	client.TxConfig
+}
+
+func (failEncodeCfg) TxEncoder() sdk.TxEncoder {
+	return func(sdk.Tx) ([]byte, error) { return nil, errors.New("boom") }
+}
+
 func (suite *GenTxTestSuite) TestDeliverGenTxs() {
 	var (
 		genTxs    []json.RawMessage
@@ -267,10 +324,13 @@ func (suite *GenTxTestSuite) TestDeliverGenTxs() {
 	)
 
 	testCases := []struct {
-		msg         string
-		malleate    func()
-		deliverTxFn genesis.TxHandler
-		expPass     bool
+		msg              string
+		malleate         func()
+		deliverTxFn      genesis.TxHandler
+		txEncodingConfig client.TxEncodingConfig // nil => suite.encodingConfig.TxConfig
+		setupStakingMock func()
+		expPass          bool
+		expSuccess       bool // strict: assert NoError and the returned updates, not just NotPanics
 	}{
 		{
 			"no signature supplied",
@@ -287,35 +347,66 @@ func (suite *GenTxTestSuite) TestDeliverGenTxs() {
 				errCode: sdkerrors.ErrNoSignatures.ABCICode(),
 				log:     "no signatures supplied",
 			},
+			nil,
+			nil,
+			false,
 			false,
 		},
 		{
 			"success",
 			func() {
-				r := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
-				msg := banktypes.NewMsgSend(addr1, addr2, sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 1)})
-				tx, err := simtestutil.GenSignedMockTx(
-					r,
-					suite.encodingConfig.TxConfig,
-					[]sdk.Msg{msg},
-					sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 10)},
-					simtestutil.DefaultGenTxGas,
-					suite.ctx.ChainID(),
-					[]uint64{7},
-					[]uint64{0},
-					priv1,
-				)
-				suite.Require().NoError(err)
-
-				genTxs = make([]json.RawMessage, 1)
-				genTx, err := suite.encodingConfig.TxConfig.TxJSONEncoder()(tx)
-				suite.Require().NoError(err)
-				genTxs[0] = genTx
+				genTxs = []json.RawMessage{suite.genSignedSendTxJSON()}
 			},
 			&mockTxHandler{
 				errCode: sdkerrors.ErrUnauthorized.ABCICode(),
 				log:     "signature verification failed; please verify account number (4) and chain-id (): unauthorized",
 			},
+			nil,
+			nil,
+			true,
+			false,
+		},
+		{
+			"malformed genesis tx fails to decode",
+			func() {
+				genTxs = []json.RawMessage{[]byte("{not valid json")}
+			},
+			&mockTxHandler{},
+			nil,
+			nil,
+			false,
+			false,
+		},
+		{
+			"tx encoder failure after a successful decode",
+			func() {
+				err := txBuilder.SetMsgs(suite.msg1)
+				suite.Require().NoError(err)
+
+				genTxs = make([]json.RawMessage, 1)
+				tx, err := suite.encodingConfig.TxConfig.TxJSONEncoder()(txBuilder.GetTx())
+				suite.Require().NoError(err)
+				genTxs[0] = tx
+			},
+			&mockTxHandler{},
+			failEncodeCfg{suite.encodingConfig.TxConfig},
+			nil,
+			false,
+			false,
+		},
+		{
+			"success delivers the gentx and applies validator set updates",
+			func() {
+				genTxs = []json.RawMessage{suite.genSignedSendTxJSON()}
+			},
+			&mockTxHandler{errCode: 0},
+			nil,
+			func() {
+				suite.stakingKeeper.EXPECT().
+					ApplyAndReturnValidatorSetUpdates(gomock.Any()).
+					Return([]abci.ValidatorUpdate{}, nil)
+			},
+			false,
 			true,
 		},
 	}
@@ -325,20 +416,32 @@ func (suite *GenTxTestSuite) TestDeliverGenTxs() {
 			suite.SetupTest()
 
 			tc.malleate()
+			if tc.setupStakingMock != nil {
+				tc.setupStakingMock()
+			}
 
-			if tc.expPass {
+			txEncodingConfig := tc.txEncodingConfig
+			if txEncodingConfig == nil {
+				txEncodingConfig = suite.encodingConfig.TxConfig
+			}
+
+			switch {
+			case tc.expSuccess:
+				updates, err := gensp.DeliverGenTxs(
+					suite.ctx, genTxs, suite.stakingKeeper, tc.deliverTxFn, txEncodingConfig,
+				)
+				suite.Require().NoError(err)
+				suite.Require().Equal([]abci.ValidatorUpdate{}, updates)
+			case tc.expPass:
 				suite.Require().NotPanics(func() {
 					_, _ = gensp.DeliverGenTxs(
-						suite.ctx, genTxs, suite.stakingKeeper, tc.deliverTxFn,
-						suite.encodingConfig.TxConfig,
+						suite.ctx, genTxs, suite.stakingKeeper, tc.deliverTxFn, txEncodingConfig,
 					)
 				})
-			} else {
+			default:
 				_, err := gensp.DeliverGenTxs(
-					suite.ctx, genTxs, suite.stakingKeeper, tc.deliverTxFn,
-					suite.encodingConfig.TxConfig,
+					suite.ctx, genTxs, suite.stakingKeeper, tc.deliverTxFn, txEncodingConfig,
 				)
-
 				suite.Require().Error(err)
 			}
 		})

@@ -30,7 +30,7 @@ func TestBankAllBalances(t *testing.T) {
 	km, err := keys.NewPrivateKeyManager("e3ac46e277677f0f103774019d03bd89c7b4b5ecc554b2650bd5d5127992c20c")
 	assert.NoError(t, err)
 	t.Log(km)
-	client, err := gnfdclient.NewMocaClient(test.TestRPCAddr, test.TestEVMAddr, test.TestChainID, gnfdclient.WithWebSocketClient())
+	client, err := gnfdclient.NewMocaClient(test.TestRPCAddr, test.TestEVMAddr, test.TestChainID)
 	assert.NoError(t, err)
 
 	query := banktypes.QueryAllBalancesRequest{

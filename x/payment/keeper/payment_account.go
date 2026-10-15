@@ -81,7 +81,13 @@ func (k Keeper) IsPaymentAccountOwner(ctx sdk.Context, addr, owner sdk.AccAddres
 		return true
 	}
 	paymentAccount, _ := k.GetPaymentAccount(ctx, addr)
-	return paymentAccount.Owner == owner.String()
+	// Compare the addresses themselves rather than their rendered form: hex casing
+	// carries no meaning, and a stored owner need not be in the canonical casing.
+	storedOwner, err := sdk.AccAddressFromHexUnsafe(paymentAccount.Owner)
+	if err != nil {
+		return false
+	}
+	return storedOwner.Equals(owner)
 }
 
 func (k Keeper) DerivePaymentAccountAddress(owner sdk.AccAddress, index uint64) sdk.AccAddress {

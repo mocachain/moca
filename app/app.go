@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -345,7 +347,7 @@ func NewMoca(
 	)
 
 	// Add the EVM transient store key
-	tkeys := storetypes.NewTransientStoreKeys(evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey, storagemoduletypes.TStoreKey, virtualgroupmoduletypes.TStoreKey)
+	tkeys := storetypes.NewTransientStoreKeys(evmtypes.TransientKey, feemarkettypes.TransientKey, challengemoduletypes.TStoreKey)
 	memKeys := storetypes.NewMemoryStoreKeys(challengemoduletypes.MemStoreKey)
 
 	app := &Moca{
@@ -552,7 +554,6 @@ func NewMoca(
 	app.VirtualgroupKeeper = *virtualgroupmodulekeeper.NewKeeper(
 		appCodec,
 		keys[virtualgroupmoduletypes.StoreKey],
-		tkeys[virtualgroupmoduletypes.TStoreKey],
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		app.SpKeeper,
 		app.AccountKeeper,
@@ -571,7 +572,6 @@ func NewMoca(
 	app.StorageKeeper = *storagemodulekeeper.NewKeeper(
 		appCodec,
 		keys[storagemoduletypes.StoreKey],
-		tkeys[storagemoduletypes.TStoreKey],
 		app.AccountKeeper,
 		app.SpKeeper,
 		app.PaymentKeeper,
@@ -921,11 +921,8 @@ func (app *Moca) setPostHandler() {
 }
 
 // BeginBlocker runs the Tendermint ABCI BeginBlock logic. It executes state changes at the beginning
-// of the new block for every registered module. If there is a registered fork at the current height,
-// BeginBlocker will schedule the upgrade plan and perform the state migration (if any).
+// of the new block for every registered module. Scheduled forks are handled earlier, in PreBlocker.
 func (app *Moca) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
-	// Perform any scheduled forks before executing the modules logic
-	app.ScheduleForkUpgrade(ctx)
 	return app.mm.BeginBlock(ctx)
 }
 
@@ -983,7 +980,14 @@ func (app *Moca) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 
+// PreBlocker runs before every module's BeginBlock. Scheduled forks go here, not
+// in BeginBlock: the upgrade module applies a due plan from its own PreBlock
+// (cosmos-sdk#17421 moved it there from BeginBlock, see ADR-68), so a plan written
+// in BeginBlock is already too late for the block it names and does not take
+// effect until the next one. Writing it here, ahead of the upgrade module in the
+// pre-block order, applies it in the block the fork height actually names.
 func (app *Moca) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+	app.ScheduleForkUpgrade(ctx)
 	return app.mm.PreBlock(ctx)
 }
 
@@ -1032,12 +1036,14 @@ func (app *Moca) BlockedAccountAddrs() map[string]bool {
 		mocatypes.StorageAddress,
 		mocatypes.SpAddress,
 	}
-	for _, addr := range vm.PrecompiledAddressesBerlin {
+	for _, addr := range vm.PrecompiledAddressesPrague {
 		blockedPrecompilesHex = append(blockedPrecompilesHex, addr.Hex())
 	}
 
 	for _, precompileAddr := range blockedPrecompilesHex {
-		blockedAddrs[precompileAddr] = true
+		// These are looked up by AccAddress.String(), which is checksummed, so the
+		// literal's own casing cannot be relied on to match.
+		blockedAddrs[sdk.AccAddress(common.HexToAddress(precompileAddr).Bytes()).String()] = true
 	}
 
 	return blockedAddrs
@@ -1208,7 +1214,10 @@ func GetMaccPerms() map[string][]string {
 // longer reconstructed per-tx); each precompile pulls the live SDK context from
 // the EVM StateDB at Run time instead of binding it at construction.
 func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContract {
-	return map[common.Address]vm.PrecompiledContract{
+	// cosmos/evm treats the standard Ethereum precompiles as always active and
+	// looks them up in this map, so moca's are added on top of that set.
+	precompiles := maps.Clone(vm.PrecompiledContractsPrague)
+	maps.Copy(precompiles, map[common.Address]vm.PrecompiledContract{
 		precompilesbank.GetAddress(): precompilesbank.NewPrecompile(
 			bankkeeper.NewMsgServerImpl(app.BankKeeper, app.PaymentKeeper),
 			app.BankKeeper,
@@ -1245,7 +1254,8 @@ func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContra
 			app.SpKeeper,
 			app.BankKeeper,
 		),
-	}
+	})
+	return precompiles
 }
 
 // MocaActiveStaticPrecompiles returns the sorted hex addresses of moca's
@@ -1366,7 +1376,20 @@ func (app *Moca) migrateToV2(ctx sdk.Context) error {
 		return fmt.Errorf("v2 migration: set feemarket params: %w", err)
 	}
 
-	// 5. Backfill the cosmos/evm code-hash index from the existing EthAccounts so
+	// 5. Cap the discontinue queue (MOCA-743): replace only the uncapped MaxUint64
+	//    sentinel, so a governance-set finite value is preserved.
+	storageParams := app.StorageKeeper.GetParams(ctx)
+	if storageParams.DiscontinueObjectMax == math.MaxUint64 {
+		storageParams.DiscontinueObjectMax = storagemoduletypes.DefaultDiscontinueObjectMax
+	}
+	if storageParams.DiscontinueBucketMax == math.MaxUint64 {
+		storageParams.DiscontinueBucketMax = storagemoduletypes.DefaultDiscontinueBucketMax
+	}
+	if err := app.StorageKeeper.SetParams(ctx, storageParams); err != nil {
+		return fmt.Errorf("v2 migration: set storage params: %w", err)
+	}
+
+	// 6. Backfill the cosmos/evm code-hash index from the existing EthAccounts so
 	//    contracts deployed under the old x/evm remain executable.
 	app.AccountKeeper.IterateAccounts(ctx, func(acc sdk.AccountI) (stop bool) {
 		ethAcct, ok := acc.(mocatypes.EthAccountI)
@@ -1457,6 +1480,16 @@ func (app *Moca) setupUpgradeHandlers() {
 		// x/feegrant revokeAllowance (swapped queue key). Requires the
 		// moca-cosmos-sdk feegrant fix to also be vendored so no new orphans form.
 		if _, err := upgrades.CleanupFeegrantQueueOrphans(ctx, app.FeeGrantKeeper, app.GetKey(feegrant.StoreKey)); err != nil {
+			return fromVM, err
+		}
+		// Remove the storage-price and maintenance-record entries left behind by
+		// storage providers that exited before Keeper.Exit deleted them.
+		if _, _, err := upgrades.PruneExitedStorageProviderEntries(ctx, app.SpKeeper, app.GetKey(spmoduletypes.StoreKey)); err != nil {
+			return fromVM, err
+		}
+		// Bucket creation never checked payment-account ownership, so move any
+		// bucket still paying through the governance account to its owner.
+		if _, _, _, err := upgrades.ReassignGovernancePayerBuckets(sdkCtx, app.StorageKeeper); err != nil {
 			return fromVM, err
 		}
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)

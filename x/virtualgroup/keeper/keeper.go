@@ -21,7 +21,6 @@ type (
 	Keeper struct {
 		cdc       codec.BinaryCodec
 		storeKey  storetypes.StoreKey
-		tStoreKey storetypes.StoreKey
 		authority string
 
 		// Keepers
@@ -39,7 +38,6 @@ type (
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
-	tStoreKey storetypes.StoreKey,
 	authority string,
 	spKeeper types.SpKeeper,
 	accountKeeper types.AccountKeeper,
@@ -49,7 +47,6 @@ func NewKeeper(
 	k := Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
-		tStoreKey:     tStoreKey,
 		authority:     authority,
 		spKeeper:      spKeeper,
 		accountKeeper: accountKeeper,
@@ -118,6 +115,11 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 		return types.ErrGVGNotExist
 	}
 
+	// Only the GVG's own primary SP may delete it and receive the deposit refund.
+	if gvg.PrimarySpId != primarySp.Id {
+		return types.ErrNotPrimarySP
+	}
+
 	if gvg.StoredSize != 0 {
 		return types.ErrGVGNotEmpty
 	}
@@ -160,12 +162,16 @@ func (k Keeper) DeleteGVG(ctx sdk.Context, primarySp *sptypes.StorageProvider, g
 
 	// update stat
 	stat := k.MustGetGVGStatisticsWithinSP(ctx, gvgFamily.PrimarySpId)
-	stat.PrimaryCount--
+	if err := decrementCount(&stat.PrimaryCount, stat.StorageProviderId, "primary_count"); err != nil {
+		return err
+	}
 	k.SetGVGStatisticsWithSP(ctx, stat)
 
 	for _, secondarySPID := range gvg.SecondarySpIds {
 		gvgStatisticsWithinSP := k.MustGetGVGStatisticsWithinSP(ctx, secondarySPID)
-		gvgStatisticsWithinSP.SecondaryCount--
+		if err := decrementCount(&gvgStatisticsWithinSP.SecondaryCount, gvgStatisticsWithinSP.StorageProviderId, "secondary_count"); err != nil {
+			return err
+		}
 		k.SetGVGStatisticsWithSP(ctx, gvgStatisticsWithinSP)
 	}
 
@@ -266,6 +272,13 @@ func (k Keeper) GetOrCreateEmptyGVGFamily(ctx sdk.Context, familyID uint32, prim
 	}
 	k.cdc.MustUnmarshal(bz, &gvgFamily)
 
+	// An existing family (caller-supplied ID) must actually belong to primarySPID,
+	// otherwise any in-service SP could plant a GVG in a rival's family.
+	if gvgFamily.PrimarySpId != primarySPID {
+		return nil, types.ErrGVGFamilyNotOwned.Wrapf(
+			"the gvg family(ID: %d) is owned by sp(ID: %d), not sp(ID: %d)", familyID, gvgFamily.PrimarySpId, primarySPID)
+	}
+
 	return &gvgFamily, nil
 }
 
@@ -337,7 +350,9 @@ func (k Keeper) SwapAsPrimarySP(ctx sdk.Context, primarySP, successorSP *sptypes
 
 		gvg.PrimarySpId = successorSP.Id
 		gvgs = append(gvgs, gvg)
-		srcStat.PrimaryCount--
+		if err := decrementCount(&srcStat.PrimaryCount, srcStat.StorageProviderId, "primary_count"); err != nil {
+			return err
+		}
 		dstStat.PrimaryCount++
 	}
 
@@ -414,7 +429,9 @@ func (k Keeper) SwapOutAsSecondarySP(ctx sdk.Context, secondarySP, successorSP *
 	if !found {
 		successor = &types.GVGStatisticsWithinSP{StorageProviderId: successorSP.Id}
 	}
-	origin.SecondaryCount--
+	if err := decrementCount(&origin.SecondaryCount, origin.StorageProviderId, "secondary_count"); err != nil {
+		return err
+	}
 	successor.SecondaryCount++
 	k.SetGVGStatisticsWithSP(ctx, origin)
 	k.SetGVGStatisticsWithSP(ctx, successor)
@@ -482,6 +499,14 @@ func (k Keeper) BatchSetGVGStatisticsWithinSP(ctx sdk.Context, gvgsStatisticsWit
 	}
 }
 
+func decrementCount(v *uint32, spID uint32, counter string) error {
+	if *v == 0 {
+		return types.ErrGVGStatisticsUnderflow.Wrapf("%s of sp %d", counter, spID)
+	}
+	*v--
+	return nil
+}
+
 func (k Keeper) StorageProviderExitable(ctx sdk.Context, spID uint32) error {
 	stat, found := k.GetGVGStatisticsWithinSP(ctx, spID)
 	if found {
@@ -499,6 +524,14 @@ func (k Keeper) StorageProviderExitable(ctx sdk.Context, spID uint32) error {
 	// covers empty families (no GVGs) -- they must be swapped out to a successor too.
 	if familyStats, found := k.GetGVGFamilyStatisticsWithinSP(ctx, spID); found && len(familyStats.GlobalVirtualGroupFamilyIds) != 0 {
 		return types.ErrSPCanNotExit.Wrapf("still primary of %d GVG family(ies); swap them out to a successor SP (including empty families) before exiting", len(familyStats.GlobalVirtualGroupFamilyIds))
+	}
+
+	// The deposit must stay in the module account while a challenge can still be attested against
+	// the SP, otherwise it is refunded before the slash runs. The lock cannot be extended once the
+	// SP is out of every GVG, because no new challenge can name an SP that stores nothing.
+	//nolint:gosec // block height is never negative
+	if lockedUntil := k.spKeeper.GetDepositLockUntil(ctx, spID); uint64(ctx.BlockHeight()) < lockedUntil {
+		return types.ErrSPCanNotExit.Wrapf("deposit is locked for pending challenges until height %d", lockedUntil)
 	}
 	return nil
 }
@@ -945,12 +978,15 @@ func (k Keeper) completeSwapInGVG(ctx sdk.Context, successorSPID, targetSecondar
 	}
 	secondarySPIndex := -1
 	for i, sspID := range gvg.GetSecondarySpIds() {
+		if sspID == successorSPID {
+			return types.ErrSwapInFailed.Wrapf("The sp(ID: %d) is already one of the secondary in this GVG(ID:%d)", successorSPID, gvgID)
+		}
 		if sspID == targetSecondarySPID {
 			secondarySPIndex = i
 		}
 	}
 	if secondarySPIndex == -1 {
-		panic("secondary sp found but the index is not correct when swap out as secondary sp")
+		return types.ErrSwapInFailed.Wrapf("The sp(ID: %d) that needs swap out is not one of the secondary sps of gvg(%s).", targetSecondarySPID, gvg.String())
 	}
 	gvg.SecondarySpIds[secondarySPIndex] = successorSPID
 	origin := k.MustGetGVGStatisticsWithinSP(ctx, targetSecondarySPID)
@@ -959,9 +995,13 @@ func (k Keeper) completeSwapInGVG(ctx sdk.Context, successorSPID, targetSecondar
 		successor = &types.GVGStatisticsWithinSP{StorageProviderId: successorSPID}
 	}
 	if targetSecondarySPID == gvg.PrimarySpId {
-		origin.BreakRedundancyReqmtGvgCount--
+		if err := decrementCount(&origin.BreakRedundancyReqmtGvgCount, origin.StorageProviderId, "break_redundancy_reqmt_gvg_count"); err != nil {
+			return err
+		}
 	}
-	origin.SecondaryCount--
+	if err := decrementCount(&origin.SecondaryCount, origin.StorageProviderId, "secondary_count"); err != nil {
+		return err
+	}
 	successor.SecondaryCount++
 	k.SetGVGStatisticsWithSP(ctx, origin)
 	k.SetGVGStatisticsWithSP(ctx, successor)

@@ -14,6 +14,9 @@ func (k msgServer) CreatePaymentAccount(goCtx context.Context, msg *types.MsgCre
 
 	// get current count
 	creator := sdk.MustAccAddressFromHex(msg.Creator)
+	if creator.Equals(types.GovernanceAddress) {
+		return nil, types.ErrGovernancePaymentAccount
+	}
 	countRecord, _ := k.GetPaymentAccountCount(ctx, creator)
 	count := countRecord.Count
 	// get payment account count limit
@@ -24,12 +27,12 @@ func (k msgServer) CreatePaymentAccount(goCtx context.Context, msg *types.MsgCre
 	paymentAccountAddr := k.DerivePaymentAccountAddress(creator, count).String()
 	newCount := count + 1
 	k.SetPaymentAccountCount(ctx, &types.PaymentAccountCount{
-		Owner: msg.Creator,
+		Owner: creator.String(),
 		Count: newCount,
 	})
 	k.SetPaymentAccount(ctx, &types.PaymentAccount{
 		Addr:       paymentAccountAddr,
-		Owner:      msg.Creator,
+		Owner:      creator.String(),
 		Refundable: true,
 	})
 	return &types.MsgCreatePaymentAccountResponse{}, nil

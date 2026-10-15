@@ -2,10 +2,8 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"cosmossdk.io/math"
-	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	clitx "github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -47,26 +45,6 @@ func (c *MocaClient) BroadcastTx(ctx context.Context, msgs []sdk.Msg, txOpt *typ
 	mode := tx.BroadcastMode_BROADCAST_MODE_SYNC
 	if txOpt != nil && txOpt.Mode != nil {
 		mode = *txOpt.Mode
-	}
-
-	// use the tendermint websocket client
-	if c.useWebSocket {
-		var txRes *ctypes.ResultBroadcastTx
-		switch mode {
-		case tx.BroadcastMode_BROADCAST_MODE_SYNC:
-			txRes, err = c.tendermintClient.BroadcastTxSync(ctx, txSignedBytes)
-		case tx.BroadcastMode_BROADCAST_MODE_ASYNC:
-			txRes, err = c.tendermintClient.BroadcastTxAsync(ctx, txSignedBytes)
-		default:
-			return nil, fmt.Errorf("mode %s is not support broadcast mode when use websocket", mode.String())
-		}
-		if errRes := sdkclient.CheckTendermintError(err, txSignedBytes); errRes != nil {
-			return &tx.BroadcastTxResponse{TxResponse: errRes}, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		return &tx.BroadcastTxResponse{TxResponse: sdk.NewResponseFormatBroadcastTx(txRes)}, nil
 	}
 
 	// use cosmos sdk tx Client

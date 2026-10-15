@@ -6,6 +6,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	"github.com/mocachain/moca/v2/utils"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	"github.com/mocachain/moca/v2/x/storage/types"
 )
@@ -20,7 +21,7 @@ func (k Keeper) SetBucketFlowRateLimit(ctx sdk.Context, operator sdk.AccAddress,
 	bucket, found := k.GetBucketInfo(ctx, bucketName)
 
 	// if the bucket does not use the payment account, just set the flow rate limit
-	if !found || (found && (bucket.PaymentAddress != paymentAccount.String() || bucket.Owner != bucketOwner.String())) {
+	if !found || (found && (!utils.SameAddressOrEmpty(bucket.PaymentAddress, paymentAccount.String()) || !utils.SameAddress(bucket.Owner, bucketOwner.String()))) {
 		// set the flow rate limit to the store
 		k.setBucketFlowRateLimit(ctx, paymentAccount, bucketOwner, bucketName, &types.BucketFlowRateLimit{
 			FlowRateLimit: rateLimit,

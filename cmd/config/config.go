@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -37,6 +39,16 @@ func SetBech32Prefixes(config *sdk.Config) {
 	config.SetBech32PrefixForAccount(Bech32PrefixAccAddr, Bech32PrefixAccPub)
 	config.SetBech32PrefixForValidator(Bech32PrefixValAddr, Bech32PrefixValPub)
 	config.SetBech32PrefixForConsensusNode(Bech32PrefixConsAddr, Bech32PrefixConsPub)
+
+	// moca uses 20-byte EVM addresses exclusively. The SDK's default verifier accepts
+	// variable-length addresses (1..MaxAddrLen); register a strict one so every address
+	// resolves to exactly 20 bytes.
+	config.SetAddressVerifier(func(bz []byte) error {
+		if len(bz) != sdk.EthAddressLength {
+			return fmt.Errorf("invalid address length: expected %d bytes, got %d", sdk.EthAddressLength, len(bz))
+		}
+		return nil
+	})
 }
 
 // SetBip44CoinType sets the global coin type to be used in hierarchical deterministic wallets.

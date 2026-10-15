@@ -46,6 +46,12 @@ func (k Keeper) GetSpStoragePrice(
 	return val, true
 }
 
+// DeleteSpStoragePrice removes the SpStoragePrice of a storage provider, if any
+func (k Keeper) DeleteSpStoragePrice(ctx sdk.Context, spID uint32) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.SpStoragePriceKeyPrefix)
+	store.Delete(types.SpStoragePriceKey(spID))
+}
+
 // GetAllSpStoragePrice returns all SpStoragePrice
 func (k Keeper) GetAllSpStoragePrice(ctx sdk.Context) (list []types.SpStoragePrice) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.SpStoragePriceKeyPrefix)
@@ -121,7 +127,9 @@ func (k Keeper) calculateMedian(prices []math.LegacyDec) math.LegacyDec {
 	sort.Slice(prices, func(i, j int) bool { return prices[i].LT(prices[j]) })
 	var median math.LegacyDec
 	if l%2 == 0 {
-		median = prices[l/2-1].Add(prices[l/2]).QuoInt64(2)
+		// lo + (hi-lo)/2 equals (lo+hi)/2 for sorted, non-negative prices
+		lo, hi := prices[l/2-1], prices[l/2]
+		median = lo.Add(hi.Sub(lo).QuoInt64(2))
 	} else {
 		median = prices[l/2]
 	}

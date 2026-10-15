@@ -827,8 +827,17 @@ func outputObjectInfo(o *storagetypes.ObjectInfo) *ObjectInfo {
 	return n
 }
 
-// outputsGlobalVirtualGroup maps a virtualgroup GlobalVirtualGroup into the ABI tuple.
+// outputsGlobalVirtualGroup maps a virtualgroup GlobalVirtualGroup into the ABI tuple. An
+// object only belongs to a group once it is sealed, and the query returns none for one that is
+// not. A tuple cannot be absent the way a protobuf message can, so it is zeroed instead; the
+// object status returned alongside it says why.
 func outputsGlobalVirtualGroup(g *vgtypes.GlobalVirtualGroup) *GlobalVirtualGroup {
+	if g == nil {
+		return &GlobalVirtualGroup{
+			SecondarySpIds: []uint32{},
+			TotalDeposit:   "0",
+		}
+	}
 	return &GlobalVirtualGroup{
 		Id:                    g.Id,
 		FamilyId:              g.FamilyId,
@@ -911,12 +920,6 @@ func outputParams(params storagetypes.Params) Params {
 			MinChargeSize:           params.VersionedParams.MinChargeSize,
 		},
 		MaxPayloadSize:                   params.MaxPayloadSize,
-		BscMirrorBucketRelayerFee:        params.BscMirrorBucketRelayerFee,
-		BscMirrorBucketAckRelayerFee:     params.BscMirrorBucketAckRelayerFee,
-		BscMirrorObjectRelayerFee:        params.BscMirrorObjectRelayerFee,
-		BscMirrorObjectAckRelayerFee:     params.BscMirrorObjectAckRelayerFee,
-		BscMirrorGroupRelayerFee:         params.BscMirrorGroupRelayerFee,
-		BscMirrorGroupAckRelayerFee:      params.BscMirrorGroupAckRelayerFee,
 		MaxBucketsPerAccount:             params.MaxBucketsPerAccount,
 		DiscontinueCountingWindow:        params.DiscontinueCountingWindow,
 		DiscontinueObjectMax:             params.DiscontinueObjectMax,
@@ -926,13 +929,5 @@ func outputParams(params storagetypes.Params) Params {
 		StalePolicyCleanupMax:            params.StalePolicyCleanupMax,
 		MinQuotaUpdateInterval:           params.MinQuotaUpdateInterval,
 		MaxLocalVirtualGroupNumPerBucket: params.MaxLocalVirtualGroupNumPerBucket,
-		OpMirrorBucketRelayerFee:         params.OpMirrorBucketRelayerFee,
-		OpMirrorBucketAckRelayerFee:      params.OpMirrorBucketAckRelayerFee,
-		OpMirrorObjectRelayerFee:         params.OpMirrorObjectRelayerFee,
-		OpMirrorObjectAckRelayerFee:      params.OpMirrorObjectAckRelayerFee,
-		OpMirrorGroupRelayerFee:          params.OpMirrorGroupRelayerFee,
-		OpMirrorGroupAckRelayerFee:       params.OpMirrorGroupAckRelayerFee,
-		PolygonMirrorBucketRelayerFee:    params.PolygonMirrorBucketRelayerFee,
-		PolygonMirrorBucketAckRelayerFee: params.PolygonMirrorBucketAckRelayerFee,
 	}
 }

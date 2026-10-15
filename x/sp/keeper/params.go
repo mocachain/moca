@@ -22,6 +22,11 @@ func (k Keeper) SecondarySpStorePriceRatio(ctx sdk.Context) (res math.LegacyDec)
 	return params.SecondarySpStorePriceRatio
 }
 
+func (k Keeper) MaxSpPrice(ctx sdk.Context) (res math.LegacyDec) {
+	params := k.GetParams(ctx)
+	return params.MaxSpPrice
+}
+
 // GetParams returns the current sp module parameters.
 func (k Keeper) GetParams(ctx sdk.Context) (p types.Params) {
 	store := ctx.KVStore(k.storeKey)

@@ -31,6 +31,9 @@ var (
 	DefaultWithdrawTimeLockDuration  uint64 = 24 * 60 * 60                                        // 1 day
 )
 
+// MaxDurationParamSeconds caps ReserveTime and WithdrawTimeLockDuration (1000 years).
+const MaxDurationParamSeconds uint64 = 1000 * 365 * 24 * 60 * 60
+
 // NewParams creates a new Params instance
 func NewParams(
 	reserveTime uint64,
@@ -126,6 +129,10 @@ func validateReserveTime(v interface{}) error {
 		return fmt.Errorf("reserve time must be positive")
 	}
 
+	if reserveTime > MaxDurationParamSeconds {
+		return fmt.Errorf("reserve time too large: %d, max %d", reserveTime, MaxDurationParamSeconds)
+	}
+
 	return nil
 }
 
@@ -219,10 +226,13 @@ func validateWithdrawTimeLockThreshold(v interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
 
-	if withdrawTimeLockThreshold != nil && !withdrawTimeLockThreshold.IsNil() {
-		if !withdrawTimeLockThreshold.IsPositive() {
-			return fmt.Errorf("withdraw time lock threshold should be positive, is %s", withdrawTimeLockThreshold)
-		}
+	// Withdraw dereferences this parameter on every call, so an unset value is
+	// not an absent limit -- it stops withdrawals entirely.
+	if withdrawTimeLockThreshold == nil || withdrawTimeLockThreshold.IsNil() {
+		return fmt.Errorf("withdraw time lock threshold must be set")
+	}
+	if !withdrawTimeLockThreshold.IsPositive() {
+		return fmt.Errorf("withdraw time lock threshold should be positive, is %s", withdrawTimeLockThreshold)
 	}
 
 	return nil
@@ -230,9 +240,13 @@ func validateWithdrawTimeLockThreshold(v interface{}) error {
 
 // validateWithdrawTimeLockDuration validates the WithdrawTimeLockDuration param
 func validateWithdrawTimeLockDuration(v interface{}) error {
-	_, ok := v.(uint64)
+	withdrawTimeLockDuration, ok := v.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
+	}
+
+	if withdrawTimeLockDuration > MaxDurationParamSeconds {
+		return fmt.Errorf("withdraw time lock duration too large: %d, max %d", withdrawTimeLockDuration, MaxDurationParamSeconds)
 	}
 
 	return nil

@@ -20,13 +20,11 @@ import (
 func makeKeeper(t *testing.T) (*keeper.Keeper, sdk.Context) {
 	encCfg := moduletestutil.MakeTestEncodingConfig(mint.AppModuleBasic{})
 	key := storetypes.NewKVStoreKey(types.StoreKey)
-	tStoreKey := storetypes.NewTransientStoreKey(types.TStoreKey)
 
 	testCtx := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_test"))
 	k := keeper.NewKeeper(
 		encCfg.Codec,
 		key,
-		tStoreKey,
 		&types.MockAccountKeeper{},
 		&types.MockSpKeeper{},
 		&types.MockPaymentKeeper{},
@@ -50,4 +48,17 @@ func TestGenesis(t *testing.T) {
 
 	nullify.Fill(&genesisState)
 	nullify.Fill(got)
+}
+
+func TestInitGenesis_PanicsOnInvalidParams(t *testing.T) {
+	// A zero-value Params fails Params.Validate() (e.g. MaxSegmentSize must be
+	// positive), so SetParams returns an error and InitGenesis must panic on it.
+	invalidGenesisState := types.GenesisState{
+		Params: types.Params{},
+	}
+
+	k, ctx := makeKeeper(t)
+	require.Panics(t, func() {
+		storage.InitGenesis(ctx, *k, invalidGenesisState)
+	})
 }

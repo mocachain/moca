@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"slices"
 
 	sdkerrors "cosmossdk.io/errors"
 	"cosmossdk.io/math"
@@ -75,6 +76,14 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 	if !sp.IsInService() && !sp.IsInMaintenance() {
 		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("sp is not in service or in maintenance, status: %s", sp.Status.String())
 	}
+
+	// The primary SP is implicitly part of the group already; listing it again as a
+	// secondary would make two entries share one statistics record, and the batch
+	// write below is last-write-wins, so one of the two count increments is lost.
+	if _, ok := spIDSet[sp.Id]; ok {
+		return nil, types.ErrDuplicateSecondarySP.Wrapf("the primary SP(id=%d) can not also be a secondary SP of the Global virtual group.", sp.Id)
+	}
+
 	gvgStatisticsWithinSPs := make([]*types.GVGStatisticsWithinSP, 0, 1+len(req.SecondarySpIds))
 	stat := k.GetOrCreateGVGStatisticsWithinSP(ctx, sp.Id)
 	stat.PrimaryCount++
@@ -87,7 +96,7 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 			return nil, sdkerrors.Wrapf(sptypes.ErrStorageProviderNotFound, "secondary sp not found, ID: %d", id)
 		}
 		if !ssp.IsInService() && !ssp.IsInMaintenance() {
-			return nil, sptypes.ErrStorageProviderNotInService.Wrapf("sp in GVG is not in service or in maintenance, status: %s", sp.Status.String())
+			return nil, sptypes.ErrStorageProviderNotInService.Wrapf("sp in GVG is not in service or in maintenance, status: %s", ssp.Status.String())
 		}
 
 		secondarySpIDs = append(secondarySpIDs, ssp.Id)
@@ -106,18 +115,17 @@ func (k msgServer) CreateGlobalVirtualGroup(goCtx context.Context, req *types.Ms
 		if !found {
 			return nil, types.ErrGVGNotExist
 		}
-		for i, secondarySPId := range gvg.SecondarySpIds {
-			if secondarySPId != secondarySpIDs[i] {
-				break
-			}
-			if i == len(secondarySpIDs)-1 {
-				return nil, types.ErrDuplicateGVG.Wrapf("the global virtual group family already has a GVG with same SP in same order")
-			}
+		// Compare the whole list. Matching only as far as the request reached treated
+		// a longer stored group that merely starts with it as a duplicate.
+		if slices.Equal(gvg.SecondarySpIds, secondarySpIDs) {
+			return nil, types.ErrDuplicateGVG.Wrapf("the global virtual group family already has a GVG with same SP in same order")
 		}
 	}
 
-	// Each family supports only a limited number of GVGS
-	if k.MaxGlobalVirtualGroupNumPerFamily(ctx) < uint32(len(gvgFamily.GlobalVirtualGroupIds)) {
+	// Each family supports only a limited number of GVGS. The group below is
+	// appended after this check, so the family must be under the limit, not at it.
+	//nolint:gosec // the family length is bounded by the limit this very check enforces
+	if k.MaxGlobalVirtualGroupNumPerFamily(ctx) <= uint32(len(gvgFamily.GlobalVirtualGroupIds)) {
 		return nil, types.ErrLimitationExceed.Wrapf("The gvg number within the family exceeds the limit.")
 	}
 
@@ -315,7 +323,7 @@ func (k msgServer) SwapOut(goCtx context.Context, msg *types.MsgSwapOut) (*types
 	}
 
 	if !successorSP.IsInService() {
-		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", sp.Status.String())
+		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", successorSP.Status.String())
 	}
 	// verify the approval
 	err := gnfdtypes.VerifySignature(sdk.MustAccAddressFromHex(successorSP.ApprovalAddress), crypto.Keccak256(msg.GetApprovalBytes()), msg.SuccessorSpApproval.Sig)
@@ -394,12 +402,15 @@ func (k msgServer) Settle(goCtx context.Context, req *types.MsgSettle) (*types.M
 			return nil, types.ErrSettleFailed
 		}
 	} else {
-		m := make(map[uint32]struct{})
+		// Walk the request's id order, which is the same on every node; the map
+		// only skips duplicates, since ranging it randomizes order.
+		seen := make(map[uint32]struct{}, len(req.GlobalVirtualGroupIds))
 		for _, gvgID := range req.GlobalVirtualGroupIds {
-			m[gvgID] = struct{}{}
-		}
+			if _, ok := seen[gvgID]; ok {
+				continue
+			}
+			seen[gvgID] = struct{}{}
 
-		for gvgID := range m {
 			gvg, found := k.GetGVG(ctx, gvgID)
 			if !found {
 				return nil, types.ErrGVGNotExist
@@ -506,7 +517,7 @@ func (k msgServer) CompleteStorageProviderExit(goCtx context.Context, msg *types
 
 	if err = ctx.EventManager().EmitTypedEvents(&types.EventCompleteStorageProviderExit{
 		StorageProviderId:      sp.Id,
-		OperatorAddress:        msg.Operator,
+		OperatorAddress:        sdk.MustAccAddressFromHex(msg.Operator).String(),
 		StorageProviderAddress: sp.OperatorAddress,
 		TotalDeposit:           sp.TotalDeposit,
 		ForcedExit:             forcedExit,
@@ -526,6 +537,9 @@ func (k msgServer) ReserveSwapIn(goCtx context.Context, msg *types.MsgReserveSwa
 	}
 	if successorSP.Id == msg.TargetSpId {
 		return nil, types.ErrSwapInFailed.Wrapf("The SP(ID=%d) can not swap itself", successorSP.Id)
+	}
+	if !successorSP.IsInService() {
+		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", successorSP.Status.String())
 	}
 	targetSP, found := k.spKeeper.GetStorageProvider(ctx, msg.TargetSpId)
 	if !found {
@@ -570,6 +584,9 @@ func (k msgServer) CompleteSwapIn(goCtx context.Context, msg *types.MsgCompleteS
 	successorSP, found := k.spKeeper.GetStorageProviderByOperatorAddr(ctx, operatorAddr)
 	if !found {
 		return nil, sptypes.ErrStorageProviderNotFound.Wrapf("The address must be operator address of sp.")
+	}
+	if !successorSP.IsInService() {
+		return nil, sptypes.ErrStorageProviderNotInService.Wrapf("successor sp is not in service, status: %s", successorSP.Status.String())
 	}
 	err := k.Keeper.CompleteSwapIn(ctx, msg.GlobalVirtualGroupFamilyId, msg.GlobalVirtualGroupId, successorSP)
 	if err != nil {

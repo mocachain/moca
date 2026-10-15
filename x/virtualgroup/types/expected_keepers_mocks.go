@@ -5,6 +5,7 @@
 //
 //	mockgen -source=x/virtualgroup/types/expected_keepers.go -destination=x/virtualgroup/types/expected_keepers_mocks.go -package=types
 //
+
 // Package types is a generated GoMock package.
 package types
 
@@ -22,6 +23,7 @@ import (
 type MockSpKeeper struct {
 	ctrl     *gomock.Controller
 	recorder *MockSpKeeperMockRecorder
+	isgomock struct{}
 }
 
 // MockSpKeeperMockRecorder is the mock recorder for MockSpKeeper.
@@ -81,6 +83,20 @@ func (m *MockSpKeeper) GetAllStorageProviders(ctx types.Context) []types0.Storag
 func (mr *MockSpKeeperMockRecorder) GetAllStorageProviders(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllStorageProviders", reflect.TypeOf((*MockSpKeeper)(nil).GetAllStorageProviders), ctx)
+}
+
+// GetDepositLockUntil mocks base method.
+func (m *MockSpKeeper) GetDepositLockUntil(ctx types.Context, spID uint32) uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDepositLockUntil", ctx, spID)
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// GetDepositLockUntil indicates an expected call of GetDepositLockUntil.
+func (mr *MockSpKeeperMockRecorder) GetDepositLockUntil(ctx, spID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDepositLockUntil", reflect.TypeOf((*MockSpKeeper)(nil).GetDepositLockUntil), ctx, spID)
 }
 
 // GetStorageProvider mocks base method.
@@ -144,6 +160,7 @@ func (mr *MockSpKeeperMockRecorder) SetStorageProvider(ctx, sp any) *gomock.Call
 type MockAccountKeeper struct {
 	ctrl     *gomock.Controller
 	recorder *MockAccountKeeperMockRecorder
+	isgomock struct{}
 }
 
 // MockAccountKeeperMockRecorder is the mock recorder for MockAccountKeeper.
@@ -233,6 +250,7 @@ func (mr *MockAccountKeeperMockRecorder) SetModuleAccount(ctx, macc any) *gomock
 type MockBankKeeper struct {
 	ctrl     *gomock.Controller
 	recorder *MockBankKeeperMockRecorder
+	isgomock struct{}
 }
 
 // MockBankKeeperMockRecorder is the mock recorder for MockBankKeeper.
@@ -354,6 +372,7 @@ func (mr *MockBankKeeperMockRecorder) SpendableCoins(ctx, addr any) *gomock.Call
 type MockPaymentKeeper struct {
 	ctrl     *gomock.Controller
 	recorder *MockPaymentKeeperMockRecorder
+	isgomock struct{}
 }
 
 // MockPaymentKeeperMockRecorder is the mock recorder for MockPaymentKeeper.
@@ -420,6 +439,7 @@ func (mr *MockPaymentKeeperMockRecorder) Withdraw(ctx, fromAddr, toAddr, amount 
 type MockStorageKeeper struct {
 	ctrl     *gomock.Controller
 	recorder *MockStorageKeeperMockRecorder
+	isgomock struct{}
 }
 
 // MockStorageKeeperMockRecorder is the mock recorder for MockStorageKeeper.

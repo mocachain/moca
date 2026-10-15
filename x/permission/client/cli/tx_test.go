@@ -17,6 +17,8 @@ import (
 
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/sdk/client/test"
+	"github.com/mocachain/moca/v2/x/permission/client/cli"
+	"github.com/mocachain/moca/v2/x/permission/types"
 )
 
 type CLITestSuite struct {
@@ -67,4 +69,11 @@ func (s *CLITestSuite) SetupSuite() {
 	}
 }
 
-// TODO: Add more tests
+// TestGetTxCmd asserts the module's tx command tree: permission has no
+// user-facing Msg commands (MsgUpdateParams is gov-only), so the root command
+// must expose the module name and no subcommands.
+func (s *CLITestSuite) TestGetTxCmd() {
+	cmd := cli.GetTxCmd()
+	s.Require().Equal(types.ModuleName, cmd.Use)
+	s.Require().Empty(cmd.Commands())
+}

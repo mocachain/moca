@@ -16,6 +16,10 @@ type BlsSignedMsg interface {
 	// GetBlsSignBytes returns the bls signed message in bytes.
 	GetBlsSignBytes(chainID string) [32]byte
 
+	// GetVotePoolSignBytes returns the same message in the form the vote pool
+	// signs it, with the event type bound into the preimage.
+	GetVotePoolSignBytes(chainID string) []byte
+
 	// GetVoteValidatorSet returns the validators who signed the message.
 	GetVoteValidatorSet() []uint64
 
@@ -54,8 +58,12 @@ func (k Keeper) verifySignature(ctx sdk.Context, signedMsg BlsSignedMsg, validat
 		return nil, errors.Wrapf(types.ErrInvalidVoteAggSignature, "BLS signature converts failed: %v", err)
 	}
 
-	signedMsgBts := signedMsg.GetBlsSignBytes(ctx.ChainID())
-	if !aggSig.VerifyAggregated(votedPubKeys, signedMsgBts[:], votepool.DST) {
+	// Only the event-type-bound payload is accepted. Attestations signed the old
+	// way are rejected outright rather than tolerated for a migration window,
+	// because a window that accepts both leaves the old form valid for as long
+	// as it lasts. Challengers must be restarted with the matching build at the
+	// upgrade height; they re-sign every still-open challenge on restart.
+	if !aggSig.VerifyAggregated(votedPubKeys, signedMsg.GetVotePoolSignBytes(ctx.ChainID()), votepool.DST) {
 		return nil, errors.Wrap(types.ErrInvalidVoteAggSignature, "Signature verify failed")
 	}
 
