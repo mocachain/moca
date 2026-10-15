@@ -11,9 +11,12 @@ ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
 
 WORKDIR /workspace
 
+# Build the ref with the toolchain its own go.mod names: the image sets
+# GOTOOLCHAIN=local, which would compile old refs with a Go they predate.
 RUN git clone "https://${REPO_URL}.git" . && \
     git checkout "${GIT_REF}" && \
-    make build
+    GOTOOLCHAIN="$(sed -n 's/^toolchain //p' go.mod)" && \
+    GOTOOLCHAIN="${GOTOOLCHAIN:-local}" make build
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends bash ca-certificates jq curl && rm -rf /var/lib/apt/lists/*
