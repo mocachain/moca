@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"math/rand"
 
 	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -32,10 +31,10 @@ func (k Keeper) StorageProviders(goCtx context.Context, req *types.QueryStorageP
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	rand.Shuffle(len(sps), func(i, j int) {
-		sps[i], sps[j] = sps[j], sps[i]
-	})
-
+	// Results are returned in store (ascending id) order. Picking a primary SP,
+	// including spreading load across SPs, is a client concern: MsgCreateBucket
+	// takes an explicit primary_sp_address. Any per-caller ordering a client
+	// wants belongs in that client, not in the keeper query.
 	return &types.QueryStorageProvidersResponse{Sps: sps, Pagination: pageRes}, nil
 }
 
