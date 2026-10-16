@@ -628,6 +628,17 @@ func (s *TestSuite) TestGetGlobalVirtualGroupIfAvailable_InsufficientStaking() {
 	require.ErrorIs(s.T(), err, types.ErrInsufficientStaking)
 }
 
+// A stored size near the uint64 limit must not wrap past the staking check.
+func (s *TestSuite) TestGetGlobalVirtualGroupIfAvailable_StoredSizeOutOfRange() {
+	params := types.DefaultParams()
+	params.GvgStakingPerBytes = math.NewInt(1)
+	require.NoError(s.T(), s.virtualgroupKeeper.SetParams(s.ctx, params))
+	s.virtualgroupKeeper.SetGVG(s.ctx, &types.GlobalVirtualGroup{Id: 262, StoredSize: stdmath.MaxUint64 - 5, TotalDeposit: math.NewInt(100)})
+
+	_, err := s.virtualgroupKeeper.GetGlobalVirtualGroupIfAvailable(s.ctx, 262, 10)
+	require.ErrorIs(s.T(), err, types.ErrInsufficientStaking)
+}
+
 func (s *TestSuite) TestGetGlobalVirtualGroupIfAvailable_Success() {
 	params := types.DefaultParams()
 	params.GvgStakingPerBytes = math.NewInt(1)

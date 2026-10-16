@@ -615,8 +615,13 @@ func (s *DeleteGCBookkeepingTestSuite) createBucketWithPolicy(bucketName string,
 		ChargedReadQuota:           0,
 		GlobalVirtualGroupFamilyId: testGVGFamilyID,
 	})
+	var totalChargeSize uint64
+	for _, lvg := range lvgs {
+		totalChargeSize += lvg.TotalChargeSize
+	}
 	s.app.StorageKeeper.SetInternalBucketInfo(s.ctx, bucketID, &storagetypes.InternalBucketInfo{
 		PriceTime:          s.resourceTime(),
+		TotalChargeSize:    totalChargeSize,
 		LocalVirtualGroups: lvgs,
 	})
 
@@ -1020,8 +1025,9 @@ func (s *NFTMirrorLogTestSuite) TestUpdateObjectContent_ToEmpty_MirrorsBurn() {
 		Id: testGVGID, FamilyId: testGVGFamilyID, PrimarySpId: 1, StoredSize: 1024, TotalDeposit: sdkmath.NewInt(1_000_000_000_000),
 		VirtualPaymentAddress: sample.RandAccAddress().String(),
 	})
+	// the sealed 1024-byte object is already counted at the minimum charge size
 	s.createBucketWithPolicy(bucketName, sdkmath.NewUint(541), []*storagetypes.LocalVirtualGroup{
-		{Id: testLVGID, GlobalVirtualGroupId: testGVGID},
+		{Id: testLVGID, GlobalVirtualGroupId: testGVGID, StoredSize: 1024, TotalChargeSize: storagetypes.DefaultMinChargeSize},
 	})
 	s.createObjectWithStatus(bucketName, objectName, objectID, storagetypes.OBJECT_STATUS_SEALED, 1024)
 	s.app.SpKeeper.SetStorageProvider(s.ctx, &sptypes.StorageProvider{

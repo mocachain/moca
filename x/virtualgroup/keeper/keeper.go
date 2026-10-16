@@ -3,6 +3,7 @@ package keeper
 import (
 	"encoding/binary"
 	math2 "math"
+	"math/bits"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
@@ -655,7 +656,8 @@ func (k Keeper) GetGlobalVirtualGroupIfAvailable(ctx sdk.Context, gvgID uint32, 
 	}
 
 	// check staking
-	if gvg.StoredSize+expectedStoreSize > k.GetTotalStakingStoreSize(ctx, gvg) {
+	storedSize, carry := bits.Add64(gvg.StoredSize, expectedStoreSize, 0)
+	if carry != 0 || storedSize > k.GetTotalStakingStoreSize(ctx, gvg) {
 		return nil, types.ErrInsufficientStaking.Wrapf("gvg state: %s", gvg.String())
 	}
 	return gvg, nil
