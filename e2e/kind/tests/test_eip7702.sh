@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
-# EIP-7702 (set-EOA-code / account abstraction) suite.
-#
-# Confirms the property investigated in the Go-level app package test: a
-# real signed SetCodeTx, delivered through a live multi-validator cluster's
-# actual RPC/ante-handler/consensus pipeline (not a simulated stateDB.SetCode
-# shortcut), correctly delegates an EOA to a contract, lets a third party
-# invoke that delegated EOA and execute the contract's logic against the
-# EOA's OWN storage, and leaves native-token supply/balances correct
-# throughout -- moca's dual cosmos/EVM account model does not break under
-# EIP-7702, which is active from genesis on this binary (Prague, via
-# cosmos/evm). foundry's `cast` has native EIP-7702 support (wallet
-# sign-auth, send --auth), so this needs no custom tx-building tooling.
+# EIP-7702 suite: real signed SetCodeTxs through a live cluster, checking delegation, account-abstraction
+# storage and exact native-token accounting for delegated EOAs (plain transfers and precompile calls).
 
 # shellcheck source=/dev/null
 source "$(dirname "$0")/../framework/framework.sh"
@@ -27,21 +17,19 @@ VAL0_PRIVKEY="0x${VALIDATOR0_PRIKEY}"
 CONTRACTS_DIR="$(cd "$(dirname "$0")/../contracts" && pwd)"
 RPC_NODE="tcp://localhost:26657"
 
-# ── Shared fixture: one funded EOA, one deployed Counter, delegated once ────
-# Every test case below reads this same state rather than re-delegating, so
-# a later case can assert on an EARLIER case's on-chain effects (e.g. the
-# supply-invariant check needs the EOA to already be delegated).
+# Tests run in order and share this state: test 2 delegates the EOA that later tests use.
 EOA_KEY=""
 EOA_ADDR=""
 COUNTER_ADDR=""
 
-_deploy_counter() {
-    local artifact bytecode deploy_out addr
+# Deploy contracts/<name>.sol from validator-0 and print its address.
+_deploy_contract() {
+    local name="$1" artifact bytecode deploy_out addr
     (cd "$CONTRACTS_DIR" && forge build --quiet) || {
-        log_error "forge build Counter failed"
+        log_error "forge build ${name} failed"
         return 1
     }
-    artifact="${CONTRACTS_DIR}/out/Counter.sol/Counter.json"
+    artifact="${CONTRACTS_DIR}/out/${name}.sol/${name}.json"
     if [ ! -f "$artifact" ]; then
         log_error "missing forge artifact: ${artifact}"
         return 1
@@ -64,8 +52,61 @@ _deploy_counter() {
     echo "$addr"
 }
 
+# Delegate EOA_ADDR to $1 with a SetCodeTx the EOA signs and sends itself.
+_delegate_eoa() {
+    local target="$1" auth send_out send_hash code
+    # --self-broadcast: the EOA also sends the tx, so the authorization must carry nonce+1.
+    auth=$(cast wallet sign-auth "$target" --self-broadcast --private-key "$EOA_KEY" --rpc-url "$EVM_RPC" 2>/dev/null) || true
+    assert_not_empty "$auth" "signed EIP-7702 authorization"
+
+    # Zero-address target: calling the EOA would run the new code with empty calldata and revert.
+    # Explicit --gas-limit: cast >= 1.8 asks for confirmation before gas-estimating a tx with an auth.
+    send_out=$(cast send "0x0000000000000000000000000000000000000000" --auth "$auth" --gas-limit 100000 \
+        --private-key "$EOA_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
+        log_error "SetCodeTx broadcast failed: $(echo "$send_out" | head -c 1200)"
+        return 1
+    }
+    send_hash=$(echo "$send_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
+    assert_not_empty "$send_hash" "SetCodeTx transaction hash"
+    fw_wait_evm_tx "$send_hash" 15 "$EVM_RPC" || return 1
+
+    # Delegation designator: 0xef0100 ++ target address.
+    code=$(cast code "$EOA_ADDR" --rpc-url "$EVM_RPC" 2>/dev/null | tr 'A-F' 'a-f')
+    assert_eq "$code" "0xef0100$(echo "${target#0x}" | tr 'A-F' 'a-f')" "EOA code must be the delegation designator for ${target}"
+}
+
+_amoca_supply() {
+    exec_mocad query bank total-supply-of amoca --node "$RPC_NODE" --output json \
+        | jq -r '.amount | (if type == "object" then .amount else . end) // empty'
+}
+
+# Fee a mined EVM tx paid: gasUsed * effectiveGasPrice (hex quantities in the receipt).
+_tx_fee_wei() {
+    local receipt gas price
+    receipt=$(cast receipt "$1" --rpc-url "$EVM_RPC" --json 2>/dev/null) || return 1
+    gas=$(echo "$receipt" | jq -r '.gasUsed // empty' 2>/dev/null)
+    price=$(echo "$receipt" | jq -r '.effectiveGasPrice // empty' 2>/dev/null)
+    if [ -z "$gas" ] || [ -z "$price" ]; then
+        return 1
+    fi
+    echo "$((gas * price))"
+}
+
+# After tx $1 moved $3 wei from the delegated EOA to $2: both balances moved by exactly that
+# (plus the fee for the EOA) and total supply did not change.
+_assert_exact_settlement() {
+    local hash="$1" receiver="$2" amount="$3" eoa_before="$4" supply_before="$5" fee
+    fee=$(_tx_fee_wei "$hash") || true
+    assert_not_empty "$fee" "fee paid by ${hash}"
+    assert_eq "$(cast balance "$receiver" --rpc-url "$EVM_RPC" 2>/dev/null)" "$amount" \
+        "receiver must be credited exactly the sent amount"
+    assert_eq "$(cast balance "$EOA_ADDR" --rpc-url "$EVM_RPC" 2>/dev/null)" "$((eoa_before - amount - fee))" \
+        "delegated EOA must be debited exactly the sent amount plus the fee"
+    assert_eq "$(_amoca_supply)" "$supply_before" "total amoca supply must be unchanged"
+}
+
 test_eip7702_eoa_starts_with_no_code() {
-    EOA_KEY=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key') || true
+    EOA_KEY=$(cast_new_privkey) || true
     EOA_ADDR=$(cast wallet address "$EOA_KEY" 2>/dev/null) || true
     assert_not_empty "$EOA_KEY" "fresh EOA key"
     assert_not_empty "$EOA_ADDR" "fresh EOA address"
@@ -86,49 +127,15 @@ test_eip7702_eoa_starts_with_no_code() {
 }
 
 test_eip7702_delegate_to_contract() {
-    COUNTER_ADDR=$(_deploy_counter) || return 1
+    COUNTER_ADDR=$(_deploy_contract Counter) || return 1
     assert_not_empty "$COUNTER_ADDR" "deployed Counter address"
-
-    local auth send_out send_hash
-    # --self-broadcast: this EOA both signs the authorization and sends the
-    # outer tx, so the authorized nonce must be current+1 (the outer tx's
-    # own nonce consumption happens before the authorization list is
-    # processed). Without this flag cast signs for the current nonce, which
-    # go-ethereum's authorization-list validation then silently skips as
-    # stale -- the tx still succeeds, but no delegation gets applied.
-    auth=$(cast wallet sign-auth "$COUNTER_ADDR" --self-broadcast --private-key "$EOA_KEY" --rpc-url "$EVM_RPC" 2>/dev/null) || true
-    assert_not_empty "$auth" "signed EIP-7702 authorization"
-
-    # Self-authorizing SetCodeTx: EOA both authorizes the delegation and pays
-    # for/sends the outer tx. The outer call targets the ZERO address, not
-    # the EOA's own address: authorization-list processing (which sets the
-    # delegation designator) runs before the main call executes, so a call
-    # to the EOA's own address here would immediately dispatch into
-    # Counter's (now-delegated) logic with empty calldata -- and Counter has
-    # no fallback/receive, so that inner call reverts the whole tx. The zero
-    # address is a harmless no-op target; only the auth-list side effect
-    # (the delegation write, which is NOT rolled back even if the main call
-    # were to fail) matters here.
-    send_out=$(cast send "0x0000000000000000000000000000000000000000" --auth "$auth" --private-key "$EOA_KEY" \
-        --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
-        log_error "SetCodeTx broadcast failed: $(echo "$send_out" | head -c 1200)"
-        return 1
-    }
-    send_hash=$(echo "$send_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
-    assert_not_empty "$send_hash" "SetCodeTx transaction hash"
-    fw_wait_evm_tx "$send_hash" 15 "$EVM_RPC" || return 1
-
-    local code expect_prefix
-    code=$(cast code "$EOA_ADDR" --rpc-url "$EVM_RPC" 2>/dev/null | tr 'A-F' 'a-f')
-    # EIP-7702 delegation designator: 0xef0100 ++ 20-byte target address.
-    expect_prefix="0xef0100$(echo "${COUNTER_ADDR#0x}" | tr 'A-F' 'a-f')"
-    assert_eq "$code" "$expect_prefix" "EOA code must be the EIP-7702 delegation designator pointing at Counter"
+    _delegate_eoa "$COUNTER_ADDR"
     return 0
 }
 
 test_eip7702_third_party_invokes_delegated_eoa() {
     local third_key third_addr fund_out fund_hash call_out call_hash
-    third_key=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key') || true
+    third_key=$(cast_new_privkey) || true
     third_addr=$(cast wallet address "$third_key" 2>/dev/null) || true
     assert_not_empty "$third_key" "third-party key"
     assert_not_empty "$third_addr" "third-party address"
@@ -141,9 +148,6 @@ test_eip7702_third_party_invokes_delegated_eoa() {
     fund_hash=$(echo "$fund_out" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -n "$fund_hash" ] && { fw_wait_evm_tx "$fund_hash" 10 "$EVM_RPC" || return 1; }
 
-    # The third party -- NOT the delegated EOA itself -- calls the EOA's own
-    # address. No --auth here: this is an ordinary call against an address
-    # that already carries a delegation designator from the prior test case.
     call_out=$(cast send "$EOA_ADDR" "inc()" --private-key "$third_key" \
         --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
         log_error "third-party inc() call failed: $(echo "$call_out" | head -c 1200)"
@@ -160,29 +164,24 @@ test_eip7702_third_party_invokes_delegated_eoa() {
     eoa_last_caller=$(cast call "$EOA_ADDR" "lastCaller()(address)" --rpc-url "$EVM_RPC" 2>/dev/null | tr 'A-F' 'a-f')
     assert_eq "$eoa_last_caller" "$(echo "$third_addr" | tr 'A-F' 'a-f')" "msg.sender inside the delegated call must be the third party who invoked it"
 
-    # The underlying Counter contract's OWN storage must be untouched --
-    # delegation executes in the EOA's storage, not the contract's.
     underlying_count=$(cast call "$COUNTER_ADDR" "count()(uint256)" --rpc-url "$EVM_RPC" 2>/dev/null)
     assert_eq "$underlying_count" "0" "underlying Counter contract's own storage must remain untouched"
     return 0
 }
 
-test_eip7702_delegated_eoa_native_transfer_supply_invariant() {
-    local receiver_key receiver_addr supply_before supply_after
-    local send_out send_hash receiver_balance send_amount_wei
-    receiver_key=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key') || true
+test_eip7702_delegated_eoa_native_transfer() {
+    local receiver_key receiver_addr supply_before eoa_before send_out send_hash
+    local amount="100000000000000000" # 0.1 amoca
+    receiver_key=$(cast_new_privkey) || true
     receiver_addr=$(cast wallet address "$receiver_key" 2>/dev/null) || true
     assert_not_empty "$receiver_addr" "receiver address"
 
-    supply_before=$(exec_mocad query bank total-supply-of amoca \
-        --node "$RPC_NODE" --chain-id "${CHAIN_ID}" --output json 2>/dev/null | jq -r '.amount // empty') || true
+    supply_before=$(_amoca_supply) || true
     assert_not_empty "$supply_before" "amoca total supply before transfer"
+    eoa_before=$(cast balance "$EOA_ADDR" --rpc-url "$EVM_RPC" 2>/dev/null) || true
+    assert_not_empty "$eoa_before" "delegated EOA balance before transfer"
 
-    # The now-DELEGATED EOA (its own codehash is the 0xef0100 designator)
-    # sends a plain native value transfer -- the exact class of scenario
-    # #332 fixed (native-token inflation for a "7702-dirtied caller").
-    send_amount_wei="100000000000000000" # 0.1 native token
-    send_out=$(cast send "$receiver_addr" --value "$send_amount_wei" --private-key "$EOA_KEY" \
+    send_out=$(cast send "$receiver_addr" --value "$amount" --private-key "$EOA_KEY" \
         --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
         log_error "delegated EOA value transfer failed: $(echo "$send_out" | head -c 1200)"
         return 1
@@ -191,19 +190,45 @@ test_eip7702_delegated_eoa_native_transfer_supply_invariant() {
     assert_not_empty "$send_hash" "delegated EOA transfer tx hash"
     fw_wait_evm_tx "$send_hash" 15 "$EVM_RPC" || return 1
 
-    receiver_balance=$(cast balance "$receiver_addr" --rpc-url "$EVM_RPC" 2>/dev/null)
-    assert_eq "$receiver_balance" "$send_amount_wei" "receiver must be credited exactly the sent amount"
+    _assert_exact_settlement "$send_hash" "$receiver_addr" "$amount" "$eoa_before" "$supply_before"
+    return 0
+}
 
-    supply_after=$(exec_mocad query bank total-supply-of amoca \
-        --node "$RPC_NODE" --chain-id "${CHAIN_ID}" --output json 2>/dev/null | jq -r '.amount // empty') || true
-    assert_not_empty "$supply_after" "amoca total supply after transfer"
-    assert_eq "$supply_after" "$supply_before" "total amoca supply must be unchanged after a 7702-delegated EOA sends value"
+test_eip7702_delegated_code_calls_bank_precompile() {
+    local bank_sender_addr receiver_key receiver_addr supply_before eoa_before send_out send_hash
+    local amount="50000000000000000" # 0.05 amoca
+    bank_sender_addr=$(_deploy_contract BankSender) || return 1
+    assert_not_empty "$bank_sender_addr" "deployed BankSender address"
+    _delegate_eoa "$bank_sender_addr"
+
+    receiver_key=$(cast_new_privkey) || true
+    receiver_addr=$(cast wallet address "$receiver_key" 2>/dev/null) || true
+    assert_not_empty "$receiver_addr" "receiver address"
+
+    supply_before=$(_amoca_supply) || true
+    assert_not_empty "$supply_before" "amoca total supply before bank send"
+    eoa_before=$(cast balance "$EOA_ADDR" --rpc-url "$EVM_RPC" 2>/dev/null) || true
+    assert_not_empty "$eoa_before" "delegated EOA balance before bank send"
+
+    # Self-signed call into the EOA's own code, which calls the bank precompile as the EOA. Explicit
+    # --gas-limit: in a block a precompile call needs ~10k more gas than eth_estimateGas returns.
+    send_out=$(cast send "$EOA_ADDR" "sendAmoca(address,uint256)" "$receiver_addr" "$amount" --gas-limit 300000 \
+        --private-key "$EOA_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) || {
+        log_error "delegated bank send failed: $(echo "$send_out" | head -c 1200)"
+        return 1
+    }
+    send_hash=$(echo "$send_out" | jq -r '.transactionHash // empty' 2>/dev/null) || true
+    assert_not_empty "$send_hash" "delegated bank send tx hash"
+    fw_wait_evm_tx "$send_hash" 15 "$EVM_RPC" || return 1
+
+    _assert_exact_settlement "$send_hash" "$receiver_addr" "$amount" "$eoa_before" "$supply_before"
     return 0
 }
 
 fw_run_test "Fresh EOA has no code before delegation" test_eip7702_eoa_starts_with_no_code
 fw_run_test "SetCodeTx delegates EOA to deployed Counter" test_eip7702_delegate_to_contract
 fw_run_test "Third party invokes delegated EOA (account abstraction + storage isolation)" test_eip7702_third_party_invokes_delegated_eoa
-fw_run_test "Delegated EOA native transfer + total supply invariant" test_eip7702_delegated_eoa_native_transfer_supply_invariant
+fw_run_test "Delegated EOA native transfer settles exactly (balances + total supply)" test_eip7702_delegated_eoa_native_transfer
+fw_run_test "Delegated EOA code calls the bank precompile, settles exactly (balances + total supply)" test_eip7702_delegated_code_calls_bank_precompile
 
 fw_done
