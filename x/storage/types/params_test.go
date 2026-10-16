@@ -83,6 +83,9 @@ func TestValidateMinChargeSize(t *testing.T) {
 		{"valid", uint64(1024), ""},
 		{"invalid type", 1024, wantInvalidParamType},
 		{"zero", uint64(0), "min charge size must be positive"},
+		{"at max", MaxMinChargeSize, ""},
+		{"above max", MaxMinChargeSize + 1, "min charge size too large"},
+		{"near 2^63", uint64(1) << 63, "min charge size too large"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,6 +108,9 @@ func TestValidateMaxPayloadSize(t *testing.T) {
 		{"valid", uint64(1024), ""},
 		{"invalid type", 1024, wantInvalidParamType},
 		{"zero", uint64(0), "max payload size must be positive"},
+		{"at max", MaxMaxPayloadSize, ""},
+		{"above max", MaxMaxPayloadSize + 1, "max payload size too large"},
+		{"max uint64", ^uint64(0), "max payload size too large"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

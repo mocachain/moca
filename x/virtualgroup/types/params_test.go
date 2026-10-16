@@ -252,6 +252,9 @@ func TestSwapInValidityPeriod(t *testing.T) {
 	var zeroInt math.Int
 	valid := math.NewInt(1)
 	invalid := math.NewInt(-1)
+	atMax := MaxSwapInValidityPeriod
+	aboveMax := MaxSwapInValidityPeriod.AddRaw(1)
+	pastInt64 := math.NewIntFromUint64(1 << 63)
 
 	tests := []struct {
 		name   string
@@ -279,6 +282,20 @@ func TestSwapInValidityPeriod(t *testing.T) {
 			name:   "negative",
 			period: &invalid,
 			err:    "swapIn info validity period must be positive",
+		},
+		{
+			name:   "at max",
+			period: &atMax,
+		},
+		{
+			name:   "above max",
+			period: &aboveMax,
+			err:    "swapIn info validity period too large",
+		},
+		{
+			name:   "past int64",
+			period: &pastInt64,
+			err:    "swapIn info validity period too large",
 		},
 	}
 	for _, tt := range tests {

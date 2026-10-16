@@ -27,6 +27,11 @@ const (
 
 	// TODO
 	DefaultMaxLocalVirtualGroupNumPerBucket uint32 = 10
+
+	// Upper bounds keep a single object's size far below 2^64; the running
+	// totals these sizes are summed into are range-checked separately.
+	MaxMaxPayloadSize uint64 = 1024 * 1024 * 1024 * 1024 * 1024 // 1P
+	MaxMinChargeSize  uint64 = 1024 * 1024 * 1024 * 1024 * 1024 // 1P
 )
 
 var (
@@ -199,6 +204,9 @@ func validateMaxPayloadSize(i interface{}) error {
 	if v == 0 {
 		return fmt.Errorf("max payload size must be positive: %d", v)
 	}
+	if v > MaxMaxPayloadSize {
+		return fmt.Errorf("max payload size too large: %d > %d", v, MaxMaxPayloadSize)
+	}
 
 	return nil
 }
@@ -224,6 +232,9 @@ func validateMinChargeSize(i interface{}) error {
 
 	if v == 0 {
 		return fmt.Errorf("min charge size must be positive: %d", v)
+	}
+	if v > MaxMinChargeSize {
+		return fmt.Errorf("min charge size too large: %d > %d", v, MaxMinChargeSize)
 	}
 
 	return nil
