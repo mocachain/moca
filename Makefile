@@ -4,8 +4,8 @@
 -include .env
 export
 
-GO_TOOLCHAIN ?= go1.25.10
-VULNCHECK_GO_TOOLCHAIN ?= go1.26.4
+GO_TOOLCHAIN ?= go1.26.9
+VULNCHECK_GO_TOOLCHAIN ?= $(GO_TOOLCHAIN)
 GO := env GOTOOLCHAIN=$(GO_TOOLCHAIN) go
 
 # Configure git to use HTTPS+Token for private repositories if GITHUB_TOKEN is set
