@@ -228,6 +228,26 @@ Comprehensive upgrade (`test_upgrade_comprehensive.sh`) also runs **`mod_validat
 validator height spread (<= 2) and on-chain staking count vs `NUM_VALIDATORS` (parity with devcontainer
 upgrade validator verification; cosmovisor checks are N/A in Kind).
 
+### EIP-7702 (`tests/test_eip7702.sh`)
+
+Sends real signed `SetCodeTx`s (EIP-7702, active from genesis via cosmos/evm's Prague activation)
+through a live multi-validator cluster with Foundry's `cast wallet sign-auth` / `cast send --auth`. It
+checks that delegation works, that a delegated EOA runs the contract's logic against its own storage,
+and that native-token balances and total supply stay exact when a delegated EOA sends value directly
+or through its own code calling the bank precompile (the precompile balance path fixed in #332).
+
+```bash
+make e2e-fw-test TEST=eip7702
+```
+
+| Kind test | Checks |
+|-----------|--------|
+| Fresh EOA has no code before delegation | Baseline: `eth_getCode` is `0x` pre-delegation |
+| SetCodeTx delegates EOA to deployed Counter | `eth_getCode` becomes the `0xef0100` + address delegation designator |
+| Third party invokes delegated EOA | Account abstraction: a different signer calls the EOA's address, `count`/`lastCaller` land in the EOA's own storage, the underlying contract's storage is untouched |
+| Delegated EOA native transfer | Receiver credited exactly the value, EOA debited exactly value + fee, total supply unchanged |
+| Delegated EOA code calls the bank precompile | EOA re-delegated to `BankSender`, whose code calls bank `send` as the EOA; same exact balance and supply checks |
+
 ### Smoke Suite
 
 | Test | Description |
