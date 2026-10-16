@@ -23,6 +23,8 @@ var (
 	DefaultMaxStoreSizePerFamily             = uint64(64) * 1024 * 1024 * 1024 * 1024 // 64T
 	DefaultSwapInValidityPeriod              = math.NewInt(60 * 60 * 24 * 7)          // 7 days
 	DefaultSPConcurrentExitNum               = math.NewInt(1)
+	// MaxSwapInValidityPeriod bounds the period so block time + period stays within int64.
+	MaxSwapInValidityPeriod = math.NewInt(60 * 60 * 24 * 365 * 100) // 100 years
 
 	KeyDepositDenom                      = []byte("DepositDenom")
 	KeyGVGStakingPerBytes                = []byte("GVGStakingPerBytes")
@@ -148,6 +150,9 @@ func validateSwapInValidityPeriod(i interface{}) error {
 	if v != nil && !v.IsNil() {
 		if !v.IsPositive() {
 			return fmt.Errorf("swapIn info validity period must be positive: %s", v)
+		}
+		if v.GT(MaxSwapInValidityPeriod) {
+			return fmt.Errorf("swapIn info validity period too large: %s > %s", v, MaxSwapInValidityPeriod)
 		}
 	}
 	return nil

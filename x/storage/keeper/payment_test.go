@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"encoding/hex"
 	"fmt"
+	stdmath "math"
 	"testing"
 	"time"
 
@@ -1894,4 +1895,50 @@ func TestEndBlockerDeleteIsHashNeutral(t *testing.T) {
 		hex.EncodeToString(withEB.storageStoreHash()),
 		"deleting an absent key every block must be hash-neutral")
 	require.Nil(t, withEB.committed())
+}
+
+// TestChargeObjectStoreFee_TotalChargeSizeOutOfRange drives the checked additions at
+// their call sites: a bucket or LVG total one step below the limit must fail the charge
+// instead of wrapping, on both the unchanged-price path (ChargeViaObjectChange) and the
+// changed-price path (the ChargeViaBucketChange callback).
+func (s *TestSuite) TestChargeObjectStoreFee_TotalChargeSizeOutOfRange() {
+	// Subtests share the suite's mock controller, so declare the price mock once, ahead of
+	// the fixture's own, and switch what it answers per subtest: with priceChanged set, the
+	// bucket's price time sees a different store price than the block time.
+	priceTime := s.ctx.BlockTime().Unix() - 3600
+	priceChanged := false
+	s.spKeeper.EXPECT().GetGlobalSpStorePriceByTime(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, ts int64) (sptypes.GlobalSpStorePrice, error) {
+			price := sptypes.GlobalSpStorePrice{ReadPrice: sdkmath.LegacyZeroDec(), PrimaryStorePrice: sdkmath.LegacyNewDec(1), SecondaryStorePrice: sdkmath.LegacyZeroDec()}
+			if priceChanged && ts == priceTime {
+				price.PrimaryStorePrice = sdkmath.LegacyNewDec(2)
+			}
+			return price, nil
+		}).AnyTimes()
+	for _, tc := range []struct {
+		name                  string
+		priceChanged          bool
+		bucketTotal, lvgTotal uint64
+	}{
+		{"price unchanged, bucket total", false, stdmath.MaxUint64 - 1, 0},
+		{"price unchanged, lvg total", false, 0, stdmath.MaxUint64 - 1},
+		{"price changed, bucket total", true, stdmath.MaxUint64 - 1, 0},
+		{"price changed, lvg total", true, 0, stdmath.MaxUint64 - 1},
+	} {
+		s.Run(tc.name, func() {
+			priceChanged = tc.priceChanged
+			bucketInfo, internalBucketInfo, lvgID := newStoreFeeFixture(s, sample.RandAccAddress().String())
+			internalBucketInfo.PriceTime = priceTime
+			internalBucketInfo.TotalChargeSize = tc.bucketTotal
+			internalBucketInfo.LocalVirtualGroups[0].TotalChargeSize = tc.lvgTotal
+			objectInfo := &types.ObjectInfo{ObjectName: "obj", PayloadSize: 1024, LocalVirtualGroupId: lvgID, CreateAt: s.ctx.BlockTime().Unix() + 1}
+
+			changed, _, _, _, _, err := s.storageKeeper.IsPriceChanged(s.ctx, 1, internalBucketInfo.PriceTime)
+			s.Require().NoError(err)
+			s.Require().Equal(tc.priceChanged, changed)
+
+			err = s.storageKeeper.ChargeObjectStoreFee(s.ctx, 1, bucketInfo, internalBucketInfo, objectInfo)
+			s.Require().ErrorContains(err, "total charge size out of range")
+		})
+	}
 }

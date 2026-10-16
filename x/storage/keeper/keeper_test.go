@@ -1662,7 +1662,8 @@ func (s *TestSuite) TestSealObject_ResealAfterUpdate() {
 	s.ctx.KVStore(s.storeKey).Set(types.GetShadowObjectKey(bucketInfo.BucketName, objectInfo.ObjectName), s.cdc.MustMarshal(shadow))
 
 	s.storageKeeper.SetInternalBucketInfo(s.ctx, bucketInfo.Id, &types.InternalBucketInfo{
-		PriceTime: s.ctx.BlockTime().Unix(),
+		PriceTime:       s.ctx.BlockTime().Unix(),
+		TotalChargeSize: oldSize + otherLVGUsage,
 		LocalVirtualGroups: []*types.LocalVirtualGroup{
 			{Id: 1, GlobalVirtualGroupId: gvgID, StoredSize: oldSize + otherLVGUsage, TotalChargeSize: oldSize + otherLVGUsage},
 		},
