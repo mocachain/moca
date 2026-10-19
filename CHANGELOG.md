@@ -135,7 +135,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
-- (config) Apply `query-gas-limit` in `mocad`: the value `mocad init` writes to `app.toml` is now passed to baseapp, and `mocad start` accepts `--query-gas-limit`, matching the cosmos-sdk start command and `server.DefaultBaseappOptions`. The default stays `0` (unbounded), so nodes that do not set it are unaffected. (MOCA-2188)
+- (config) [#574](https://github.com/mocachain/moca/pull/574) Apply `query-gas-limit` in `mocad`: the value `mocad init` writes to `app.toml` is now passed to baseapp, and `mocad start` accepts `--query-gas-limit`, matching the cosmos-sdk start command and `server.DefaultBaseappOptions`. The default stays `0` (unbounded), so nodes that do not set it are unaffected. (MOCA-2188)
 - (payment) [#526](https://github.com/mocachain/moca/pull/526) Cap `ReserveTime` and `WithdrawTimeLockDuration` at 1000 years. Both are added to unix timestamps as `int64` downstream and were only checked for being positive. (MOCA-1564)
 - (payment) [#521](https://github.com/mocachain/moca/pull/521) Reject rate changes that would make the governance stream account pay out flows, and return an explicit error instead of force-settling that account.
 - (e2e) [#519](https://github.com/mocachain/moca/pull/519) Retry `cast send` in the comprehensive upgrade test when the EVM JSON-RPC returns a transient null result, which made the pre-upgrade native transfer flake.
