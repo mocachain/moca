@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 
+	"github.com/mocachain/moca/v2/app"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 )
 
@@ -168,4 +169,22 @@ func TestHealAppTomlEVMChainID(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, string(out), "evm-chain-id = 2288")
 	})
+}
+
+// TestNewRootCmdKeepsNodeHome asserts that building the root command never
+// deletes the node home, even when no temporary directory can be created.
+func TestNewRootCmdKeepsNodeHome(t *testing.T) {
+	home := filepath.Join(t.TempDir(), ".mocad")
+	marker := filepath.Join(home, "config", "priv_validator_key.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(marker), 0o700))
+	require.NoError(t, os.WriteFile(marker, []byte("{}"), 0o600))
+
+	prevHome := app.DefaultNodeHome
+	app.DefaultNodeHome = home
+	t.Cleanup(func() { app.DefaultNodeHome = prevHome })
+	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
+
+	NewRootCmd()
+
+	require.FileExists(t, marker)
 }

@@ -121,7 +121,7 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		log.NewNopLogger(),
 		dbm.NewMemDB(),
 		nil, true, nil,
-		tempDir(app.DefaultNodeHome),
+		"",
 		AppConfig,
 		emptyAppOptions{},
 	)
@@ -619,14 +619,4 @@ func initTendermintConfig() *cmtcfg.Config {
 	// cfg.P2P.MaxNumOutboundPeers = 40
 
 	return cfg
-}
-
-func tempDir(defaultHome string) string {
-	dir, err := os.MkdirTemp("", "moca")
-	if err != nil {
-		dir = defaultHome
-	}
-	defer os.RemoveAll(dir)
-
-	return dir
 }
