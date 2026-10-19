@@ -121,7 +121,7 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		log.NewNopLogger(),
 		dbm.NewMemDB(),
 		nil, true, nil,
-		"",
+		os.TempDir(),
 		AppConfig,
 		emptyAppOptions{},
 	)
