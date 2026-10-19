@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +12,17 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 
+	"cosmossdk.io/log"
+	pruningtypes "cosmossdk.io/store/pruning/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/client/flags"
+	sdkserver "github.com/cosmos/cosmos-sdk/server"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
+
+	"github.com/mocachain/moca/v2/app"
 	servercfg "github.com/mocachain/moca/v2/server/config"
+	srvflags "github.com/mocachain/moca/v2/server/flags"
 )
 
 // TestInitAppConfigBakesEVMChainID asserts that initAppConfig threads the EVM
@@ -83,6 +95,43 @@ func TestGenesisChainID(t *testing.T) {
 
 	_, err = genesisChainID(t.TempDir())
 	require.Error(t, err)
+}
+
+// TestNewAppAppliesQueryGasLimit checks that newApp passes query-gas-limit
+// (app.toml or --query-gas-limit) to baseapp, so the context a gRPC or REST
+// query runs in is bounded by it.
+func TestNewAppAppliesQueryGasLimit(t *testing.T) {
+	// cosmos/evm's process-global chain config can only be set again while it
+	// holds the default EVM chain ID, so use that one to keep later app
+	// constructions in this test binary working.
+	chainID := fmt.Sprintf("moca_%d-1", evmtypes.DefaultEVMChainID)
+	appOpts := viper.New()
+	appOpts.Set(flags.FlagHome, t.TempDir())
+	appOpts.Set(flags.FlagChainID, chainID)
+	appOpts.Set(srvflags.EVMChainID, evmtypes.DefaultEVMChainID)
+	appOpts.Set(sdkserver.FlagPruning, pruningtypes.PruningOptionDefault)
+	appOpts.Set(sdkserver.FlagQueryGasLimit, "50000") // app.toml renders it as a string
+
+	mocaApp, ok := appCreator{}.newApp(log.NewNopLogger(), dbm.NewMemDB(), nil, appOpts).(*app.Moca)
+	require.True(t, ok)
+
+	// a query context needs a committed block
+	stateBytes, err := json.Marshal(app.NewTestGenesisState(mocaApp))
+	require.NoError(t, err)
+	_, err = mocaApp.InitChain(&abci.RequestInitChain{
+		ChainId:         chainID,
+		ConsensusParams: app.DefaultConsensusParams,
+		AppStateBytes:   stateBytes,
+	})
+	require.NoError(t, err)
+	_, err = mocaApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 1})
+	require.NoError(t, err)
+	_, err = mocaApp.Commit()
+	require.NoError(t, err)
+
+	ctx, err := mocaApp.CreateQueryContext(0, false)
+	require.NoError(t, err)
+	require.Equal(t, uint64(50000), ctx.GasMeter().Limit())
 }
 
 // TestHealAppTomlEVMChainID checks that the self-heal writes a valid app.toml with
