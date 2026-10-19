@@ -135,7 +135,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
-- (mocad) [#572](https://github.com/mocachain/moca/pull/572) `tempDir` creates the temporary app's directory under `os.TempDir()` and panics if it cannot, instead of using the default node home.
+- (mocad) [#572](https://github.com/mocachain/moca/pull/572) `tempDir` creates the temporary app's directory under `os.TempDir()` and panics if it cannot, instead of using the default node home. The directory is removed once the temporary app is built.
 - (payment) [#526](https://github.com/mocachain/moca/pull/526) Cap `ReserveTime` and `WithdrawTimeLockDuration` at 1000 years. Both are added to unix timestamps as `int64` downstream and were only checked for being positive. (MOCA-1564)
 - (payment) [#521](https://github.com/mocachain/moca/pull/521) Reject rate changes that would make the governance stream account pay out flows, and return an explicit error instead of force-settling that account.
 - (e2e) [#519](https://github.com/mocachain/moca/pull/519) Retry `cast send` in the comprehensive upgrade test when the EVM JSON-RPC returns a transient null result, which made the pre-upgrade native transfer flake.

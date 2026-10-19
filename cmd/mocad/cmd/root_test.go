@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -171,19 +172,83 @@ func TestHealAppTomlEVMChainID(t *testing.T) {
 	})
 }
 
-// TestNewRootCmdKeepsNodeHome asserts that building the root command never
-// deletes the node home: if no temporary directory can be created it panics.
-func TestNewRootCmdKeepsNodeHome(t *testing.T) {
+// setNodeHome points app.DefaultNodeHome at a fresh directory holding a
+// validator key and returns the key's path.
+func setNodeHome(t *testing.T) string {
+	t.Helper()
 	home := filepath.Join(t.TempDir(), ".mocad")
-	marker := filepath.Join(home, "config", "priv_validator_key.json")
-	require.NoError(t, os.MkdirAll(filepath.Dir(marker), 0o700))
-	require.NoError(t, os.WriteFile(marker, []byte("{}"), 0o600))
+	key := filepath.Join(home, "config", "priv_validator_key.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(key), 0o700))
+	require.NoError(t, os.WriteFile(key, []byte("{}"), 0o600))
 
 	prevHome := app.DefaultNodeHome
 	app.DefaultNodeHome = home
 	t.Cleanup(func() { app.DefaultNodeHome = prevHome })
+	return key
+}
+
+// TestTempDir asserts that tempDir returns a new private directory under
+// TMPDIR on every call.
+func TestTempDir(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+
+	a, b := tempDir(), tempDir()
+	require.NotEqual(t, a, b)
+	for _, dir := range []string{a, b} {
+		require.Equal(t, tmp, filepath.Dir(dir))
+		require.True(t, strings.HasPrefix(filepath.Base(dir), "mocad"))
+		info, err := os.Stat(dir)
+		require.NoError(t, err)
+		require.True(t, info.IsDir())
+		require.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+	}
+}
+
+// TestTempDirPanicsWithoutTempDir asserts that tempDir panics, rather than
+// returning another directory, when TMPDIR cannot be used.
+func TestTempDirPanicsWithoutTempDir(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing")
+	t.Setenv("TMPDIR", missing)
+
+	var r any
+	func() {
+		defer func() { r = recover() }()
+		tempDir()
+	}()
+	require.Contains(t, fmt.Sprint(r), "failed creating temp directory")
+	require.NoDirExists(t, missing)
+}
+
+// TestNewRootCmdLeavesNoFiles asserts that building the root command leaves
+// the node home unchanged and nothing behind in TMPDIR or the working directory.
+func TestNewRootCmdLeavesNoFiles(t *testing.T) {
+	key := setNodeHome(t)
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	cwd := t.TempDir()
+	t.Chdir(cwd)
+
+	NewRootCmd()
+
+	require.FileExists(t, key)
+	homeEntries, err := os.ReadDir(app.DefaultNodeHome)
+	require.NoError(t, err)
+	require.Len(t, homeEntries, 1, "node home changed")
+	tmpEntries, err := os.ReadDir(tmp)
+	require.NoError(t, err)
+	require.Empty(t, tmpEntries, "temp directory left behind")
+	cwdEntries, err := os.ReadDir(cwd)
+	require.NoError(t, err)
+	require.Empty(t, cwdEntries, "files written to the working directory")
+}
+
+// TestNewRootCmdKeepsNodeHome asserts that building the root command never
+// deletes the node home: if no temporary directory can be created it panics.
+func TestNewRootCmdKeepsNodeHome(t *testing.T) {
+	key := setNodeHome(t)
 	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
 
 	require.Panics(t, func() { NewRootCmd() })
-	require.FileExists(t, marker)
+	require.FileExists(t, key)
 }
