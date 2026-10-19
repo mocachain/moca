@@ -121,7 +121,7 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		log.NewNopLogger(),
 		dbm.NewMemDB(),
 		nil, true, nil,
-		os.TempDir(),
+		tempDir(),
 		AppConfig,
 		emptyAppOptions{},
 	)
@@ -619,4 +619,15 @@ func initTendermintConfig() *cmtcfg.Config {
 	// cfg.P2P.MaxNumOutboundPeers = 40
 
 	return cfg
+}
+
+// tempDir creates a temporary directory to initialize the command line client.
+func tempDir() string {
+	dir, err := os.MkdirTemp(os.TempDir(), "mocad")
+	if err != nil {
+		panic(fmt.Sprintf("failed creating temp directory: %s", err.Error()))
+	}
+	defer os.RemoveAll(dir)
+
+	return dir
 }

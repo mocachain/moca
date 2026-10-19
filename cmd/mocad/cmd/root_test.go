@@ -172,7 +172,7 @@ func TestHealAppTomlEVMChainID(t *testing.T) {
 }
 
 // TestNewRootCmdKeepsNodeHome asserts that building the root command never
-// deletes the node home, even when no temporary directory can be created.
+// deletes the node home: if no temporary directory can be created it panics.
 func TestNewRootCmdKeepsNodeHome(t *testing.T) {
 	home := filepath.Join(t.TempDir(), ".mocad")
 	marker := filepath.Join(home, "config", "priv_validator_key.json")
@@ -184,7 +184,6 @@ func TestNewRootCmdKeepsNodeHome(t *testing.T) {
 	t.Cleanup(func() { app.DefaultNodeHome = prevHome })
 	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
 
-	NewRootCmd()
-
+	require.Panics(t, func() { NewRootCmd() })
 	require.FileExists(t, marker)
 }
