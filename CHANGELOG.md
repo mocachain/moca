@@ -135,6 +135,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (mocad) [#572](https://github.com/mocachain/moca/pull/572) `tempDir` creates the temporary app's directory under `os.TempDir()` and panics if it cannot, instead of using the default node home. The directory is removed once the temporary app is built.
 - (virtualgroup) [#571](https://github.com/mocachain/moca/pull/571) `MsgStorageProviderForcedExit` no longer counts the target SP itself toward `sp_concurrent_exit_num`, so governance can move an SP that is already exiting to forced exit.
 - (sp) [#570](https://github.com/mocachain/moca/pull/570) `StorageProviders` query returns results in store (ascending id) order rather than a random shuffle. The shuffle came from upstream to spread client traffic across SPs; choosing a primary SP is a client responsibility — `MsgCreateBucket` takes an explicit `primary_sp_address` — so the query returns a stable order and any load-spreading is left to the client.
 - (payment) [#526](https://github.com/mocachain/moca/pull/526) Cap `ReserveTime` and `WithdrawTimeLockDuration` at 1000 years. Both are added to unix timestamps as `int64` downstream and were only checked for being positive. (MOCA-1564)

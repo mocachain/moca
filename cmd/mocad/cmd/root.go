@@ -117,14 +117,17 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// and the CLI options for the modules
 	// add keyring to autocli opts
+	tempHome := tempDir()
 	tempApp := app.NewMoca(
 		log.NewNopLogger(),
 		dbm.NewMemDB(),
 		nil, true, nil,
-		tempDir(app.DefaultNodeHome),
+		tempHome,
 		AppConfig,
 		emptyAppOptions{},
 	)
+	// The app writes under its home only while being built.
+	_ = os.RemoveAll(tempHome)
 	encodingConfig := sdktestutil.TestEncodingConfig{
 		InterfaceRegistry: tempApp.InterfaceRegistry(),
 		Codec:             tempApp.AppCodec(),
@@ -621,12 +624,12 @@ func initTendermintConfig() *cmtcfg.Config {
 	return cfg
 }
 
-func tempDir(defaultHome string) string {
-	dir, err := os.MkdirTemp("", "moca")
+// tempDir creates a private temporary directory to initialize the command line
+// client. It panics rather than fall back to any other directory.
+func tempDir() string {
+	dir, err := os.MkdirTemp(os.TempDir(), "mocad")
 	if err != nil {
-		dir = defaultHome
+		panic(fmt.Sprintf("failed creating temp directory: %s", err.Error()))
 	}
-	defer os.RemoveAll(dir)
-
 	return dir
 }
