@@ -36,30 +36,23 @@ func requireInvalidArgument(t *testing.T, err error) {
 	require.Equal(t, codes.InvalidArgument, st.Code())
 }
 
-// TestStorageProvidersQuery calls the keeper method directly (rather than
-// through s.queryClient, which never sends a nil request) to also exercise the
-// req == nil guard. StorageProviders shuffles its result, so the assertion is
-// on set membership, not order.
+// TestStorageProvidersQuery covers the nil-request guard and the result order.
 func (s *KeeperTestSuite) TestStorageProvidersQuery() {
 	_, err := s.spKeeper.StorageProviders(gocontext.Background(), nil)
 	requireInvalidArgument(s.T(), err)
 
-	ids := []uint32{10, 20, 30}
-	want := make(map[uint32]bool, len(ids))
-	for _, id := range ids {
+	for _, id := range []uint32{30, 10, 20} {
 		sp := &types.StorageProvider{Id: id, OperatorAddress: sdk.MustAccAddressFromHex(sample.RandAccAddressHex()).String()}
 		s.spKeeper.SetStorageProvider(s.ctx, sp)
-		want[id] = true
 	}
 
 	resp, err := s.spKeeper.StorageProviders(s.ctx, &types.QueryStorageProvidersRequest{})
 	require.NoError(s.T(), err)
-	require.Len(s.T(), resp.Sps, len(ids))
-	got := make(map[uint32]bool, len(resp.Sps))
+	got := make([]uint32, 0, len(resp.Sps))
 	for _, sp := range resp.Sps {
-		got[sp.Id] = true
+		got = append(got, sp.Id)
 	}
-	require.Equal(s.T(), want, got)
+	require.Equal(s.T(), []uint32{10, 20, 30}, got)
 
 	// Setting both Offset and Key on the same request is rejected by the
 	// underlying pagination helper; that error must propagate as Internal.

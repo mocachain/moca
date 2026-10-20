@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"math/rand"
 
 	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -31,10 +30,6 @@ func (k Keeper) StorageProviders(goCtx context.Context, req *types.QueryStorageP
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-
-	rand.Shuffle(len(sps), func(i, j int) {
-		sps[i], sps[j] = sps[j], sps[i]
-	})
 
 	return &types.QueryStorageProvidersResponse{Sps: sps, Pagination: pageRes}, nil
 }
