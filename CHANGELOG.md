@@ -45,6 +45,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (build) [#576](https://github.com/mocachain/moca/pull/576) Bump the Go toolchain to 1.26.10 across the `go.mod` `toolchain` directive, the build/goreleaser/e2e Dockerfiles (now `golang:1.26.10-bookworm`), the `goreleaser-cross` release builds (pinned via `GOTOOLCHAIN`), the CI workflow `go-version` pins; also bumps `github.com/bytedance/sonic` to `v1.15.1` (+ `loader` `v0.5.1`) and `cosmovisor` to the v1.7.2 pin main uses, both required to compile under Go 1.26. The `go` directive stays `go 1.23.6`
 - (docker) [#546](https://github.com/mocachain/moca/pull/546) Build the release images on `golang:1.23.6-bookworm`; the bullseye security archive no longer serves the packages the image installs.
 - (docs) [#66](https://github.com/mocachain/moca/pull/66) Update RELEASE_GUIDE.md security notes for GITHUB_TOKEN
 
