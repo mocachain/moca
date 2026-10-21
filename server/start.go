@@ -160,6 +160,7 @@ which accepts a path for the resulting pprof file.
 	cmd.Flags().String(srvflags.Transport, "socket", "Transport protocol: socket, grpc")
 	cmd.Flags().String(srvflags.TraceStore, "", "Enable KVStore tracing to an output file")
 	cmd.Flags().String(server.FlagMinGasPrices, "", "Minimum gas prices to accept for transactions; Any fee in a tx must meet this minimum (e.g. 20000000000amoca)")
+	cmd.Flags().Uint64(server.FlagQueryGasLimit, 0, "Maximum gas a Rest/Grpc query can consume. Blank and 0 imply unbounded.")
 	cmd.Flags().Uint64(server.FlagHaltHeight, 0, "Block height at which to gracefully halt the chain and shutdown the node")
 	cmd.Flags().Uint64(server.FlagHaltTime, 0, "Minimum block time (in Unix seconds) at which to gracefully halt the chain and shutdown the node")
 	cmd.Flags().Bool(server.FlagInterBlockCache, true, "Enable inter-block caching")

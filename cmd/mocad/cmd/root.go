@@ -575,6 +575,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		baseapp.SetChainID(chainID),
 		baseapp.SetEnableUnsafeQuery(cast.ToBool(appOpts.Get(sdkserver.FlagEnableUnsafeQuery))),
 		baseapp.SetEnablePlainStore(cast.ToBool(appOpts.Get(sdkserver.FlagEnablePlainStore))),
+		baseapp.SetQueryGasLimit(cast.ToUint64(appOpts.Get(sdkserver.FlagQueryGasLimit))),
 	)
 
 	return mocaApp
