@@ -612,6 +612,10 @@ func (k msgServer) StorageProviderForcedExit(goCtx context.Context, msg *types.M
 	maxSPExitingNum := k.SpConcurrentExitNum(ctx)
 	sps := k.spKeeper.GetAllStorageProviders(ctx)
 	for _, curSP := range sps {
+		// The target SP already exiting doesn't add a concurrent exit.
+		if curSP.Id == sp.Id {
+			continue
+		}
 		if curSP.Status == sptypes.STATUS_GRACEFUL_EXITING ||
 			curSP.Status == sptypes.STATUS_FORCED_EXITING {
 			exitingSPNum++

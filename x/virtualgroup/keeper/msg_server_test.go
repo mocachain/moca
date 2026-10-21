@@ -1503,6 +1503,27 @@ func (s *TestSuite) TestStorageProviderForcedExit_Success() {
 	require.Equal(s.T(), sptypes.STATUS_FORCED_EXITING, stored.Status)
 }
 
+// A target SP that is already gracefully exiting is not counted against the
+// concurrent-exit limit, so governance can still move it to forced-exit.
+func (s *TestSuite) TestStorageProviderForcedExit_TargetAlreadyExiting() {
+	msgServer := keeper.NewMsgServerImpl(*s.virtualgroupKeeper)
+	sp := spWithOperator(1, sample.RandAccAddress())
+	sp.Status = sptypes.STATUS_GRACEFUL_EXITING
+	s.spKeeper.EXPECT().GetStorageProviderByOperatorAddr(gomock.Any(), gomock.Any()).Return(sp, true)
+	s.spKeeper.EXPECT().GetAllStorageProviders(gomock.Any()).Return([]sptypes.StorageProvider{*sp})
+
+	var stored *sptypes.StorageProvider
+	s.spKeeper.EXPECT().SetStorageProvider(gomock.Any(), gomock.Any()).
+		Do(func(_ sdk.Context, sp *sptypes.StorageProvider) { stored = sp })
+
+	_, err := msgServer.StorageProviderForcedExit(s.ctx, &types.MsgStorageProviderForcedExit{
+		Authority:       s.virtualgroupKeeper.GetAuthority(),
+		StorageProvider: sp.OperatorAddress,
+	})
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), sptypes.STATUS_FORCED_EXITING, stored.Status)
+}
+
 // A GVG id repeated in the same request is settled only once -- the strict mock
 // controller fails the test if the dedup guard is removed and a second call occurs.
 func (s *TestSuite) TestSettle_PerGVGSkipsDuplicateID() {
