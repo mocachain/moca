@@ -359,7 +359,7 @@ lint-contracts:
 	npm run lint
 
 lint-fix:
-	golangci-lint run --fix --out-format=tab --issues-exit-code=0
+	golangci-lint run --fix --issues-exit-code=0
 
 lint-fix-contracts:
 	@cd contracts && \
@@ -512,7 +512,7 @@ localnet-show-logstream:
 ###############################################################################
 
 PACKAGE_NAME:=github.com/evmos/evmos
-GOLANG_CROSS_VERSION  = v1.23
+GOLANG_CROSS_VERSION  = v1.26.10
 GOPATH ?= $(HOME)/go
 REPO_OWNER ?= mocachain
 release-dry-run:
