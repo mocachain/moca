@@ -474,9 +474,7 @@ localnet-show-logstream:
 ###############################################################################
 
 PACKAGE_NAME:=github.com/mocachain/moca
-# goreleaser-cross only supplies the cross-compile toolchains; the Go compiler for
-# release builds is pinned via GOTOOLCHAIN in the docker run targets below.
-GOLANG_CROSS_VERSION  = v1.25
+GOLANG_CROSS_VERSION  = v1.26.10
 GOPATH ?= $(HOME)/go
 REPO_OWNER ?= mocachain
 release-dry-run:
@@ -484,7 +482,6 @@ release-dry-run:
 		--rm \
 		--privileged \
 		-e CGO_ENABLED=1 \
-		-e GOTOOLCHAIN=go1.26.10 \
 		-e REPO_OWNER=$(REPO_OWNER) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -502,7 +499,6 @@ release:
 		--rm \
 		--privileged \
 		-e CGO_ENABLED=1 \
-		-e GOTOOLCHAIN=go1.26.10 \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
