@@ -40,13 +40,14 @@ func (p Precompile) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract 
 		return nil, err
 	}
 
-	var amount sdk.Coins
+	coins := make(sdk.Coins, 0, len(input.InitialDeposit))
 	for _, deposit := range input.InitialDeposit {
 		if deposit.Amount.Sign() < 0 {
 			return nil, fmt.Errorf("deposit %s amount is negative %s", deposit.Denom, deposit.Amount.String())
 		}
-		amount = amount.Add(sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
+		coins = append(coins, sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
 	}
+	amount := sdk.Coins{}.Add(coins.Sort()...)
 
 	content, _ := govv1beta1.ContentFromProposalType(input.Title, input.Description, govv1beta1.ProposalTypeText)
 	msg, err := govv1beta1.NewMsgSubmitProposal(content, amount, contract.Caller().Bytes())
@@ -90,13 +91,14 @@ func (p Precompile) SubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Co
 		msgs[i] = msg
 	}
 
-	var amount sdk.Coins
+	coins := make(sdk.Coins, 0, len(input.InitialDeposit))
 	for _, deposit := range input.InitialDeposit {
 		if deposit.Amount.Sign() < 0 {
 			return nil, fmt.Errorf("deposit %s amount is negative %s", deposit.Denom, deposit.Amount.String())
 		}
-		amount = amount.Add(sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
+		coins = append(coins, sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
 	}
+	amount := sdk.Coins{}.Add(coins.Sort()...)
 
 	msg, err := govv1.NewMsgSubmitProposal(msgs, amount, sdk.AccAddress(contract.Caller().Bytes()).String(), input.Metadata, input.Title, input.Summary, input.Expedited)
 	if err != nil {
