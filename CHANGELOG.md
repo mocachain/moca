@@ -137,6 +137,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (build) [#580](https://github.com/mocachain/moca/pull/580) Run the release Docker image (`Dockerfile.goreleaser`) on `golang:1.26.10-trixie` instead of `golang:1.26.10-bookworm`. The `mocad` built with `goreleaser-cross:v1.26.10` needs glibc 2.38 and bookworm ships 2.36, so `mocad` in the published `v1.4.2` image failed to start with a `GLIBC_2.38` not-found error. Trixie ships glibc 2.41.
 - (config) [#574](https://github.com/mocachain/moca/pull/574) Apply `query-gas-limit` in `mocad`: the value `mocad init` writes to `app.toml` is now passed to baseapp, and `mocad start` accepts `--query-gas-limit`, matching the cosmos-sdk start command and `server.DefaultBaseappOptions`. The default stays `0` (unbounded), so nodes that do not set it are unaffected. (MOCA-2188)
 - (mocad) [#572](https://github.com/mocachain/moca/pull/572) `tempDir` creates the temporary app's directory under `os.TempDir()` and panics if it cannot, instead of using the default node home. The directory is removed once the temporary app is built.
 - (virtualgroup) [#571](https://github.com/mocachain/moca/pull/571) `MsgStorageProviderForcedExit` no longer counts the target SP itself toward `sp_concurrent_exit_num`, so governance can move an SP that is already exiting to forced exit.
