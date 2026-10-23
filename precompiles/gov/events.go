@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	// EventTypeLegacySubmitProposal is the event emitted on a LegacySubmitProposal transaction.
-	EventTypeLegacySubmitProposal = "LegacySubmitProposal"
 	// EventTypeSubmitProposal is the event emitted on a SubmitProposal transaction.
 	EventTypeSubmitProposal = "SubmitProposal"
 	// EventTypeVote is the event emitted on a Vote transaction.
@@ -23,12 +21,6 @@ const (
 	// EventTypeCancelProposal is the event emitted on a CancelProposal transaction.
 	EventTypeCancelProposal = "CancelProposal"
 )
-
-// EmitLegacySubmitProposalEvent emits the LegacySubmitProposal event.
-func (p Precompile) EmitLegacySubmitProposalEvent(evm *vm.EVM, proposer common.Address, proposalID uint64) error {
-	return p.AddLog(evm, MustEvent(EventTypeLegacySubmitProposal),
-		[]common.Hash{common.BytesToHash(proposer.Bytes())}, proposalID)
-}
 
 // EmitSubmitProposalEvent emits the SubmitProposal event.
 func (p Precompile) EmitSubmitProposalEvent(evm *vm.EVM, proposer common.Address, proposalID uint64) error {
