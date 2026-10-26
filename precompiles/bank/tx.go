@@ -61,7 +61,7 @@ func (p Precompile) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		return nil, fmt.Errorf("the number of outputs is %v, need to greater than 1", len(input.Outputs))
 	}
 
-	var totalCoins sdk.Coins
+	var allCoins sdk.Coins
 	outputs := make([]banktypes.Output, 0, len(input.Outputs))
 	for _, output := range input.Outputs {
 		coins := make(sdk.Coins, 0, len(output.Amount))
@@ -78,8 +78,9 @@ func (p Precompile) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 			Coins:   coins,
 		})
 
-		totalCoins = totalCoins.Add(coins...)
+		allCoins = append(allCoins, coins...)
 	}
+	totalCoins := sdk.Coins{}.Add(allCoins.Sort()...)
 
 	msg := &banktypes.MsgMultiSend{
 		Inputs: []banktypes.Input{{
