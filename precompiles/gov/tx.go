@@ -6,10 +6,7 @@ import (
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
 
@@ -19,8 +16,6 @@ import (
 )
 
 const (
-	// LegacySubmitProposalMethod is the ABI name for the v1beta1 LegacySubmitProposal transaction.
-	LegacySubmitProposalMethod = "legacySubmitProposal"
 	// SubmitProposalMethod is the ABI name for the SubmitProposal transaction.
 	SubmitProposalMethod = "submitProposal"
 	// VoteMethod is the ABI name for the Vote transaction.
@@ -32,42 +27,6 @@ const (
 	// CancelProposalMethod is the ABI name for the CancelProposal transaction.
 	CancelProposalMethod = "cancelProposal"
 )
-
-// LegacySubmitProposal submits a v1beta1 text proposal from the caller.
-func (p Precompile) LegacySubmitProposal(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
-	var input LegacySubmitProposalArgs
-	if err := method.Inputs.Copy(&input, args); err != nil {
-		return nil, err
-	}
-
-	coins := make(sdk.Coins, 0, len(input.InitialDeposit))
-	for _, deposit := range input.InitialDeposit {
-		if deposit.Amount.Sign() < 0 {
-			return nil, fmt.Errorf("deposit %s amount is negative %s", deposit.Denom, deposit.Amount.String())
-		}
-		coins = append(coins, sdk.Coin{Denom: deposit.Denom, Amount: math.NewIntFromBigInt(deposit.Amount)})
-	}
-	amount := sdk.Coins{}.Add(coins.Sort()...)
-
-	content, _ := govv1beta1.ContentFromProposalType(input.Title, input.Description, govv1beta1.ProposalTypeText)
-	msg, err := govv1beta1.NewMsgSubmitProposal(content, amount, contract.Caller().Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("invalid message: %w", err)
-	}
-
-	authority := p.accountKeeper.GetModuleAddress(govtypes.ModuleName).String()
-	server := govkeeper.NewLegacyMsgServerImpl(authority, p.govMsgServer)
-	res, err := server.SubmitProposal(ctx, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = p.EmitLegacySubmitProposalEvent(evm, contract.Caller(), res.ProposalId); err != nil {
-		return nil, err
-	}
-
-	return method.Outputs.Pack(res.ProposalId)
-}
 
 // SubmitProposal submits a v1 proposal from the caller. Proposal messages are
 // decoded through the application codec, so any registered message type is accepted.

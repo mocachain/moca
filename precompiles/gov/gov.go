@@ -6,7 +6,6 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	accountkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -22,27 +21,24 @@ var _ vm.PrecompiledContract = &Precompile{}
 
 // Precompile is the gov precompile. It follows the cosmos/evm precompile layout —
 // Run -> RunNativeAction -> Execute -> cmn.SetupABI dispatch. The moca-specific
-// surface is the hex (0x) address encoding, the legacy v1beta1 path, moca's method
-// set, and the non-payable RejectValue guard. Proposal messages are decoded and
-// encoded through the injected application codec.
+// surface is the hex (0x) address encoding, moca's method set, and the non-payable
+// RejectValue guard. Proposal messages are decoded and encoded through the injected
+// application codec.
 type Precompile struct {
 	cmn.Precompile
 	abi.ABI
 
-	govMsgServer  govv1.MsgServer
-	govQuerier    govv1.QueryServer
-	accountKeeper accountkeeper.AccountKeeper
-	cdc           codec.Codec
+	govMsgServer govv1.MsgServer
+	govQuerier   govv1.QueryServer
+	cdc          codec.Codec
 }
 
 // NewPrecompile creates a new gov Precompile as a vm.PrecompiledContract. The msg
-// server and querier are built from the gov keeper at wiring time; the account
-// keeper supplies the gov module authority for the legacy proposal path; the codec
-// is the application codec used to (un)marshal proposal messages.
+// server and querier are built from the gov keeper at wiring time; the codec is the
+// application codec used to (un)marshal proposal messages.
 func NewPrecompile(
 	govMsgServer govv1.MsgServer,
 	govQuerier govv1.QueryServer,
-	accountKeeper accountkeeper.AccountKeeper,
 	bankKeeper bankkeeper.Keeper,
 	cdc codec.Codec,
 ) *Precompile {
@@ -54,11 +50,10 @@ func NewPrecompile(
 			// Reconciles bank keeper coin moves with the EVM StateDB balances.
 			BalanceHandlerFactory: cmn.NewBalanceHandlerFactory(bankKeeper),
 		},
-		ABI:           govABI,
-		govMsgServer:  govMsgServer,
-		govQuerier:    govQuerier,
-		accountKeeper: accountKeeper,
-		cdc:           cdc,
+		ABI:          govABI,
+		govMsgServer: govMsgServer,
+		govQuerier:   govQuerier,
+		cdc:          cdc,
 	}
 }
 
@@ -107,8 +102,6 @@ func (p Precompile) Execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	var bz []byte
 	switch method.Name {
 	// Gov transactions
-	case LegacySubmitProposalMethod:
-		bz, err = p.LegacySubmitProposal(ctx, evm, contract, method, args)
 	case SubmitProposalMethod:
 		bz, err = p.SubmitProposal(ctx, evm, contract, method, args)
 	case VoteMethod:
@@ -148,8 +141,7 @@ func (p Precompile) Execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 // IsTransaction checks if the given method name corresponds to a transaction or query.
 func (Precompile) IsTransaction(method *abi.Method) bool {
 	switch method.Name {
-	case LegacySubmitProposalMethod,
-		SubmitProposalMethod,
+	case SubmitProposalMethod,
 		VoteMethod,
 		VoteWeightedMethod,
 		DepositMethod,
