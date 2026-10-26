@@ -118,15 +118,6 @@ struct Params {
 
 interface IGov {
     /**
-     * @dev legacySubmitProposal defines a method to create new proposal given a content for v1beat1.
-     */
-    function legacySubmitProposal(
-        string memory title,
-        string memory description,
-        Coin[] memory initialDeposit
-    ) external returns (uint64 proposalId);
-
-    /**
      * @dev submitProposal defines a method to create new proposal given a content for v1.
      */
     function submitProposal(
@@ -251,11 +242,6 @@ interface IGov {
      * @dev constitution queries the chain constitution.
      */
     function constitution() external view returns (string memory constitution);
-
-    /**
-     * @dev LegacySubmitProposal defines an Event emitted when a legacy proposal submited.
-     */
-    event LegacySubmitProposal(address indexed proposer, uint64 proposalId);
 
     /**
      * @dev SubmitProposal defines an Event emitted when a proposal submited.
