@@ -255,8 +255,7 @@ fw_run_test() {
     echo -n "  [TEST] ${name}... "
     _FW_CURRENT_TEST="$name"
     # Do not use `if $func`: bash disables set -e inside functions invoked as if-conditions,
-    # so assertions would not fail the test. A failing test therefore ends the suite here;
-    # _fw_cleanup_on_exit records it and prints the summary, and the exit status stays non-zero.
+    # errexit ends the suite here; the exit trap records the failure and prints the summary
     $func
     rc=$?
     _FW_CURRENT_TEST=""

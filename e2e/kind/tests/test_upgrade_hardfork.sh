@@ -104,8 +104,7 @@ test_balances_preserved() {
 }
 
 test_new_binary_running() {
-    # Only the new binary has the handler, so the plan is applied (at or after the scheduled height)
-    # exactly when it is the one running. An unapplied upgrade still answers {"height":"0"}.
+    # only the new binary applies the plan; an unapplied upgrade answers height 0
     local applied_height
     applied_height=$(exec_mocad query upgrade applied "$UPGRADE_NAME" \
         --node tcp://localhost:26657 \

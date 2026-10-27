@@ -306,8 +306,7 @@ exec_mocad() {
         mocad "$@" --home /root/.mocad 2>/dev/null
 }
 
-# Print the native-denom balance of <addr>. Fails when the query fails or the account holds none,
-# so a broken query can never read as a balance.
+# native-denom balance of <addr>; fails on a failed query or an empty balance
 # shellcheck disable=SC2153  # CHAIN_ID is set by callers (workflow env / sourced constants)
 bank_native_balance() {
     local addr="$1" out bal
@@ -326,14 +325,7 @@ bank_native_balance() {
 }
 
 # ── Cosmos tx broadcast (--gas auto + retry) ──────────────────────────────────
-# Cosmos txs use simulated gas (`--gas auto`) plus an explicit `--fees`, never a fixed --gas and never
-# --gas-prices (the older fork CLI errors on it with --gas auto: "cannot provide both fees and gas prices").
-# That CLI overwrites --fees with the node's minimum-gas-prices x gas; an upstream-style CLI signs it as
-# given, so COSMOS_TX_FEES must cover gas limit x 25 gwei (the node minimum, init-chain.sh) for the largest
-# tx the suites send (the default, 0.1 MOCA, covers a 4M gas limit; the job log shows each tx's "gas estimate").
-# `--gas auto` adds a simulate round-trip that widens the window in which validator0's
-# account sequence — shared across the suite's cosmos AND EVM txs, because cosmos/evm maps the EVM nonce onto
-# the cosmos account sequence — can be read stale, so we retry on the mismatch.
+# --gas auto with explicit --fees (never --gas-prices: the fork CLI rejects it with --gas auto); COSMOS_TX_FEES must cover gas x 25 gwei
 # 1.5, not 1.3: post-v2 store-write (WriteFlat) gas is ~30% above the simulate estimate,
 # so 1.3 leaves some txs (e.g. distribution withdraw) a few hundred gas short -> out of gas.
 : "${COSMOS_GAS_ADJUSTMENT:=1.5}"
@@ -366,9 +358,7 @@ cosmos_broadcast() {
         fi
         break
     done
-    # `--gas auto` prints "gas estimate: N" (the gas limit it sets) to stderr, captured via 2>&1.
-    # Re-emit it on stderr so the job log shows the limits COSMOS_TX_FEES has to cover. Return just
-    # the broadcast JSON line when present so callers get clean JSON; otherwise the raw text
+    # re-emit the "gas estimate" line on stderr and return only the broadcast JSON line
     # (hard-error path, e.g. a build/simulate failure with no JSON — callers surface it).
     printf '%s\n' "$out" | grep -E '^gas estimate' | tail -1 >&2 || true
     local json
