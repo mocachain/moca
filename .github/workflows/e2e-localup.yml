@@ -66,10 +66,7 @@ jobs:
             --rpc-url http://127.0.0.1:8545 \
             --private-key 0x2228e392584d902843272c37fd62b8c73c10c81a5ecb901773c9ebe366e937bb
 
-      # Known failures are listed in sdk/client/known_failures.txt. The step fails on any other
-      # failure, on a listed test that passes or does not run, on a panic, and on a package that
-      # fails without a failing test (build error, timeout). -count=1 keeps a cached result from
-      # standing in for a run against the chain.
+      # fail on any failure not in sdk/client/known_failures.txt, on a listed test that passes, or on a panic; -count=1 forbids cached results
       - name: Run sdk/client tests
         run: |
           results="$RUNNER_TEMP/sdk-client-test.json"
