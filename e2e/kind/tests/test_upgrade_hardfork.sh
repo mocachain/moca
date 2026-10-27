@@ -12,7 +12,6 @@ fw_init
 
 OLD_VERSION="${OLD_VERSION:-v1.3.0}"
 UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
-FEES="5000000000000000amoca"
 
 # The hardfork height has to be fixed before the chain starts: app.toml is read
 # only at startup, so it cannot be derived from a running height later. Every
@@ -47,13 +46,10 @@ exec_mocad keys add upgrade-acct --keyring-backend test 2>/dev/null || true
 UPGRADE_TEST_ADDR=$(exec_mocad keys show upgrade-acct -a --keyring-backend test)
 log_info "Test account: ${UPGRADE_TEST_ADDR}"
 
-fw_tx_send validator0 "$UPGRADE_TEST_ADDR" "5000000000000000000amoca" "$FEES"
+fw_tx_send validator0 "$UPGRADE_TEST_ADDR" "5000000000000000000amoca"
 
 PRE_UPGRADE_HEIGHT=$(get_block_height "http://localhost:26657")
-PRE_UPGRADE_BALANCE=$(exec_mocad query bank balances "$UPGRADE_TEST_ADDR" \
-    --node tcp://localhost:26657 \
-    --chain-id "${CHAIN_ID}" \
-    --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+PRE_UPGRADE_BALANCE=$(bank_native_balance "$UPGRADE_TEST_ADDR")
 
 log_info "Pre-upgrade height:  ${PRE_UPGRADE_HEIGHT}"
 log_info "Pre-upgrade balance: ${PRE_UPGRADE_BALANCE} amoca"
@@ -102,21 +98,21 @@ test_height_past_upgrade() {
 
 test_balances_preserved() {
     local bal
-    bal=$(exec_mocad query bank balances "$UPGRADE_TEST_ADDR" \
-        --node tcp://localhost:26657 \
-        --chain-id "${CHAIN_ID}" \
-        --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+    bal=$(bank_native_balance "$UPGRADE_TEST_ADDR")
 
     assert_eq "$bal" "$PRE_UPGRADE_BALANCE" "Balance should survive upgrade"
 }
 
 test_new_binary_running() {
-    # After hardfork, verify the new binary is running by checking node status
-    local status
-    status=$(exec_mocad status --node tcp://localhost:26657 2>/dev/null || echo "")
-    local node_info
-    node_info=$(echo "$status" | jq -r '.node_info.network // empty' 2>/dev/null) || true
-    assert_eq "$node_info" "${CHAIN_ID}" "Node should be running on correct chain"
+    # Only the new binary has the handler, so the plan is applied (at or after the scheduled height)
+    # exactly when it is the one running. An unapplied upgrade still answers {"height":"0"}.
+    local applied_height
+    applied_height=$(exec_mocad query upgrade applied "$UPGRADE_NAME" \
+        --node tcp://localhost:26657 \
+        --chain-id "${CHAIN_ID}" \
+        --output json | jq -r '.height')
+
+    assert_gt "$applied_height" "$((HARDFORK_HEIGHT - 1))" "Upgrade '${UPGRADE_NAME}' should be applied by the new binary"
 }
 
 test_send_tokens_post_upgrade() {
@@ -124,13 +120,10 @@ test_send_tokens_post_upgrade() {
     local recv
     recv=$(exec_mocad keys show post-hf-user -a --keyring-backend test)
 
-    fw_tx_send validator0 "$recv" "1000000000000000000amoca" "$FEES"
+    fw_tx_send validator0 "$recv" "1000000000000000000amoca"
 
     local bal
-    bal=$(exec_mocad query bank balances "$recv" \
-        --node tcp://localhost:26657 \
-        --chain-id "${CHAIN_ID}" \
-        --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+    bal=$(bank_native_balance "$recv")
 
     assert_eq "$bal" "1000000000000000000" "Post-upgrade transfer should succeed"
 }

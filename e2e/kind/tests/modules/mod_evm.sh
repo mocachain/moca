@@ -36,36 +36,29 @@ evm_setup() {
     evm_transfer "$_EVM_ALICE_ADDR" "10ether"
     evm_transfer "$_EVM_BOB_ADDR" "10ether"
 
-    # Deploy ERC20
+    # Deploy ERC20 (same forge build + cast send --create path as the RPC suite). A failed deploy fails the suite.
     log_info "[evm] Deploying TestERC20..."
-    local deploy_out
-    deploy_out=$(forge create "${CONTRACTS_DIR}/TestERC20.sol:TestERC20" \
-        --constructor-args "MocaTestToken" "MTT" 18 \
-        --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
-        --chain-id "$EVM_CHAIN_ID" --json 2>/dev/null) || true
-    _EVM_ERC20_ADDR=$(echo "$deploy_out" | jq -r '.deployedTo // empty' 2>/dev/null) || true
+    local artifact="${CONTRACTS_DIR}/out/TestERC20.sol/TestERC20.json" bytecode ctor_args
+    (cd "$CONTRACTS_DIR" && forge build --quiet) || { log_error "[evm] forge build TestERC20 failed"; return 1; }
+    bytecode=$(jq -r '.bytecode.object // empty' "$artifact")
+    ctor_args=$(cast abi-encode "constructor(string,string,uint8)" "MocaTestToken" "MTT" 18)
+    assert_not_empty "$bytecode" "TestERC20 bytecode in ${artifact}"
+    assert_not_empty "$ctor_args" "TestERC20 constructor args"
+    _EVM_ERC20_ADDR=$(evm_deploy "0x${bytecode#0x}${ctor_args#0x}")
+    assert_not_empty "$_EVM_ERC20_ADDR" "TestERC20 deploy returned no contract address"
+    log_success "[evm] ERC20 at: ${_EVM_ERC20_ADDR}"
 
-    if [ -n "$_EVM_ERC20_ADDR" ]; then
-        log_success "[evm] ERC20 at: ${_EVM_ERC20_ADDR}"
-        local val0_addr; val0_addr=$(cast wallet address "$VAL0_PRIVKEY" 2>/dev/null)
-        # Initial mints
-        evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$val0_addr" "1000000000000000000000000"
-        evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$_EVM_ALICE_ADDR" "500000000000000000000000"
-        evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$_EVM_BOB_ADDR" "250000000000000000000000"
-        # Initial approve (sync wait via fw_wait_evm_tx)
-        local approve_out approve_hash
-        approve_out=$(cast send "$_EVM_ERC20_ADDR" "approve(address,uint256)" "$_EVM_BOB_ADDR" "50000000000000000000000" \
-            --private-key "$_EVM_ALICE_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --json 2>&1) \
-            || log_warn "[evm] approve broadcast failed: $approve_out"
-        approve_hash=$(echo "$approve_out" | jq -r '.transactionHash // empty' 2>/dev/null)
-        [ -n "$approve_hash" ] && fw_wait_evm_tx "$approve_hash" 10 "$EVM_RPC"
-        # Record state
-        _EVM_PRE_TOKEN_NAME=$(evm_call "$_EVM_ERC20_ADDR" "name()(string)")
-        _EVM_PRE_TOKEN_SYMBOL=$(evm_call "$_EVM_ERC20_ADDR" "symbol()(string)")
-        _EVM_PRE_ALLOWANCE=$(evm_call "$_EVM_ERC20_ADDR" "allowance(address,address)(uint256)" "$_EVM_ALICE_ADDR" "$_EVM_BOB_ADDR")
-    else
-        log_warn "[evm] ERC20 deploy failed, ERC20 txs will be skipped"
-    fi
+    local val0_addr; val0_addr=$(cast wallet address "$VAL0_PRIVKEY" 2>/dev/null)
+    # Initial mints
+    evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$val0_addr" "1000000000000000000000000"
+    evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$_EVM_ALICE_ADDR" "500000000000000000000000"
+    evm_send "$_EVM_ERC20_ADDR" "mint(address,uint256)" "$_EVM_BOB_ADDR" "250000000000000000000000"
+    # Initial approve
+    evm_send_from "$_EVM_ALICE_KEY" "$_EVM_ERC20_ADDR" "approve(address,uint256)" "$_EVM_BOB_ADDR" "50000000000000000000000"
+    # Record state
+    _EVM_PRE_TOKEN_NAME=$(evm_call "$_EVM_ERC20_ADDR" "name()(string)")
+    _EVM_PRE_TOKEN_SYMBOL=$(evm_call "$_EVM_ERC20_ADDR" "symbol()(string)")
+    _EVM_PRE_ALLOWANCE=$(evm_call "$_EVM_ERC20_ADDR" "allowance(address,address)(uint256)" "$_EVM_ALICE_ADDR" "$_EVM_BOB_ADDR")
 }
 
 # Single native MOCA transfer
@@ -83,14 +76,13 @@ evm_contract_deploy() {
     log_info "  [evm] deploy value-store contract"
     local addr
     addr=$(evm_deploy "$_VALUE_STORE_BC")
-    if [ -n "$addr" ]; then
-        _EVM_CONTRACTS+=("$addr")
-    fi
+    assert_not_empty "$addr" "value-store deploy returned no contract address"
+    _EVM_CONTRACTS+=("$addr")
 }
 
 # Single ERC20 operation — rotates through mint/transfer/transferFrom/burn
 evm_erc20_tx() {
-    [ -z "$_EVM_ERC20_ADDR" ] && return
+    assert_not_empty "$_EVM_ERC20_ADDR" "ERC20 must have been deployed in setup"
     local op=$((_EVM_TX_IDX % 4))
     local val0_addr; val0_addr=$(cast wallet address "$VAL0_PRIVKEY" 2>/dev/null)
 
@@ -101,15 +93,11 @@ evm_erc20_tx() {
             ;;
         1)
             log_info "  [evm] erc20 transfer 100 Alice -> Bob"
-            cast send "$_EVM_ERC20_ADDR" "transfer(address,uint256)" "$_EVM_BOB_ADDR" "100000000000000000000" \
-                --private-key "$_EVM_ALICE_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 > /dev/null 2>&1 || true
-            sleep 2
+            evm_send_from "$_EVM_ALICE_KEY" "$_EVM_ERC20_ADDR" "transfer(address,uint256)" "$_EVM_BOB_ADDR" "100000000000000000000"
             ;;
         2)
             log_info "  [evm] erc20 transferFrom 50 Alice -> deployer (via Bob)"
-            cast send "$_EVM_ERC20_ADDR" "transferFrom(address,address,uint256)" "$_EVM_ALICE_ADDR" "$val0_addr" "50000000000000000000" \
-                --private-key "$_EVM_BOB_KEY" --rpc-url "$EVM_RPC" --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 > /dev/null 2>&1 || true
-            sleep 2
+            evm_send_from "$_EVM_BOB_KEY" "$_EVM_ERC20_ADDR" "transferFrom(address,address,uint256)" "$_EVM_ALICE_ADDR" "$val0_addr" "50000000000000000000"
             ;;
         3)
             log_info "  [evm] erc20 burn 500 from deployer"
@@ -132,19 +120,26 @@ _evm_verify_native_balances() {
 }
 
 _evm_verify_contracts_live() {
-    [ ${#_EVM_CONTRACTS[@]} -eq 0 ] && { log_warn "No contracts deployed"; return 0; }
-    local code; code=$(cast code "${_EVM_CONTRACTS[0]}" --rpc-url "$EVM_RPC" 2>/dev/null || echo "0x")
-    assert_not_empty "$code" "Deployed contract should have code"
+    assert_gt "${#_EVM_CONTRACTS[@]}" "0" "At least one contract should have been deployed"
+    local c code
+    for c in "${_EVM_CONTRACTS[@]}"; do
+        code=$(cast code "$c" --rpc-url "$EVM_RPC") || { log_error "cast code ${c} failed"; return 1; }
+        if [ -z "$code" ] || [ "$code" = "0x" ]; then
+            log_error "Deployed contract ${c} has no code (got '${code}')"
+            return 1
+        fi
+    done
 }
 
 _evm_verify_erc20_metadata() {
-    [ -z "$_EVM_ERC20_ADDR" ] && { log_warn "No ERC20"; return 0; }
+    assert_not_empty "$_EVM_ERC20_ADDR" "ERC20 must have been deployed in setup"
     local name; name=$(evm_call "$_EVM_ERC20_ADDR" "name()(string)")
+    assert_not_empty "$name" "Token name should be readable"
     assert_eq "$name" "$_EVM_PRE_TOKEN_NAME" "Token name preserved"
 }
 
 _evm_verify_erc20_supply() {
-    [ -z "$_EVM_ERC20_ADDR" ] && { log_warn "No ERC20"; return 0; }
+    assert_not_empty "$_EVM_ERC20_ADDR" "ERC20 must have been deployed in setup"
     local supply; supply=$(evm_call "$_EVM_ERC20_ADDR" "totalSupply()(uint256)")
     assert_gt "$supply" "0" "ERC20 total supply should be positive"
 }
