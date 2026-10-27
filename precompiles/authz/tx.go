@@ -81,16 +81,17 @@ func (p Precompile) Grant(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, m
 		return nil, err
 	}
 
-	var limit sdk.Coins
+	coins := make(sdk.Coins, 0, len(input.Limit))
 	for _, coin := range input.Limit {
 		if coin.Amount.Sign() <= 0 {
 			return nil, fmt.Errorf("limit %s amount is %s, need to greater than 0", coin.Denom, coin.Amount.String())
 		}
-		limit = limit.Add(sdk.Coin{
+		coins = append(coins, sdk.Coin{
 			Denom:  coin.Denom,
 			Amount: math.NewIntFromBigInt(coin.Amount),
 		})
 	}
+	limit := sdk.Coins{}.Add(coins.Sort()...)
 	if input.Expiration < 0 {
 		return nil, fmt.Errorf("expiration is %d, need to greater than or equal 0", input.Expiration)
 	}

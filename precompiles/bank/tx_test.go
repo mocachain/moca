@@ -164,6 +164,88 @@ func (s *PrecompileTestSuite) TestBankSend_ContractCallerRejectsValue() {
 	s.Require().Equal("precompile does not accept value", err.Error())
 }
 
+// denoms the coin-set construction tests fund and send, besides the base denom.
+const (
+	coinA = "coina"
+	coinB = "coinb"
+)
+
+// TestBankSend_UnsortedDuplicateDenoms pins the coin-set construction contract:
+// an unsorted amount array with a repeated denom is sorted and summed into one
+// coin per denom before the send is dispatched.
+func (s *PrecompileTestSuite) TestBankSend_UnsortedDuplicateDenoms() {
+	s.mustEnableStaticPrecompiles()
+
+	sender := sdk.AccAddress(s.address.Bytes())
+	s.Require().NoError(testutil.FundAccount(s.ctx, s.app.BankKeeper, sender, sdk.NewCoins(
+		sdk.NewInt64Coin(coinA, 100),
+		sdk.NewInt64Coin(coinB, 100),
+	)))
+
+	receiver := common.HexToAddress("0x6666666666666666666666666666666666666666")
+	method := bank.MustMethod(bank.SendMethodName)
+	packedArgs, err := method.Inputs.Pack(receiver, []bank.Coin{
+		{Denom: coinB, Amount: big.NewInt(2)},
+		{Denom: coinA, Amount: big.NewInt(5)},
+		{Denom: coinB, Amount: big.NewInt(3)},
+	})
+	s.Require().NoError(err)
+	input := append(append([]byte{}, method.ID...), packedArgs...)
+
+	precompileAddr := bank.GetAddress()
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
+	s.Require().NoError(err)
+	s.Require().False(res.Failed(), "evm call reverted: %s", res.VmError)
+
+	recv := sdk.AccAddress(receiver.Bytes())
+	s.Require().Equal(math.NewInt(5), s.app.BankKeeper.GetBalance(s.ctx, recv, coinA).Amount)
+	s.Require().Equal(math.NewInt(5), s.app.BankKeeper.GetBalance(s.ctx, recv, coinB).Amount)
+}
+
+// TestBankMultiSend_UnsortedDuplicateDenoms is the multiSend counterpart: each
+// output's unsorted, repeated denoms are summed, and the sender is debited the
+// total across all outputs, including a recipient that appears twice.
+func (s *PrecompileTestSuite) TestBankMultiSend_UnsortedDuplicateDenoms() {
+	s.mustEnableStaticPrecompiles()
+
+	sender := sdk.AccAddress(s.address.Bytes())
+	s.Require().NoError(testutil.FundAccount(s.ctx, s.app.BankKeeper, sender, sdk.NewCoins(
+		sdk.NewInt64Coin(coinA, 100),
+		sdk.NewInt64Coin(coinB, 100),
+	)))
+
+	receiverA := common.HexToAddress("0x7777777777777777777777777777777777777777")
+	receiverB := common.HexToAddress("0x8888888888888888888888888888888888888888")
+	method := bank.MustMethod(bank.MultiSendMethodName)
+	packedArgs, err := method.Inputs.Pack([]bank.Output{
+		{ToAddress: receiverA, Amount: []bank.Coin{
+			{Denom: coinB, Amount: big.NewInt(2)},
+			{Denom: coinA, Amount: big.NewInt(5)},
+			{Denom: coinB, Amount: big.NewInt(3)},
+		}},
+		{ToAddress: receiverB, Amount: []bank.Coin{{Denom: coinA, Amount: big.NewInt(7)}}},
+		{ToAddress: receiverA, Amount: []bank.Coin{{Denom: coinB, Amount: big.NewInt(1)}}},
+	})
+	s.Require().NoError(err)
+	input := append(append([]byte{}, method.ID...), packedArgs...)
+
+	precompileAddr := bank.GetAddress()
+	stateDB := statedb.New(s.ctx, s.app.EvmKeeper, statedb.NewEmptyTxConfig())
+	res, err := s.app.EvmKeeper.CallEVMWithData(s.ctx, stateDB, s.address, &precompileAddr, input, true, false, nil)
+	s.Require().NoError(err)
+	s.Require().False(res.Failed(), "evm call reverted: %s", res.VmError)
+
+	recvA := sdk.AccAddress(receiverA.Bytes())
+	recvB := sdk.AccAddress(receiverB.Bytes())
+	s.Require().Equal(math.NewInt(5), s.app.BankKeeper.GetBalance(s.ctx, recvA, coinA).Amount)
+	s.Require().Equal(math.NewInt(6), s.app.BankKeeper.GetBalance(s.ctx, recvA, coinB).Amount)
+	s.Require().Equal(math.NewInt(7), s.app.BankKeeper.GetBalance(s.ctx, recvB, coinA).Amount)
+	s.Require().True(s.app.BankKeeper.GetBalance(s.ctx, recvB, coinB).Amount.IsZero())
+	s.Require().Equal(math.NewInt(88), s.app.BankKeeper.GetBalance(s.ctx, sender, coinA).Amount)
+	s.Require().Equal(math.NewInt(94), s.app.BankKeeper.GetBalance(s.ctx, sender, coinB).Amount)
+}
+
 func (s *PrecompileTestSuite) balance(addr sdk.AccAddress) math.Int {
 	return s.app.BankKeeper.GetBalance(s.ctx, addr, utils.BaseDenom).Amount
 }

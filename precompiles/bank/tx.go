@@ -24,13 +24,14 @@ func (p Precompile) Send(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, me
 		return nil, err
 	}
 
-	var amount sdk.Coins
+	coins := make(sdk.Coins, 0, len(input.Amount))
 	for _, coin := range input.Amount {
 		if coin.Amount.Sign() <= 0 {
 			return nil, fmt.Errorf("send %s amount is %s, need to greater than 0", coin.Denom, coin.Amount.String())
 		}
-		amount = amount.Add(sdk.Coin{Denom: coin.Denom, Amount: math.NewIntFromBigInt(coin.Amount)})
+		coins = append(coins, sdk.Coin{Denom: coin.Denom, Amount: math.NewIntFromBigInt(coin.Amount)})
 	}
+	amount := sdk.Coins{}.Add(coins.Sort()...)
 
 	msg := &banktypes.MsgSend{
 		FromAddress: contract.Caller().String(),
@@ -60,24 +61,26 @@ func (p Precompile) MultiSend(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 		return nil, fmt.Errorf("the number of outputs is %v, need to greater than 1", len(input.Outputs))
 	}
 
-	var totalCoins sdk.Coins
-	var outputs []banktypes.Output
+	var allCoins sdk.Coins
+	outputs := make([]banktypes.Output, 0, len(input.Outputs))
 	for _, output := range input.Outputs {
-		var coins sdk.Coins
+		coins := make(sdk.Coins, 0, len(output.Amount))
 		for _, coin := range output.Amount {
 			if coin.Amount.Sign() <= 0 {
 				return nil, fmt.Errorf("multiSend %s amount is %s, need to greater than 0", coin.Denom, coin.Amount.String())
 			}
-			coins = coins.Add(sdk.Coin{Denom: coin.Denom, Amount: math.NewIntFromBigInt(coin.Amount)})
+			coins = append(coins, sdk.Coin{Denom: coin.Denom, Amount: math.NewIntFromBigInt(coin.Amount)})
 		}
+		coins = sdk.Coins{}.Add(coins.Sort()...)
 
 		outputs = append(outputs, banktypes.Output{
 			Address: output.ToAddress.String(),
 			Coins:   coins,
 		})
 
-		totalCoins = totalCoins.Add(coins.Sort()...)
+		allCoins = append(allCoins, coins...)
 	}
+	totalCoins := sdk.Coins{}.Add(allCoins.Sort()...)
 
 	msg := &banktypes.MsgMultiSend{
 		Inputs: []banktypes.Input{{
