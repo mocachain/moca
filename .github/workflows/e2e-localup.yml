@@ -16,7 +16,7 @@ jobs:
   e2e-localup:
     name: EVM/precompile e2e (localup)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -36,7 +36,7 @@ jobs:
       - name: Wait for chain liveness
         run: |
           for _ in $(seq 1 30); do
-            if curl -s -X POST -H "Content-Type: application/json" \
+            if curl -s --max-time 5 -X POST -H "Content-Type: application/json" \
               --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
               http://127.0.0.1:8545 | grep -q result; then
               echo "chain is live"
@@ -48,7 +48,7 @@ jobs:
           exit 1
 
       - name: Run e2e/tests suite
-        run: go test ./e2e/tests/... -v -timeout 10m
+        run: go test ./e2e/tests/... -v -count=1 -timeout 10m
 
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
 
@@ -66,21 +66,34 @@ jobs:
             --rpc-url http://127.0.0.1:8545 \
             --private-key 0x2228e392584d902843272c37fd62b8c73c10c81a5ecb901773c9ebe366e937bb
 
-      # TODO(moca): sdk/client has real value here (its own EIP-712-signed
-      # Cosmos-tx test), but several of its tests have pre-existing issues
-      # unrelated to this CI wiring: TestSendTokenWithTxOptionSucceed hardcodes
-      # GasLimit: 2000 which is now too low (observed needing 2042 -- a stale
-      # constant, likely from a gas-cost change elsewhere), which cascades
-      # into TestSimulateTx's account-sequence-mismatch failure and a
-      # follow-on nil-pointer panic; TestStakingValidator hardcodes a specific
-      # validator address (TestValAddr) that only exists on whatever devnet
-      # convention these tests were originally written against, not a fresh
-      # localup.sh genesis. continue-on-error until those get looked at, so
-      # they don't block this workflow while still surfacing as a visible
-      # warning.
+      # Known failures are listed in sdk/client/known_failures.txt. The step fails on any other
+      # failure, on a listed test that passes or does not run, on a panic, and on a package that
+      # fails without a failing test (build error, timeout). -count=1 keeps a cached result from
+      # standing in for a run against the chain.
       - name: Run sdk/client tests
-        continue-on-error: true
-        run: go test ./sdk/client/... -v -timeout 5m
+        run: |
+          results="$RUNNER_TEMP/sdk-client-test.json"
+          status=0
+          go test ./sdk/client/... -json -count=1 -timeout 5m > "$results" || status=$?
+          jq -j 'select(.Action == "output" or .Action == "build-output") | .Output' "$results"
+          known=$(sed -E 's/[[:space:]]*#.*//; /^[[:space:]]*$/d' sdk/client/known_failures.txt | jq -R . | jq -sc .)
+          problems=$(jq -rs --argjson known "$known" --arg status "$status" '
+            def tests($a): [.[] | select(.Test != null and .Action == $a) | .Test] | unique;
+            def pkgs($a; $t): [.[] | select((.Test != null) == $t and .Action == $a) | .Package] | unique;
+            tests("fail") as $failed | tests("pass") as $passed | [
+              (if ($passed | length) == 0 then "no test passed, did the tests run?" else empty end),
+              (if ($failed | length) == 0 and $status != "0" then "go test exited \($status) without a failing test" else empty end),
+              (($failed - $known)[] | "unexpected failure: \(.)"),
+              (($known - ($known - $passed))[] | "known failure now passes, remove it from known_failures.txt: \(.)"),
+              (($known - $failed - $passed)[] | "known failure did not run: \(.)"),
+              ((pkgs("fail"; false) - pkgs("fail"; true))[] | "package failed without a failing test: \(.)"),
+              (.[] | select(.Action == "output" and ((.Output // "") | startswith("panic:"))) | "panic in \(.Package): \(.Output | rtrimstr("\n"))")
+            ] | .[]' "$results")
+          jq -r --argjson known "$known" 'select(.Action == "fail" and .Test != null and (.Test | IN($known[]))) | "::warning title=known sdk/client failure::\(.Test)"' "$results"
+          if [ -n "$problems" ]; then
+            while IFS= read -r problem; do echo "::error title=sdk/client tests::$problem"; done <<< "$problems"
+            exit 1
+          fi
 
       - name: Collect chain logs
         if: failure()
