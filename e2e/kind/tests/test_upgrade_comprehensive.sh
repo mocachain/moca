@@ -116,9 +116,11 @@ evm_transfer() {
     fw_wait_evm_tx "$hash" 30 "$EVM_RPC" || { log_error "  evm_transfer wait timeout: $hash ($out)"; return 1; }
 }
 
-evm_send() {
+# evm_send_from <private-key> <cast send args...>
+evm_send_from() {
+    local key="$1"; shift
     local out hash
-    out=$(cast_send_retry "$@" --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
+    out=$(cast_send_retry "$@" --private-key "$key" --rpc-url "$EVM_RPC" \
         --chain-id "$EVM_CHAIN_ID" --gas-price 30000000000 --json) || {
         log_error "  evm_send broadcast failed: $out"
         return 1
@@ -126,6 +128,10 @@ evm_send() {
     hash=$(echo "$out" | jq -r '.transactionHash // empty' 2>/dev/null)
     [ -z "$hash" ] && { log_error "  evm_send returned no hash: $out"; return 1; }
     fw_wait_evm_tx "$hash" 30 "$EVM_RPC" || { log_error "  evm_send wait timeout: $hash ($out)"; return 1; }
+}
+
+evm_send() {
+    evm_send_from "$VAL0_PRIVKEY" "$@"
 }
 
 evm_call() {
@@ -257,7 +263,8 @@ test_upgrade_applied() {
         --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" \
         --output json 2>/dev/null || echo "{}")
     local height; height=$(echo "$result" | jq -r '.height // empty' 2>/dev/null) || true
-    assert_not_empty "$height" "Upgrade '${UPGRADE_NAME}' should be applied"
+    # An upgrade that never ran still answers {"height":"0"}.
+    assert_gt "$height" "0" "Upgrade '${UPGRADE_NAME}' should be applied"
 }
 
 test_height_advanced() {

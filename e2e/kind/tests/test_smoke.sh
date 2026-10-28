@@ -10,6 +10,7 @@
 #   6. Multi-account transfers
 #   7. Query storage providers
 
+# shellcheck source=/dev/null
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
@@ -44,14 +45,11 @@ test_chain_producing_blocks() {
 }
 
 test_genesis_account_balances() {
-    local balance
-    balance=$(exec_mocad query bank balances \
-        "$(exec_mocad keys show validator0 -a --keyring-backend test)" \
-        --node tcp://localhost:26657 \
-        --chain-id "${CHAIN_ID}" \
-        --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+    local addr balance
+    addr=$(exec_mocad keys show validator0 -a --keyring-backend test)
+    balance=$(bank_native_balance "$addr")
 
-    assert_not_empty "$balance" "validator0 should have amoca balance"
+    assert_gt "$balance" 0 "validator0 should have a positive amoca balance"
 }
 
 test_query_validators() {
@@ -95,10 +93,7 @@ test_send_tokens() {
     fw_tx_send validator0 "$recv" "$send_amount"
 
     local bal
-    bal=$(exec_mocad query bank balances "$recv" \
-        --node tcp://localhost:26657 \
-        --chain-id "${CHAIN_ID}" \
-        --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+    bal=$(bank_native_balance "$recv")
 
     assert_eq "$bal" "1000000000000000000" "Receiver should have 1 MOCA"
 }
@@ -130,13 +125,10 @@ test_multi_account_transfers() {
 
     # fwtest2 should have: 5 MOCA (initial) + 1 MOCA (from fwtest1) = 6 MOCA
     local bal2
-    bal2=$(exec_mocad query bank balances "${accounts[2]}" \
-        --node tcp://localhost:26657 \
-        --chain-id "${CHAIN_ID}" \
-        --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+    bal2=$(bank_native_balance "${accounts[2]}")
 
     log_info "fwtest2 balance: ${bal2} amoca"
-    assert_not_empty "$bal2" "fwtest2 should have non-zero balance"
+    assert_eq "$bal2" "6000000000000000000" "fwtest2 should have 5 MOCA (funded) + 1 MOCA (from fwtest1)"
 }
 
 test_query_storage_providers() {

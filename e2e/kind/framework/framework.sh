@@ -21,6 +21,7 @@ source "${SCRIPTS_DIR}/lib.sh"
 # ── State ─────────────────────────────────────────────────────────────────────
 _FW_PASS=0
 _FW_FAIL=0
+_FW_CURRENT_TEST=""
 _FW_STARTED=false
 _FW_DONE=false
 _FW_GENESIS_PATCHES=()
@@ -33,12 +34,16 @@ fw_init() {
     trap '_fw_cleanup_on_exit' EXIT
 }
 
-fw_done() {
-    _FW_DONE=true
+_fw_summary() {
     echo ""
     log_info "=== Test Summary ==="
     log_info "  Passed: ${_FW_PASS}"
     log_info "  Failed: ${_FW_FAIL}"
+}
+
+fw_done() {
+    _FW_DONE=true
+    _fw_summary
 
     if [ "${_FW_FAIL}" -gt 0 ]; then
         log_error "Some tests failed"
@@ -59,7 +64,15 @@ _fw_cleanup_on_exit() {
         return
     fi
     if [ $exit_code -ne 0 ]; then
+        # errexit ends the suite inside a failing test, before fw_run_test can count it.
+        if [ -n "${_FW_CURRENT_TEST}" ]; then
+            log_error "FAIL"
+            _FW_FAIL=$((_FW_FAIL + 1))
+        fi
         log_error "Test exited early (code ${exit_code})"
+        if [ $((_FW_PASS + _FW_FAIL)) -gt 0 ]; then
+            _fw_summary
+        fi
         _fw_collect_debug_logs
     fi
     _fw_cleanup
@@ -240,10 +253,12 @@ fw_run_test() {
     local rc
 
     echo -n "  [TEST] ${name}... "
+    _FW_CURRENT_TEST="$name"
     # Do not use `if $func`: bash disables set -e inside functions invoked as if-conditions,
-    # so assertions would not fail the test.
+    # errexit ends the suite here; the exit trap records the failure and prints the summary
     $func
     rc=$?
+    _FW_CURRENT_TEST=""
     if [ "$rc" -eq 0 ]; then
         log_success "PASS"
         _FW_PASS=$((_FW_PASS + 1))
@@ -259,7 +274,7 @@ fw_tx_send() {
     local from="$1" to="$2" amount="$3"
 
     local out hash
-    # cosmos_broadcast: --gas auto (fee auto-derived from node min-gas-prices) + retry-on-mismatch.
+    # cosmos_broadcast: --gas auto + explicit --fees (COSMOS_TX_FEES) + retry-on-mismatch.
     out=$(cosmos_broadcast validator-0-0 tx bank send "$from" "$to" "$amount" --from "$from")
     if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         log_error "  fw_tx_send broadcast failed: $out"
