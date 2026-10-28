@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/cometbft/cometbft/types"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mocachain/moca/v2/sdk/client/test"
@@ -14,21 +13,21 @@ import (
 func TestGetABCIInfo(t *testing.T) {
 	client := NewTendermintClient(test.TestRPCAddr)
 	abci, err := client.TmClient.ABCIInfo(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	t.Log(abci.Response.LastBlockHeight)
 }
 
 func TestGetStatus(t *testing.T) {
 	client := NewTendermintClient(test.TestRPCAddr)
 	status, err := client.TmClient.Status(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	t.Log(status.ValidatorInfo)
 }
 
 func TestGetValidators(t *testing.T) {
 	client := NewTendermintClient(test.TestRPCAddr)
 	validators, err := client.TmClient.Validators(context.Background(), nil, nil, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	t.Log(validators.Validators)
 }
 
