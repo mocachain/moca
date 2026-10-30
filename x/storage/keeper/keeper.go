@@ -973,6 +973,8 @@ func (k Keeper) SealObject(
 
 	prevPayloadSize := objectInfo.PayloadSize
 	prevCheckSums := objectInfo.Checksums
+	// A content update of an object that already holds its NFT keeps that NFT.
+	nftMinted := storagetypes.ObjectNFTMinted(objectInfo)
 
 	isUpdate := objectInfo.IsUpdating
 
@@ -1074,6 +1076,9 @@ func (k Keeper) SealObject(
 		return err
 	}
 
+	if nftMinted {
+		return nil
+	}
 	// Mint object nft token and send to receiver
 	_, err = k.CallEVM(
 		ctx,
@@ -2845,6 +2850,8 @@ func (k Keeper) UpdateObjectContent(
 	}
 	nextVersion := objectInfo.Version + 1
 
+	// An update that removes the object's content removes the NFT minted for it.
+	burnNFT := payloadSize == 0 && storagetypes.ObjectNFTMinted(objectInfo)
 	if payloadSize == 0 {
 		internalBucketInfo := k.MustGetInternalBucketInfo(ctx, bucketInfo.Id)
 		err := k.UnChargeObjectStoreFee(ctx, bucketInfo, internalBucketInfo, objectInfo)
@@ -2898,6 +2905,22 @@ func (k Keeper) UpdateObjectContent(
 		Version:     nextVersion,
 	}); err != nil {
 		return err
+	}
+
+	// As at every other NFT mint and burn site, the EVM call comes after the
+	// object's own writes.
+	if burnNFT {
+		if _, err = k.CallEVM(
+			ctx,
+			contracts.ERC721NonTransferableContract.ABI,
+			contracts.ObjectControlHubAddress,
+			contracts.ObjectERC721TokenAddress,
+			true,
+			"burn",
+			objectInfo.Id.BigInt(),
+		); err != nil {
+			return err
+		}
 	}
 	return nil
 }

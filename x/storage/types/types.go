@@ -34,6 +34,14 @@ func (m *BucketInfo) CheckBucketStatus() error {
 	return nil
 }
 
+// ObjectNFTMinted reports whether an object holds an object NFT. The NFT is minted
+// when an object is first sealed with content and burned when its content is
+// removed, so an object has one exactly when it is no longer CREATED and its
+// payload is not empty.
+func ObjectNFTMinted(info *ObjectInfo) bool {
+	return info != nil && info.ObjectStatus != OBJECT_STATUS_CREATED && info.PayloadSize > 0
+}
+
 func (m *ObjectInfo) ToNFTMetadata() *ObjectMetaData {
 	return &ObjectMetaData{
 		ObjectName: m.ObjectName,
