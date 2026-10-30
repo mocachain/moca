@@ -1,12 +1,14 @@
 // Package contracts holds the compiled-contract artifacts moca keepers encode
 // EVM calls against (mirroring cosmos/evm's top-level contracts/ package).
 //
-// The artifacts here are ABI-only and have no in-tree Solidity source: the
-// embedded JSON is the source of truth (greenfield heritage; it carries no
-// bytecode and nothing ever deploys it — keepers only encode calldata toward
-// fixed addresses). There is deliberately no compile/regenerate target; to
-// change an artifact, edit the JSON and update the guard test that pins its
-// call signatures, addresses, and bytecode-less nature.
+// The JSON artifacts here are ABI-only and have no in-tree Solidity source: the
+// embedded JSON is the source of truth (greenfield heritage) and keepers only
+// encode calldata from it. The NFT contracts' runtime bytecode is kept apart, in
+// compiled_contracts/*.runtime.hex, exactly as live networks hold it; the app
+// installs it at the fixed token addresses when a chain starts
+// (StorageNFTGenesisContracts). There is deliberately no compile/regenerate
+// target; to change an artifact, edit it and update the guard tests that pin its
+// call signatures, addresses and code hashes.
 //
 // Adding a new contract: author the Solidity under solidity/ (the maintained
 // hardhat project), compile there, commit the artifact JSON here with a Go
