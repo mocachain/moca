@@ -53,6 +53,7 @@ import (
 
 	"github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
+	"github.com/mocachain/moca/v2/server/legacyevm"
 )
 
 // DBOpener is a function to open `application.db`, potentially with customized options.
@@ -404,7 +405,9 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 	// service if API or gRPC or JSONRPC is enabled, and avoid doing so in the general
 	// case, because it spawns a new local tendermint RPC client.
 	if (config.API.Enable || config.GRPC.Enable || config.JSONRPC.Enable || config.JSONRPC.EnableIndexer) && tmNode != nil {
-		clientCtx = clientCtx.WithClient(local.New(tmNode))
+		// Query services read the Ethereum transactions recorded before v2.0.0 too; the
+		// app keeps its own, strict transaction decoder.
+		clientCtx = legacyevm.WrapClientContext(clientCtx.WithClient(local.New(tmNode)))
 
 		app.RegisterTxService(clientCtx)
 		app.RegisterTendermintService(clientCtx)
