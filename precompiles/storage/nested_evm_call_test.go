@@ -167,7 +167,7 @@ func (s *NestedEVMCallTestSuite) TestCreateBucket_ReadQuotaBankAccounting() {
 	s.Require().NoError(err)
 
 	method := storage.GetAbiMethod(storage.CreateBucketMethodName)
-	packed, err := method.Inputs.Pack(bucketName, uint8(msg.Visibility), payerAddr, spOperator, approval, msg.ChargedReadQuota)
+	packed, err := method.Inputs.Pack(bucketName, uint8(storagetypes.VISIBILITY_TYPE_PRIVATE), payerAddr, spOperator, approval, msg.ChargedReadQuota)
 	s.Require().NoError(err)
 	input := append(append([]byte{}, method.ID...), packed...)
 
