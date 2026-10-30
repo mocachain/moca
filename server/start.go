@@ -568,15 +568,16 @@ func startGrpcServer(
 	}
 
 	// if gRPC is enabled, configure gRPC client for gRPC gateway and json-rpc
-	grpcClient, err := grpc.NewClient(
-		config.Address,
+	// The legacyevm options let the base fee query answer heights before v2.0.0.
+	dialOpts := append([]grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.ForceCodec(codec.NewProtoCodec(clientCtx.InterfaceRegistry).GRPCCodec()),
 			grpc.MaxCallRecvMsgSize(maxRecvMsgSize),
 			grpc.MaxCallSendMsgSize(maxSendMsgSize),
 		),
-	)
+	}, legacyevm.GRPCDialOptions(clientCtx)...)
+	grpcClient, err := grpc.NewClient(config.Address, dialOpts...)
 	if err != nil {
 		return nil, clientCtx, err
 	}
