@@ -60,7 +60,7 @@ func (s *NestedEVMCallTestSuite) TestCreateGroup_OutOfGasAroundNestedMint() {
 	precompileAddr := storage.GetAddress()
 
 	var reverted, succeeded int
-	for gas := uint64(60_000); gas <= 200_000; gas += 1_000 {
+	for gas := uint64(60_000); gas <= 400_000; gas += 1_000 {
 		groupName := fmt.Sprintf("nested-oog-%d", gas)
 		ctx, _ := s.env.ctx.CacheContext()
 		ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
