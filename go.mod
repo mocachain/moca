@@ -323,6 +323,9 @@ replace (
 	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.3.0-rc1
 	// use Cosmos-SDK fork to enable Ledger functionality
 	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.4.0-rc1
+	// cosmos/evm v0.6.3 plus the snapshotmulti CacheMultiStore branch fix (mocachain/cosmos-evm,
+	// branch moca/v0.6.3-snapshotmulti-branch); drop once upstream releases it
+	github.com/cosmos/evm => github.com/mocachain/cosmos-evm v0.6.4-0.20261030062549-5127a378854f
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// use cosmos flavored protobufs

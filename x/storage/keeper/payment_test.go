@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	stdmath "math"
+	"math/big"
 	"testing"
 	"time"
 
@@ -18,8 +19,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	"github.com/cosmos/evm/x/vm/statedb"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/mocachain/moca/v2/app"
+	"github.com/mocachain/moca/v2/contracts"
 	moduletestutil "github.com/mocachain/moca/v2/testutil/codec"
 	"github.com/mocachain/moca/v2/testutil/sample"
 	"github.com/mocachain/moca/v2/x/challenge"
@@ -50,9 +54,14 @@ type TestSuite struct {
 	ctx         sdk.Context
 	queryClient types.QueryClient
 	msgServer   types.MsgServer
+
+	// nftCalls records the NFT contract calls the keeper makes through the EVM
+	// keeper, as "<method> <contract> <token id>".
+	nftCalls []string
 }
 
 func (s *TestSuite) SetupTest() {
+	s.nftCalls = nil
 	encCfg := moduletestutil.MakeTestEncodingConfig(challenge.AppModuleBasic{})
 	key := storetypes.NewKVStoreKey(types.StoreKey)
 	s.storeKey = key
@@ -91,7 +100,11 @@ func (s *TestSuite) SetupTest() {
 	// / CallEVMWithData in x/storage/keeper/evm.go) now really executes and routes
 	// the ERC-721 mint/burn call through the EVM keeper. Stub both entrypoints to
 	// return a non-failed response so bucket/object/group create/delete succeed.
-	evmKeeper.EXPECT().CallEVMWithData(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
+	evmKeeper.EXPECT().CallEVMWithData(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ sdk.Context, _ *statedb.StateDB, _ common.Address, contract *common.Address, data []byte, _, _ bool, _ *big.Int) (*evmtypes.MsgEthereumTxResponse, error) {
+			s.recordNFTCall(contract, data)
+			return &evmtypes.MsgEthereumTxResponse{}, nil
+		}).AnyTimes()
 	evmKeeper.EXPECT().CallEVM(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&evmtypes.MsgEthereumTxResponse{}, nil).AnyTimes()
 
 	s.cdc = encCfg.Codec
@@ -1941,4 +1954,14 @@ func (s *TestSuite) TestChargeObjectStoreFee_TotalChargeSizeOutOfRange() {
 			s.Require().ErrorContains(err, "total charge size out of range")
 		})
 	}
+}
+
+// recordNFTCall decodes an NFT contract call made through the mocked EVM keeper.
+func (s *TestSuite) recordNFTCall(contract *common.Address, data []byte) {
+	method, err := contracts.ERC721NonTransferableContract.ABI.MethodById(data[:4])
+	s.Require().NoError(err)
+	args, err := method.Inputs.Unpack(data[4:])
+	s.Require().NoError(err)
+	tokenID := args[len(args)-1].(*big.Int)
+	s.nftCalls = append(s.nftCalls, fmt.Sprintf("%s %s %s", method.Name, contract.Hex(), tokenID))
 }

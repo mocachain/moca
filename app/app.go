@@ -977,7 +977,12 @@ func (app *Moca) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci
 		panic(err)
 	}
 
-	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
+	res, err := app.mm.InitGenesis(ctx, app.appCodec, genesisState)
+	if err != nil {
+		return nil, err
+	}
+	app.installStorageNFTContracts(ctx)
+	return res, nil
 }
 
 // PreBlocker runs before every module's BeginBlock. Scheduled forks go here, not

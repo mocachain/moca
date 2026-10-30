@@ -488,7 +488,7 @@ func (p Precompile) DeleteObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 		return nil, err
 	}
 
-	if found && objectNFTMinted(objectInfo) {
+	if found && storagetypes.ObjectNFTMinted(objectInfo) {
 		if err := p.EmitObjectBurnEvent(evm, objectInfo.Owner, objectInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}
@@ -558,7 +558,7 @@ func (p Precompile) SealObject(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	}
 
 	objectInfo, found := p.storageKeeper.GetObjectInfo(ctx, input.BucketName, input.ObjectName)
-	if found && !objectNFTMinted(before) {
+	if found && !storagetypes.ObjectNFTMinted(before) {
 		if err := p.EmitObjectTransferEvent(evm, objectInfo.Owner, objectInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}
@@ -611,7 +611,7 @@ func (p Precompile) SealObjectV2(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	}
 
 	objectInfo, found := p.storageKeeper.GetObjectInfo(ctx, input.BucketName, input.ObjectName)
-	if found && !objectNFTMinted(before) {
+	if found && !storagetypes.ObjectNFTMinted(before) {
 		if err := p.EmitObjectTransferEvent(evm, objectInfo.Owner, objectInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}
@@ -728,7 +728,7 @@ func (p Precompile) DelegateUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, co
 		return nil, err
 	}
 
-	if found && objectNFTMinted(objectInfo) && input.PayloadSize == 0 {
+	if found && storagetypes.ObjectNFTMinted(objectInfo) && input.PayloadSize == 0 {
 		if err := p.EmitObjectBurnEvent(evm, objectInfo.Owner, objectInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}
@@ -803,7 +803,7 @@ func (p Precompile) UpdateObjectContent(ctx sdk.Context, evm *vm.EVM, contract *
 		return nil, err
 	}
 
-	if found && objectNFTMinted(objectInfo) && input.PayloadSize == 0 {
+	if found && storagetypes.ObjectNFTMinted(objectInfo) && input.PayloadSize == 0 {
 		if err := p.EmitObjectBurnEvent(evm, objectInfo.Owner, objectInfo.Id.BigInt()); err != nil {
 			return nil, err
 		}
@@ -1253,9 +1253,4 @@ func (p Precompile) CancelUpdateObjectContent(ctx sdk.Context, evm *vm.EVM, cont
 	}
 
 	return method.Outputs.Pack(true)
-}
-
-// objectNFTMinted reports whether an object has a mirrored NFT: minted on seal, never for an empty payload.
-func objectNFTMinted(info *storagetypes.ObjectInfo) bool {
-	return info != nil && info.ObjectStatus != storagetypes.OBJECT_STATUS_CREATED && info.PayloadSize > 0
 }
