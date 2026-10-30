@@ -1,0 +1,3 @@
+# sdk/client tests that fail on a fresh localup chain, one per line: <TestName>  # why.
+# The localup workflow fails if any other test fails, or if a test listed here passes or does not run.
+TestStakingUnbondingDelagation  # needs an unbonding delegation for TestAddr; a fresh chain has none, so the query returns NotFound

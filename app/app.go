@@ -1226,7 +1226,6 @@ func (app *Moca) mocaStaticPrecompiles() map[common.Address]vm.PrecompiledContra
 		precompilesgov.GetAddress(): precompilesgov.NewPrecompile(
 			govkeeper.NewMsgServerImpl(&app.GovKeeper),
 			govkeeper.NewQueryServer(&app.GovKeeper),
-			app.AccountKeeper,
 			app.BankKeeper,
 			app.appCodec,
 		),

@@ -110,6 +110,8 @@ Regression / characterization coverage layered on top of the migration:
 
 - `bank` / `staking` / `payment`: **total-supply-invariant** guards, plus bank dispatch
   success and native revert on failure.
+- `gov`: `submitProposal` dispatch success; the removed `legacySubmitProposal`
+  selector reverts as an unknown method.
 - All precompiles (`caller_test.go`): every transaction method rejects a contract
   caller and each `IsTransaction` matches its ABI; a view method stays callable
   from a contract; an EIP-7702 delegated EOA passes only when it signs the

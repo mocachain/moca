@@ -81,7 +81,7 @@ fw_done
 | `fw_genesis_patch 'JQ_EXPR'` | Register jq patch for genesis.json |
 | `fw_apptoml_patch 'SED_EXPR'` | Register sed patch for app.toml |
 | `fw_upgrade_chain --name N --mode M` | Trigger upgrade (auto-computes height) |
-| `fw_run_test "name" func` | Run test function, track pass/fail |
+| `fw_run_test "name" func` | Run test function, track pass/fail; a failing test is recorded, the summary printed and the suite exits non-zero |
 | `fw_tx_send FROM TO AMOUNT` | Send bank transfer + wait for inclusion |
 | `fw_wait_blocks N` | Wait for N blocks from current height |
 
@@ -257,7 +257,7 @@ make e2e-fw-test TEST=eip7702
 | Query validators | Verifies expected number of validators registered |
 | Query module params | Queries EVM, feemarket, staking, gov params |
 | Send tokens | Sends 1 MOCA between accounts, verifies balance |
-| Multi-account transfers | Creates N accounts, chain of transfers, verifies |
+| Multi-account transfers | Creates N accounts, chain of transfers, verifies the exact final balance |
 | Query storage providers | Verifies SPs registered in genesis |
 
 ### Upgrade Suite
@@ -304,6 +304,7 @@ Edit `e2e.env` to change:
 - **Block time**: ~1s (`timeout_commit = 1s`)
 - **Voting period**: 15s
 - **Min gas price**: 25000000000 amoca (25 gwei, clears the post-v2 feemarket floor)
+- **Cosmos tx fee**: `--gas auto --fees $COSMOS_TX_FEES` (default 0.1 MOCA, covers a 4M gas limit at the min gas price)
 
 ## Debugging
 

@@ -43,12 +43,6 @@ func MustEvent(name string) abi.Event {
 // The arg structs below are decode targets for cmn.SetupABI's positional args via
 // abi.Arguments.Copy; their fields carry the ABI names (and hex address types).
 
-type LegacySubmitProposalArgs struct {
-	Title          string `abi:"title"`
-	Description    string `abi:"description"`
-	InitialDeposit []Coin `abi:"initialDeposit"`
-}
-
 type SubmitProposalArgs struct {
 	Messages       string `abi:"messages"`
 	InitialDeposit []Coin `abi:"initialDeposit"`

@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +12,17 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 
+	"cosmossdk.io/log"
+	pruningtypes "cosmossdk.io/store/pruning/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/client/flags"
+	sdkserver "github.com/cosmos/cosmos-sdk/server"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
+
+	"github.com/mocachain/moca/v2/app"
 	servercfg "github.com/mocachain/moca/v2/server/config"
+	srvflags "github.com/mocachain/moca/v2/server/flags"
 )
 
 // TestInitAppConfigBakesEVMChainID asserts that initAppConfig threads the EVM
@@ -83,6 +95,43 @@ func TestGenesisChainID(t *testing.T) {
 
 	_, err = genesisChainID(t.TempDir())
 	require.Error(t, err)
+}
+
+// TestNewAppAppliesQueryGasLimit checks that newApp passes query-gas-limit
+// (app.toml or --query-gas-limit) to baseapp, so the context a gRPC or REST
+// query runs in is bounded by it.
+func TestNewAppAppliesQueryGasLimit(t *testing.T) {
+	// cosmos/evm's process-global chain config can only be set again while it
+	// holds the default EVM chain ID, so use that one to keep later app
+	// constructions in this test binary working.
+	chainID := fmt.Sprintf("moca_%d-1", evmtypes.DefaultEVMChainID)
+	appOpts := viper.New()
+	appOpts.Set(flags.FlagHome, t.TempDir())
+	appOpts.Set(flags.FlagChainID, chainID)
+	appOpts.Set(srvflags.EVMChainID, evmtypes.DefaultEVMChainID)
+	appOpts.Set(sdkserver.FlagPruning, pruningtypes.PruningOptionDefault)
+	appOpts.Set(sdkserver.FlagQueryGasLimit, "50000") // app.toml renders it as a string
+
+	mocaApp, ok := appCreator{}.newApp(log.NewNopLogger(), dbm.NewMemDB(), nil, appOpts).(*app.Moca)
+	require.True(t, ok)
+
+	// a query context needs a committed block
+	stateBytes, err := json.Marshal(app.NewTestGenesisState(mocaApp))
+	require.NoError(t, err)
+	_, err = mocaApp.InitChain(&abci.RequestInitChain{
+		ChainId:         chainID,
+		ConsensusParams: app.DefaultConsensusParams,
+		AppStateBytes:   stateBytes,
+	})
+	require.NoError(t, err)
+	_, err = mocaApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 1})
+	require.NoError(t, err)
+	_, err = mocaApp.Commit()
+	require.NoError(t, err)
+
+	ctx, err := mocaApp.CreateQueryContext(0, false)
+	require.NoError(t, err)
+	require.Equal(t, uint64(50000), ctx.GasMeter().Limit())
 }
 
 // TestHealAppTomlEVMChainID checks that the self-heal writes a valid app.toml with
@@ -168,4 +217,85 @@ func TestHealAppTomlEVMChainID(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, string(out), "evm-chain-id = 2288")
 	})
+}
+
+// setNodeHome points app.DefaultNodeHome at a fresh directory holding a
+// validator key and returns the key's path.
+func setNodeHome(t *testing.T) string {
+	t.Helper()
+	home := filepath.Join(t.TempDir(), ".mocad")
+	key := filepath.Join(home, "config", "priv_validator_key.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(key), 0o700))
+	require.NoError(t, os.WriteFile(key, []byte("{}"), 0o600))
+
+	prevHome := app.DefaultNodeHome
+	app.DefaultNodeHome = home
+	t.Cleanup(func() { app.DefaultNodeHome = prevHome })
+	return key
+}
+
+// TestTempDir asserts that tempDir returns a new private directory under
+// TMPDIR on every call.
+func TestTempDir(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+
+	a, b := tempDir(), tempDir()
+	require.NotEqual(t, a, b)
+	for _, dir := range []string{a, b} {
+		require.Equal(t, tmp, filepath.Dir(dir))
+		require.True(t, strings.HasPrefix(filepath.Base(dir), "mocad"))
+		info, err := os.Stat(dir)
+		require.NoError(t, err)
+		require.True(t, info.IsDir())
+		require.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+	}
+}
+
+// TestTempDirPanicsWithoutTempDir asserts that tempDir panics, rather than
+// returning another directory, when TMPDIR cannot be used.
+func TestTempDirPanicsWithoutTempDir(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing")
+	t.Setenv("TMPDIR", missing)
+
+	var r any
+	func() {
+		defer func() { r = recover() }()
+		tempDir()
+	}()
+	require.Contains(t, fmt.Sprint(r), "failed creating temp directory")
+	require.NoDirExists(t, missing)
+}
+
+// TestNewRootCmdLeavesNoFiles asserts that building the root command leaves
+// the node home unchanged and nothing behind in TMPDIR or the working directory.
+func TestNewRootCmdLeavesNoFiles(t *testing.T) {
+	key := setNodeHome(t)
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	cwd := t.TempDir()
+	t.Chdir(cwd)
+
+	NewRootCmd()
+
+	require.FileExists(t, key)
+	homeEntries, err := os.ReadDir(app.DefaultNodeHome)
+	require.NoError(t, err)
+	require.Len(t, homeEntries, 1, "node home changed")
+	tmpEntries, err := os.ReadDir(tmp)
+	require.NoError(t, err)
+	require.Empty(t, tmpEntries, "temp directory left behind")
+	cwdEntries, err := os.ReadDir(cwd)
+	require.NoError(t, err)
+	require.Empty(t, cwdEntries, "files written to the working directory")
+}
+
+// TestNewRootCmdKeepsNodeHome asserts that building the root command never
+// deletes the node home: if no temporary directory can be created it panics.
+func TestNewRootCmdKeepsNodeHome(t *testing.T) {
+	key := setNodeHome(t)
+	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
+
+	require.Panics(t, func() { NewRootCmd() })
+	require.FileExists(t, key)
 }

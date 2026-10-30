@@ -306,23 +306,35 @@ exec_mocad() {
         mocad "$@" --home /root/.mocad 2>/dev/null
 }
 
+# native-denom balance of <addr>; fails on a failed query or an empty balance
+# shellcheck disable=SC2153  # CHAIN_ID is set by callers (workflow env / sourced constants)
+bank_native_balance() {
+    local addr="$1" out bal
+    out=$(exec_mocad query bank balances "$addr" \
+        --node tcp://localhost:26657 --chain-id "${CHAIN_ID}" --output json) || {
+        log_error "bank balances query failed for ${addr}"
+        return 1
+    }
+    bal=$(printf '%s' "$out" | jq -r --arg d "${BASIC_DENOM:-amoca}" \
+        '[.balances[]? | select(.denom == $d) | .amount][0] // empty' 2>/dev/null) || bal=""
+    if [ -z "$bal" ]; then
+        log_error "no ${BASIC_DENOM:-amoca} balance for ${addr}: ${out}"
+        return 1
+    fi
+    printf '%s\n' "$bal"
+}
+
 # ── Cosmos tx broadcast (--gas auto + retry) ──────────────────────────────────
-# Gas/fee policy for cosmos txs: simulate-derived gas (`--gas auto`) with the fee
-# auto-derived from the node's minimum-gas-prices — never fixed --gas/--fees, and NOT
-# --gas-prices: moca's `--gas auto` already derives the fee internally, so pairing it
-# with --gas-prices errors "cannot provide both fees and gas prices". `--gas auto` adds
-# a simulate round-trip that widens the window in which validator0's account sequence —
-# shared across the suite's cosmos AND EVM txs, because cosmos/evm maps the EVM nonce
-# onto the cosmos account sequence — can be read stale, so we retry on the mismatch.
-# (The node's minimum-gas-prices must clear the post-v2 feemarket floor — init-chain.sh.)
+# --gas auto with explicit --fees (never --gas-prices: the fork CLI rejects it with --gas auto); COSMOS_TX_FEES must cover gas x 25 gwei
 # 1.5, not 1.3: post-v2 store-write (WriteFlat) gas is ~30% above the simulate estimate,
 # so 1.3 leaves some txs (e.g. distribution withdraw) a few hundred gas short -> out of gas.
 : "${COSMOS_GAS_ADJUSTMENT:=1.5}"
+: "${COSMOS_TX_FEES:=100000000000000000${BASIC_DENOM:-amoca}}"
 : "${COSMOS_TX_RETRIES:=6}"
 : "${COSMOS_TX_RETRY_SLEEP:=1.5}"
 
 # Broadcast a cosmos tx (sync mode) with the gas-auto policy, retrying on
-# `account sequence mismatch`. Common flags (home/keyring/chain-id/node/gas/
+# `account sequence mismatch`. Common flags (home/keyring/chain-id/node/gas/fees/
 # broadcast/output) are added here; callers pass the pod then the mocad args,
 # e.g.  cosmos_broadcast validator-0-0 tx bank send "$a" "$b" "$amt" --from "$a"
 # Echoes the final broadcast JSON (or mocad's error text on hard failure).
@@ -337,7 +349,7 @@ cosmos_broadcast() {
             --keyring-backend test \
             --chain-id "${CHAIN_ID}" \
             --node tcp://localhost:26657 \
-            --gas auto --gas-adjustment "${COSMOS_GAS_ADJUSTMENT}" \
+            --gas auto --gas-adjustment "${COSMOS_GAS_ADJUSTMENT}" --fees "${COSMOS_TX_FEES}" \
             --broadcast-mode sync -y --output json 2>&1) || true
         if printf '%s' "$out" | grep -qiE "account sequence mismatch" \
            && [ "$attempt" -lt "$COSMOS_TX_RETRIES" ]; then
@@ -346,9 +358,9 @@ cosmos_broadcast() {
         fi
         break
     done
-    # `--gas auto` prints "gas estimate: N" to stderr (captured via 2>&1). Return just the
-    # broadcast JSON line when present so callers get clean JSON; otherwise the raw text
+    # re-emit the "gas estimate" line on stderr and return only the broadcast JSON line
     # (hard-error path, e.g. a build/simulate failure with no JSON — callers surface it).
+    printf '%s\n' "$out" | grep -E '^gas estimate' | tail -1 >&2 || true
     local json
     json=$(printf '%s\n' "$out" | grep -E '^\{.*\}$' | tail -1)
     if [ -n "$json" ]; then printf '%s' "$json"; else printf '%s' "$out"; fi
@@ -596,12 +608,14 @@ assert_eq() {
 }
 
 assert_gt() {
-    local actual="$1" threshold="$2" msg="${3:-}"
+    local raw="$1" threshold="$2" msg="${3:-}" actual
+    # cast prints large uints as "<n> [<n>e<exp>]"; compare the number only.
+    read -r actual _ <<<"$raw"
     if echo "${actual} > ${threshold}" | bc -l | grep -q '^1$'; then
         return 0
     fi
     log_error "Assertion failed: ${msg}"
-    log_error "  expected > ${threshold}, got ${actual}"
+    log_error "  expected > ${threshold}, got ${raw}"
     return 1
 }
 

@@ -94,10 +94,7 @@ func signCosmosTx(
 		return nil, err
 	}
 
-	signMode, err := authsigning.APISignModeToInternal(args.TxCfg.SignModeHandler().DefaultMode())
-	if err != nil {
-		return nil, err
-	}
+	signMode := signing.SignMode_SIGN_MODE_EIP_712
 
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.

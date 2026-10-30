@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authztypes "github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/evm/x/vm/statedb"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -155,4 +156,49 @@ func TestGrantSupportedMessageType(t *testing.T) {
 	grant, _ := f.app.AuthzKeeper.GetAuthorization(f.ctx, sdk.AccAddress(grantee.Bytes()), sdk.AccAddress(f.caller.Bytes()), msgTypeURL)
 	require.NotNil(t, grant)
 	require.Equal(t, msgTypeURL, grant.MsgTypeURL())
+}
+
+// TestGrantSendLimitSumsRepeatedDenoms pins how grant builds a send limit: an
+// unsorted limit with a repeated denom is stored sorted, with one summed coin per
+// denom. SendAuthorization only checks that the limit is positive, so nothing
+// after the precompile would reject a repeated denom.
+func TestGrantSendLimitSumsRepeatedDenoms(t *testing.T) {
+	f := newFixture(t)
+	method := authz.MustMethod(authz.GrantMethodName)
+
+	grantee := common.HexToAddress("0x3333333333333333333333333333333333333333")
+	limit := []authz.Coin{
+		{Denom: "coinb", Amount: big.NewInt(2)},
+		{Denom: "coina", Amount: big.NewInt(5)},
+		{Denom: "coinb", Amount: big.NewInt(3)},
+	}
+	_, err := f.p.Grant(f.ctx, f.evm, f.contract, &method,
+		[]interface{}{grantee, authz.AuthzTypeSend, "allowed:0x2222222222222222222222222222222222222222", limit, int64(0)})
+	require.NoError(t, err)
+
+	grant, _ := f.app.AuthzKeeper.GetAuthorization(f.ctx, sdk.AccAddress(grantee.Bytes()), sdk.AccAddress(f.caller.Bytes()), sdk.MsgTypeURL(&banktypes.MsgSend{}))
+	sendAuth, ok := grant.(*banktypes.SendAuthorization)
+	require.True(t, ok)
+	require.Equal(t, "5coina,5coinb", sendAuth.SpendLimit.String())
+}
+
+// TestGrantDelegateLimitSumsRepeatedDenoms pins that a delegate limit split across
+// two entries of one denom is summed into the single coin a staking grant takes.
+func TestGrantDelegateLimitSumsRepeatedDenoms(t *testing.T) {
+	f := newFixture(t)
+	method := authz.MustMethod(authz.GrantMethodName)
+
+	grantee := common.HexToAddress("0x3333333333333333333333333333333333333333")
+	limit := []authz.Coin{
+		{Denom: utils.BaseDenom, Amount: big.NewInt(2)},
+		{Denom: utils.BaseDenom, Amount: big.NewInt(3)},
+	}
+	_, err := f.p.Grant(f.ctx, f.evm, f.contract, &method,
+		[]interface{}{grantee, authz.AuthzTypeDelegate, "allowed:0x4444444444444444444444444444444444444444", limit, int64(0)})
+	require.NoError(t, err)
+
+	grant, _ := f.app.AuthzKeeper.GetAuthorization(f.ctx, sdk.AccAddress(grantee.Bytes()), sdk.AccAddress(f.caller.Bytes()), sdk.MsgTypeURL(&stakingtypes.MsgDelegate{}))
+	stakeAuth, ok := grant.(*stakingtypes.StakeAuthorization)
+	require.True(t, ok)
+	require.Equal(t, "5"+utils.BaseDenom, stakeAuth.MaxTokens.String())
 }

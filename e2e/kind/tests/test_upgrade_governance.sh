@@ -15,7 +15,6 @@ fw_init
 
 OLD_VERSION="${OLD_VERSION:-v1.3.0}"
 UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
-FEES="5000000000000000amoca"
 
 # ── Setup: deploy old version ────────────────────────────────────────────────
 fw_start_chain_from_version "$OLD_VERSION"
@@ -27,13 +26,10 @@ exec_mocad keys add gov-upgrade-acct --keyring-backend test 2>/dev/null || true
 UPGRADE_TEST_ADDR=$(exec_mocad keys show gov-upgrade-acct -a --keyring-backend test)
 log_info "Test account: ${UPGRADE_TEST_ADDR}"
 
-fw_tx_send validator0 "$UPGRADE_TEST_ADDR" "5000000000000000000amoca" "$FEES"
+fw_tx_send validator0 "$UPGRADE_TEST_ADDR" "5000000000000000000amoca"
 
 PRE_UPGRADE_HEIGHT=$(get_block_height "http://localhost:26657")
-PRE_UPGRADE_BALANCE=$(exec_mocad query bank balances "$UPGRADE_TEST_ADDR" \
-    --node tcp://localhost:26657 \
-    --chain-id "${CHAIN_ID}" \
-    --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+PRE_UPGRADE_BALANCE=$(bank_native_balance "$UPGRADE_TEST_ADDR")
 
 log_info "Pre-upgrade height:  ${PRE_UPGRADE_HEIGHT}"
 log_info "Pre-upgrade balance: ${PRE_UPGRADE_BALANCE} amoca"
@@ -63,10 +59,7 @@ test_height_past_upgrade() {
 
 test_balances_preserved() {
     local bal
-    bal=$(exec_mocad query bank balances "$UPGRADE_TEST_ADDR" \
-        --node tcp://localhost:26657 \
-        --chain-id "${CHAIN_ID}" \
-        --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+    bal=$(bank_native_balance "$UPGRADE_TEST_ADDR")
 
     assert_eq "$bal" "$PRE_UPGRADE_BALANCE" "Balance should survive upgrade"
 }
@@ -86,13 +79,10 @@ test_send_tokens_post_upgrade() {
     local recv
     recv=$(exec_mocad keys show post-gov-user -a --keyring-backend test)
 
-    fw_tx_send validator0 "$recv" "1000000000000000000amoca" "$FEES"
+    fw_tx_send validator0 "$recv" "1000000000000000000amoca"
 
     local bal
-    bal=$(exec_mocad query bank balances "$recv" \
-        --node tcp://localhost:26657 \
-        --chain-id "${CHAIN_ID}" \
-        --output json | jq -r '.balances[] | select(.denom=="amoca") | .amount' 2>/dev/null || echo "0")
+    bal=$(bank_native_balance "$recv")
 
     assert_eq "$bal" "1000000000000000000" "Post-upgrade transfer should succeed"
 }

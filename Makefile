@@ -4,8 +4,8 @@
 -include .env
 export
 
-GO_TOOLCHAIN ?= go1.26.9
-VULNCHECK_GO_TOOLCHAIN ?= $(GO_TOOLCHAIN)
+GO_TOOLCHAIN ?= go1.26.10
+VULNCHECK_GO_TOOLCHAIN ?= go1.26.10
 GO := env GOTOOLCHAIN=$(GO_TOOLCHAIN) go
 
 # Configure git to use HTTPS+Token for private repositories if GITHUB_TOKEN is set
@@ -474,7 +474,7 @@ localnet-show-logstream:
 ###############################################################################
 
 PACKAGE_NAME:=github.com/mocachain/moca
-GOLANG_CROSS_VERSION  = v1.25
+GOLANG_CROSS_VERSION  = v1.26.10
 GOPATH ?= $(HOME)/go
 REPO_OWNER ?= mocachain
 release-dry-run:
