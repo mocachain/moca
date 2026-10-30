@@ -7,9 +7,12 @@
 // each network's values are reviewable in version control.
 //
 // The snapshots are canonical proto-JSON and are fed verbatim to the codec.
-// Regenerate a network's snapshot from `mocad query evm params` /
-// `mocad query feemarket params` against the live chain before that network's
-// upgrade if its params were governance-tuned away from these defaults.
+// They carry each network's live values (`/evmos/evm/v1/params` and
+// `/evmos/feemarket/v1/params` on v1.4.3, read on 2026-10-30) mapped to the
+// cosmos/evm types: min_gas_price and base_fee 1 gwei, extra_eips [3855], create
+// and call permissionless. evm_channels stays empty because v2.0.0 removes IBC.
+// Re-read the live chain before that network's upgrade and update its snapshot
+// if governance changed any of these.
 package v2
 
 import (

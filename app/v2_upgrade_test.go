@@ -6,6 +6,7 @@ import (
 	"math"
 	"testing"
 
+	sdkmath "cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
@@ -78,11 +79,12 @@ func TestMigrateToV2_ContractSurvivesInPlace(t *testing.T) {
 	require.Equal(t, cmdcfg.BaseDenom, coinInfo.Denom)
 	require.Equal(t, uint32(evmtypes.EighteenDecimals), coinInfo.Decimals)
 
-	// feemarket min_gas_price must match the 20 gwei floor (MainnetMinGasPrices), not the cosmos/evm default.
+	// The fee market keeps the live networks' 1 gwei floor across the upgrade.
 	require.Equal(t,
-		MainnetMinGasPrices,
+		sdkmath.LegacyNewDec(1_000_000_000),
 		mocaApp.FeeMarketKeeper.GetParams(ctx).MinGasPrice,
-		"post-upgrade feemarket MinGasPrice must equal MainnetMinGasPrices (20 gwei)")
+		"post-upgrade feemarket MinGasPrice must be the live 1 gwei")
+	require.Equal(t, []int64{3855}, params.ExtraEIPs, "extra_eips carried from the live networks")
 }
 
 // TestMigrateToV2_MultipleContractsAndExecution strengthens the survival proof:

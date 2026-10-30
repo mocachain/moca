@@ -1342,7 +1342,7 @@ func (app *Moca) migrateToV2(ctx sdk.Context) error {
 	app.BankKeeper.SetDenomMetaData(ctx, mocaDenomMetadata())
 
 	// 2. Overwrite x/vm + x/feemarket params with fresh cosmos/evm-format params.
-	// min_gas_price pinned to moca's 20 gwei floor (MainnetMinGasPrices), not the cosmos/evm default.
+	// The per-network snapshots carry the live networks' values (see app/upgrades/v2).
 	network := upgradev2.NetworkForChainID(ctx.ChainID())
 
 	evmParamsJSON, err := upgradev2.EVMParamsJSON(network)
