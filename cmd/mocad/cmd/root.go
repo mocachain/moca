@@ -56,6 +56,7 @@ import (
 	mocaserver "github.com/mocachain/moca/v2/server"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
+	"github.com/mocachain/moca/v2/server/legacyevm"
 
 	"github.com/mocachain/moca/v2/app"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
@@ -189,6 +190,9 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 
 				initClientCtx = initClientCtx.WithTxConfig(txConfig)
 			}
+
+			// Let tx queries decode the Ethereum transactions recorded before v2.0.0.
+			initClientCtx = initClientCtx.WithTxConfig(legacyevm.WrapTxConfig(initClientCtx.TxConfig))
 
 			if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 				return err
