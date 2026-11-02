@@ -35,14 +35,14 @@ struct OutFlow {
 struct StreamRecord {
     string account;
     int64 crudTimestamp;
-    uint256 netflowRate;
-    uint256 staticBalance;
+    int256 netflowRate;
+    int256 staticBalance;
     uint256 bufferBalance;
     uint256 lockBalance;
     int32 status;
     int64 settleTimestamp;
     uint64 outFlowCount;
-    uint256 frozenNetflowRate;
+    int256 frozenNetflowRate;
 }
 
 struct PaymentAccountCount {
@@ -51,13 +51,13 @@ struct PaymentAccountCount {
 }
 
 struct DynamicBalance {
-    uint256 dynamicBalance;
+    int256 dynamicBalance;
     StreamRecord streamRecord;
     int64 currentTimestamp;
     uint256 bankBalance;
     uint256 availableBalance;
-    uint256 lockedFee;
-    uint256 changeRate;
+    int256 lockedFee;
+    int256 changeRate;
 }
 
 struct AutoSettleRecord {

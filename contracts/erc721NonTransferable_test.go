@@ -27,9 +27,9 @@ func TestERC721NonTransferableContract(t *testing.T) {
 	require.Equal(t, "burn(uint256)", burn.Sig,
 		"exact signature the keeper's CallEVM(..., \"burn\", id) encodes against")
 
-	// The artifact intentionally ships no bytecode: the keeper only
-	// ABI-encodes calldata against the fixed addresses below; nothing ever
-	// deploys this contract.
+	// The JSON artifact stays ABI-only: the keeper ABI-encodes calldata from it,
+	// and the runtime bytecode installed at genesis lives in the .runtime.hex
+	// files (see TestStorageNFTGenesisContracts).
 	require.Empty(t, contracts.ERC721NonTransferableContract.Bin,
 		"artifact is an ABI-only facade; bytecode appearing here would be unexplained")
 
