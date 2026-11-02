@@ -1,0 +1,121 @@
+// The Ethereum transaction messages of the EVM module moca ran before v2.0.0, with
+// their original names and field numbers. The state machine does not accept them.
+syntax = "proto3";
+package ethermint.evm.v1;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/mocachain/moca/v2/x/legacy/evm/types";
+
+// MsgEthereumTx is an Ethereum transaction as recorded before v2.0.0.
+message MsgEthereumTx {
+  option deprecated = true;
+
+  // data is the transaction: a LegacyTx, AccessListTx or DynamicFeeTx.
+  google.protobuf.Any data = 1;
+  // size is the encoded size of the transaction (deprecated, unused).
+  double size = 2;
+  // hash is the Ethereum transaction hash in hex.
+  string hash = 3;
+  // from is the sender address in hex, when the sender set it.
+  string from = 4;
+}
+
+// LegacyTx is a legacy Ethereum transaction.
+message LegacyTx {
+  option deprecated = true;
+
+  // nonce is the sender's account nonce.
+  uint64 nonce = 1;
+  // gas_price is a decimal integer.
+  string gas_price = 2;
+  // gas is the gas limit.
+  uint64 gas = 3;
+  // to is the hex recipient address, empty for a contract creation.
+  string to = 4;
+  // value is a decimal integer.
+  string value = 5;
+  // data is the call data, or the init code of a contract creation.
+  bytes data = 6;
+  // v is the V value of the signature.
+  bytes v = 7;
+  // r is the R value of the signature.
+  bytes r = 8;
+  // s is the S value of the signature.
+  bytes s = 9;
+}
+
+// AccessListTx is an EIP-2930 Ethereum transaction.
+message AccessListTx {
+  option deprecated = true;
+
+  // chain_id is a decimal integer.
+  string chain_id = 1;
+  // nonce is the sender's account nonce.
+  uint64 nonce = 2;
+  // gas_price is a decimal integer.
+  string gas_price = 3;
+  // gas is the gas limit.
+  uint64 gas = 4;
+  // to is the hex recipient address, empty for a contract creation.
+  string to = 5;
+  // value is a decimal integer.
+  string value = 6;
+  // data is the call data, or the init code of a contract creation.
+  bytes data = 7;
+  // accesses is the EIP-2930 access list.
+  repeated AccessTuple accesses = 8 [(gogoproto.nullable) = false];
+  // v is the V value of the signature.
+  bytes v = 9;
+  // r is the R value of the signature.
+  bytes r = 10;
+  // s is the S value of the signature.
+  bytes s = 11;
+}
+
+// DynamicFeeTx is an EIP-1559 Ethereum transaction.
+message DynamicFeeTx {
+  option deprecated = true;
+
+  // chain_id is a decimal integer.
+  string chain_id = 1;
+  // nonce is the sender's account nonce.
+  uint64 nonce = 2;
+  // gas_tip_cap is a decimal integer.
+  string gas_tip_cap = 3;
+  // gas_fee_cap is a decimal integer.
+  string gas_fee_cap = 4;
+  // gas is the gas limit.
+  uint64 gas = 5;
+  // to is the hex recipient address, empty for a contract creation.
+  string to = 6;
+  // value is a decimal integer.
+  string value = 7;
+  // data is the call data, or the init code of a contract creation.
+  bytes data = 8;
+  // accesses is the EIP-2930 access list.
+  repeated AccessTuple accesses = 9 [(gogoproto.nullable) = false];
+  // v is the V value of the signature.
+  bytes v = 10;
+  // r is the R value of the signature.
+  bytes r = 11;
+  // s is the S value of the signature.
+  bytes s = 12;
+}
+
+// AccessTuple is an entry of an EIP-2930 access list.
+message AccessTuple {
+  option deprecated = true;
+
+  // address is a hex address.
+  string address = 1;
+  // storage_keys are hex storage keys.
+  repeated string storage_keys = 2;
+}
+
+// ExtensionOptionsEthereumTx is the extension option of a transaction that carries
+// a MsgEthereumTx.
+message ExtensionOptionsEthereumTx {
+  option deprecated = true;
+}
