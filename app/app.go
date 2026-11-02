@@ -1466,6 +1466,12 @@ func (app *Moca) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
+	// v1.4.0 tightened module validation/settlement with no consensus-version
+	// change, so this noop RunMigrations only gates the coordinated binary swap.
+	app.UpgradeKeeper.SetUpgradeHandler("v1.4.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
 	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		// In-place migration of the in-tree x/evm + x/feemarket state to
