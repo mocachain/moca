@@ -312,7 +312,7 @@ func TestV2UpgradeHandler_SetsMaxSpPrice(t *testing.T) {
 	fromVM[spmoduletypes.ModuleName] = 1
 	fromVM[storagemoduletypes.ModuleName] = 1
 	require.NoError(t, mocaApp.UpgradeKeeper.SetModuleVersionMap(ctx, fromVM))
-	require.NoError(t, mocaApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v2.0.0", Height: ctx.BlockHeight()}))
+	require.NoError(t, mocaApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: upgradeNameV2, Height: ctx.BlockHeight()}))
 
 	toVM, err := mocaApp.UpgradeKeeper.GetModuleVersionMap(ctx)
 	require.NoError(t, err)
