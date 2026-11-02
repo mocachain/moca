@@ -2,7 +2,6 @@
 // indexer so they read the Ethereum transactions recorded before v2.0.0: each
 // /ethermint.evm.v1.MsgEthereumTx decodes as a /cosmos.evm.vm.v1.MsgEthereumTx, and
 // each old MsgEthereumTxResponse in a transaction result gets the cosmos/evm type URL.
-// basefee.go answers the base fee of pre-v2 heights.
 package legacyevm
 
 import (
@@ -23,12 +22,14 @@ import (
 	legacyevmtypes "github.com/mocachain/moca/v2/x/legacy/evm/types"
 )
 
-const legacyResponseURL = "/ethermint.evm.v1.MsgEthereumTxResponse"
+const (
+	legacyResponseURL        = "/ethermint.evm.v1.MsgEthereumTxResponse"
+	legacyExtensionOptionURL = "/ethermint.evm.v1.ExtensionOptionsEthereumTx"
+)
 
 var (
-	responseURL              = "/" + proto.MessageName(&evmtypes.MsgEthereumTxResponse{})
-	extensionOptionURL       = "/" + proto.MessageName(&evmtypes.ExtensionOptionsEthereumTx{})
-	legacyExtensionOptionURL = "/" + proto.MessageName(&legacyevmtypes.ExtensionOptionsEthereumTx{})
+	responseURL        = "/" + proto.MessageName(&evmtypes.MsgEthereumTxResponse{})
+	extensionOptionURL = "/" + proto.MessageName(&evmtypes.ExtensionOptionsEthereumTx{})
 )
 
 // WrapClientContext returns clientCtx for the JSON-RPC server and the EVM indexer. Its
@@ -70,7 +71,7 @@ func TxDecoder(txConfig client.TxConfig) sdk.TxDecoder {
 		msgs := tx.GetMsgs()
 		var converted []sdk.Msg
 		for i, msg := range msgs {
-			legacy, ok := msg.(*legacyevmtypes.MsgEthereumTx)
+			legacy, ok := msg.(*legacyevmtypes.MsgEthereumTx) //nolint:staticcheck
 			if !ok {
 				continue
 			}

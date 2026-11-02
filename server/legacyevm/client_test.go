@@ -94,7 +94,7 @@ func TestRecordedTransactions(t *testing.T) {
 			// The query services decode it as recorded.
 			tx, err := queryTxConfig.TxDecoder()(rec.Tx)
 			require.NoError(t, err)
-			require.Equal(t, rec.EthHash, singleMsg[*legacyevmtypes.MsgEthereumTx](t, tx).Hash)
+			require.Equal(t, rec.EthHash, singleMsg[*legacyevmtypes.MsgEthereumTx](t, tx).Hash) //nolint:staticcheck
 			txJSON, err := queryTxConfig.TxJSONEncoder()(tx)
 			require.NoError(t, err)
 			require.Contains(t, string(txJSON), `"@type":"/ethermint.evm.v1.MsgEthereumTx"`)
@@ -204,6 +204,8 @@ func signTx(t *testing.T, key *ecdsa.PrivateKey, chainID *big.Int, data ethtypes
 }
 
 // encodeLegacyTx encodes tx the way the pre-v2 ethermint module recorded it.
+//
+//nolint:staticcheck
 func encodeLegacyTx(t *testing.T, txConfig client.TxConfig, tx *ethtypes.Transaction, hash, from string) []byte {
 	t.Helper()
 	v, r, s := tx.RawSignatureValues()
