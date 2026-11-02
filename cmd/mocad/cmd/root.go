@@ -62,6 +62,7 @@ import (
 	mocakr "github.com/mocachain/moca/v2/crypto/keyring"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	gensputilcli "github.com/mocachain/moca/v2/x/gensp/client/cli"
+	legacyevmtypes "github.com/mocachain/moca/v2/x/legacy/evm/types"
 )
 
 const EnvPrefix = "EVMOS"
@@ -134,6 +135,9 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		TxConfig:          tempApp.GetTxConfig(),
 		Amino:             tempApp.LegacyAmino(),
 	}
+	// The CLI and the node's query services decode the Ethereum transactions recorded
+	// before v2.0.0.
+	legacyevmtypes.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).

@@ -6,6 +6,7 @@ import (
 	"math"
 	"testing"
 
+	sdkmath "cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
@@ -78,11 +79,12 @@ func TestMigrateToV2_ContractSurvivesInPlace(t *testing.T) {
 	require.Equal(t, cmdcfg.BaseDenom, coinInfo.Denom)
 	require.Equal(t, uint32(evmtypes.EighteenDecimals), coinInfo.Decimals)
 
-	// feemarket min_gas_price must match the 20 gwei floor (MainnetMinGasPrices), not the cosmos/evm default.
+	// The fee market keeps the live networks' 1 gwei floor across the upgrade.
 	require.Equal(t,
-		MainnetMinGasPrices,
+		sdkmath.LegacyNewDec(1_000_000_000),
 		mocaApp.FeeMarketKeeper.GetParams(ctx).MinGasPrice,
-		"post-upgrade feemarket MinGasPrice must equal MainnetMinGasPrices (20 gwei)")
+		"post-upgrade feemarket MinGasPrice must be the live 1 gwei")
+	require.Empty(t, params.ExtraEIPs, "extra_eips")
 }
 
 // TestMigrateToV2_MultipleContractsAndExecution strengthens the survival proof:
@@ -115,7 +117,8 @@ func TestMigrateToV2_MultipleContractsAndExecution(t *testing.T) {
 
 	// Contract B: a second, distinct contract (constant return 0x2a) — proves the
 	// backfill handles MULTIPLE accounts, not just one.
-	codeB := common.FromHex("602a60005260206000f3")
+	//   PUSH1 0x2a; PUSH0; MSTORE; PUSH1 0x20; PUSH0; RETURN
+	codeB := common.FromHex("602a5f5260205ff3")
 	hashB := crypto.Keccak256Hash(codeB)
 	addrB := common.HexToAddress("0x00000000000000000000000000000000000000bb")
 
