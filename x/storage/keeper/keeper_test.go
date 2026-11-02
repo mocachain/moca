@@ -1383,6 +1383,8 @@ func (s *TestSuite) TestUpdateObjectContent_ZeroPayloadRefund() {
 	s.ctx = s.ctx.WithBlockTime(t0.Add(1 * time.Second))
 	err := s.storageKeeper.UpdateObjectContent(s.ctx, owner, bucketName, objectName, 0, opts)
 	s.Require().NoError(err)
+	s.Require().Equal([]string{"burn 0x0000000000000000000000000000000000003000 10"}, s.nftCalls,
+		"an object whose content is removed loses its NFT")
 
 	// Assert: Verify that the refund was persisted
 	finalInternalBucketInfo := s.storageKeeper.MustGetInternalBucketInfo(s.ctx, sdkmath.NewUint(bucketID))
@@ -1507,6 +1509,9 @@ func (s *TestSuite) TestSealObject_HappyPath() {
 	ibi := s.storageKeeper.MustGetInternalBucketInfo(s.ctx, bucketInfo.Id)
 	s.Require().Len(ibi.LocalVirtualGroups, 1)
 	s.Require().Equal(objectInfo.PayloadSize, ibi.LocalVirtualGroups[0].StoredSize)
+
+	s.Require().Equal([]string{"mint 0x0000000000000000000000000000000000003000 1"}, s.nftCalls,
+		"the first seal mints the object NFT")
 }
 
 func (s *TestSuite) TestSealObject_NoSuchBucket() {
@@ -1639,12 +1644,27 @@ func (s *TestSuite) TestSealObject_BadSignature() {
 
 // TestSealObject_ResealAfterUpdate drives the isUpdate branch: a SEALED object
 // mid-content-update (a ShadowObjectInfo pending) is resealed with the shadow's
-// new size/checksums, and the shadow object is consumed.
+// new size/checksums, and the shadow object is consumed. The object already holds
+// its NFT, so the reseal must not mint it again (the NFT contract rejects a second
+// mint of the same token).
 func (s *TestSuite) TestSealObject_ResealAfterUpdate() {
+	s.resealAfterUpdate(500)
+	s.Require().Empty(s.nftCalls, "a content update keeps the object's NFT")
+}
+
+// TestSealObject_ResealAfterUpdateOfEmptyObject updates an empty object, which was
+// sealed on creation without an NFT, to non-empty content: the reseal mints the NFT.
+func (s *TestSuite) TestSealObject_ResealAfterUpdateOfEmptyObject() {
+	s.resealAfterUpdate(0)
+	s.Require().Equal([]string{"mint 0x0000000000000000000000000000000000003000 1"}, s.nftCalls,
+		"an object that gains content gains its NFT")
+}
+
+func (s *TestSuite) resealAfterUpdate(oldSize uint64) {
 	bucketInfo, sp, sealAcc := s.sealObjectPrimarySP()
 	const gvgID = uint32(1)
 	const secondarySpID = uint32(2)
-	oldSize, newSize := uint64(500), uint64(900)
+	const newSize = uint64(900)
 	const otherLVGUsage = uint64(1000) // other objects sharing the LVG, so unbinding oldSize alone never zeroes it
 
 	objectInfo := &types.ObjectInfo{
