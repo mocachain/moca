@@ -1428,6 +1428,10 @@ func v2StoreUpgrades() *storetypes.StoreUpgrades {
 	}
 }
 
+// upgradeNameV2 is the v2.0.0 software-upgrade plan name, shared by the handler
+// registration, the store-loader guard below, and the upgrade tests.
+const upgradeNameV2 = "v2.0.0"
+
 func (app *Moca) setupUpgradeHandlers() {
 	// When a planned update height is reached, the old binary will panic
 	// writing on disk the height and name of the update that triggered it
@@ -1466,7 +1470,13 @@ func (app *Moca) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
-	app.UpgradeKeeper.SetUpgradeHandler("v2.0.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+	// v1.4.0 tightened module validation/settlement with no consensus-version
+	// change, so this noop RunMigrations only gates the coordinated binary swap.
+	app.UpgradeKeeper.SetUpgradeHandler("v1.4.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
+	app.UpgradeKeeper.SetUpgradeHandler(upgradeNameV2, func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		// In-place migration of the in-tree x/evm + x/feemarket state to
 		// cosmos/evm's x/vm + x/feemarket. See migrateToV2 for details.
@@ -1507,7 +1517,7 @@ func (app *Moca) setupUpgradeHandlers() {
 
 	storeUpgrades := v2StoreUpgrades()
 
-	if upgradeInfo.Name == "v2.0.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
+	if upgradeInfo.Name == upgradeNameV2 && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
 		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, storeUpgrades))
 	}
 }
