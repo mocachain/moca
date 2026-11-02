@@ -43,9 +43,9 @@ func TestEmbeddedParamsRoundTrip(t *testing.T) {
 		var feeParams feemarkettypes.Params
 		require.NoError(t, cdc.UnmarshalJSON(feeJSON, &feeParams), "%s feemarket unmarshal", n)
 		require.NoError(t, feeParams.Validate(), "%s feemarket params valid", n)
-		// The snapshots carry the values every live network runs on v1.4.3.
-		require.Equal(t, []int64{3855}, evmParams.ExtraEIPs, "%s extra_eips", n)
+		require.Empty(t, evmParams.ExtraEIPs, "%s extra_eips", n)
 		require.Empty(t, evmParams.EVMChannels, "%s evm_channels (IBC is removed in v2)", n)
+		// The fee market snapshots carry the values every live network runs on v1.4.3.
 		require.Equal(t, sdkmath.LegacyNewDec(1_000_000_000), feeParams.MinGasPrice, "%s min_gas_price", n)
 		require.Equal(t, sdkmath.LegacyNewDec(1_000_000_000), feeParams.BaseFee, "%s base_fee", n)
 		require.False(t, feeParams.NoBaseFee, "%s no_base_fee", n)

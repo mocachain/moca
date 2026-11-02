@@ -9,8 +9,8 @@
 // The snapshots are canonical proto-JSON and are fed verbatim to the codec.
 // They carry each network's live values (`/evmos/evm/v1/params` and
 // `/evmos/feemarket/v1/params` on v1.4.3, read on 2026-10-30) mapped to the
-// cosmos/evm types: min_gas_price and base_fee 1 gwei, extra_eips [3855], create
-// and call permissionless. evm_channels stays empty because v2.0.0 removes IBC.
+// cosmos/evm types: min_gas_price and base_fee 1 gwei, create and call
+// permissionless. extra_eips and evm_channels stay empty.
 // Re-read the live chain before that network's upgrade and update its snapshot
 // if governance changed any of these.
 package v2

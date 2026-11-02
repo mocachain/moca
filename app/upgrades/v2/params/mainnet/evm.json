@@ -1,8 +1,6 @@
 {
   "evm_denom": "amoca",
-  "extra_eips": [
-    "3855"
-  ],
+  "extra_eips": [],
   "evm_channels": [],
   "access_control": {
     "create": {
