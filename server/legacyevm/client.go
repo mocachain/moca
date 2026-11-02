@@ -1,24 +1,45 @@
+// Package legacyevm wraps the client context of the node's JSON-RPC server and EVM
+// indexer so they read the Ethereum transactions recorded before v2.0.0: each
+// /ethermint.evm.v1.MsgEthereumTx decodes as a /cosmos.evm.vm.v1.MsgEthereumTx, and
+// each old MsgEthereumTxResponse in a transaction result gets the cosmos/evm type URL.
+// basefee.go answers the base fee of pre-v2 heights.
 package legacyevm
 
 import (
 	"bytes"
 	"context"
+	"slices"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/gogoproto/proto"
+
+	evmtypes "github.com/cosmos/evm/x/vm/types"
+	legacyevmtypes "github.com/mocachain/moca/v2/x/legacy/evm/types"
 )
 
-// WrapClientContext returns clientCtx with a transaction decoder that reads pre-v2
-// Ethereum transactions and, when its client is a CometBFT RPC client, with block
-// results whose pre-v2 Ethereum responses carry the cosmos/evm type URL. It is for the
-// node's query services only; the state machine keeps its own decoder.
+const legacyResponseURL = "/ethermint.evm.v1.MsgEthereumTxResponse"
+
+var (
+	responseURL              = "/" + proto.MessageName(&evmtypes.MsgEthereumTxResponse{})
+	extensionOptionURL       = "/" + proto.MessageName(&evmtypes.ExtensionOptionsEthereumTx{})
+	legacyExtensionOptionURL = "/" + proto.MessageName(&legacyevmtypes.ExtensionOptionsEthereumTx{})
+)
+
+// WrapClientContext returns clientCtx for the JSON-RPC server and the EVM indexer. Its
+// transaction decoder returns pre-v2 Ethereum transactions in the cosmos/evm format and,
+// when its client is a CometBFT RPC client, the transaction results it returns carry the
+// cosmos/evm response type URL. clientCtx's registry must know the legacy types.
 func WrapClientContext(clientCtx client.Context) client.Context {
 	if clientCtx.TxConfig != nil {
-		clientCtx = clientCtx.WithTxConfig(WrapTxConfig(clientCtx.TxConfig))
+		if _, wrapped := clientCtx.TxConfig.(txConfig); !wrapped {
+			clientCtx = clientCtx.WithTxConfig(txConfig{TxConfig: clientCtx.TxConfig})
+		}
 	}
 	if c, ok := clientCtx.Client.(rpcclient.Client); ok {
 		if _, wrapped := c.(cometClient); !wrapped {
@@ -28,37 +49,70 @@ func WrapClientContext(clientCtx client.Context) client.Context {
 	return clientCtx
 }
 
-// WrapTxConfig returns txConfig with a decoder that converts pre-v2 Ethereum
-// transactions before decoding them. Everything else, encoding included, is
-// txConfig's own.
-func WrapTxConfig(txConfig client.TxConfig) client.TxConfig {
-	if _, wrapped := txConfig.(txConfigWrapper); wrapped {
-		return txConfig
-	}
-	return txConfigWrapper{TxConfig: txConfig}
-}
-
-type txConfigWrapper struct {
+type txConfig struct {
 	client.TxConfig
 }
 
-func (c txConfigWrapper) TxDecoder() sdk.TxDecoder {
-	return TxDecoder(c.TxConfig.TxDecoder())
+func (c txConfig) TxDecoder() sdk.TxDecoder {
+	return TxDecoder(c.TxConfig)
 }
 
-// TxDecoder wraps next so that pre-v2 Ethereum transactions are converted first.
-// Bytes without a legacy type URL go to next unchanged.
-func TxDecoder(next sdk.TxDecoder) sdk.TxDecoder {
+// TxDecoder returns txConfig's decoder with each pre-v2 Ethereum message of a
+// transaction replaced by its cosmos/evm form, and the old extension option by the
+// cosmos/evm one. It fails on an old message it cannot convert.
+func TxDecoder(txConfig client.TxConfig) sdk.TxDecoder {
+	decode := txConfig.TxDecoder()
 	return func(txBytes []byte) (sdk.Tx, error) {
-		converted, changed, err := ConvertTx(txBytes)
-		if err != nil || !changed {
-			return next(txBytes)
+		tx, err := decode(txBytes)
+		if err != nil {
+			return nil, err
 		}
-		return next(converted)
+		msgs := tx.GetMsgs()
+		var converted []sdk.Msg
+		for i, msg := range msgs {
+			legacy, ok := msg.(*legacyevmtypes.MsgEthereumTx)
+			if !ok {
+				continue
+			}
+			if converted == nil {
+				converted = slices.Clone(msgs)
+			}
+			if converted[i], err = legacy.ToMsgEthereumTx(); err != nil {
+				return nil, err
+			}
+		}
+		if converted == nil {
+			return tx, nil
+		}
+
+		builder, err := txConfig.WrapTxBuilder(tx)
+		if err != nil {
+			return nil, err
+		}
+		if err := builder.SetMsgs(converted...); err != nil {
+			return nil, err
+		}
+		if extTx, ok := tx.(interface{ GetExtensionOptions() []*codectypes.Any }); ok {
+			if extBuilder, ok := builder.(client.ExtendedTxBuilder); ok {
+				extBuilder.SetExtensionOptions(convertExtensionOptions(extTx.GetExtensionOptions())...)
+			}
+		}
+		return builder.GetTx(), nil
 	}
 }
 
-// cometClient rewrites the transaction results it returns with ConvertTxMsgData.
+func convertExtensionOptions(opts []*codectypes.Any) []*codectypes.Any {
+	out := slices.Clone(opts)
+	for i, opt := range out {
+		if opt.TypeUrl == legacyExtensionOptionURL {
+			out[i] = &codectypes.Any{TypeUrl: extensionOptionURL}
+		}
+	}
+	return out
+}
+
+// cometClient renames the pre-v2 Ethereum responses in the transaction results it
+// returns.
 type cometClient struct {
 	rpcclient.Client
 }
@@ -106,15 +160,25 @@ func (c cometClient) TxSearch(
 	return &out, nil
 }
 
+// convertResult gives the pre-v2 Ethereum responses in r's data the cosmos/evm type URL.
 func convertResult(r *abci.ExecTxResult) *abci.ExecTxResult {
-	if r == nil {
-		return nil
+	if r == nil || !bytes.Contains(r.Data, []byte(legacyResponseURL)) {
+		return r
 	}
-	data := ConvertTxMsgData(r.Data)
-	if bytes.Equal(data, r.Data) {
+	var data sdk.TxMsgData
+	if err := proto.Unmarshal(r.Data, &data); err != nil {
+		return r
+	}
+	for _, res := range data.MsgResponses {
+		if res.TypeUrl == legacyResponseURL {
+			res.TypeUrl = responseURL
+		}
+	}
+	bz, err := proto.Marshal(&data)
+	if err != nil {
 		return r
 	}
 	out := *r
-	out.Data = data
+	out.Data = bz
 	return &out
 }

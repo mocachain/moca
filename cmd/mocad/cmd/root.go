@@ -56,13 +56,13 @@ import (
 	mocaserver "github.com/mocachain/moca/v2/server"
 	servercfg "github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
-	"github.com/mocachain/moca/v2/server/legacyevm"
 
 	"github.com/mocachain/moca/v2/app"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	mocakr "github.com/mocachain/moca/v2/crypto/keyring"
 	mocatypes "github.com/mocachain/moca/v2/types"
 	gensputilcli "github.com/mocachain/moca/v2/x/gensp/client/cli"
+	legacyevmtypes "github.com/mocachain/moca/v2/x/legacy/evm/types"
 )
 
 const EnvPrefix = "EVMOS"
@@ -135,6 +135,9 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 		TxConfig:          tempApp.GetTxConfig(),
 		Amino:             tempApp.LegacyAmino(),
 	}
+	// The CLI and the node's query services decode the Ethereum transactions recorded
+	// before v2.0.0.
+	legacyevmtypes.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
@@ -190,9 +193,6 @@ func NewRootCmd() (*cobra.Command, sdktestutil.TestEncodingConfig) {
 
 				initClientCtx = initClientCtx.WithTxConfig(txConfig)
 			}
-
-			// Let tx queries decode the Ethereum transactions recorded before v2.0.0.
-			initClientCtx = initClientCtx.WithTxConfig(legacyevm.WrapTxConfig(initClientCtx.TxConfig))
 
 			if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 				return err

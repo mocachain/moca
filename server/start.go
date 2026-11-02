@@ -405,9 +405,7 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 	// service if API or gRPC or JSONRPC is enabled, and avoid doing so in the general
 	// case, because it spawns a new local tendermint RPC client.
 	if (config.API.Enable || config.GRPC.Enable || config.JSONRPC.Enable || config.JSONRPC.EnableIndexer) && tmNode != nil {
-		// Query services read the Ethereum transactions recorded before v2.0.0 too; the
-		// app keeps its own, strict transaction decoder.
-		clientCtx = legacyevm.WrapClientContext(clientCtx.WithClient(local.New(tmNode)))
+		clientCtx = clientCtx.WithClient(local.New(tmNode))
 
 		app.RegisterTxService(clientCtx)
 		app.RegisterTendermintService(clientCtx)
@@ -434,8 +432,10 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 		}
 
 		idxLogger := svrCtx.Logger.With("indexer", "evm")
-		idxer = indexer.NewKVIndexer(idxDB, idxLogger, clientCtx)
-		indexerService := NewEVMIndexerService(idxer, clientCtx.Client.(rpcclient.Client))
+		// The indexer reads the Ethereum transactions recorded before v2.0.0 too.
+		idxClientCtx := legacyevm.WrapClientContext(clientCtx)
+		idxer = indexer.NewKVIndexer(idxDB, idxLogger, idxClientCtx)
+		indexerService := NewEVMIndexerService(idxer, idxClientCtx.Client.(rpcclient.Client))
 		indexerService.SetLogger(servercmtlog.CometLoggerWrapper{Logger: idxLogger})
 
 		g.Go(func() error {
@@ -674,7 +674,8 @@ func startJSONRPCServer(
 
 	ctx = clientCtx.WithChainID(genDoc.ChainID)
 	g.Go(func() error {
-		httpSrv, httpSrvDone, err = StartJSONRPC(svrCtx, clientCtx, &config, idxer, pendingTxApp)
+		// The JSON-RPC server reads the Ethereum transactions recorded before v2.0.0 too.
+		httpSrv, httpSrvDone, err = StartJSONRPC(svrCtx, legacyevm.WrapClientContext(clientCtx), &config, idxer, pendingTxApp)
 		return err
 	})
 	return
