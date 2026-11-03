@@ -20,61 +20,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
-
-const (
-	eipEvmRPCAddr    = "http://127.0.0.1:8545"
-	eipEvmChainIDNum = 5151
-	// eipDevAccountPrivateKeyHex is deployment/localup/localup.sh's own
-	// hardcoded well-known local-devnet key (devaccount_prikey), pre-funded
-	// at genesis for every localup chain purely for test purposes.
-	eipDevAccountPrivateKeyHex = "2228e392584d902843272c37fd62b8c73c10c81a5ecb901773c9ebe366e937bb"
-	eipOneMocaInAmoca          = "1000000000000000000"
-)
-
-func eipDialChain(t *testing.T) *ethclient.Client {
-	t.Helper()
-	client, err := ethclient.Dial(eipEvmRPCAddr)
-	require.NoError(t, err, "no live chain at %s -- run localup.sh first", eipEvmRPCAddr)
-	t.Cleanup(client.Close)
-	return client
-}
-
-func eipFundAccount(ctx context.Context, t *testing.T, client *ethclient.Client, chainID *big.Int, to common.Address, wholeMoca int64) {
-	t.Helper()
-	funder, err := crypto.HexToECDSA(eipDevAccountPrivateKeyHex)
-	require.NoError(t, err)
-	from := crypto.PubkeyToAddress(funder.PublicKey)
-
-	amount, ok := new(big.Int).SetString(eipOneMocaInAmoca, 10)
-	require.True(t, ok)
-	amount.Mul(amount, big.NewInt(wholeMoca))
-
-	nonce, err := client.PendingNonceAt(ctx, from)
-	require.NoError(t, err)
-	tipCap, err := client.SuggestGasTipCap(ctx)
-	require.NoError(t, err)
-	header, err := client.HeaderByNumber(ctx, nil)
-	require.NoError(t, err)
-	feeCap := new(big.Int).Add(tipCap, new(big.Int).Mul(header.BaseFee, big.NewInt(2)))
-
-	tx := types.NewTx(&types.DynamicFeeTx{
-		ChainID: chainID, Nonce: nonce, GasTipCap: tipCap, GasFeeCap: feeCap,
-		Gas: 21_000, To: &to, Value: amount,
-	})
-	signedTx, err := types.SignTx(tx, types.LatestSignerForChainID(chainID), funder)
-	require.NoError(t, err)
-	require.NoError(t, client.SendTransaction(ctx, signedTx))
-
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	receipt, err := bind.WaitMined(waitCtx, client, signedTx)
-	require.NoError(t, err)
-	require.Equal(t, uint64(1), receipt.Status)
-}
 
 // TestEip7702Delegation authorizes a fresh EOA to delegate to an arbitrary
 // address (the designator half of EIP-7702 only records "this EOA delegates
@@ -86,13 +34,13 @@ func eipFundAccount(ctx context.Context, t *testing.T, client *ethclient.Client,
 // designator (0xef0100 || address).
 func TestEip7702Delegation(t *testing.T) {
 	ctx := context.Background()
-	chainID := big.NewInt(eipEvmChainIDNum)
-	client := eipDialChain(t)
+	chainID := big.NewInt(evmChainIDNum)
+	client, _ := dialChain(t)
 
 	authorityKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	authorityAddr := crypto.PubkeyToAddress(authorityKey.PublicKey)
-	eipFundAccount(ctx, t, client, chainID, authorityAddr, 10)
+	fundMoca(ctx, t, client, chainID, authorityAddr, fundingAmountMOCA)
 
 	before, err := client.CodeAt(ctx, authorityAddr, nil)
 	require.NoError(t, err)
@@ -101,11 +49,6 @@ func TestEip7702Delegation(t *testing.T) {
 	nonce, err := client.PendingNonceAt(ctx, authorityAddr)
 	require.NoError(t, err)
 
-	// The designator half of EIP-7702 only records "this EOA delegates to
-	// address X" -- it doesn't require X to hold any code, so an arbitrary
-	// address is enough to prove the mechanism without needing a deployed
-	// contract or guessing a precompile address.
-	//
 	// Since the authority here is also the tx sender, its on-chain nonce
 	// increments as part of ordinary tx processing *before* the authorization
 	// is checked -- the authorization's nonce must therefore be tx-nonce+1,
