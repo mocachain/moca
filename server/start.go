@@ -53,6 +53,7 @@ import (
 
 	"github.com/mocachain/moca/v2/server/config"
 	srvflags "github.com/mocachain/moca/v2/server/flags"
+	"github.com/mocachain/moca/v2/server/legacyevm"
 )
 
 // DBOpener is a function to open `application.db`, potentially with customized options.
@@ -431,8 +432,10 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 		}
 
 		idxLogger := svrCtx.Logger.With("indexer", "evm")
-		idxer = indexer.NewKVIndexer(idxDB, idxLogger, clientCtx)
-		indexerService := NewEVMIndexerService(idxer, clientCtx.Client.(rpcclient.Client))
+		// The indexer reads the Ethereum transactions recorded before v2.0.0 too.
+		idxClientCtx := legacyevm.WrapClientContext(clientCtx)
+		idxer = indexer.NewKVIndexer(idxDB, idxLogger, idxClientCtx)
+		indexerService := NewEVMIndexerService(idxer, idxClientCtx.Client.(rpcclient.Client))
 		indexerService.SetLogger(servercmtlog.CometLoggerWrapper{Logger: idxLogger})
 
 		g.Go(func() error {
@@ -670,7 +673,8 @@ func startJSONRPCServer(
 
 	ctx = clientCtx.WithChainID(genDoc.ChainID)
 	g.Go(func() error {
-		httpSrv, httpSrvDone, err = StartJSONRPC(svrCtx, clientCtx, &config, idxer, pendingTxApp)
+		// The JSON-RPC server reads the Ethereum transactions recorded before v2.0.0 too.
+		httpSrv, httpSrvDone, err = StartJSONRPC(svrCtx, legacyevm.WrapClientContext(clientCtx), &config, idxer, pendingTxApp)
 		return err
 	})
 	return

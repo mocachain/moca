@@ -247,7 +247,15 @@ func (p Precompile) DynamicBalance(ctx sdk.Context, method *abi.Method, args []i
 		return nil, err
 	}
 
-	return method.Outputs.Pack(res.DynamicBalance.BigInt())
+	return method.Outputs.Pack(DynamicBalance{
+		DynamicBalance:   res.DynamicBalance.BigInt(),
+		StreamRecord:     outputsStreamRecord(res.StreamRecord),
+		CurrentTimestamp: res.CurrentTimestamp,
+		BankBalance:      res.BankBalance.BigInt(),
+		AvailableBalance: res.AvailableBalance.BigInt(),
+		LockedFee:        res.LockedFee.BigInt(),
+		ChangeRate:       res.ChangeRate.BigInt(),
+	})
 }
 
 // AutoSettleRecords queries all auto settle records.
