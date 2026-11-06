@@ -24,7 +24,7 @@ require (
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.53.7
-	github.com/cosmos/evm v0.6.3
+	github.com/cosmos/evm v0.6.4
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/cosmos/gogoproto v1.7.2
 	github.com/creachadair/tomledit v0.0.28
@@ -323,9 +323,9 @@ replace (
 	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.3.0-rc1
 	// use Cosmos-SDK fork to enable Ledger functionality
 	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.4.0-rc1
-	// cosmos/evm v0.6.3 plus the snapshotmulti CacheMultiStore branch fix (mocachain/cosmos-evm#1);
+	// cosmos/evm v0.6.4 plus the snapshotmulti CacheMultiStore branch fix (mocachain/cosmos-evm#2);
 	// drop once upstream releases it
-	github.com/cosmos/evm => github.com/mocachain/cosmos-evm v0.6.3-moca.0
+	github.com/cosmos/evm => github.com/mocachain/cosmos-evm v0.6.4-0.20261106044603-21cb9ee903dd
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// use cosmos flavored protobufs
