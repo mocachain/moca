@@ -20,8 +20,14 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 
 	evmtypes "github.com/cosmos/evm/x/vm/types"
+	"github.com/mocachain/moca/v2/app"
 	"github.com/mocachain/moca/v2/encoding"
 	"github.com/mocachain/moca/v2/server/legacyevm"
 	legacyevmtypes "github.com/mocachain/moca/v2/x/legacy/evm/types"
@@ -194,6 +200,79 @@ func TestHashMismatch(t *testing.T) {
 func TestWrapClientContext_IsIdempotent(t *testing.T) {
 	clientCtx := legacyevm.WrapClientContext(client.Context{}.WithTxConfig(encoding.MakeConfig().TxConfig))
 	require.Equal(t, clientCtx.TxConfig, legacyevm.WrapClientContext(clientCtx).TxConfig)
+}
+
+// recordedProposal is a governance proposal a live network stored before its v2.0.0
+// upgrade that carries the pre-v2 EVM MsgUpdateParams: the gov store value and the
+// messages v1.4.3 returns for it.
+type recordedProposal struct {
+	ChainID  string          `json:"chain_id"`
+	ID       uint64          `json:"id"`
+	Value    []byte          `json:"value"`
+	Messages json.RawMessage `json:"messages"`
+}
+
+// TestGovQueriesDecodePreV2Proposals stores the proposals that carry the pre-v2 EVM
+// MsgUpdateParams, byte for byte as the live networks hold them, and checks that the
+// gov queries return them with the messages v1.4.3 returned.
+func TestGovQueriesDecodePreV2Proposals(t *testing.T) {
+	bz, err := os.ReadFile("testdata/pre_v2_gov_proposals.json")
+	require.NoError(t, err)
+	var props []recordedProposal
+	require.NoError(t, json.Unmarshal(bz, &props))
+	require.NotEmpty(t, props)
+
+	mocaApp := app.EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+	store := ctx.KVStore(mocaApp.GetKey(govtypes.StoreKey))
+	for _, p := range props {
+		store.Set(append(govtypes.ProposalsKeyPrefix.Bytes(), sdk.Uint64ToBigEndian(p.ID)...), p.Value)
+	}
+
+	queryServer := govkeeper.NewQueryServer(&mocaApp.GovKeeper)
+	legacyQueryServer := govkeeper.NewLegacyQueryServer(&mocaApp.GovKeeper)
+	all, err := queryServer.Proposals(ctx, &govv1.QueryProposalsRequest{})
+	require.NoError(t, err)
+	require.Len(t, all.Proposals, len(props))
+
+	for _, p := range props {
+		_, err := legacyQueryServer.Proposal(ctx, &govv1beta1.QueryProposalRequest{ProposalId: p.ID})
+		require.NoError(t, err, "%s proposal %d", p.ChainID, p.ID)
+		res, err := queryServer.Proposal(ctx, &govv1.QueryProposalRequest{ProposalId: p.ID})
+		require.NoError(t, err, "%s proposal %d", p.ChainID, p.ID)
+
+		// Decoding loses nothing the stored proposal holds.
+		bz, err := mocaApp.AppCodec().Marshal(res.Proposal)
+		require.NoError(t, err)
+		require.Equal(t, p.Value, bz, "%s proposal %d", p.ChainID, p.ID)
+
+		bz, err = mocaApp.AppCodec().MarshalJSON(res.Proposal)
+		require.NoError(t, err)
+		var got struct {
+			Messages json.RawMessage `json:"messages"`
+		}
+		require.NoError(t, json.Unmarshal(bz, &got))
+		require.JSONEq(t, string(p.Messages), string(got.Messages), "%s proposal %d", p.ChainID, p.ID)
+	}
+}
+
+// TestPreV2MsgUpdateParamsFailsInTxs checks that the app decodes the pre-v2 EVM
+// MsgUpdateParams but runs no transaction that carries it.
+func TestPreV2MsgUpdateParamsFailsInTxs(t *testing.T) {
+	mocaApp := app.EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false)
+	gov := authtypes.NewModuleAddress(govtypes.ModuleName)
+	msg := &legacyevmtypes.MsgUpdateParams{Authority: gov.String()} //nolint:staticcheck
+
+	builder := mocaApp.GetTxConfig().NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	bz, err := mocaApp.GetTxConfig().TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	_, _, err = mocaApp.Simulate(bz)
+	require.ErrorIs(t, err, sdkerrors.ErrUnknownRequest)
+
+	_, err = mocaApp.GovKeeper.SubmitProposal(ctx, []sdk.Msg{msg}, "", "title", "summary", gov, false)
+	require.ErrorIs(t, err, govtypes.ErrUnroutableProposalMsg)
 }
 
 func signTx(t *testing.T, key *ecdsa.PrivateKey, chainID *big.Int, data ethtypes.TxData) *ethtypes.Transaction {
