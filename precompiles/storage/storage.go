@@ -1,10 +1,12 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -91,7 +93,11 @@ func (p Precompile) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]by
 	}
 
 	return p.RunNativeAction(evm, contract, func(ctx sdk.Context) ([]byte, error) {
-		return p.Execute(ctx, evm, contract, readonly)
+		bz, err := p.Execute(ctx, evm, contract, readonly)
+		if errors.Is(err, sdkerrors.ErrOutOfGas) {
+			return nil, vm.ErrOutOfGas
+		}
+		return bz, err
 	})
 }
 
