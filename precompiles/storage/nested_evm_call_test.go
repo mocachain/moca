@@ -16,6 +16,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/evm/x/vm/statedb"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -154,6 +155,18 @@ func (s *NestedEVMCallTestSuite) TestCreateGroup_OutOfGasInAndAfterNestedMint() 
 	res, failed := s.applyCreateGroup(ctx, groupName, need)
 	s.Require().False(failed)
 	s.requireGroupCreated(ctx, before, groupName, res)
+}
+
+func (s *NestedEVMCallTestSuite) TestCallEVM_NestedMintOutOfGas() {
+	s.requireGroupNFTContract()
+	id := s.groupState(s.env.ctx).seq.Incr()
+	mint := s.mintGroupNFT(id)
+	s.Require().Less(mint.load, mint.evm)
+
+	ctx := s.txContext().WithGasMeter(storetypes.NewGasMeter((mint.load + mint.evm) / 2))
+	_, err := s.env.app.StorageKeeper.CallEVM(ctx, contracts.ERC721NonTransferableContract.ABI,
+		contracts.GroupControlHubAddress, contracts.GroupERC721TokenAddress, true, "mint", s.env.address, id.BigInt())
+	s.Require().ErrorIs(err, sdkerrors.ErrOutOfGas)
 }
 
 // TestCreateBucket_ReadQuotaBankAccounting creates a bucket with a charged read
