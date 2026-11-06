@@ -19,3 +19,9 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	)
 	registry.RegisterImplementations((*tx.TxExtensionOptionI)(nil), &ExtensionOptionsEthereumTx{})
 }
+
+// RegisterProposalInterfaces registers the pre-v2 MsgUpdateParams with registry, so
+// the governance proposals stored before v2.0.0 decode. The app registers it.
+func RegisterProposalInterfaces(registry codectypes.InterfaceRegistry) {
+	registry.RegisterImplementations((*sdk.Msg)(nil), &MsgUpdateParams{})
+}

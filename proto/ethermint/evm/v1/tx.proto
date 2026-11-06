@@ -1,8 +1,11 @@
-// The Ethereum transaction messages of the EVM module moca ran before v2.0.0, with
-// their original names and field numbers. The state machine does not accept them.
+// The Ethereum transaction and parameter update messages of the EVM module moca ran
+// before v2.0.0, with their original names and field numbers. The state machine does
+// not accept them.
 syntax = "proto3";
 package ethermint.evm.v1;
 
+import "cosmos/msg/v1/msg.proto";
+import "ethermint/evm/v1/evm.proto";
 import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
 
@@ -118,4 +121,17 @@ message AccessTuple {
 // a MsgEthereumTx.
 message ExtensionOptionsEthereumTx {
   option deprecated = true;
+}
+
+// MsgUpdateParams is the governance message that set the EVM module parameters before
+// v2.0.0. Stored proposals carry it. No Msg service handles it, so a transaction that
+// carries it fails.
+message MsgUpdateParams {
+  option deprecated = true;
+  option (cosmos.msg.v1.signer) = "authority";
+
+  // authority is the hex address of the governance module account.
+  string authority = 1;
+  // params are the parameters the proposal set.
+  Params params = 2 [(gogoproto.nullable) = false];
 }

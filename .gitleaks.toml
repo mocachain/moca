@@ -1977,6 +1977,8 @@ stopwords= [
     "branch",
     "combination",
     "combo",
+    # the gov module account address, the authority of the proposals in server/legacyevm/testdata, not a secret
+    "0x7b5fe22b5446f7c62ea27b8bd71cef94e03f3df2",
 ]
 [[rules]]
 description = "GitHub App Token"

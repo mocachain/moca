@@ -1,0 +1,77 @@
+// The parameters of the EVM module moca ran before v2.0.0, with their original names
+// and field numbers. Governance proposals stored before v2.0.0 carry them.
+syntax = "proto3";
+package ethermint.evm.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/mocachain/moca/v2/x/legacy/evm/types";
+
+// Params are the EVM module parameters as recorded before v2.0.0.
+message Params {
+  option deprecated = true;
+
+  // evm_denom is the denomination the EVM runs on.
+  string evm_denom = 1;
+  // enable_create toggles contract creation.
+  bool enable_create = 2;
+  // enable_call toggles contract calls.
+  bool enable_call = 3;
+  // extra_eips are the EIPs enabled on top of the chain config.
+  repeated int64 extra_eips = 4;
+  // chain_config is the Ethereum chain configuration.
+  ChainConfig chain_config = 5 [(gogoproto.nullable) = false];
+  // allow_unprotected_txs allows transactions without EIP-155 replay protection.
+  bool allow_unprotected_txs = 6;
+  // evm_channels are the IBC channel identifiers of EVM chains.
+  repeated string evm_channels = 7;
+}
+
+// ChainConfig is the Ethereum chain configuration as recorded before v2.0.0. A fork
+// block is a decimal block number, empty when the fork is not scheduled.
+message ChainConfig {
+  option deprecated = true;
+
+  // homestead_block is the Homestead fork block.
+  string homestead_block = 1;
+  // dao_fork_block is the DAO fork block.
+  string dao_fork_block = 2;
+  // dao_fork_support is whether the chain supports the DAO fork.
+  bool dao_fork_support = 3;
+  // eip150_block is the EIP-150 fork block.
+  string eip150_block = 4;
+  // eip150_hash is the hash of the EIP-150 fork block.
+  string eip150_hash = 5;
+  // eip155_block is the EIP-155 fork block.
+  string eip155_block = 6;
+  // eip158_block is the EIP-158 fork block.
+  string eip158_block = 7;
+  // byzantium_block is the Byzantium fork block.
+  string byzantium_block = 8;
+  // constantinople_block is the Constantinople fork block.
+  string constantinople_block = 9;
+  // petersburg_block is the Petersburg fork block.
+  string petersburg_block = 10;
+  // istanbul_block is the Istanbul fork block.
+  string istanbul_block = 11;
+  // muir_glacier_block is the Muir Glacier fork block.
+  string muir_glacier_block = 12;
+  // berlin_block is the Berlin fork block.
+  string berlin_block = 13;
+  reserved 14, 15, 16;
+  reserved "yolo_v3_block", "ewasm_block", "catalyst_block";
+  // london_block is the London fork block.
+  string london_block = 17;
+  // arrow_glacier_block is the Arrow Glacier fork block.
+  string arrow_glacier_block = 18;
+  reserved 19;
+  reserved "merge_fork_block";
+  // gray_glacier_block is the Gray Glacier fork block.
+  string gray_glacier_block = 20;
+  // merge_netsplit_block is the Merge netsplit block.
+  string merge_netsplit_block = 21;
+  // shanghai_block is the Shanghai fork block.
+  string shanghai_block = 22;
+  // cancun_block is the Cancun fork block.
+  string cancun_block = 23;
+}
