@@ -142,6 +142,7 @@ import (
 	challengemoduletypes "github.com/mocachain/moca/v2/x/challenge/types"
 	"github.com/mocachain/moca/v2/x/gensp"
 	gensptypes "github.com/mocachain/moca/v2/x/gensp/types"
+	legacyevmtypes "github.com/mocachain/moca/v2/x/legacy/evm/types"
 	paymentmodule "github.com/mocachain/moca/v2/x/payment"
 	paymentmodulekeeper "github.com/mocachain/moca/v2/x/payment/keeper"
 	paymentmoduletypes "github.com/mocachain/moca/v2/x/payment/types"
@@ -651,6 +652,8 @@ func NewMoca(
 	)
 	app.BasicModuleManager.RegisterLegacyAminoCodec(cdc)
 	app.BasicModuleManager.RegisterInterfaces(interfaceRegistry)
+	// The governance proposals stored before v2.0.0 carry the old EVM MsgUpdateParams.
+	legacyevmtypes.RegisterProposalInterfaces(interfaceRegistry)
 
 	// NOTE: upgrade module is required to be prioritized
 	app.mm.SetOrderPreBlockers(

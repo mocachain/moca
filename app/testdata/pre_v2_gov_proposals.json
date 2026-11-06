@@ -1,0 +1,233 @@
+[
+  {
+    "chain_id": "moca_5151-1",
+    "height": 31522634,
+    "id": 2,
+    "value": "CAISiQIKIS9ldGhlcm1pbnQuZXZtLnYxLk1zZ1VwZGF0ZVBhcmFtcxLjAQoqMHg3YjVGZTIyQjU0NDZmN0M2MkVhMjdCOEJENzFDZUY5NGUwM2YzZEYyErQBCgVhbW9jYRABGAEiAo8eKn8KATASATAYASIBMCpCMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMgEwOgEwQgEwSgEwUgEwWgEwYgEwagEwigEBMJIBATCiAQEwqgEBMLIBATC6AQEwOgpjaGFubmVsLTEwOgpjaGFubmVsLTMxOgpjaGFubmVsLTgzGAMiJAoZODAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMBIBMBoBMCIBMCoMCJee5M0GEPjMm84DMgwI76LkzQYQ+MybzgM6EQoFYW1vY2ESCDEwMDAwMDAwQgwIl57kzQYQ+MybzgNKDAjvouTNBhD4zJvOA1ogRW5hYmxlIEVJUC0xNTUgUmVwbGF5IFByb3RlY3Rpb25iggJUaGlzIHByb3Bvc2FsIGRpc2FibGVzIHVucHJvdGVjdGVkIChub24tRUlQLTE1NSkgdHJhbnNhY3Rpb25zIG9uIHRoZSBFVk0gbW9kdWxlLiBBZnRlciB0aGlzIHByb3Bvc2FsIHBhc3NlcywgYWxsIHRyYW5zYWN0aW9ucyBtdXN0IGluY2x1ZGUgY2hhaW4gSUQgZm9yIHJlcGxheSBwcm90ZWN0aW9uIGFzIHBlciBFSVAtMTU1LiBUaGlzIGltcHJvdmVzIG5ldHdvcmsgc2VjdXJpdHkgYnkgcHJldmVudGluZyBjcm9zcy1jaGFpbiByZXBsYXkgYXR0YWNrcy5qKjB4NzJjZTJiNzVhQTU3RTVhODdjQTUyNTVEODM5NzFhZUYwOTZFMTRFNA==",
+    "messages": [
+      {
+        "@type": "/ethermint.evm.v1.MsgUpdateParams",
+        "authority": "0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2",
+        "params": {
+          "evm_denom": "amoca",
+          "enable_create": true,
+          "enable_call": true,
+          "extra_eips": [
+            "3855"
+          ],
+          "chain_config": {
+            "homestead_block": "0",
+            "dao_fork_block": "0",
+            "dao_fork_support": true,
+            "eip150_block": "0",
+            "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "eip155_block": "0",
+            "eip158_block": "0",
+            "byzantium_block": "0",
+            "constantinople_block": "0",
+            "petersburg_block": "0",
+            "istanbul_block": "0",
+            "muir_glacier_block": "0",
+            "berlin_block": "0",
+            "london_block": "0",
+            "arrow_glacier_block": "0",
+            "gray_glacier_block": "0",
+            "merge_netsplit_block": "0",
+            "shanghai_block": "0",
+            "cancun_block": "0"
+          },
+          "allow_unprotected_txs": false,
+          "evm_channels": [
+            "channel-10",
+            "channel-31",
+            "channel-83"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "chain_id": "moca_222888-1",
+    "height": 34502818,
+    "id": 11,
+    "value": "CAsSiQIKIS9ldGhlcm1pbnQuZXZtLnYxLk1zZ1VwZGF0ZVBhcmFtcxLjAQoqMHg3YjVGZTIyQjU0NDZmN0M2MkVhMjdCOEJENzFDZUY5NGUwM2YzZEYyErQBCgVhbW9jYRABGAEiAo8eKn8KATASATAYASIBMCpCMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMgEwOgEwQgEwSgEwUgEwWgEwYgEwagEwigEBMJIBATCiAQEwqgEBMLIBATC6AQEwOgpjaGFubmVsLTEwOgpjaGFubmVsLTMxOgpjaGFubmVsLTgzGAMiJQoaNTAwMDAwMDAwMDAwMDAwMDAxMDAwMDAwMDASATAaATAiATAqDAiuieTNBhCo76nIAjIMCK7+iM4GEKjvqcgCOiAKBWFtb2NhEhc1MDAwMDAwMDAwMDAwMDAwMDAwMDAwMEIMCK6J5M0GEKjvqcgCSgwIrqzpzQYQqO+pyAJaIEVuYWJsZSBFSVAtMTU1IFJlcGxheSBQcm90ZWN0aW9uYoICVGhpcyBwcm9wb3NhbCBkaXNhYmxlcyB1bnByb3RlY3RlZCAobm9uLUVJUC0xNTUpIHRyYW5zYWN0aW9ucyBvbiB0aGUgRVZNIG1vZHVsZS4gQWZ0ZXIgdGhpcyBwcm9wb3NhbCBwYXNzZXMsIGFsbCB0cmFuc2FjdGlvbnMgbXVzdCBpbmNsdWRlIGNoYWluIElEIGZvciByZXBsYXkgcHJvdGVjdGlvbiBhcyBwZXIgRUlQLTE1NS4gVGhpcyBpbXByb3ZlcyBuZXR3b3JrIHNlY3VyaXR5IGJ5IHByZXZlbnRpbmcgY3Jvc3MtY2hhaW4gcmVwbGF5IGF0dGFja3MuaioweEE2ZWRERDIwNzljMjY0OTI3NzBkNzNBRDgzNjljOTU4NjU4YzQzOTk=",
+    "messages": [
+      {
+        "@type": "/ethermint.evm.v1.MsgUpdateParams",
+        "authority": "0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2",
+        "params": {
+          "evm_denom": "amoca",
+          "enable_create": true,
+          "enable_call": true,
+          "extra_eips": [
+            "3855"
+          ],
+          "chain_config": {
+            "homestead_block": "0",
+            "dao_fork_block": "0",
+            "dao_fork_support": true,
+            "eip150_block": "0",
+            "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "eip155_block": "0",
+            "eip158_block": "0",
+            "byzantium_block": "0",
+            "constantinople_block": "0",
+            "petersburg_block": "0",
+            "istanbul_block": "0",
+            "muir_glacier_block": "0",
+            "berlin_block": "0",
+            "london_block": "0",
+            "arrow_glacier_block": "0",
+            "gray_glacier_block": "0",
+            "merge_netsplit_block": "0",
+            "shanghai_block": "0",
+            "cancun_block": "0"
+          },
+          "allow_unprotected_txs": false,
+          "evm_channels": [
+            "channel-10",
+            "channel-31",
+            "channel-83"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "chain_id": "moca_2288-1",
+    "height": 33867964,
+    "id": 1,
+    "value": "CAESiwIKIS9ldGhlcm1pbnQuZXZtLnYxLk1zZ1VwZGF0ZVBhcmFtcxLlAQoqMHg3YjVGZTIyQjU0NDZmN0M2MkVhMjdCOEJENzFDZUY5NGUwM2YzZEYyErYBCgVhbW9jYRABGAEiAo8eKn8KATASATAYASIBMCpCMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMgEwOgEwQgEwSgEwUgEwWgEwYgEwagEwigEBMJIBATCiAQEwqgEBMLIBATC6AQEwMAE6CmNoYW5uZWwtMTA6CmNoYW5uZWwtMzE6CmNoYW5uZWwtODMYAyIhChY0MDAwMDAwMDAwMDAwMDAwMDAwMDAwEgEwGgEwIgEwKgwIlO+1ywYQsPalmwIyDAiU5NrLBhCw9qWbAjohCgVhbW9jYRIYMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwQgwIlO+1ywYQsPalmwJKDAiUkrvLBhCw9qWbAlojRW5hYmxlIFVucHJvdGVjdGVkIEVWTSBUcmFuc2FjdGlvbnNiYFVwZGF0ZSBFVk0gcGFyYW1ldGVycyB0byBhbGxvdyB1bnByb3RlY3RlZCAobm9uLUVJUDE1NSByZXBsYXktcHJvdGVjdGlvbikgRXRoZXJldW0gdHJhbnNhY3Rpb25zLmoqMHhlY0ExMTUzQjI1QUYzQzUyNWZFQTM0RTYzZkY1NWM3OTcwMzE2RDFjcAE=",
+    "messages": [
+      {
+        "@type": "/ethermint.evm.v1.MsgUpdateParams",
+        "authority": "0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2",
+        "params": {
+          "evm_denom": "amoca",
+          "enable_create": true,
+          "enable_call": true,
+          "extra_eips": [
+            "3855"
+          ],
+          "chain_config": {
+            "homestead_block": "0",
+            "dao_fork_block": "0",
+            "dao_fork_support": true,
+            "eip150_block": "0",
+            "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "eip155_block": "0",
+            "eip158_block": "0",
+            "byzantium_block": "0",
+            "constantinople_block": "0",
+            "petersburg_block": "0",
+            "istanbul_block": "0",
+            "muir_glacier_block": "0",
+            "berlin_block": "0",
+            "london_block": "0",
+            "arrow_glacier_block": "0",
+            "gray_glacier_block": "0",
+            "merge_netsplit_block": "0",
+            "shanghai_block": "0",
+            "cancun_block": "0"
+          },
+          "allow_unprotected_txs": true,
+          "evm_channels": [
+            "channel-10",
+            "channel-31",
+            "channel-83"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "chain_id": "moca_2288-1",
+    "height": 33867965,
+    "id": 3,
+    "value": "CAMSiQIKIS9ldGhlcm1pbnQuZXZtLnYxLk1zZ1VwZGF0ZVBhcmFtcxLjAQoqMHg3YjVGZTIyQjU0NDZmN0M2MkVhMjdCOEJENzFDZUY5NGUwM2YzZEYyErQBCgVhbW9jYRABGAEiAo8eKn8KATASATAYASIBMCpCMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMgEwOgEwQgEwSgEwUgEwWgEwYgEwagEwigEBMJIBATCiAQEwqgEBMLIBATC6AQEwOgpjaGFubmVsLTEwOgpjaGFubmVsLTMxOgpjaGFubmVsLTgzGAQiIQoBMBIBMBoWNDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIBMCoMCLLlqc4GENff+88DMgwIstrOzgYQ19/7zwM6EQoFYW1vY2ESCDEwMDAwMDAwQgwIsuWpzgYQ19/7zwNKDAiyz/POBhDX3/vPA1ogRW5hYmxlIEVJUC0xNTUgUmVwbGF5IFByb3RlY3Rpb25iggJUaGlzIHByb3Bvc2FsIGRpc2FibGVzIHVucHJvdGVjdGVkIChub24tRUlQLTE1NSkgdHJhbnNhY3Rpb25zIG9uIHRoZSBFVk0gbW9kdWxlLiBBZnRlciB0aGlzIHByb3Bvc2FsIHBhc3NlcywgYWxsIHRyYW5zYWN0aW9ucyBtdXN0IGluY2x1ZGUgY2hhaW4gSUQgZm9yIHJlcGxheSBwcm90ZWN0aW9uIGFzIHBlciBFSVAtMTU1LiBUaGlzIGltcHJvdmVzIG5ldHdvcmsgc2VjdXJpdHkgYnkgcHJldmVudGluZyBjcm9zcy1jaGFpbiByZXBsYXkgYXR0YWNrcy5qKjB4ODFDMkM0NmRlMEY1MzM2OTdDNUFkRmJmNGE0QzU3NDY5NDcxMDlDOXopcHJvcG9zYWwgZGlkIG5vdCBnZXQgZW5vdWdoIHZvdGVzIHRvIHBhc3M=",
+    "messages": [
+      {
+        "@type": "/ethermint.evm.v1.MsgUpdateParams",
+        "authority": "0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2",
+        "params": {
+          "evm_denom": "amoca",
+          "enable_create": true,
+          "enable_call": true,
+          "extra_eips": [
+            "3855"
+          ],
+          "chain_config": {
+            "homestead_block": "0",
+            "dao_fork_block": "0",
+            "dao_fork_support": true,
+            "eip150_block": "0",
+            "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "eip155_block": "0",
+            "eip158_block": "0",
+            "byzantium_block": "0",
+            "constantinople_block": "0",
+            "petersburg_block": "0",
+            "istanbul_block": "0",
+            "muir_glacier_block": "0",
+            "berlin_block": "0",
+            "london_block": "0",
+            "arrow_glacier_block": "0",
+            "gray_glacier_block": "0",
+            "merge_netsplit_block": "0",
+            "shanghai_block": "0",
+            "cancun_block": "0"
+          },
+          "allow_unprotected_txs": false,
+          "evm_channels": [
+            "channel-10",
+            "channel-31",
+            "channel-83"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "chain_id": "moca_2288-1",
+    "height": 33867966,
+    "id": 4,
+    "value": "CAQS5QEKIS9ldGhlcm1pbnQuZXZtLnYxLk1zZ1VwZGF0ZVBhcmFtcxK/AQoqMHg3YjVGZTIyQjU0NDZmN0M2MkVhMjdCOEJENzFDZUY5NGUwM2YzZEYyEpABCgVhbW9jYRABGAEiAo8eKn8KATASATAYASIBMCpCMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMgEwOgEwQgEwSgEwUgEwWgEwYgEwagEwigEBMJIBATCiAQEwqgEBMLIBATC6AQEwGAMiIQoWNDAwMDAwMDAwMDAwMDAwMDAwMDAwMBIBMBoBMCIBMCoMCJX1qc4GEL3S7YUBMgwIlerOzgYQvdLthQE6IQoFYW1vY2ESGDEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMEIMCJX1qc4GEL3S7YUBSgwIlZivzgYQvdLthQFaIEVuYWJsZSBFSVAtMTU1IFJlcGxheSBQcm90ZWN0aW9uYrkBVGhpcyBwcm9wb3NhbCBkaXNhYmxlcyB1bnByb3RlY3RlZCAobm9uLUVJUC0xNTUpIHRyYW5zYWN0aW9ucyBvbiB0aGUgRVZNIG1vZHVsZS4gQWZ0ZXIgdGhpcyBwcm9wb3NhbCBwYXNzZXMsIGFsbCB0cmFuc2FjdGlvbnMgbXVzdCBpbmNsdWRlIGNoYWluIElEIGZvciByZXBsYXkgcHJvdGVjdGlvbiBhcyBwZXIgRUlQLTE1NS5qKjB4ODFDMkM0NmRlMEY1MzM2OTdDNUFkRmJmNGE0QzU3NDY5NDcxMDlDOXAB",
+    "messages": [
+      {
+        "@type": "/ethermint.evm.v1.MsgUpdateParams",
+        "authority": "0x7b5Fe22B5446f7C62Ea27B8BD71CeF94e03f3dF2",
+        "params": {
+          "evm_denom": "amoca",
+          "enable_create": true,
+          "enable_call": true,
+          "extra_eips": [
+            "3855"
+          ],
+          "chain_config": {
+            "homestead_block": "0",
+            "dao_fork_block": "0",
+            "dao_fork_support": true,
+            "eip150_block": "0",
+            "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "eip155_block": "0",
+            "eip158_block": "0",
+            "byzantium_block": "0",
+            "constantinople_block": "0",
+            "petersburg_block": "0",
+            "istanbul_block": "0",
+            "muir_glacier_block": "0",
+            "berlin_block": "0",
+            "london_block": "0",
+            "arrow_glacier_block": "0",
+            "gray_glacier_block": "0",
+            "merge_netsplit_block": "0",
+            "shanghai_block": "0",
+            "cancun_block": "0"
+          },
+          "allow_unprotected_txs": false,
+          "evm_channels": []
+        }
+      }
+    ]
+  }
+]
