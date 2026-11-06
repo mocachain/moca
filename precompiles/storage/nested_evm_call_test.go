@@ -16,7 +16,6 @@ import (
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/evm/x/vm/statedb"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -25,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/mocachain/moca/v2/contracts"
@@ -37,6 +35,7 @@ import (
 	paymentkeeper "github.com/mocachain/moca/v2/x/payment/keeper"
 	paymenttypes "github.com/mocachain/moca/v2/x/payment/types"
 	sptypes "github.com/mocachain/moca/v2/x/sp/types"
+	storagekeeper "github.com/mocachain/moca/v2/x/storage/keeper"
 	storagetypes "github.com/mocachain/moca/v2/x/storage/types"
 	vgtypes "github.com/mocachain/moca/v2/x/virtualgroup/types"
 )
@@ -59,7 +58,8 @@ func TestNestedEVMCallTestSuite(t *testing.T) {
 
 // TestCreateGroup_OutOfGasAroundNestedMint runs createGroup with gas limits that
 // run out before, during and after the group NFT mint. Every run must end in a
-// clean success or a clean revert that leaves no group, group ID or token behind.
+// clean success or a clean failure that is charged for the work it did and
+// leaves no group, group ID or token behind.
 func (s *NestedEVMCallTestSuite) TestCreateGroup_OutOfGasAroundNestedMint() {
 	s.env.mustEnableStaticPrecompiles()
 	s.requireGroupNFTContract()
@@ -72,6 +72,7 @@ func (s *NestedEVMCallTestSuite) TestCreateGroup_OutOfGasAroundNestedMint() {
 		res, failed := s.applyCreateGroup(ctx, groupName, gas)
 		if failed {
 			reverted++
+			s.requireNativeWorkCharged(groupName, res)
 			s.requireNoGroupCreated(ctx, before, groupName, res)
 		} else {
 			succeeded++
@@ -83,8 +84,9 @@ func (s *NestedEVMCallTestSuite) TestCreateGroup_OutOfGasAroundNestedMint() {
 }
 
 // TestCreateGroup_OutOfGasInAndAfterNestedMint runs out of gas at fixed points of
-// createGroup: while the nested call loads the group NFT contract and its state,
-// halfway through the nested call writing the minted token, while charging the
+// createGroup: as the nested call starts, with less gas left than its intrinsic
+// gas or its calldata floor, while the nested call loads the group NFT contract
+// and its state, halfway through the nested call writing the minted token, while charging the
 // EVM gas of the completed mint, and after the mint, where the precompile reads
 // the new group back. The precompile's gas meter is charged the nested call's
 // store reads and writes, then its EVM gas, then the read-back, in that order.
@@ -134,10 +136,13 @@ func (s *NestedEVMCallTestSuite) TestCreateGroup_OutOfGasInAndAfterNestedMint() 
 
 	evmStart := need - readBackGas - mint.evm
 	writeStart := evmStart - mint.settle - mint.write
+	loadStart := writeStart - mint.load
 	cases := []struct {
 		name string
 		gas  uint64
 	}{
+		{"starting the mint below its intrinsic gas", loadStart + mint.beforeCap + mint.intrinsic - 1},
+		{"starting the mint below its calldata floor", loadStart + mint.beforeCap + (mint.intrinsic+mint.floor)/2},
 		{"loading the NFT contract", writeStart - mint.load/2},
 		{"writing the minted token", writeStart + mint.write/2},
 		{"charging the mint's EVM gas", evmStart + mint.evm/2},
@@ -147,7 +152,7 @@ func (s *NestedEVMCallTestSuite) TestCreateGroup_OutOfGasInAndAfterNestedMint() 
 		ctx := s.txContext()
 		res, failed := s.applyCreateGroup(ctx, groupName, tc.gas)
 		s.Require().True(failed, "%s (gas %d) must fail", tc.name, tc.gas)
-		s.Require().Contains(res.VmError, vm.ErrOutOfGas.Error(), tc.name)
+		s.requireNativeWorkCharged(groupName, res)
 		s.requireNoGroupCreated(ctx, before, groupName, res)
 	}
 
@@ -161,12 +166,15 @@ func (s *NestedEVMCallTestSuite) TestCallEVM_NestedMintOutOfGas() {
 	s.requireGroupNFTContract()
 	id := s.groupState(s.env.ctx).seq.Incr()
 	mint := s.mintGroupNFT(id)
+	s.Require().Less(mint.intrinsic, mint.floor)
 	s.Require().Less(mint.load, mint.evm)
 
-	ctx := s.txContext().WithGasMeter(storetypes.NewGasMeter((mint.load + mint.evm) / 2))
-	_, err := s.env.app.StorageKeeper.CallEVM(ctx, contracts.ERC721NonTransferableContract.ABI,
-		contracts.GroupControlHubAddress, contracts.GroupERC721TokenAddress, true, "mint", s.env.address, id.BigInt())
-	s.Require().ErrorIs(err, sdkerrors.ErrOutOfGas)
+	for _, gas := range []uint64{mint.beforeCap + mint.intrinsic - 1, mint.beforeCap + mint.floor - 1, (mint.load + mint.evm) / 2} {
+		ctx := s.txContext().WithGasMeter(storetypes.NewGasMeter(gas))
+		_, err := s.env.app.StorageKeeper.CallEVM(ctx, contracts.ERC721NonTransferableContract.ABI,
+			contracts.GroupControlHubAddress, contracts.GroupERC721TokenAddress, true, "mint", s.env.address, id.BigInt())
+		s.Require().Error(err, "gas %d", gas)
+	}
 }
 
 // TestCreateBucket_ReadQuotaBankAccounting creates a bucket with a charged read
@@ -335,10 +343,13 @@ func (s *NestedEVMCallTestSuite) applyCreateGroup(ctx sdk.Context, groupName str
 // nestedMintGas splits the gas the nested mint charges to its caller's context,
 // in the order it is charged.
 type nestedMintGas struct {
-	load   uint64 // store gas before the first write: the contract, its state, the accounts
-	write  uint64 // store gas from the first write to the last
-	settle uint64 // store gas after the last write
-	evm    uint64 // the call's EVM gas, charged last
+	beforeCap uint64
+	intrinsic uint64
+	floor     uint64
+	load      uint64 // store gas before the first write: the contract, its state, the accounts
+	write     uint64 // store gas from the first write to the last
+	settle    uint64 // store gas after the last write
+	evm       uint64 // the call's EVM gas, charged last
 }
 
 // gasRecorder is a gas meter that records each charge in order.
@@ -393,7 +404,26 @@ func (s *NestedEVMCallTestSuite) mintGroupNFT(id sdkmath.Uint) nestedMintGas {
 			g.settle += c.amount
 		}
 	}
+
+	nonce := s.txContext()
+	_, err = s.env.app.AccountKeeper.GetSequence(nonce, sdk.AccAddress(contracts.GroupControlHubAddress.Bytes()))
+	s.Require().NoError(err)
+	g.beforeCap = nonce.GasMeter().GasConsumed()
+	data, err := contracts.ERC721NonTransferableContract.ABI.Pack("mint", s.env.address, id.BigInt())
+	s.Require().NoError(err)
+	g.intrinsic, err = core.IntrinsicGas(data, nil, nil, false, true, true, true)
+	s.Require().NoError(err)
+	g.floor, err = core.FloorDataGas(data)
+	s.Require().NoError(err)
 	return g
+}
+
+func (s *NestedEVMCallTestSuite) requireNativeWorkCharged(groupName string, res *evmtypes.MsgEthereumTxResponse) {
+	input := s.env.mustPackCreateGroupInput(groupName, "")
+	intrinsic, err := core.IntrinsicGas(input, nil, nil, false, true, true, true)
+	s.Require().NoError(err)
+	p := storage.NewPrecompile(storagekeeper.NewMsgServerImpl(s.env.app.StorageKeeper), s.env.app.StorageKeeper, s.env.app.BankKeeper)
+	s.Require().Greater(res.GasUsed, intrinsic+p.RequiredGas(input), "%s: charged for the call alone", groupName)
 }
 
 // requireNoGroupCreated asserts that a failed createGroup left no trace: no group

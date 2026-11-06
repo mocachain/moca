@@ -3,10 +3,8 @@ package keeper
 import (
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 
 	"github.com/cosmos/evm/x/vm/statedb"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -45,9 +43,5 @@ func (k Keeper) CallEVMWithData(
 	commit bool,
 ) (*evmtypes.MsgEthereumTxResponse, error) {
 	stateDB := statedb.New(ctx, k.evmKeeper, statedb.NewEmptyTxConfig())
-	resp, err := k.evmKeeper.CallEVMWithData(ctx, stateDB, from, contract, data, commit, false, nil)
-	if err != nil && resp != nil && resp.VmError == vm.ErrOutOfGas.Error() {
-		return resp, sdkerrors.ErrOutOfGas
-	}
-	return resp, err
+	return k.evmKeeper.CallEVMWithData(ctx, stateDB, from, contract, data, commit, false, nil)
 }
