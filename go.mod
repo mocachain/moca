@@ -325,7 +325,7 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/mocachain/moca-cosmos-sdk v1.4.0-rc1
 	// cosmos/evm v0.6.4 plus the snapshotmulti CacheMultiStore branch fix (mocachain/cosmos-evm#2);
 	// drop once upstream releases it
-	github.com/cosmos/evm => github.com/mocachain/cosmos-evm v0.6.4-0.20261106044603-21cb9ee903dd
+	github.com/cosmos/evm => github.com/mocachain/cosmos-evm v0.6.4-moca.0
 	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// use cosmos flavored protobufs
