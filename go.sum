@@ -687,8 +687,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjUEN1uBnDo34A=
 github.com/mitchellh/pointerstructure v1.2.0/go.mod h1:BRAsLI5zgXmw97Lf6s25bs8ohIXc3tViBH44KcwB2g4=
-github.com/mocachain/cosmos-evm v0.6.4-moca.0 h1:vYqAE6hdioGfQos7qSAmmuPV0XIzpMgQ0Jq2rt+UuRA=
-github.com/mocachain/cosmos-evm v0.6.4-moca.0/go.mod h1:QnaJDtxqon2mywiYqxM8VwW8FKeFazi0au0qzVpFAG8=
+github.com/mocachain/cosmos-evm v0.6.4-moca.2 h1:hDJJeE20ZvKScFi1aSMz7Y0mp/XlrMJadP9apK6Ofj8=
+github.com/mocachain/cosmos-evm v0.6.4-moca.2/go.mod h1:QnaJDtxqon2mywiYqxM8VwW8FKeFazi0au0qzVpFAG8=
 github.com/mocachain/moca-cometbft v1.3.0-rc1 h1:6xSRlLiH2f425p48uoL4h5szQLGK18taHy2nC1D10SU=
 github.com/mocachain/moca-cometbft v1.3.0-rc1/go.mod h1:SKfrdeoojPLDk+rRyBtyRpaCW8jjHK3R6YMtgq7PJdc=
 github.com/mocachain/moca-cosmos-sdk v1.4.0-rc1 h1:ZYHKOUYBU01+NJ0CnXzZ78yGD0iC+B4UXQBSHRP6/Uw=
