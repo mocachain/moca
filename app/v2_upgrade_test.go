@@ -9,6 +9,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
 
+	"github.com/mocachain/moca/v2/app/upgrades"
 	cmdcfg "github.com/mocachain/moca/v2/cmd/config"
 	precompilesstorage "github.com/mocachain/moca/v2/precompiles/storage"
 	mocatypes "github.com/mocachain/moca/v2/types"
@@ -356,4 +358,24 @@ func TestMigrateToV2_DropsMirrorRelayerFees(t *testing.T) {
 		b = b[n+m:]
 	}
 	require.Equal(t, params, mocaApp.StorageKeeper.GetParams(ctx))
+}
+
+// TestV2UpgradeHandler_BurnsCrosschainGenesisMint: the v2 upgrade empties the crosschain
+// module account and lowers the supply by exactly the genesis mint.
+func TestV2UpgradeHandler_BurnsCrosschainGenesisMint(t *testing.T) {
+	mocaApp := EthSetup(false, nil)
+	ctx := mocaApp.NewContext(false).WithBlockHeight(100)
+	initStorageParamsForUpgrade(t, mocaApp, ctx)
+
+	crosschainAddr := authtypes.NewModuleAddress("crosschain")
+	mint := sdk.NewCoins(sdk.NewCoin(mocatypes.AttoMoca, upgrades.CrosschainGenesisMint))
+	require.NoError(t, mocaApp.BankKeeper.MintCoins(ctx, evmtypes.ModuleName, mint))
+	require.NoError(t, mocaApp.BankKeeper.SendCoinsFromModuleToAccount(ctx, evmtypes.ModuleName, crosschainAddr, mint))
+	supply := mocaApp.BankKeeper.GetSupply(ctx, mocatypes.AttoMoca).Amount
+
+	require.NoError(t, mocaApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: upgradeNameV2, Height: ctx.BlockHeight()}))
+
+	require.True(t, mocaApp.BankKeeper.GetBalance(ctx, crosschainAddr, mocatypes.AttoMoca).IsZero())
+	require.Equal(t, supply.Sub(upgrades.CrosschainGenesisMint).String(),
+		mocaApp.BankKeeper.GetSupply(ctx, mocatypes.AttoMoca).Amount.String())
 }

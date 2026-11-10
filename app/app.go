@@ -1509,6 +1509,10 @@ func (app *Moca) setupUpgradeHandlers() {
 		if _, _, _, err := upgrades.ReassignGovernancePayerBuckets(sdkCtx, app.StorageKeeper); err != nil {
 			return fromVM, err
 		}
+		// Burn the 2,000,000 MOCA that x/crosschain minted to its module account at genesis.
+		if _, err := upgrades.BurnCrosschainGenesisMint(ctx, app.BankKeeper, mocatypes.AttoMoca); err != nil {
+			return fromVM, err
+		}
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
