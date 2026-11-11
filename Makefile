@@ -4,8 +4,8 @@
 -include .env
 export
 
-GO_TOOLCHAIN ?= go1.26.10
-VULNCHECK_GO_TOOLCHAIN ?= go1.26.10
+GO_TOOLCHAIN ?= go1.26.11
+VULNCHECK_GO_TOOLCHAIN ?= go1.26.11
 GO := env GOTOOLCHAIN=$(GO_TOOLCHAIN) go
 
 # Configure git to use HTTPS+Token for private repositories if GITHUB_TOKEN is set
@@ -474,6 +474,7 @@ localnet-show-logstream:
 ###############################################################################
 
 PACKAGE_NAME:=github.com/mocachain/moca
+# Release builds pin the Go compiler with GOTOOLCHAIN in the docker run targets below.
 GOLANG_CROSS_VERSION  = v1.26.10
 GOPATH ?= $(HOME)/go
 REPO_OWNER ?= mocachain
@@ -482,6 +483,7 @@ release-dry-run:
 		--rm \
 		--privileged \
 		-e CGO_ENABLED=1 \
+		-e GOTOOLCHAIN=go1.26.11 \
 		-e REPO_OWNER=$(REPO_OWNER) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -499,6 +501,7 @@ release:
 		--rm \
 		--privileged \
 		-e CGO_ENABLED=1 \
+		-e GOTOOLCHAIN=go1.26.11 \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
