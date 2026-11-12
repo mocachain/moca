@@ -52,6 +52,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### State Machine Breaking
 
+- (app/upgrades) [#619](https://github.com/mocachain/moca/pull/619) Add the `v1.5.0` upgrade handler. It burns the 2,000,000 MOCA that `x/crosschain` minted to its module account at genesis for testing: the handler moves them to the gov module account and burns them there. Mainnet supply goes from 8,890,888,888 to 8,888,888,888 MOCA.
 - (x/evm) [#536](https://github.com/mocachain/moca/pull/536) Backport to `release/v1.4.x`: restrict the authz precompile's `grant` and `exec` to the message types it supports: a generic grant for an unsupported type is refused, and `exec` no longer decodes EVM or nested authz messages. This matches the message set the cosmos-transaction path already allows through authz, so a transaction relying on the wider set is now rejected (MOCA-500)
 
 ### Bug Fixes
