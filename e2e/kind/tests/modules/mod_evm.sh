@@ -22,14 +22,14 @@ evm_setup() {
     log_info "[evm] Generating 10 recipient addresses..."
     for ((i = 0; i < 10; i++)); do
         local key
-        key=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key')
+        key=$(cast_new_privkey)
         _EVM_ADDRS+=("$(cast wallet address "$key" 2>/dev/null)")
     done
 
     # Secondary accounts for ERC20
-    _EVM_ALICE_KEY=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key')
+    _EVM_ALICE_KEY=$(cast_new_privkey)
     _EVM_ALICE_ADDR=$(cast wallet address "$_EVM_ALICE_KEY" 2>/dev/null)
-    _EVM_BOB_KEY=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key')
+    _EVM_BOB_KEY=$(cast_new_privkey)
     _EVM_BOB_ADDR=$(cast wallet address "$_EVM_BOB_KEY" 2>/dev/null)
 
     # Fund secondary accounts for gas
@@ -150,7 +150,7 @@ _evm_verify_erc20_supply() {
 }
 
 _evm_verify_fresh_transfer() {
-    local recv_key; recv_key=$(cast wallet new --json 2>/dev/null | jq -r '.[0].private_key')
+    local recv_key; recv_key=$(cast_new_privkey)
     local recv_addr; recv_addr=$(cast wallet address "$recv_key" 2>/dev/null)
     cast send "$recv_addr" --value 0.1ether \
         --private-key "$VAL0_PRIVKEY" --rpc-url "$EVM_RPC" \
