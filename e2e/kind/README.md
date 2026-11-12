@@ -36,7 +36,7 @@ make e2e-fw-test TEST=upgrade_hardfork
 make e2e-fw-test TEST=upgrade_governance
 
 # Run with OLD_VERSION for upgrade tests
-OLD_VERSION=v1.4.3 make e2e-fw-test TEST=upgrade_hardfork
+OLD_VERSION=v1.2.1 make e2e-fw-test TEST=upgrade_hardfork
 
 # Dev mode (skip cleanup, leave cluster running for debugging)
 make e2e-fw-dev TEST=smoke
@@ -109,7 +109,7 @@ Tests a binary upgrade from an old version to the current build using the app.to
 
 ```bash
 # Upgrade from a specific release (pulls/builds old version, deploys, upgrades, validates)
-OLD_VERSION=v1.4.3 make e2e-kind-upgrade-hardfork
+OLD_VERSION=v1.2.1 make e2e-kind-upgrade-hardfork
 ```
 
 ### Upgrade Tests (governance mode)
