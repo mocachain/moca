@@ -14,11 +14,17 @@ jobs:
           check-latest: true
       - name: "Checkout Repository"
         uses: actions/checkout@v7
+      - name: "vulncheck.sh tests"
+        run: bash scripts/vulncheck_test.sh
       - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
             go.mod
             go.sum
+            Makefile
+            scripts/vulncheck.sh
+            scripts/vulncheck_known.txt
+            .github/workflows/dependencies.yml
       - name: "Dependency Review"
         uses: actions/dependency-review-action@v5
         if: env.GIT_DIFF

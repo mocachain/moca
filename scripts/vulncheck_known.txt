@@ -1,0 +1,4 @@
+# Advisories that `make vulncheck` reports and that have no fixed version for the modules this repository imports, one per line: <ID>  # why.
+# `make vulncheck` fails if govulncheck reports any other advisory, or if an advisory listed here is no longer reported.
+GO-2026-4479  # github.com/pion/dtls/v2 has no fixed v2 release; go-ethereum's p2p/nat links it through pion/stun/v2 until go-ethereum v1.17.4
+GO-2026-5932  # golang.org/x/crypto/openpgp has no fixed release; the cosmos-sdk fork's crypto/armor.go imports openpgp/armor, as upstream cosmos-sdk does

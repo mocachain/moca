@@ -271,11 +271,12 @@ go.sum: go.mod
 	$(GO) mod verify
 	$(GO) mod tidy
 
+# fails on an advisory that scripts/vulncheck_known.txt does not list, and on a listed one that is no longer reported
 vulncheck: $(BUILDDIR)/
 	VULNCHECK_GOROOT="$$(env GOTOOLCHAIN=$(VULNCHECK_GO_TOOLCHAIN) go env GOROOT)" && \
 	PATH="$$VULNCHECK_GOROOT/bin:$$PATH" GOBIN=$(BUILDDIR) go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	VULNCHECK_GOROOT="$$(env GOTOOLCHAIN=$(VULNCHECK_GO_TOOLCHAIN) go env GOROOT)" && \
-	PATH="$$VULNCHECK_GOROOT/bin:$$PATH" $(BUILDDIR)/govulncheck ./...
+	PATH="$$VULNCHECK_GOROOT/bin:$$PATH" bash ./scripts/vulncheck.sh $(BUILDDIR)/govulncheck ./...
 
 ###############################################################################
 ###                              Documentation                              ###
