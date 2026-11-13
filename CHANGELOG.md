@@ -45,6 +45,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (ci) [#619](https://github.com/mocachain/moca/pull/619) Run the kind e2e matrix on pull requests to `release/v1.4.x` (it was still gated on `release/1.3.x`), point its governance and comprehensive upgrade jobs at `v1.4.3` to `v1.5.0`, and drop its hardfork job, which on this branch swaps binaries without applying an upgrade.
 - (build) [#616](https://github.com/mocachain/moca/pull/616) Bump the Go toolchain to 1.26.11 (Go 1.26.11 carries security fixes to cgo, the go command, the compiler, the linker and `net/http`) across the `go.mod` `toolchain` directive (the `go` directive stays `go 1.23.6`), the build/goreleaser/e2e Dockerfiles, `.tool-versions` and the CI workflow `go-version` pins. The build and `e2e/kind` Dockerfiles move from `bookworm` to `trixie` images (`golang:1.26.11-trixie`, `debian:trixie-slim`), matching `Dockerfile.goreleaser` since #579. goreleaser-cross has no `v1.26.11` image yet, so the release targets keep `goreleaser-cross:v1.26.10` and set `GOTOOLCHAIN=go1.26.11` inside it. Backport of #614.
 - (build) [#576](https://github.com/mocachain/moca/pull/576) Bump the Go toolchain to 1.26.10 across the `go.mod` `toolchain` directive, the build/goreleaser/e2e Dockerfiles (now `golang:1.26.10-bookworm`), the `goreleaser-cross` release builds (pinned via `GOTOOLCHAIN`), the CI workflow `go-version` pins; also bumps `github.com/bytedance/sonic` to `v1.15.1` (+ `loader` `v0.5.1`) and `cosmovisor` to the v1.7.2 pin main uses, both required to compile under Go 1.26. The `go` directive stays `go 1.23.6`
 - (docker) [#546](https://github.com/mocachain/moca/pull/546) Build the release images on `golang:1.23.6-bookworm`; the bullseye security archive no longer serves the packages the image installs.
@@ -52,6 +53,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### State Machine Breaking
 
+- (app/upgrades) [#619](https://github.com/mocachain/moca/pull/619) Add the `v1.5.0` upgrade handler. It burns the 2,000,000 MOCA that `x/crosschain` minted to its module account at genesis for testing: the handler moves them to the gov module account and burns them there. Mainnet supply goes from 8,890,888,888 to 8,888,888,888 MOCA.
 - (x/evm) [#536](https://github.com/mocachain/moca/pull/536) Backport to `release/v1.4.x`: restrict the authz precompile's `grant` and `exec` to the message types it supports: a generic grant for an unsupported type is refused, and `exec` no longer decodes EVM or nested authz messages. This matches the message set the cosmos-transaction path already allows through authz, so a transaction relying on the wider set is now rejected (MOCA-500)
 
 ### Bug Fixes

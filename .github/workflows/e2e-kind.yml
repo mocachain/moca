@@ -3,21 +3,21 @@ name: E2E Kind Tests
 on:
   pull_request:
     branches:
-      - release/1.3.x
+      - release/v1.4.x
   workflow_dispatch:
     inputs:
       old_version:
-        description: "Old version tag for upgrade tests (used by hardfork/governance/comprehensive)"
-        default: "v1.2.1"
+        description: "Old version tag for upgrade tests (used by governance/comprehensive)"
+        default: "v1.4.3"
         type: string
       upgrade_name:
         description: "Upgrade name — must match a registered handler in the new binary (governance/comprehensive)"
-        default: "v1.3.0"
+        default: "v1.5.0"
         type: string
 
 env:
-  OLD_VERSION: ${{ inputs.old_version || 'v1.2.1' }}
-  UPGRADE_NAME: ${{ inputs.upgrade_name || 'v1.3.0' }}
+  OLD_VERSION: ${{ inputs.old_version || 'v1.4.3' }}
+  UPGRADE_NAME: ${{ inputs.upgrade_name || 'v1.5.0' }}
   DOCKER_IMAGE: mocachain/moca
   DOCKER_TAG: e2e-local
   CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
@@ -80,8 +80,6 @@ jobs:
         include:
           - name: Smoke
             script: test_smoke.sh
-          - name: Upgrade (hardfork)
-            script: test_upgrade_hardfork.sh
           - name: Upgrade (governance)
             script: test_upgrade_governance.sh
           - name: Comprehensive
@@ -114,6 +112,11 @@ jobs:
       - name: Install Foundry
         if: matrix.foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          # Pinned on purpose: the suites' cast output parsing (cast_new_privkey, `cast send/receipt --json`)
+          # is verified against this release. `stable` moved 1.7.1 -> 1.8.1 on 2026-08-28 and changed the
+          # `cast wallet new --json` shape under every open PR; bump this deliberately, with the suites.
+          version: v1.8.1
 
       - name: Run ${{ matrix.name }}
         env:

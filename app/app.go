@@ -1593,6 +1593,14 @@ func (app *Evmos) setupUpgradeHandlers() {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
+	// v1.5.0 burns the 2,000,000 MOCA that x/crosschain minted to its module account at genesis.
+	app.UpgradeKeeper.SetUpgradeHandler("v1.5.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		if _, err := upgrades.BurnCrosschainGenesisMint(ctx, app.BankKeeper, evmostypes.AttoEvmos); err != nil {
+			return fromVM, err
+		}
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
 	// testnet only upgrade Handlers
 	app.UpgradeKeeper.SetUpgradeHandler(
 		"testnet-gov-param-fix",

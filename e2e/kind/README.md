@@ -117,7 +117,7 @@ OLD_VERSION=v1.2.1 make e2e-kind-upgrade-hardfork
 Same as hardfork mode but triggers the upgrade via a governance software-upgrade proposal.
 
 ```bash
-OLD_VERSION=v1.2.1 make e2e-kind-upgrade-governance
+OLD_VERSION=v1.4.3 make e2e-kind-upgrade-governance
 ```
 
 ## Step by Step
@@ -302,7 +302,7 @@ curl http://localhost:26657/net_info | jq '.result.n_peers'
 
 ## CI
 
-The GitHub Actions workflow (`.github/workflows/e2e-kind.yml`) runs automatically on PRs to `release/1.3.x`. It:
+The GitHub Actions workflow (`.github/workflows/e2e-kind.yml`) runs automatically on PRs to `release/v1.4.x`. It:
 
 1. Installs Kind
 2. Builds Docker image and deploys to Kind
