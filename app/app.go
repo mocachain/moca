@@ -1435,6 +1435,10 @@ func v2StoreUpgrades() *storetypes.StoreUpgrades {
 // registration, the store-loader guard below, and the upgrade tests.
 const upgradeNameV2 = "v2.0.0"
 
+// upgradeNameV150 is the v1.5.0 software-upgrade plan name, shared by the handler
+// registration and the upgrade tests.
+const upgradeNameV150 = "v1.5.0"
+
 func (app *Moca) setupUpgradeHandlers() {
 	// When a planned update height is reached, the old binary will panic
 	// writing on disk the height and name of the update that triggered it
@@ -1476,6 +1480,14 @@ func (app *Moca) setupUpgradeHandlers() {
 	// v1.4.0 tightened module validation/settlement with no consensus-version
 	// change, so this noop RunMigrations only gates the coordinated binary swap.
 	app.UpgradeKeeper.SetUpgradeHandler("v1.4.0", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
+	// v1.5.0 burns the 2,000,000 MOCA that x/crosschain minted to its module account at genesis.
+	app.UpgradeKeeper.SetUpgradeHandler(upgradeNameV150, func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		if _, err := upgrades.BurnCrosschainGenesisMint(ctx, app.BankKeeper, mocatypes.AttoMoca); err != nil {
+			return fromVM, err
+		}
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
