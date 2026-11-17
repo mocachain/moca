@@ -8,6 +8,12 @@ replaced the Cosmos-message suite that used to live here (and in `e2e/core`),
 which signed through the EIP-712 path the chain no longer supports and had been
 failing for a long time.
 
+Two tests check EVM behaviour that involves no precompile:
+`TestEip7702Delegation` (an EIP-7702 `SetCodeTx` installs the delegation
+designator) and `TestEip1153TransientStorageClearsBetweenTransactions` (EIP-1153
+transient storage works within a transaction and is empty at the start of the
+next, in the same block and in a later one).
+
 ## Running it
 
 ```bash
