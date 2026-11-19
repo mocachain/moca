@@ -1,4 +1,4 @@
-FROM golang:1.26.11-trixie AS builder
+FROM golang:1.27.4-trixie AS builder
 
 ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     make build
 
 
-FROM golang:1.26.11-trixie
+FROM golang:1.27.4-trixie
 RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates jq && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /workspace/build/mocad /usr/local/bin/mocad
