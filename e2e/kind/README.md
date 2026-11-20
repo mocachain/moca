@@ -36,7 +36,7 @@ make e2e-fw-test TEST=upgrade_hardfork
 make e2e-fw-test TEST=upgrade_governance
 
 # Run with OLD_VERSION for upgrade tests
-OLD_VERSION=v12.0.1 make e2e-fw-test TEST=upgrade_hardfork
+OLD_VERSION=v1.5.0 make e2e-fw-test TEST=upgrade_hardfork
 
 # Dev mode (skip cleanup, leave cluster running for debugging)
 make e2e-fw-dev TEST=smoke
@@ -115,10 +115,10 @@ must stay above the height the pre-upgrade setup reaches.
 
 ```bash
 # Upgrade from a specific release (pulls/builds old version, deploys, upgrades, validates)
-OLD_VERSION=v12.0.1 make e2e-kind-upgrade-hardfork
+OLD_VERSION=v1.5.0 make e2e-kind-upgrade-hardfork
 
 # Move the scheduled halt if setup needs more room
-HARDFORK_HEIGHT=80 OLD_VERSION=v1.3.0 make e2e-fw-test TEST=upgrade_hardfork
+HARDFORK_HEIGHT=80 OLD_VERSION=v1.5.0 make e2e-fw-test TEST=upgrade_hardfork
 ```
 
 ### Upgrade Tests (governance mode)
@@ -126,7 +126,7 @@ HARDFORK_HEIGHT=80 OLD_VERSION=v1.3.0 make e2e-fw-test TEST=upgrade_hardfork
 Same as hardfork mode but triggers the upgrade via a governance software-upgrade proposal.
 
 ```bash
-OLD_VERSION=v12.0.1 make e2e-kind-upgrade-governance
+OLD_VERSION=v1.5.0 make e2e-kind-upgrade-governance
 ```
 
 ## Step by Step

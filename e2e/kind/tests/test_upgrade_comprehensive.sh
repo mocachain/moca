@@ -21,7 +21,7 @@
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
-OLD_VERSION="${OLD_VERSION:-v1.3.0}"
+OLD_VERSION="${OLD_VERSION:-v1.5.0}"
 UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
 UPGRADE_MODE="${UPGRADE_MODE:-governance}"
 TX_ROUNDS="${TX_ROUNDS:-3}"
