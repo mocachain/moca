@@ -10,7 +10,7 @@
 source "$(dirname "$0")/../framework/framework.sh"
 fw_init
 
-OLD_VERSION="${OLD_VERSION:-v1.3.0}"
+OLD_VERSION="${OLD_VERSION:-v1.5.0}"
 UPGRADE_NAME="${UPGRADE_NAME:-v2.0.0}"
 
 # The hardfork height has to be fixed before the chain starts: app.toml is read
