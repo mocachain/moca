@@ -4,7 +4,7 @@
 -include .env
 export
 # Not exported: make would expand them, and so run `go list ./...`, for every command and $(shell) it starts.
-unexport PACKAGES_NOSIMULATION PACKAGES_UNIT
+unexport PACKAGES_NOSIMULATION PACKAGES_UNIT TEST_PACKAGES
 
 GO_TOOLCHAIN ?= go1.26.11
 VULNCHECK_GO_TOOLCHAIN ?= go1.26.11
