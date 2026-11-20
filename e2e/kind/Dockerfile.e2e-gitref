@@ -13,10 +13,11 @@ WORKDIR /workspace
 
 # Build the ref with the toolchain its own go.mod names: the image sets
 # GOTOOLCHAIN=local, which would compile old refs with a Go they predate.
+# Old refs still export their `go list` variables; pass them empty so make skips those calls.
 RUN git clone "https://${REPO_URL}.git" . && \
     git checkout "${GIT_REF}" && \
     GOTOOLCHAIN="$(sed -n 's/^toolchain //p' go.mod)" && \
-    GOTOOLCHAIN="${GOTOOLCHAIN:-local}" make build
+    GOTOOLCHAIN="${GOTOOLCHAIN:-local}" make build PACKAGES_NOSIMULATION= PACKAGES_UNIT=
 
 FROM debian:trixie-slim
 RUN apt-get update && apt-get install -y --no-install-recommends bash ca-certificates jq curl && rm -rf /var/lib/apt/lists/*
