@@ -1,6 +1,6 @@
 module github.com/mocachain/moca/v2
 
-go 1.26.10
+go 1.26.11
 
 require (
 	cosmossdk.io/api v0.9.2
